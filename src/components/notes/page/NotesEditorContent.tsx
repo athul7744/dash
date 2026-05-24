@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { NotesBlockTree } from "@/components/notes/NotesBlockTree";
 import { NotesEditorMainSkeleton } from "@/components/notes/NotesPageSkeleton";
@@ -97,13 +97,50 @@ export function NotesEditorContent({
 }) {
   const [blocksSettled, setBlocksSettled] = useState(false);
   const blockCount = editorContent?.blocks.length ?? 0;
+  const emptySettleTimerRef = useRef<number | null>(null);
+  const previousPageIdRef = useRef<string | null | undefined>(editorContent?.pageId);
+
+  // Reset settling state when navigating to a different page
+  if (editorContent?.pageId !== previousPageIdRef.current) {
+    previousPageIdRef.current = editorContent?.pageId;
+    if (blocksSettled) {
+      setBlocksSettled(false);
+    }
+    if (emptySettleTimerRef.current !== null) {
+      window.clearTimeout(emptySettleTimerRef.current);
+      emptySettleTimerRef.current = null;
+    }
+  }
 
   useEffect(() => {
     if (blocksSettled) return;
 
-    if (blockCount === 0 && !showSelectedPageLoading) {
-      setBlocksSettled(true);
+    if (blockCount > 0) {
+      // Blocks arrived — onFirstBlockReady will handle settling
+      if (emptySettleTimerRef.current !== null) {
+        window.clearTimeout(emptySettleTimerRef.current);
+        emptySettleTimerRef.current = null;
+      }
+      return;
     }
+
+    if (showSelectedPageLoading) {
+      return;
+    }
+
+    // Page loaded but 0 blocks — wait briefly for sync to deliver blocks
+    if (emptySettleTimerRef.current !== null) return;
+    emptySettleTimerRef.current = window.setTimeout(() => {
+      emptySettleTimerRef.current = null;
+      setBlocksSettled(true);
+    }, 150);
+
+    return () => {
+      if (emptySettleTimerRef.current !== null) {
+        window.clearTimeout(emptySettleTimerRef.current);
+        emptySettleTimerRef.current = null;
+      }
+    };
   }, [blockCount, blocksSettled, showSelectedPageLoading]);
 
   const handleFirstBlockReady = useCallback(() => {

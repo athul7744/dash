@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { NotesBlockTree } from "@/components/notes/NotesBlockTree";
 import { NotesEditorMainSkeleton } from "@/components/notes/NotesPageSkeleton";
@@ -96,41 +96,21 @@ export function NotesEditorContent({
   onUpdateContent: (blockId: string, nextContent: JsonValue) => void;
 }) {
   const [blocksSettled, setBlocksSettled] = useState(false);
-  const blockTreeRef = useRef<HTMLDivElement | null>(null);
   const blockCount = editorContent?.blocks.length ?? 0;
 
   useEffect(() => {
     if (blocksSettled) return;
 
-    if (blockCount === 0) {
-      if (!showSelectedPageLoading) {
-        setBlocksSettled(true);
-      }
-      return;
-    }
-
-    const container = blockTreeRef.current;
-    if (!container) return;
-
-    if (container.querySelector(".ProseMirror")) {
+    if (blockCount === 0 && !showSelectedPageLoading) {
       setBlocksSettled(true);
-      return;
     }
-
-    const observer = new MutationObserver(() => {
-      if (container.querySelector(".ProseMirror")) {
-        observer.disconnect();
-        setBlocksSettled(true);
-      }
-    });
-
-    observer.observe(container, { childList: true, subtree: true });
-
-    return () => observer.disconnect();
   }, [blockCount, blocksSettled, showSelectedPageLoading]);
 
+  const handleFirstBlockReady = useCallback(() => {
+    setBlocksSettled(true);
+  }, []);
+
   const blockTreeRefCallback = useCallback((node: HTMLDivElement | null) => {
-    blockTreeRef.current = node;
     if (node === null) {
       setBlocksSettled(false);
     }
@@ -199,6 +179,7 @@ export function NotesEditorContent({
               onDelete={onDelete}
               onDeleteRange={onDeleteRange}
               onUpdateContent={onUpdateContent}
+              onFirstBlockReady={handleFirstBlockReady}
             />
           </div>
         </div>

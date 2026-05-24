@@ -708,6 +708,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   onCreateSiblings,
   onMergeWithPrevious,
   onOpenPageReference,
+  onEditorCreate,
   onNavigateUp,
   onNavigateDown,
   onSelectUp,
@@ -740,6 +741,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   onCreateSiblings?: (content: NoteBlockInsert, siblingContents: NoteBlockInsert[]) => Promise<void> | void;
   onMergeWithPrevious?: (content: JSONContent, options?: { hasChildren?: boolean }) => void | Promise<void>;
   onOpenPageReference?: (title: string) => void;
+  onEditorCreate?: () => void;
   onNavigateUp?: () => void;
   onNavigateDown?: () => void;
   onSelectUp?: () => void;
@@ -758,6 +760,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   const onCreateSiblingsRef = useRef(onCreateSiblings);
   const onMergeWithPreviousRef = useRef(onMergeWithPrevious);
   const onOpenPageReferenceRef = useRef(onOpenPageReference);
+  const onEditorCreateRef = useRef(onEditorCreate);
   const onNavigateUpRef = useRef(onNavigateUp);
   const onNavigateDownRef = useRef(onNavigateDown);
   const onSelectUpRef = useRef(onSelectUp);
@@ -939,6 +942,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
     onCreateSiblingsRef.current = onCreateSiblings;
     onMergeWithPreviousRef.current = onMergeWithPrevious;
     onOpenPageReferenceRef.current = onOpenPageReference;
+    onEditorCreateRef.current = onEditorCreate;
     onNavigateUpRef.current = onNavigateUp;
     onNavigateDownRef.current = onNavigateDown;
     onSelectUpRef.current = onSelectUp;
@@ -1557,6 +1561,9 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
       onChangeRef.current(nextContent);
       updateSlashQuery(nextEditor);
       updatePageReferenceQuery(nextEditor);
+    },
+    onCreate() {
+      onEditorCreateRef.current?.();
     },
   }, []);
 

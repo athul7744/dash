@@ -134,6 +134,7 @@ function BlockNodeView({
   onSelectUp,
   onSelectDown,
   onClearSelection,
+  onBlockEditorCreate,
 }: {
   node: BlockTreeNode;
   depth?: number;
@@ -177,6 +178,7 @@ function BlockNodeView({
   onSelectUp: (blockId: string, previousBlockId: string) => void;
   onSelectDown: (blockId: string, nextBlockId: string) => void;
   onClearSelection: () => void;
+  onBlockEditorCreate?: () => void;
 }) {
   const previousBlockId = previousBlockIdById.get(node.block.id) ?? null;
   const nextBlockId = nextBlockIdById.get(node.block.id) ?? null;
@@ -394,6 +396,7 @@ function BlockNodeView({
                 shouldFocus={isFocused}
                 focusPlacement={focusPlacement}
                 onFocusApplied={onFocusApplied}
+                onEditorCreate={onBlockEditorCreate}
                 onFocus={() => {
                   onEditorFocus(node.block.id, "start");
                 }}
@@ -467,6 +470,7 @@ function BlockNodeView({
               onSelectUp={onSelectUp}
               onSelectDown={onSelectDown}
               onClearSelection={onClearSelection}
+              onBlockEditorCreate={onBlockEditorCreate}
             />
           ))}
         </div>
@@ -495,6 +499,7 @@ export function NotesBlockTree({
   onDelete,
   onDeleteRange,
   onUpdateContent,
+  onFirstBlockReady,
 }: {
   blocks: NoteBlockRow[];
   onCreateFirstBlock: () => void;
@@ -525,6 +530,7 @@ export function NotesBlockTree({
   onDelete: (blockId: string) => void;
   onDeleteRange: (blockIds: string[]) => void | Promise<void>;
   onUpdateContent: (blockId: string, nextContent: JsonValue) => void;
+  onFirstBlockReady?: () => void;
 }) {
   const [markdownToggleVersions, setMarkdownToggleVersions] = useState<Record<string, number>>({});
   const [blockRangeSelection, setBlockRangeSelection] = useState<{ anchorBlockId: string; focusBlockId: string } | null>(null);
@@ -547,6 +553,13 @@ export function NotesBlockTree({
     () => new Set(orderedBlockIds.slice(0, EAGER_MOUNT_COUNT)),
     [orderedBlockIds]
   );
+
+  const firstBlockReadyFiredRef = useRef(false);
+  const handleBlockEditorCreate = () => {
+    if (firstBlockReadyFiredRef.current) return;
+    firstBlockReadyFiredRef.current = true;
+    onFirstBlockReady?.();
+  };
 
   const handleToggleMarkdownMode = (blockId: string) => {
     setMarkdownToggleVersions((current) => ({
@@ -680,6 +693,7 @@ export function NotesBlockTree({
           onSelectUp={handleSelectUp}
           onSelectDown={handleSelectDown}
           onClearSelection={() => setBlockRangeSelection(null)}
+          onBlockEditorCreate={handleBlockEditorCreate}
         />
       ))}
 

@@ -36,6 +36,7 @@ import { useNoteBlockActions } from "@/components/notes/page/useNoteBlockActions
 import { useNotePageActions } from "@/components/notes/page/useNotePageActions";
 import { NotesPageSearchPopup } from "@/components/notes/page/NotesPageSearchPopup";
 import { useNotesPageDerivedState } from "@/components/notes/page/useNotesPageDerivedState";
+import { useNotesLayoutState } from "@/components/notes/page/useNotesLayoutState";
 import { useNotesSurfaceState } from "@/components/notes/page/useNotesSurfaceState";
 import { buildOutlineEntries, formatTimestampLabel } from "@/components/notes/page/utils";
 import { ManageTagsDialog } from "@/components/tasks/ManageTagsDialog";
@@ -43,7 +44,6 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRelativeTimeTick } from "@/hooks/use-relative-time-tick";
 
 const notesApp = getApp("notes");
-const NOTES_DESKTOP_PANEL_PREFERENCE_KEY = "notes.desktop-panels";
 const MOBILE_EDGE_SWIPE_TRIGGER_PX = 56;
 const MOBILE_EDGE_SWIPE_MAX_VERTICAL_DRIFT_PX = 48;
 
@@ -70,24 +70,28 @@ export default function NotesPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingPage, setIsDeletingPage] = useState(false);
   const [isManageTagsOpen, setIsManageTagsOpen] = useState(false);
-  const [isMobilePagesDrawerOpen, setIsMobilePagesDrawerOpen] = useState(false);
-  const [isMobileDetailsDrawerOpen, setIsMobileDetailsDrawerOpen] = useState(false);
-  const [pageRailSectionOpen, setPageRailSectionOpen] = useState({
-    favorites: true,
-    recent: true,
-    tags: true,
-  });
-  const [showEditorAppHeader, setShowEditorAppHeader] = useState(false);
-  const [showDesktopPagesRail, setShowDesktopPagesRail] = useState(true);
-  const [showDesktopDetailsRail, setShowDesktopDetailsRail] = useState(false);
-  const [tagDirectoryOpen, setTagDirectoryOpen] = useState<Record<string, boolean>>({});
-  const [detailsSectionOpen, setDetailsSectionOpen] = useState({
-    outline: true,
-    summary: true,
-    references: true,
-    mentions: true,
-    attachments: true,
-  });
+  const {
+    showEditorAppHeader,
+    setShowEditorAppHeader,
+    showDesktopPagesRail,
+    setShowDesktopPagesRail,
+    showDesktopDetailsRail,
+    setShowDesktopDetailsRail,
+    isMobilePagesDrawerOpen,
+    setIsMobilePagesDrawerOpen,
+    isMobileDetailsDrawerOpen,
+    setIsMobileDetailsDrawerOpen,
+    pageRailSectionOpen,
+    tagDirectoryOpen,
+    setTagDirectoryOpen,
+    detailsSectionOpen,
+    setDetailsSectionOpen,
+    togglePageRailSection,
+    toggleTagDirectoryGroup,
+    toggleDetailsSection,
+    areAllPageRailSectionsOpen,
+    toggleAllPageRailSections,
+  } = useNotesLayoutState();
   const isMobileViewport = useMediaQuery("(max-width: 639px)");
   const edgeSwipeStartRef = useRef<{ x: number; y: number; edge: "left" | "right" } | null>(null);
 
@@ -106,39 +110,7 @@ export default function NotesPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
 
-  useEffect(() => {
-    try {
-      const rawPreference = window.localStorage.getItem(NOTES_DESKTOP_PANEL_PREFERENCE_KEY);
-      if (!rawPreference) {
-        return;
-      }
 
-      const parsedPreference = JSON.parse(rawPreference) as {
-        showDesktopDetailsRail?: boolean;
-        showDesktopPagesRail?: boolean;
-      };
-
-      if (typeof parsedPreference.showDesktopPagesRail === "boolean") {
-        setShowDesktopPagesRail(parsedPreference.showDesktopPagesRail);
-      }
-
-      if (typeof parsedPreference.showDesktopDetailsRail === "boolean") {
-        setShowDesktopDetailsRail(parsedPreference.showDesktopDetailsRail);
-      }
-    } catch {
-      window.localStorage.removeItem(NOTES_DESKTOP_PANEL_PREFERENCE_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      NOTES_DESKTOP_PANEL_PREFERENCE_KEY,
-      JSON.stringify({
-        showDesktopPagesRail,
-        showDesktopDetailsRail,
-      })
-    );
-  }, [showDesktopDetailsRail, showDesktopPagesRail]);
 
   const { isLoading: isLoadingCounts } = useNoteCounts();
   const { pages: allPages = [] } = useAllNotePages();
@@ -530,36 +502,7 @@ export default function NotesPage() {
     };
   }, [isPageSearchOpen, pageSearchQuery]);
 
-  const togglePageRailSection = (section: keyof typeof pageRailSectionOpen) => {
-    setPageRailSectionOpen((current) => ({
-      ...current,
-      [section]: !current[section],
-    }));
-  };
 
-  const toggleTagDirectoryGroup = (tagKey: string) => {
-    setTagDirectoryOpen((current) => ({
-      ...current,
-      [tagKey]: !current[tagKey],
-    }));
-  };
-
-  const toggleDetailsSection = (section: keyof typeof detailsSectionOpen) => {
-    setDetailsSectionOpen((current) => ({
-      ...current,
-      [section]: !current[section],
-    }));
-  };
-
-  const areAllPageRailSectionsOpen = Object.values(pageRailSectionOpen).every(Boolean);
-
-  const toggleAllPageRailSections = () => {
-    setPageRailSectionOpen({
-      favorites: !areAllPageRailSectionsOpen,
-      recent: !areAllPageRailSectionsOpen,
-      tags: !areAllPageRailSectionsOpen,
-    });
-  };
 
   const {
     commitPageTitleDraft,

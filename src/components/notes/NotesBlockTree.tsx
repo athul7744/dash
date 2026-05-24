@@ -546,6 +546,14 @@ export function NotesBlockTree({
   const selectedBlockIdSet = useMemo(() => new Set(selectedBlockIds), [selectedBlockIds]);
 
   const firstBlockReadyFiredRef = useRef(false);
+  const previousBlockPageIdRef = useRef(blocks[0]?.page_id);
+
+  // Reset when blocks belong to a different page
+  if (blocks[0]?.page_id !== previousBlockPageIdRef.current) {
+    previousBlockPageIdRef.current = blocks[0]?.page_id;
+    firstBlockReadyFiredRef.current = false;
+  }
+
   const handleBlockEditorCreate = () => {
     if (firstBlockReadyFiredRef.current) return;
     firstBlockReadyFiredRef.current = true;

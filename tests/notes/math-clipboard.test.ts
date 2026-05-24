@@ -11,6 +11,7 @@ describe("math-clipboard", () => {
       expect(mathTokens).toHaveLength(1);
       expect(mathTokens[0].html).toContain('data-math-inline');
       expect(mathTokens[0].html).toContain('data-latex="E=mc^2"');
+      expect(mathTokens[0].html).toContain('&#8203;');
     });
 
     it("protects multiple inline math tokens", () => {
@@ -72,7 +73,7 @@ describe("math-clipboard", () => {
       const { protectedText, mathTokens } = protectMathTokens("$x^2$");
       const html = `<p>${protectedText}</p>`;
       const restored = restoreMathTokens(html, mathTokens);
-      expect(restored).toContain('<span data-math-inline="" data-latex="x^2"></span>');
+      expect(restored).toContain('<span data-math-inline="" data-latex="x^2">&#8203;</span>');
       expect(restored).not.toContain("MATHINLINE");
     });
 
@@ -80,7 +81,7 @@ describe("math-clipboard", () => {
       const { protectedText, mathTokens } = protectMathTokens("$$y = mx + b$$");
       const html = `<p>${protectedText}</p>`;
       const restored = restoreMathTokens(html, mathTokens);
-      expect(restored).toContain('<div data-math-block="" data-latex="y = mx + b"></div>');
+      expect(restored).toContain('<div data-math-block="" data-latex="y = mx + b">&#8203;</div>');
       expect(restored).not.toContain("MATHBLOCK");
     });
 
@@ -120,6 +121,22 @@ describe("math-clipboard", () => {
       expect(restored).toContain('data-math-block');
       expect(restored).toContain('data-latex="\\beta + \\gamma"');
       expect(restored).not.toContain("MATH");
+    });
+
+    it("handles latex with backslash commands and parentheses", () => {
+      const input = "Drops time to $O(\\alpha(N))$ -> effectively $O(1)$ amortized.";
+      const { protectedText, mathTokens } = protectMathTokens(input);
+
+      expect(mathTokens).toHaveLength(2);
+      expect(mathTokens[0].html).toContain('data-latex="O(\\alpha(N))"');
+      expect(mathTokens[1].html).toContain('data-latex="O(1)"');
+      expect(protectedText).not.toContain("$");
+
+      const html = `<p>${protectedText}</p>`;
+      const restored = restoreMathTokens(html, mathTokens);
+      expect(restored).toContain('data-math-inline');
+      expect(restored).toContain('data-latex="O(\\alpha(N))"');
+      expect(restored).toContain('data-latex="O(1)"');
     });
 
     it("matches inline math even when surrounded by dollar-like text", () => {

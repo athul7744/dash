@@ -26,7 +26,7 @@ export function protectMathTokens(text: string): { protectedText: string; mathTo
     const placeholder = `MATHBLOCK${index}END`;
     mathTokens.push({
       placeholder,
-      html: `<div data-math-block="" data-latex="${escapeHtml(latex.trim())}"></div>`,
+      html: `<div data-math-block="" data-latex="${escapeHtml(latex.trim())}">&#8203;</div>`,
     });
     index++;
     return placeholder;
@@ -37,7 +37,7 @@ export function protectMathTokens(text: string): { protectedText: string; mathTo
     const placeholder = `MATHINLINE${index}END`;
     mathTokens.push({
       placeholder,
-      html: `<span data-math-inline="" data-latex="${escapeHtml(latex.trim())}"></span>`,
+      html: `<span data-math-inline="" data-latex="${escapeHtml(latex.trim())}">&#8203;</span>`,
     });
     index++;
     return placeholder;

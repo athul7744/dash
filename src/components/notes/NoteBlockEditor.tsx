@@ -48,6 +48,7 @@ import {
   getSlashQuery,
   type SlashCommand,
 } from "@/components/notes/NoteBlockEditorSlash";
+import { MathInline, MathBlock } from "@/components/notes/NoteBlockEditorMath";
 import {
   getBlockArrowMoveAction,
   getBlockBackspaceAction,
@@ -1041,6 +1042,8 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
       Dropcursor,
       Gapcursor,
       ReferenceDecorations,
+      MathInline,
+      MathBlock,
     ],
     content: initialContentRef.current,
     editorProps: {

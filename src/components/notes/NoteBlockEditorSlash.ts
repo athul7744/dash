@@ -1,5 +1,5 @@
 import type { Editor, JSONContent } from "@tiptap/core";
-import { Code2, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Quote, Table2, TextCursorInput, type LucideIcon } from "lucide-react";
+import { Code2, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Quote, Sigma, Table2, TextCursorInput, type LucideIcon } from "lucide-react";
 
 export type SlashCommandSection = "basic" | "structure" | "media";
 
@@ -105,6 +105,13 @@ function emptyTableDocument(): JSONContent {
         ],
       },
     ],
+  };
+}
+
+function emptyMathBlockDocument(): JSONContent {
+  return {
+    type: "doc",
+    content: [{ type: "mathBlock", attrs: { latex: "" } }],
   };
 }
 
@@ -244,6 +251,16 @@ export const slashCommands: SlashCommand[] = [
     icon: ImageIcon,
     keywords: ["image", "media", "photo", "picture"],
     createContent: () => createScaffoldDocument("![alt](https://example.com/image.png)"),
+  },
+  {
+    id: "math-block",
+    section: "structure",
+    title: "Math Block",
+    description: "Display LaTeX equation block.",
+    shortcut: "/math",
+    icon: Sigma,
+    keywords: ["math", "latex", "equation", "formula", "katex"],
+    createContent: () => emptyMathBlockDocument(),
   },
 ];
 

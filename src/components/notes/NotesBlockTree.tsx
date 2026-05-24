@@ -99,8 +99,6 @@ export function extractBlockText(raw: string | null | undefined) {
   return extractNoteText(raw);
 }
 
-const EAGER_MOUNT_COUNT = 20;
-
 function BlockNodeView({
   node,
   depth = 0,
@@ -112,7 +110,6 @@ function BlockNodeView({
   previousBlockIdById,
   nextBlockIdById,
   blockSpacingMetaById,
-  eagerMountBlockIds,
   onFocusApplied,
   onFocusBlock,
   onEditorFocus,
@@ -146,7 +143,6 @@ function BlockNodeView({
   previousBlockIdById: ReadonlyMap<string, string | null>;
   nextBlockIdById: ReadonlyMap<string, string | null>;
   blockSpacingMetaById: ReadonlyMap<string, BlockSpacingMeta>;
-  eagerMountBlockIds: ReadonlySet<string>;
   onFocusApplied?: () => void;
   onFocusBlock: (blockId: string, placement: "start" | "end") => void;
   onEditorFocus: (blockId: string, placement: "start" | "end") => void;
@@ -200,7 +196,7 @@ function BlockNodeView({
   const longPressTimeoutRef = useRef<number | null>(null);
   const suppressPrimaryActionRef = useRef(false);
   const [isBlockMenuOpen, setIsBlockMenuOpen] = useState(false);
-  const [isNearViewport, setIsNearViewport] = useState(eagerMountBlockIds.has(node.block.id));
+  const [isNearViewport, setIsNearViewport] = useState(false);
   const articleRef = useRef<HTMLElement | null>(null);
 
   const isFocused = focusedBlockId === node.block.id;
@@ -448,7 +444,6 @@ function BlockNodeView({
               previousBlockIdById={previousBlockIdById}
               nextBlockIdById={nextBlockIdById}
               blockSpacingMetaById={blockSpacingMetaById}
-              eagerMountBlockIds={eagerMountBlockIds}
               onFocusApplied={onFocusApplied}
               onFocusBlock={onFocusBlock}
               onEditorFocus={onEditorFocus}
@@ -549,10 +544,6 @@ export function NotesBlockTree({
     return getSelectedBlockIds(orderedBlockIds, blockRangeSelection.anchorBlockId, blockRangeSelection.focusBlockId);
   }, [blockRangeSelection, orderedBlockIds]);
   const selectedBlockIdSet = useMemo(() => new Set(selectedBlockIds), [selectedBlockIds]);
-  const eagerMountBlockIds = useMemo(
-    () => new Set(orderedBlockIds.slice(0, EAGER_MOUNT_COUNT)),
-    [orderedBlockIds]
-  );
 
   const firstBlockReadyFiredRef = useRef(false);
   const handleBlockEditorCreate = () => {
@@ -671,7 +662,6 @@ export function NotesBlockTree({
           previousBlockIdById={previousBlockIdById}
           nextBlockIdById={nextBlockIdById}
           blockSpacingMetaById={blockSpacingMetaById}
-          eagerMountBlockIds={eagerMountBlockIds}
           onFocusApplied={onFocusApplied}
           onFocusBlock={handleFocusBlock}
           onEditorFocus={handleEditorFocus}

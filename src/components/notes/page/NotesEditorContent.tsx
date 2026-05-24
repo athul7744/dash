@@ -100,7 +100,15 @@ export function NotesEditorContent({
   const blockCount = editorContent?.blocks.length ?? 0;
 
   useEffect(() => {
-    if (blocksSettled || blockCount === 0) return;
+    if (blocksSettled) return;
+
+    if (blockCount === 0) {
+      // Settle empty pages only once loading has confirmed no blocks exist
+      if (!showSelectedPageLoading) {
+        setBlocksSettled(true);
+      }
+      return;
+    }
 
     const container = blockTreeRef.current;
     if (!container) return;
@@ -122,7 +130,7 @@ export function NotesEditorContent({
     observer.observe(container, { childList: true, subtree: true });
 
     return () => observer.disconnect();
-  }, [blockCount, blocksSettled]);
+  }, [blockCount, blocksSettled, showSelectedPageLoading]);
 
   const blockTreeRefCallback = useCallback((node: HTMLDivElement | null) => {
     blockTreeRef.current = node;
@@ -131,7 +139,7 @@ export function NotesEditorContent({
     }
   }, []);
 
-  const showBlocksSettling = blockCount > 0 && !blocksSettled;
+  const showBlocksSettling = !blocksSettled;
 
   if (showSelectedPageLoading && (!editorContent || blockCount === 0)) {
     return (

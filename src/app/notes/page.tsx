@@ -236,7 +236,6 @@ export default function NotesPage() {
   useEffect(() => {
     if (!selectedPageId) {
       hydratedPageIdRef.current = null;
-      setPageTitleDraft("");
       setPageTitleError(null);
       setPageEmojiDraft(undefined);
       setResolvedPageEmoji(undefined);

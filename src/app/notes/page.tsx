@@ -60,7 +60,6 @@ export default function NotesPage() {
   const [pageTitleError, setPageTitleError] = useState<string | null>(null);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [pageEmojiDraft, setPageEmojiDraft] = useState<string | null | undefined>(undefined);
-  const [resolvedPageEmoji, setResolvedPageEmoji] = useState<string | null | undefined>(undefined);
   const [summaryDraft, setSummaryDraft] = useState("");
   const [selectedTagIdsDraft, setSelectedTagIdsDraft] = useState<string[]>([]);
   const [blockContentDrafts, setBlockContentDrafts] = useState<Record<string, string>>({});
@@ -212,9 +211,7 @@ export default function NotesPage() {
   });
   const activePageEmoji = pageEmojiDraft !== undefined
     ? pageEmojiDraft
-    : resolvedPageEmoji !== undefined
-      ? resolvedPageEmoji
-      : selectedPageEmoji;
+    : selectedPageEmoji;
   const absoluteUpdatedTimeTimeoutRef = useRef<number | null>(null);
   const pendingUpdatedTimestampRef = useRef<{ relative: string; absolute: string } | null>(null);
   const settleUpdatedTimestampTimeoutRef = useRef<number | null>(null);
@@ -238,7 +235,6 @@ export default function NotesPage() {
       hydratedPageIdRef.current = null;
       setPageTitleError(null);
       setPageEmojiDraft(undefined);
-      setResolvedPageEmoji(undefined);
       setSummaryDraft("");
       setSelectedTagIdsDraft([]);
       setBlockContentDrafts({});
@@ -262,7 +258,6 @@ export default function NotesPage() {
     setPageTitleDraft(selectedPage.title ?? "");
     setPageTitleError(null);
     setPageEmojiDraft(undefined);
-    setResolvedPageEmoji(selectedPageEmoji);
     setSummaryDraft(selectedPageSummary ?? "");
     setSelectedTagIdsDraft(selectedPageTagIds);
     setBlockContentDrafts({});
@@ -336,14 +331,6 @@ export default function NotesPage() {
       return nextTimestamp;
     });
   }, [relativeTimeTick, selectedPage?.id, selectedPage?.updated_at]);
-
-  useEffect(() => {
-    if (!selectedPage) {
-      return;
-    }
-
-    setResolvedPageEmoji(selectedPageEmoji);
-  }, [selectedPage, selectedPageEmoji]);
 
   useEffect(() => {
     if (!selectedPage || pageEmojiDraft === undefined) {

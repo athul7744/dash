@@ -66,6 +66,20 @@ describe("math-clipboard", () => {
       expect(protectedText).toBe(input);
       expect(mathTokens).toHaveLength(0);
     });
+
+    it("unescapes markdown double backslashes to single for LaTeX commands", () => {
+      const { mathTokens } = protectMathTokens("$\\\\sum_{i=0}^n i$");
+      expect(mathTokens).toHaveLength(1);
+      expect(mathTokens[0].html).toContain('data-latex="\\sum_{i=0}^n i"');
+    });
+
+    it("preserves legitimate double backslash (line break) when not followed by letter", () => {
+      const { mathTokens } = protectMathTokens("$a \\\\ b$");
+      expect(mathTokens).toHaveLength(1);
+      // \\\\ in JS source = \\ in the string = double backslash
+      // Since \\ is not followed by a letter, it stays as \\
+      expect(mathTokens[0].html).toContain('data-latex="a \\\\ b"');
+    });
   });
 
   describe("restoreMathTokens", () => {
@@ -124,10 +138,11 @@ describe("math-clipboard", () => {
     });
 
     it("handles latex with backslash commands and parentheses", () => {
-      const input = "Drops time to $O(\\alpha(N))$ -> effectively $O(1)$ amortized.";
+      const input = "Drops time to $O(\\\\alpha(N))$ -> effectively $O(1)$ amortized.";
       const { protectedText, mathTokens } = protectMathTokens(input);
 
       expect(mathTokens).toHaveLength(2);
+      // Double backslash from markdown source is unescaped to single
       expect(mathTokens[0].html).toContain('data-latex="O(\\alpha(N))"');
       expect(mathTokens[1].html).toContain('data-latex="O(1)"');
       expect(protectedText).not.toContain("$");

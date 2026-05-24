@@ -1,6 +1,4 @@
 import { Node, mergeAttributes, InputRule } from "@tiptap/core";
-import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
-import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import katex from "katex";
 
 // ---------------------------------------------------------------------------
@@ -59,7 +57,6 @@ export const MathInline = Node.create({
 
   renderHTML({ HTMLAttributes }) {
     const latex = (HTMLAttributes.latex as string) || "";
-    const rendered = renderKatex(latex, false);
     const { latex: _latex, ...rest } = HTMLAttributes;
     return [
       "span",
@@ -69,7 +66,6 @@ export const MathInline = Node.create({
         class: "math-inline-node",
         contenteditable: "false",
       }),
-      ["span", { class: "math-rendered", innerHTML: rendered }],
     ];
   },
 
@@ -220,7 +216,6 @@ export const MathBlock = Node.create({
 
   renderHTML({ HTMLAttributes }) {
     const latex = (HTMLAttributes.latex as string) || "";
-    const rendered = renderKatex(latex, true);
     const { latex: _latex, ...rest } = HTMLAttributes;
     return [
       "div",
@@ -230,7 +225,6 @@ export const MathBlock = Node.create({
         class: "math-block-node",
         contenteditable: "false",
       }),
-      ["div", { class: "math-rendered", innerHTML: rendered }],
     ];
   },
 

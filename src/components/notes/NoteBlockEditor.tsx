@@ -49,6 +49,7 @@ import {
   type SlashCommand,
 } from "@/components/notes/NoteBlockEditorSlash";
 import { MathInline, MathBlock } from "@/components/notes/NoteBlockEditorMath";
+import { protectMathTokens, restoreMathTokens } from "@/lib/notes/math-clipboard";
 import {
   getBlockArrowMoveAction,
   getBlockBackspaceAction,
@@ -71,6 +72,7 @@ const markdownBlockHintRegex = /(^|\n)\s*(#{1,6}\s|>\s|[-*+]\s|\d+\.\s|```|~~~|\
 const markdownLinkOrImageRegex = /!\[[^\]]*\]\([^\)]+\)|\[[^\]]+\]\([^\)]+\)/;
 const markdownTableSeparatorRegex = /(^|\n)\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*($|\n)/;
 const markdownTaskListRegex = /(^|\n)\s*[-*+]\s\[[ xX]\]\s/;
+const markdownMathRegex = /\$\$[^\$]+\$\$|\$[^\$\s][^\$]*?\$/;
 const notePageReferenceRegex = /\[\[[^\]]+\]\]/g;
 const noteInlineTagRegex = /(^|[\s(])#([a-z0-9][a-z0-9_/-]*)/gi;
 const lowlight = createLowlight(common);
@@ -125,6 +127,24 @@ turndownService.addRule("taskListItems", {
     const isChecked = checkbox?.checked || element.getAttribute("data-checked") === "true";
     const normalizedContent = content.replace(/^\s*\[[ xX]\]\s*/, "").trim();
     return `\n- [${isChecked ? "x" : " "}] ${normalizedContent}\n`;
+  },
+});
+turndownService.addRule("mathInline", {
+  filter(node: Node) {
+    return node.nodeName === "SPAN" && (node as HTMLElement).hasAttribute("data-math-inline");
+  },
+  replacement(_content: string, node: Node) {
+    const latex = (node as HTMLElement).getAttribute("data-latex") ?? "";
+    return `$${latex}$`;
+  },
+});
+turndownService.addRule("mathBlock", {
+  filter(node: Node) {
+    return node.nodeName === "DIV" && (node as HTMLElement).hasAttribute("data-math-block");
+  },
+  replacement(_content: string, node: Node) {
+    const latex = (node as HTMLElement).getAttribute("data-latex") ?? "";
+    return `\n\n$$${latex}$$\n\n`;
   },
 });
 
@@ -272,8 +292,9 @@ function getMarkdownClipboardText(event: ClipboardEvent) {
   const hasMarkdownTable = markdownTableSeparatorRegex.test(clipboardText);
   const hasTaskList = markdownTaskListRegex.test(clipboardText);
   const hasBlockSyntax = markdownBlockHintRegex.test(clipboardText);
+  const hasMath = markdownMathRegex.test(clipboardText);
 
-  if (hasMarkdownLinkOrImage || hasMarkdownTable || hasTaskList) {
+  if (hasMarkdownLinkOrImage || hasMarkdownTable || hasTaskList || hasMath) {
     return clipboardText;
   }
 
@@ -285,7 +306,8 @@ function getMarkdownClipboardText(event: ClipboardEvent) {
 }
 
 function parseMarkdownClipboardText(text: string) {
-  const { protectedText, tokens } = protectNoteTokens(text);
+  const { protectedText: mathProtectedText, mathTokens } = protectMathTokens(text);
+  const { protectedText, tokens } = protectNoteTokens(mathProtectedText);
   const rendered = marked.parse(protectedText, {
     async: false,
     breaks: true,
@@ -296,7 +318,7 @@ function parseMarkdownClipboardText(text: string) {
     return "";
   }
 
-  return restoreProtectedTokens(rendered, tokens, true);
+  return restoreMathTokens(restoreProtectedTokens(rendered, tokens, true), mathTokens);
 }
 
 const ReferenceDecorations = Extension.create({

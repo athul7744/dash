@@ -48,16 +48,24 @@ export const MathInline = Node.create({
   },
 
   parseHTML() {
-    return [{ tag: 'span[data-math-inline]' }];
+    return [{
+      tag: 'span[data-math-inline]',
+      getAttrs: (node) => {
+        const el = node as HTMLElement;
+        return { latex: el.getAttribute('data-latex') ?? '' };
+      },
+    }];
   },
 
   renderHTML({ HTMLAttributes }) {
     const latex = (HTMLAttributes.latex as string) || "";
     const rendered = renderKatex(latex, false);
+    const { latex: _latex, ...rest } = HTMLAttributes;
     return [
       "span",
-      mergeAttributes(HTMLAttributes, {
+      mergeAttributes(rest, {
         "data-math-inline": "",
+        "data-latex": latex,
         class: "math-inline-node",
         contenteditable: "false",
       }),
@@ -74,6 +82,7 @@ export const MathInline = Node.create({
 
       let isEditing = false;
       let currentLatex = (node.attrs.latex as string) || "";
+      dom.setAttribute("data-latex", currentLatex);
 
       const renderedSpan = document.createElement("span");
       renderedSpan.classList.add("math-rendered");
@@ -107,6 +116,7 @@ export const MathInline = Node.create({
         const nextLatex = inputEl.value.trim();
         if (nextLatex !== currentLatex) {
           currentLatex = nextLatex;
+          dom.setAttribute("data-latex", nextLatex);
           const pos = getPos();
           if (typeof pos === "number") {
             editor.chain().focus().command(({ tr }) => {
@@ -199,16 +209,24 @@ export const MathBlock = Node.create({
   },
 
   parseHTML() {
-    return [{ tag: 'div[data-math-block]' }];
+    return [{
+      tag: 'div[data-math-block]',
+      getAttrs: (node) => {
+        const el = node as HTMLElement;
+        return { latex: el.getAttribute('data-latex') ?? '' };
+      },
+    }];
   },
 
   renderHTML({ HTMLAttributes }) {
     const latex = (HTMLAttributes.latex as string) || "";
     const rendered = renderKatex(latex, true);
+    const { latex: _latex, ...rest } = HTMLAttributes;
     return [
       "div",
-      mergeAttributes(HTMLAttributes, {
+      mergeAttributes(rest, {
         "data-math-block": "",
+        "data-latex": latex,
         class: "math-block-node",
         contenteditable: "false",
       }),
@@ -225,6 +243,7 @@ export const MathBlock = Node.create({
 
       let isEditing = false;
       let currentLatex = (node.attrs.latex as string) || "";
+      dom.setAttribute("data-latex", currentLatex);
 
       const renderedDiv = document.createElement("div");
       renderedDiv.classList.add("math-rendered");
@@ -258,6 +277,7 @@ export const MathBlock = Node.create({
         const nextLatex = textareaEl.value.trim();
         if (nextLatex !== currentLatex) {
           currentLatex = nextLatex;
+          dom.setAttribute("data-latex", nextLatex);
           const pos = getPos();
           if (typeof pos === "number") {
             editor.chain().focus().command(({ tr }) => {

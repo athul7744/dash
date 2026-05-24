@@ -26,7 +26,7 @@ type EditorHeaderContent = {
 
 export function NotesEditorHeader({
   editorContent,
-  showEditorOverlay,
+  showEditorOverlay: _showEditorOverlay,
   shouldAnimateEditorContent,
   pageTitleDraft,
   pageTitleError,
@@ -87,7 +87,7 @@ export function NotesEditorHeader({
           <ArrowLeft className="h-6 w-6 md:h-7 md:w-7" />
         </Button>
         <Input
-          value={showEditorOverlay ? editorContent.title : pageTitleDraft}
+          value={pageTitleDraft}
           onChange={(event) => {
             onTitleChange(event.target.value);
           }}
@@ -101,7 +101,7 @@ export function NotesEditorHeader({
               event.currentTarget.blur();
             }
           }}
-          readOnly={showEditorOverlay}
+          readOnly={false}
           className="col-start-1 h-auto rounded-none border-0 bg-transparent px-0 py-0 pl-3 text-4xl font-semibold tracking-tight shadow-none placeholder:text-muted-foreground/55 focus-visible:border-transparent focus-visible:ring-0 dark:bg-transparent md:text-5xl sm:col-start-2 sm:pl-0"
           style={{ color: "color-mix(in oklab, #cba6f7 66%, var(--color-foreground))" }}
           placeholder="Untitled"

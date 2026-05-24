@@ -99,6 +99,8 @@ export function extractBlockText(raw: string | null | undefined) {
   return extractNoteText(raw);
 }
 
+const EAGER_MOUNT_COUNT = 20;
+
 function BlockNodeView({
   node,
   depth = 0,
@@ -110,6 +112,7 @@ function BlockNodeView({
   previousBlockIdById,
   nextBlockIdById,
   blockSpacingMetaById,
+  eagerMountBlockIds,
   onFocusApplied,
   onFocusBlock,
   onEditorFocus,
@@ -142,6 +145,7 @@ function BlockNodeView({
   previousBlockIdById: ReadonlyMap<string, string | null>;
   nextBlockIdById: ReadonlyMap<string, string | null>;
   blockSpacingMetaById: ReadonlyMap<string, BlockSpacingMeta>;
+  eagerMountBlockIds: ReadonlySet<string>;
   onFocusApplied?: () => void;
   onFocusBlock: (blockId: string, placement: "start" | "end") => void;
   onEditorFocus: (blockId: string, placement: "start" | "end") => void;
@@ -194,6 +198,37 @@ function BlockNodeView({
   const longPressTimeoutRef = useRef<number | null>(null);
   const suppressPrimaryActionRef = useRef(false);
   const [isBlockMenuOpen, setIsBlockMenuOpen] = useState(false);
+  const [isNearViewport, setIsNearViewport] = useState(eagerMountBlockIds.has(node.block.id));
+  const articleRef = useRef<HTMLElement | null>(null);
+
+  const isFocused = focusedBlockId === node.block.id;
+
+  useEffect(() => {
+    if (isFocused || isNearViewport) {
+      setIsNearViewport(true);
+      return;
+    }
+
+    const el = articleRef.current;
+    if (!el) return;
+
+    if (typeof IntersectionObserver === "undefined") {
+      setIsNearViewport(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsNearViewport(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isFocused, isNearViewport]);
 
   const clearLongPressTimeout = () => {
     if (longPressTimeoutRef.current !== null) {
@@ -285,6 +320,7 @@ function BlockNodeView({
   return (
     <div className="space-y-0">
       <article
+        ref={articleRef}
         className="group relative"
         onMouseDownCapture={(event) => {
           if (event.target instanceof HTMLElement && event.target.closest('[data-block-context-menu="true"]')) {
@@ -349,43 +385,47 @@ function BlockNodeView({
             {depth > 0 ? <span className="absolute bottom-0 left-1/2 top-1/2 w-px -translate-x-1/2 bg-border/60" /> : null}
           </div>
           <div className={`min-w-0 flex-1 rounded-sm transition-smooth ${selectedBlockIds.has(node.block.id) ? "bg-accent/45" : ""}`} style={editorSurfaceStyle}>
-            <NoteBlockEditor
-              content={node.block.content}
-              notePageTitles={notePageTitles}
-              hasChildren={node.children.length > 0}
-              markdownToggleVersion={markdownToggleVersions[node.block.id] ?? 0}
-              shouldFocus={focusedBlockId === node.block.id}
-              focusPlacement={focusPlacement}
-              onFocusApplied={onFocusApplied}
-              onFocus={() => {
-                onEditorFocus(node.block.id, "start");
-              }}
-              onChange={(nextContent) => {
-                onUpdateContent(node.block.id, nextContent as JsonValue);
-              }}
-              onCommit={(nextContent) => {
-                onCommitContent(node.block.id, nextContent as JsonValue);
-              }}
-              onCreateSibling={(nextContent, nextSiblingContent, options) => onCreateSibling(node.block.id, parentBlockId, nextContent as JsonValue, nextSiblingContent as JsonValue | undefined, options)}
-              onCreateSiblings={onCreateSiblings ? (nextContent, nextSiblingContents) => onCreateSiblings(node.block.id, parentBlockId, nextContent, nextSiblingContents) : undefined}
-              onMergeWithPrevious={previousBlockId ? (nextContent, options) => onMergeWithPrevious(node.block.id, previousBlockId, nextContent as JsonValue, options) : undefined}
-              onOpenPageReference={onOpenPageReference}
-              onNavigateUp={previousBlockId ? () => onFocusBlock(previousBlockId, "end") : undefined}
-              onNavigateDown={nextBlockId ? () => onFocusBlock(nextBlockId, "start") : undefined}
-              onSelectUp={previousBlockId ? () => onSelectUp(node.block.id, previousBlockId) : undefined}
-              onSelectDown={nextBlockId ? () => onSelectDown(node.block.id, nextBlockId) : undefined}
-              onIndent={() => {
-                if (!previousSiblingId) return;
-                onIndent(node.block.id, previousSiblingId);
-              }}
-              onOutdent={() => {
-                if (!parentBlockId) return;
-                onOutdent(node.block.id, parentParentBlockId);
-              }}
-              onMoveSelectionUp={moveTargetBlockIds ? () => onMoveSelectedBlockRange(moveTargetBlockIds, "up", node.block.id) : undefined}
-              onMoveSelectionDown={moveTargetBlockIds ? () => onMoveSelectedBlockRange(moveTargetBlockIds, "down", node.block.id) : undefined}
-              onDeleteEmpty={() => onDelete(node.block.id)}
-            />
+            {isNearViewport ? (
+              <NoteBlockEditor
+                content={node.block.content}
+                notePageTitles={notePageTitles}
+                hasChildren={node.children.length > 0}
+                markdownToggleVersion={markdownToggleVersions[node.block.id] ?? 0}
+                shouldFocus={isFocused}
+                focusPlacement={focusPlacement}
+                onFocusApplied={onFocusApplied}
+                onFocus={() => {
+                  onEditorFocus(node.block.id, "start");
+                }}
+                onChange={(nextContent) => {
+                  onUpdateContent(node.block.id, nextContent as JsonValue);
+                }}
+                onCommit={(nextContent) => {
+                  onCommitContent(node.block.id, nextContent as JsonValue);
+                }}
+                onCreateSibling={(nextContent, nextSiblingContent, options) => onCreateSibling(node.block.id, parentBlockId, nextContent as JsonValue, nextSiblingContent as JsonValue | undefined, options)}
+                onCreateSiblings={onCreateSiblings ? (nextContent, nextSiblingContents) => onCreateSiblings(node.block.id, parentBlockId, nextContent, nextSiblingContents) : undefined}
+                onMergeWithPrevious={previousBlockId ? (nextContent, options) => onMergeWithPrevious(node.block.id, previousBlockId, nextContent as JsonValue, options) : undefined}
+                onOpenPageReference={onOpenPageReference}
+                onNavigateUp={previousBlockId ? () => onFocusBlock(previousBlockId, "end") : undefined}
+                onNavigateDown={nextBlockId ? () => onFocusBlock(nextBlockId, "start") : undefined}
+                onSelectUp={previousBlockId ? () => onSelectUp(node.block.id, previousBlockId) : undefined}
+                onSelectDown={nextBlockId ? () => onSelectDown(node.block.id, nextBlockId) : undefined}
+                onIndent={() => {
+                  if (!previousSiblingId) return;
+                  onIndent(node.block.id, previousSiblingId);
+                }}
+                onOutdent={() => {
+                  if (!parentBlockId) return;
+                  onOutdent(node.block.id, parentParentBlockId);
+                }}
+                onMoveSelectionUp={moveTargetBlockIds ? () => onMoveSelectedBlockRange(moveTargetBlockIds, "up", node.block.id) : undefined}
+                onMoveSelectionDown={moveTargetBlockIds ? () => onMoveSelectedBlockRange(moveTargetBlockIds, "down", node.block.id) : undefined}
+                onDeleteEmpty={() => onDelete(node.block.id)}
+              />
+            ) : (
+              <div className="min-h-[1.5em] px-1 py-0.5 text-sm text-foreground/80 whitespace-pre-wrap">{extractBlockText(node.block.content) || "\u00A0"}</div>
+            )}
           </div>
         </div>
       </article>
@@ -405,6 +445,7 @@ function BlockNodeView({
               previousBlockIdById={previousBlockIdById}
               nextBlockIdById={nextBlockIdById}
               blockSpacingMetaById={blockSpacingMetaById}
+              eagerMountBlockIds={eagerMountBlockIds}
               onFocusApplied={onFocusApplied}
               onFocusBlock={onFocusBlock}
               onEditorFocus={onEditorFocus}
@@ -502,6 +543,10 @@ export function NotesBlockTree({
     return getSelectedBlockIds(orderedBlockIds, blockRangeSelection.anchorBlockId, blockRangeSelection.focusBlockId);
   }, [blockRangeSelection, orderedBlockIds]);
   const selectedBlockIdSet = useMemo(() => new Set(selectedBlockIds), [selectedBlockIds]);
+  const eagerMountBlockIds = useMemo(
+    () => new Set(orderedBlockIds.slice(0, EAGER_MOUNT_COUNT)),
+    [orderedBlockIds]
+  );
 
   const handleToggleMarkdownMode = (blockId: string) => {
     setMarkdownToggleVersions((current) => ({
@@ -613,6 +658,7 @@ export function NotesBlockTree({
           previousBlockIdById={previousBlockIdById}
           nextBlockIdById={nextBlockIdById}
           blockSpacingMetaById={blockSpacingMetaById}
+          eagerMountBlockIds={eagerMountBlockIds}
           onFocusApplied={onFocusApplied}
           onFocusBlock={handleFocusBlock}
           onEditorFocus={handleEditorFocus}

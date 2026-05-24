@@ -103,7 +103,6 @@ export function NotesEditorContent({
     if (blocksSettled) return;
 
     if (blockCount === 0) {
-      // Settle empty pages only once loading has confirmed no blocks exist
       if (!showSelectedPageLoading) {
         setBlocksSettled(true);
       }
@@ -113,13 +112,11 @@ export function NotesEditorContent({
     const container = blockTreeRef.current;
     if (!container) return;
 
-    // Check if Tiptap editors have already rendered
     if (container.querySelector(".ProseMirror")) {
       setBlocksSettled(true);
       return;
     }
 
-    // Wait for the first .ProseMirror element to appear
     const observer = new MutationObserver(() => {
       if (container.querySelector(".ProseMirror")) {
         observer.disconnect();
@@ -158,8 +155,8 @@ export function NotesEditorContent({
   }
 
   return (
-    <div className="relative mx-auto max-w-3xl">
-      <div className={showEditorOverlay || showBlocksSettling ? "pointer-events-none opacity-0 transition-opacity duration-100" : "transition-opacity duration-150"}>
+    <div className="relative mx-auto max-w-3xl min-h-[200px]">
+      <div className={showBlocksSettling ? "pointer-events-none opacity-0 transition-opacity duration-100" : "transition-opacity duration-150"}>
         <div className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-1 gap-y-4 md:gap-x-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] ${shouldAnimateEditorContent ? "animate-fade-slide-in" : ""}`}>
           <NotesEditorHeader
             editorContent={editorContent}
@@ -206,7 +203,7 @@ export function NotesEditorContent({
           </div>
         </div>
       </div>
-      {showEditorOverlay || showBlocksSettling ? (
+      {showBlocksSettling ? (
         <div className="pointer-events-none absolute inset-0 bg-background">
           <NotesEditorMainSkeleton />
         </div>

@@ -609,8 +609,8 @@ export default function NotesPage() {
     },
   });
 
-  const showDesktopUpdatedTimestamp = Boolean(editorUpdatedTimestamp && !showEditorOverlay && !isLoading && !showSelectedPageLoading && selectedPage);
-  const showMobileUpdatedTimestamp = Boolean(editorUpdatedTimestamp && !showEditorOverlay);
+  const showDesktopUpdatedTimestamp = Boolean(editorUpdatedTimestamp && !isLoading && !showSelectedPageLoading && selectedPage);
+  const showMobileUpdatedTimestamp = Boolean(editorUpdatedTimestamp);
   const desktopChromeIconButtonClass = "size-8 rounded-full text-muted-foreground transition-[color,background-color,box-shadow] duration-200 hover:bg-accent/60 hover:text-foreground hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)] md:size-9";
   const desktopChromeTextButtonClass = "inline-flex h-8 w-fit items-center justify-self-start px-0 text-[11px] text-muted-foreground/80 transition-colors duration-200 hover:text-foreground";
   const desktopGridColumns = showDesktopPagesRail && showDesktopDetailsRail

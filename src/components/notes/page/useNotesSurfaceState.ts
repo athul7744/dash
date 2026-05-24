@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { NoteBlockRow } from "@/hooks/use-notes";
 
 import type { NormalizedNotePage, NoteTag, NotesEditorRenderableContent } from "./types";
-import { useSmoothedLoading } from "./utils";
 
 type UseNotesSurfaceStateParams = {
   selectedPageId: string | null;
@@ -44,114 +43,57 @@ export function useNotesSurfaceState({
   const resolvedSurfaceKey = selectedPageId ? `editor:${selectedPageId}` : "overview";
   const displaySurfaceKey = pendingSurfaceKey ?? resolvedSurfaceKey;
   const isDisplayingOverview = displaySurfaceKey === "overview";
-  const showOverviewLoading = useSmoothedLoading(
-    isDisplayingOverview && (displaySurfaceKey !== resolvedSurfaceKey || isLoading),
-    displaySurfaceKey,
-    180,
-    70
-  );
-  const showSelectedPageLoading = useSmoothedLoading(
-    !isDisplayingOverview && (displaySurfaceKey !== resolvedSurfaceKey || isLoadingSelectedPage),
-    displaySurfaceKey,
-    220,
-    90
-  );
-  const [cachedOverviewContent, setCachedOverviewContent] = useState<{
-    favoritePages: NormalizedNotePage[];
-    recentAccessPages: NormalizedNotePage[];
-  } | null>(null);
-  const [cachedEditorContent, setCachedEditorContent] = useState<NotesEditorRenderableContent>(null);
 
+  // Clear pending key once resolved matches (instant, no timer)
   useEffect(() => {
     if (!pendingSurfaceKey) return;
-    if (pendingSurfaceKey !== resolvedSurfaceKey) return;
-
-    const isSettled = resolvedSurfaceKey === "overview" ? !isLoading : !isLoadingSelectedPage;
-    if (!isSettled) return;
-
-    const timeoutId = window.setTimeout(() => {
+    if (pendingSurfaceKey === resolvedSurfaceKey) {
       setPendingSurfaceKey(null);
-    }, 90);
+    }
+  }, [pendingSurfaceKey, resolvedSurfaceKey]);
 
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [isLoading, isLoadingSelectedPage, pendingSurfaceKey, resolvedSurfaceKey]);
+  // Loading states: pass through directly, no artificial delay
+  const showOverviewLoading = isDisplayingOverview && isLoading;
+  const showSelectedPageLoading = !isDisplayingOverview && (displaySurfaceKey !== resolvedSurfaceKey || isLoadingSelectedPage);
 
-  useEffect(() => {
-    if (isLoading) return;
-    setCachedOverviewContent({
-      favoritePages,
-      recentAccessPages,
-    });
-  }, [favoritePages, isLoading, recentAccessPages]);
+  // Track whether we've ever loaded content (for first-mount animation)
+  const hasRenderedOverviewRef = useRef(false);
+  const hasRenderedEditorRef = useRef(false);
 
-  useEffect(() => {
-    if (!selectedPageIdForEditor) return;
-    setCachedEditorContent({
-      pageId: selectedPageIdForEditor,
-      title: selectedPageTitle || "Untitled page",
-      emoji: activePageEmoji,
-      favorite: isSelectedPageFavorite,
-      tags: selectedPageTags,
-      blockCount: selectedBlockCount,
-      backlinkCount: linkedReferenceCount,
-      blocks: displayBlocks,
-    });
-  }, [
-    activePageEmoji,
-    displayBlocks,
-    isSelectedPageFavorite,
-    linkedReferenceCount,
-    selectedPageTags,
-    selectedBlockCount,
-    selectedPageIdForEditor,
-    selectedPageTitle,
-  ]);
+  if (!showOverviewLoading && isDisplayingOverview && favoritePages.length + recentAccessPages.length > 0) {
+    hasRenderedOverviewRef.current = true;
+  }
+  if (!showSelectedPageLoading && !isDisplayingOverview && selectedPageIdForEditor) {
+    hasRenderedEditorRef.current = true;
+  }
 
-  const overviewFavoritePagesToRender = showOverviewLoading
-    ? cachedOverviewContent?.favoritePages ?? []
-    : favoritePages;
-  const overviewRecentPagesToRender = showOverviewLoading
-    ? cachedOverviewContent?.recentAccessPages ?? []
-    : recentAccessPages;
-  const showOverviewOverlay = showOverviewLoading && cachedOverviewContent !== null;
-  const shouldAnimateOverviewContent = !showOverviewLoading && cachedOverviewContent === null;
+  const shouldAnimateOverviewContent = !hasRenderedOverviewRef.current && !showOverviewLoading;
+  const shouldAnimateEditorContent = !hasRenderedEditorRef.current && !showSelectedPageLoading;
+
   const liveEditorContent: NotesEditorRenderableContent = selectedPageIdForEditor
     ? {
         pageId: selectedPageIdForEditor,
         title: selectedPageTitle || "Untitled page",
         emoji: activePageEmoji,
         favorite: isSelectedPageFavorite,
-      tags: selectedPageTags,
+        tags: selectedPageTags,
         blockCount: selectedBlockCount,
         backlinkCount: linkedReferenceCount,
         blocks: displayBlocks,
       }
     : null;
-  const shouldUseCachedEditorContent = showSelectedPageLoading
-    && cachedEditorContent !== null
-    && cachedEditorContent.pageId !== selectedPageIdForEditor;
-  const editorContentToRender: NotesEditorRenderableContent = shouldUseCachedEditorContent
-    ? cachedEditorContent
-    : liveEditorContent;
-  const showEditorOverlay = shouldUseCachedEditorContent;
-  const shouldAnimateEditorContent = !showSelectedPageLoading && cachedEditorContent === null;
-  const editorUpdatedTimestamp = editorContentToRender?.pageId === selectedPageIdForEditor
-    ? updatedTimestamp
-    : null;
 
   return {
-    editorContentToRender,
-    editorUpdatedTimestamp,
+    editorContentToRender: liveEditorContent,
+    editorUpdatedTimestamp: liveEditorContent ? updatedTimestamp : null,
     isDisplayingOverview,
-    overviewFavoritePagesToRender,
-    overviewRecentPagesToRender,
+    overviewFavoritePagesToRender: favoritePages,
+    overviewRecentPagesToRender: recentAccessPages,
     shouldAnimateEditorContent,
     shouldAnimateOverviewContent,
-    showEditorOverlay,
+    showEditorOverlay: false,
     showOverviewLoading,
-    showOverviewOverlay,
+    showOverviewOverlay: false,
     showSelectedPageLoading,
     transitionToEditor: (pageId: string) => setPendingSurfaceKey(`editor:${pageId}`),
     transitionToOverview: () => setPendingSurfaceKey("overview"),

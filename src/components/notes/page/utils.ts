@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
 import type { NoteBlockRow } from "@/hooks/use-notes";
 import type { Tag } from "@/lib/powersync/AppSchema";
 import { normalizeNoteDocument, parseSerializedRecord } from "@/lib/notes/notes-content";
@@ -130,42 +128,6 @@ export function attachmentLabel(filePath: string | null | undefined) {
 
   const parts = filePath.split(/[\\/]/).filter(Boolean);
   return parts.at(-1) ?? filePath;
-}
-
-export function useSmoothedLoading(
-  isLoading: boolean,
-  loadingKey: string,
-  minVisibleMs = 160,
-  settleDelayMs = 80
-) {
-  const [showLoading, setShowLoading] = useState(true);
-  const visibleSinceRef = useRef<number>(Date.now());
-
-  useEffect(() => {
-    visibleSinceRef.current = Date.now();
-    setShowLoading(true);
-  }, [loadingKey]);
-
-  useEffect(() => {
-    if (isLoading) {
-      if (!showLoading) {
-        visibleSinceRef.current = Date.now();
-        setShowLoading(true);
-      }
-      return;
-    }
-
-    const elapsed = Date.now() - visibleSinceRef.current;
-    const timeoutId = window.setTimeout(() => {
-      setShowLoading(false);
-    }, Math.max(minVisibleMs - elapsed, 0) + settleDelayMs);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [isLoading, minVisibleMs, settleDelayMs, showLoading]);
-
-  return showLoading;
 }
 
 export function createBlockDocument(text = ""): JsonValue {

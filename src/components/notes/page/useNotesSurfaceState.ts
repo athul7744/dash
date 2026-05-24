@@ -56,9 +56,16 @@ export function useNotesSurfaceState({
   const showOverviewLoading = isDisplayingOverview && isLoading;
   const showSelectedPageLoading = !isDisplayingOverview && (displaySurfaceKey !== resolvedSurfaceKey || isLoadingSelectedPage);
 
-  // Track whether we've ever loaded content (for first-mount animation)
+  // Track whether we've loaded content for the current page (for entrance animation)
   const hasRenderedOverviewRef = useRef(false);
   const hasRenderedEditorRef = useRef(false);
+  const previousEditorPageIdRef = useRef<string | null | undefined>(selectedPageIdForEditor);
+
+  // Reset editor animation flag when navigating to a different page
+  if (selectedPageIdForEditor !== previousEditorPageIdRef.current) {
+    previousEditorPageIdRef.current = selectedPageIdForEditor;
+    hasRenderedEditorRef.current = false;
+  }
 
   if (!showOverviewLoading && isDisplayingOverview && favoritePages.length + recentAccessPages.length > 0) {
     hasRenderedOverviewRef.current = true;

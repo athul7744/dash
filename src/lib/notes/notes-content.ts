@@ -356,6 +356,11 @@ function serializeMarkdownInline(node: unknown): string {
     return src ? `![${alt}](${src}${title})` : "";
   }
 
+  if (node.type === "mathInline") {
+    const latex = getNodeAttrs(node)?.latex;
+    return typeof latex === "string" && latex.length > 0 ? `$${latex}$` : "";
+  }
+
   return getNodeContent(node).map((child) => serializeMarkdownInline(child)).join("");
 }
 
@@ -391,6 +396,11 @@ function serializeMarkdownBlock(node: unknown): string {
 
   if (node.type === "horizontalRule") {
     return "---";
+  }
+
+  if (node.type === "mathBlock") {
+    const latex = getNodeAttrs(node)?.latex;
+    return typeof latex === "string" && latex.length > 0 ? `$$${latex}$$` : "";
   }
 
   if (node.type === "taskList") {

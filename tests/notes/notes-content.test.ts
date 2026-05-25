@@ -7,6 +7,7 @@ import {
   mergeNoteDocuments,
   normalizeNoteDocument,
   serializeNoteDocument,
+  serializeNoteDocumentToMarkdown,
 } from "@/lib/notes/notes-content";
 
 describe("notes-content", () => {
@@ -248,5 +249,150 @@ describe("notes-content", () => {
         },
       ],
     });
+  });
+
+  it("serializes mathInline nodes to $latex$ in markdown", () => {
+    const document = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "The formula " },
+            { type: "mathInline", attrs: { latex: "E=mc^2" } },
+            { type: "text", text: " is famous." },
+          ],
+        },
+      ],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("The formula $E=mc^2$ is famous.");
+  });
+
+  it("serializes mathBlock nodes to $$latex$$ in markdown", () => {
+    const document = {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "Consider:" }] },
+        { type: "mathBlock", attrs: { latex: "\\int_0^1 x^2 dx" } },
+      ],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("Consider:\n\n$$\\int_0^1 x^2 dx$$");
+  });
+
+  it("serializes multiple mathInline nodes in one paragraph", () => {
+    const document = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "mathInline", attrs: { latex: "a" } },
+            { type: "text", text: " + " },
+            { type: "mathInline", attrs: { latex: "b" } },
+            { type: "text", text: " = " },
+            { type: "mathInline", attrs: { latex: "c" } },
+          ],
+        },
+      ],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("$a$ + $b$ = $c$");
+  });
+
+  it("serializes mathInline with complex LaTeX including backslashes", () => {
+    const document = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Drops time to " },
+            { type: "mathInline", attrs: { latex: "O(\\alpha)" } },
+            { type: "text", text: " -> effectively amortized." },
+          ],
+        },
+      ],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("Drops time to $O(\\alpha)$ -> effectively amortized.");
+  });
+
+  it("serializes mathInline with empty latex as empty string", () => {
+    const document = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "before " },
+            { type: "mathInline", attrs: { latex: "" } },
+            { type: "text", text: " after" },
+          ],
+        },
+      ],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("before  after");
+  });
+
+  it("serializes mathBlock with empty latex as empty string", () => {
+    const document = {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "Before" }] },
+        { type: "mathBlock", attrs: { latex: "" } },
+        { type: "paragraph", content: [{ type: "text", text: "After" }] },
+      ],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("Before\n\nAfter");
+  });
+
+  it("serializes mathBlock between paragraphs", () => {
+    const document = {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "Given:" }] },
+        { type: "mathBlock", attrs: { latex: "\\sum_{i=0}^{n} i = \\frac{n(n+1)}{2}" } },
+        { type: "paragraph", content: [{ type: "text", text: "We conclude." }] },
+      ],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe(
+      "Given:\n\n$$\\sum_{i=0}^{n} i = \\frac{n(n+1)}{2}$$\n\nWe conclude."
+    );
+  });
+
+  it("serializes mathInline inside a heading", () => {
+    const document = {
+      type: "doc",
+      content: [
+        {
+          type: "heading",
+          attrs: { level: 2 },
+          content: [
+            { type: "text", text: "Proof of " },
+            { type: "mathInline", attrs: { latex: "P = NP" } },
+          ],
+        },
+      ],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("## Proof of $P = NP$");
+  });
+
+  it("serializes mathInline inside a blockquote", () => {
+    const document = {
+      type: "doc",
+      content: [
+        {
+          type: "blockquote",
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                { type: "text", text: "Where " },
+                { type: "mathInline", attrs: { latex: "e^{i\\pi} + 1 = 0" } },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("> Where $e^{i\\pi} + 1 = 0$");
   });
 });

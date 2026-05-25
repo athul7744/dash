@@ -495,7 +495,20 @@ function getSelectionMarkdown(view: EditorView) {
     return "";
   }
 
-  return normalizeExportedMarkdownTokens(turndownService.turndown(html).trim());
+  // Replace math atom nodes with their markdown text before turndown processes them.
+  // Turndown can struggle with empty inline elements produced by DOMSerializer for atom nodes.
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = html;
+  wrapper.querySelectorAll("span[data-math-inline]").forEach((el) => {
+    const latex = el.getAttribute("data-latex") ?? "";
+    el.replaceWith(`$${latex}$`);
+  });
+  wrapper.querySelectorAll("div[data-math-block]").forEach((el) => {
+    const latex = el.getAttribute("data-latex") ?? "";
+    el.replaceWith(`$$${latex}$$`);
+  });
+
+  return normalizeExportedMarkdownTokens(turndownService.turndown(wrapper.innerHTML).trim());
 }
 
 function parseHtmlDocument(view: EditorView, html: string): JSONContent | null {

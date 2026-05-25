@@ -21,10 +21,13 @@ This folder holds the project's Vitest suites and lightweight test helpers.
   Covers structural block outcomes for delete focus, merge planning, child reparenting, and indent/outdent placement.
 
 - `tests/notes/notes-content.test.ts`
-  Covers note document normalization, legacy text fallback, serialization, plain-text extraction, and merge edge cases for note content.
+  Covers note document normalization, legacy text fallback, serialization, plain-text extraction, merge edge cases, and math node serialization (inline and block) for note content.
 
 - `tests/notes/notes-tree.test.ts`
   Covers nested block tree construction plus visible-order neighbor lookups used by block navigation and merge behavior.
+
+- `tests/notes/math-clipboard.test.ts`
+  Covers LaTeX math token protection and restoration during markdown paste flows, including inline/block detection, HTML escaping, backslash unescaping, and roundtrip correctness.
 
 - `tests/notes/notes-write.test.ts`
   Covers note block write behavior around batched queued creates, retry after failed flush, update-before-flush, delete-before-flush, and immediate starter-page creation.

@@ -13,7 +13,7 @@ An offline-first productivity workspace with **Tasks**, **Tracker**, and **Notes
 
 **Tracker** — 7-day × 24-hour paint grid for logging time blocks, inline daily mood ratings, yearly heatmaps, weekly widgets, and mobile-friendly navigation with shared bottom FAB controls.
 
-**Notes** — Local-first outline editor with pages, nested blocks, shared tags, backlinks, owned attachments, inline references, mdast-backed markdown paste handling, markdown-style transforms, slash-driven block commands, block move controls with context menu, table contextual toolbar, and styled per-level heading and HR dividers.
+**Notes** — Local-first outline editor with pages, nested blocks, shared tags, backlinks, and owned attachments. Supports inline references, mdast-backed markdown paste, markdown-style transforms, slash commands, block context menu (move, indent/outdent, type conversion), table toolbar, LaTeX math (inline `$...$` and block `$$...$$` via KaTeX), and per-level heading/HR styling.
 
 **Week Widgets** — Activity breakdown donut chart, mood insights with sleep correlation, daily stacked bars, sleep stats (avg/range/per-night chart), and productivity ratio bar.
 
@@ -21,7 +21,7 @@ An offline-first productivity workspace with **Tasks**, **Tracker**, and **Notes
 
 ## Tech Stack
 
-Next.js 16 · PowerSync · Supabase · Tailwind CSS v4 · Shadcn/UI · Tiptap 3.22.5 · Vitest · Serwist
+Next.js 16 · PowerSync · Supabase · Tailwind CSS v4 · Shadcn/UI · Tiptap 3.22.5 · KaTeX · Vitest · Serwist
 
 ## Quick Start
 

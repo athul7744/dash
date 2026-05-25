@@ -132,6 +132,7 @@ Important convention:
 
 - `src/components/notes/NoteBlockEditor.tsx`
 - `src/components/notes/NoteBlockEditorSlash.ts`
+- `src/components/notes/NoteBlockEditorMath.ts`
 - `src/components/notes/NotesBlockTree.tsx`
 - `src/components/notes/BlockContextMenu.tsx`
 - `src/components/notes/block-context-menu-options.ts`
@@ -146,15 +147,17 @@ Important convention:
 - `src/lib/shared/debounced-update.ts` — debounced local writes and execute batching
 - `src/lib/shared/logger.ts` — runtime logging abstraction
 - `src/lib/shared/ranked-order.ts` — reusable LexoRank ordering helpers that can be shared across app groups
-- `src/lib/shared/utils.ts` — shared UI/class/date helpers
+- `src/lib/shared/utils.ts` — shared UI/class/date/escapeHtml helpers
 - `src/lib/tasks/colors.ts` — tag palette and class maps
 - `src/lib/tasks/tasks.ts` — priority and due-date helpers
 - `src/lib/tasks/tags.ts` — tag creation helpers
 - `src/lib/tracker/activities.ts` — tracker activity palette and class maps
 - `src/hooks/use-notes.ts` — local SQLite query hooks for note pages and blocks
-- `src/lib/notes/notes-content.ts` — note document normalization, serialization, and plain-text extraction
+- `src/lib/notes/notes-content.ts` — note document normalization, serialization (including math nodes), and plain-text extraction
 - `src/lib/notes/notes-tree.ts` — tree building and visible block ordering helpers for note blocks
 - `src/lib/notes/notes.ts` — note writes, attachment upserts, and edge reconciliation
+- `src/lib/notes/math-clipboard.ts` — math token protection/restoration for clipboard paste flows
+- `src/lib/notes/block-editor-keyboard.ts` — keyboard decision logic for Enter, Backspace, Tab, and arrow keys in the block editor
 
 ### PowerSync integration
 
@@ -192,16 +195,19 @@ Key modules:
   - Includes the notes editor header metadata row, which reuses the shared tag selector and tag pill strip.
 
 - `src/components/notes/NoteBlockEditor.tsx`
-  - Per-block Tiptap editor with markdown-style transforms, block key handling, local/external content reconciliation, and a table contextual toolbar for focused-cell column and row actions.
+  - Per-block Tiptap editor with markdown-style transforms, block key handling, local/external content reconciliation, a table contextual toolbar for focused-cell column and row actions, and math-aware copy/paste handling.
 
 - `src/components/notes/NoteBlockEditorSlash.ts`
-  - Slash command definitions plus query, filtering, and grouping helpers used by the block editor.
+  - Slash command definitions plus query, filtering, and grouping helpers used by the block editor. Includes a `/math` command for inserting display math blocks.
+
+- `src/components/notes/NoteBlockEditorMath.ts`
+  - Tiptap extensions for inline math (`$...$`) and block math (`$$...$$`). Provides atom nodes with KaTeX rendering, click-to-edit NodeViews, and input rules.
 
 - `src/components/notes/NotesBlockTree.tsx`
   - Nested visible block tree, block navigation wiring, sibling creation plumbing, block move controls (Alt+arrow), selection handling, and per-heading-level accent color and divider styling.
 
 - `src/components/notes/BlockContextMenu.tsx`
-  - Block-level right-click context menu with actions for type conversion, move, delete, and duplication.
+  - Block-level right-click context menu with actions for type conversion, move, indent/outdent, delete, and duplication.
 
 - `src/components/notes/block-context-menu-options.ts`
   - Context menu option generation logic, providing block-type-aware action lists.
@@ -215,6 +221,8 @@ Conventions:
 - Move reusable route-local UI and hooks into `src/components/notes/page/` before expanding the route file.
 - Keep editor-owned helpers alongside the editor when they are specific to note block behavior.
 - Attachments are owned by either a page or a block, never both.
+- Blocks are lazy-mounted via `IntersectionObserver` and settle via `onEditorCreate` callback, not MutationObserver.
+- Page navigation triggers an entrance animation; the skeleton/settled state resets on each page switch.
 
 ## Tasks App Structure
 
@@ -376,28 +384,6 @@ Important implementation notes:
 - Pending updates are keyed by `table:id`, not just `id`
 - `flushAllUpdates()` flushes queued executes before updates
 - `tasks`, `pages`, and `blocks` are currently treated as having `updated_at`
-
-## Testing Structure
-
-Vitest is the current test runner for fast logic-level coverage.
-
-- `tests/notes/`
-  - Note-specific tests such as content normalization and note tree ordering
-
-- `tests/tasks/`
-  - Reserved for task-specific tests
-
-- `tests/tracker/`
-  - Reserved for tracker-specific tests
-
-- `tests/shared/`
-  - Shared fixtures, builders, and assertions for cross-app behaviors such as ranked ordering
-
-Shared testable seams:
-
-- `src/lib/notes/notes-content.ts`
-- `src/lib/notes/notes-tree.ts`
-- `src/lib/shared/ranked-order.ts`
 
 ## Auth And User Context
 

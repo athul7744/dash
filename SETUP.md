@@ -300,10 +300,9 @@ For notes specifically, keep `src/app/notes/page.tsx` as the route orchestrator 
 
 If you change notes editing behavior, clipboard parsing, or block-merge semantics, keep the tests aligned with the intended visible-order editing rules and update the permanent project docs once that behavior is finalized.
 
-
 If you change route wiring or editor behavior, validate with both `npm run lint` and `npx tsc --noEmit`.
 
-If you update Tiptap packages, keep the versions aligned instead of mixing minor lines. The repo pins the Tiptap packages together so schema extensions resolve consistently.
+If you update Tiptap or KaTeX packages, keep versions aligned. The repo pins Tiptap packages together so schema extensions resolve consistently. KaTeX CSS is imported in `globals.css`.
 
 ## 4. Deploy to Vercel
 

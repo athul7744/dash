@@ -77,7 +77,7 @@ export function emptyHorizontalRuleDocument(): JSONContent {
 export function createScaffoldDocument(text: string): JSONContent {
   return {
     type: "doc",
-    content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+    content: [{ type: "paragraph", content: text.length > 0 ? [{ type: "text", text }] : [] }],
   };
 }
 

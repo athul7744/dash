@@ -57,8 +57,53 @@ function renderMarkdownNodes(nodes: MarkdownNode[]) {
   );
 }
 
+function normalizeThematicBreaksInLists(text: string): string {
+  const lines = text.split(/\r?\n/);
+  const result: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Only process bare `---` / `***` / `___` at root level (no indentation)
+    if (!/^(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+      result.push(line);
+      continue;
+    }
+
+    // Find the nearest non-empty line above
+    let aboveIndent: string | null = null;
+    for (let j = i - 1; j >= 0; j--) {
+      if (lines[j].trim().length > 0) {
+        const match = lines[j].match(/^(\t+| {2,})/);
+        if (match) aboveIndent = match[1];
+        break;
+      }
+    }
+
+    // Find the nearest non-empty line below
+    let belowIndent: string | null = null;
+    for (let j = i + 1; j < lines.length; j++) {
+      if (lines[j].trim().length > 0) {
+        const match = lines[j].match(/^(\t+| {2,})/);
+        if (match) belowIndent = match[1];
+        break;
+      }
+    }
+
+    // If both neighbors are indented, wrap the --- as a list item at that indent
+    if (aboveIndent && belowIndent) {
+      result.push(`${aboveIndent}- ---`);
+    } else {
+      result.push(line);
+    }
+  }
+
+  return result.join("\n");
+}
+
 function parseMarkdownListAst(text: string): StructuredMarkdownListItem[] | null {
-  const root = fromMarkdown(text, {
+  const normalizedText = normalizeThematicBreaksInLists(text);
+  const root = fromMarkdown(normalizedText, {
     extensions: [gfm()],
     mdastExtensions: [gfmFromMarkdown()],
   }) as MarkdownNode & { children?: MarkdownNode[] };
@@ -82,8 +127,23 @@ function parseMarkdownListAst(text: string): StructuredMarkdownListItem[] | null
     }
 
     return node.children.filter(isListItemNode).map((item) => {
-      const contentNodes = item.children.filter((child) => !isListNode(child));
-      const nestedChildren = item.children.filter(isListNode).flatMap(toStructuredItem);
+      // Process children in order: content nodes before the first list are the item's text.
+      // Lists become nested children. Thematic breaks after the first list become separator children.
+      const contentNodes: MarkdownNode[] = [];
+      const nestedChildren: StructuredMarkdownListItem[] = [];
+      let seenList = false;
+
+      for (const child of item.children) {
+        if (isListNode(child)) {
+          seenList = true;
+          nestedChildren.push(...toStructuredItem(child));
+        } else if (seenList && isThematicBreakNode(child)) {
+          nestedChildren.push({ text: "---", children: [] });
+        } else if (!seenList) {
+          contentNodes.push(child);
+        }
+      }
+
       const serializedText = renderMarkdownNodes(contentNodes);
       const text = typeof item.checked === "boolean"
         ? `[${item.checked ? "x" : " "}] ${serializedText}`.trimEnd()

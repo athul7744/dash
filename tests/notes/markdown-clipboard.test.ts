@@ -684,4 +684,41 @@ second line`;
 
     expect(shouldReplaceOnMarkdownPaste(paragraphBlocks)).toBe(false);
   });
+
+  it("preserves indented code blocks and text as children when using tab indentation", () => {
+    const markdown = [
+      "- From: [[Project Planning Notes]]",
+      "-",
+      "---",
+      "- ## Section A",
+      "\t- Description: \"This section covers the main implementation details.\"",
+      "\t-",
+      "---",
+      "\t-",
+      "\t  ```python",
+      "\t  def hello():",
+      "\t      name = \"world\"",
+      "\t      return f\"Hello, {name}\"",
+      "\t  ```",
+      "-",
+      "---",
+    ].join("\n");
+
+    const result = parseStructuredMarkdownList(markdown);
+    expect(result).not.toBeNull();
+
+    // "## Section A" should NOT contain --- in its text
+    const sectionA = result!.find((item) => item.text.includes("## Section A"));
+    expect(sectionA).toBeDefined();
+    expect(sectionA!.text).toBe("## Section A");
+    expect(sectionA!.children.length).toBeGreaterThanOrEqual(3);
+
+    // The code block should be a child, not a top-level item
+    const codeChild = sectionA!.children.find((child) => child.text.includes("```python"));
+    expect(codeChild).toBeDefined();
+
+    // The --- should be a separate child item, not merged into the heading
+    const hrChild = sectionA!.children.find((child) => child.text === "---");
+    expect(hrChild).toBeDefined();
+  });
 });

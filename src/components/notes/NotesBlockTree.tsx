@@ -332,7 +332,7 @@ function BlockNodeView({
         style={{ marginLeft: depth === 0 ? 0 : depth * 18, marginTop: rowMarginTop }}
       >
         <div className="flex items-center gap-px px-0 py-0">
-          <div ref={bulletRef} className="relative flex min-h-6 w-3.5 shrink-0 items-center justify-start self-stretch">
+          <div ref={bulletRef} className={`relative flex min-h-6 w-3.5 shrink-0 items-center justify-start ${blockSpacingMeta.kind === "heading" ? `self-start ${blockSpacingMeta.headingLevel === 1 ? "pt-1.5" : blockSpacingMeta.headingLevel === 2 ? "pt-0.5" : blockSpacingMeta.headingLevel === 5 ? "-mt-px" : ""}` : "self-stretch"}`}>
             <button
               type="button"
               onPointerDown={(event) => {

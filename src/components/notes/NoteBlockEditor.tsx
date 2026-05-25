@@ -1633,6 +1633,15 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   useEffect(() => {
     if (!editor || !shouldFocus) return;
 
+    // If the editor already has focus (e.g. from a user click), don't override
+    // the cursor position — the browser already placed it at the click point.
+    if (editor.isFocused) {
+      const animationFrameId = window.requestAnimationFrame(() => {
+        onFocusApplied?.();
+      });
+      return () => { window.cancelAnimationFrame(animationFrameId); };
+    }
+
     if (typeof focusPlacement === "number") {
       editor.chain().focus().setTextSelection(focusPlacement).run();
     } else {

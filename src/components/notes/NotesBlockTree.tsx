@@ -380,7 +380,8 @@ function BlockNodeView({
               <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
             </button>
             {isBlockMenuOpen ? <BlockContextMenu options={blockContextMenuOptions} onAction={handleBlockMenuAction} /> : null}
-            {depth > 0 ? <span className="absolute bottom-0 left-1/2 top-1/2 w-px -translate-x-1/2 bg-border/60" /> : null}
+            {depth > 0 ? <span className="absolute bottom-0 left-1/2 top-1/2 -translate-x-1/2 border-l border-border/55" /> : null}
+            {depth > 0 ? <span className="absolute top-0 bottom-1/2 left-1/2 -translate-x-1/2 border-l border-border/55" /> : null}
           </div>
           <div className={`min-w-0 flex-1 rounded-sm transition-smooth ${selectedBlockIds.has(node.block.id) ? "bg-accent/45" : ""}`} style={editorSurfaceStyle}>
             {isNearViewport ? (

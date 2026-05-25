@@ -5,7 +5,7 @@ import { Extension, InputRule, markInputRule, markPasteRule, type Editor, type J
 import { Link2, Minus, Plus, Rows3, Trash2 } from "lucide-react";
 import Blockquote from "@tiptap/extension-blockquote";
 import Bold from "@tiptap/extension-bold";
-import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
+import { CodeBlockWithToolbar } from "@/components/notes/NoteBlockEditorCode";
 import Code from "@tiptap/extension-code";
 import Document from "@tiptap/extension-document";
 import Dropcursor from "@tiptap/extension-dropcursor";
@@ -1021,7 +1021,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
       Italic,
       Strike,
       Code,
-      CodeBlockLowlight.configure({
+      CodeBlockWithToolbar.configure({
         lowlight,
       }),
       Blockquote,

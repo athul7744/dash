@@ -3,13 +3,7 @@
  * and restoring them as HTML elements that ProseMirror can parse.
  */
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+import { escapeHtml } from "@/lib/shared/utils";
 
 export type MathToken = { placeholder: string; html: string };
 
@@ -66,18 +60,4 @@ export function restoreMathTokens(html: string, mathTokens: MathToken[]): string
     result = result.replace(placeholder, mathHtml);
   }
   return result;
-}
-
-/**
- * Serializes a math inline node to markdown: `$latex$`
- */
-export function serializeMathInlineToMarkdown(latex: string): string {
-  return `$${latex}$`;
-}
-
-/**
- * Serializes a math block node to markdown: `$$latex$$`
- */
-export function serializeMathBlockToMarkdown(latex: string): string {
-  return `$$${latex}$$`;
 }

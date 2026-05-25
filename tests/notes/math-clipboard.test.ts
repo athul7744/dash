@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import { protectMathTokens, restoreMathTokens, serializeMathInlineToMarkdown, serializeMathBlockToMarkdown } from "@/lib/notes/math-clipboard";
+import { protectMathTokens, restoreMathTokens } from "@/lib/notes/math-clipboard";
 
 describe("math-clipboard", () => {
   describe("protectMathTokens", () => {
@@ -106,18 +106,6 @@ describe("math-clipboard", () => {
       expect(restored).toContain('data-latex="a"');
       expect(restored).toContain('data-latex="b"');
       expect(restored).toContain('data-latex="c"');
-    });
-  });
-
-  describe("serializeMathInlineToMarkdown", () => {
-    it("wraps latex in single dollar signs", () => {
-      expect(serializeMathInlineToMarkdown("E=mc^2")).toBe("$E=mc^2$");
-    });
-  });
-
-  describe("serializeMathBlockToMarkdown", () => {
-    it("wraps latex in double dollar signs", () => {
-      expect(serializeMathBlockToMarkdown("\\sum_{i=0}^n i")).toBe("$$\\sum_{i=0}^n i$$");
     });
   });
 

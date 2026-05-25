@@ -50,6 +50,7 @@ import {
 } from "@/components/notes/NoteBlockEditorSlash";
 import { MathInline, MathBlock } from "@/components/notes/NoteBlockEditorMath";
 import { protectMathTokens, restoreMathTokens } from "@/lib/notes/math-clipboard";
+import { escapeHtml } from "@/lib/shared/utils";
 import {
   getBlockArrowMoveAction,
   getBlockBackspaceAction,
@@ -129,33 +130,6 @@ turndownService.addRule("taskListItems", {
     return `\n- [${isChecked ? "x" : " "}] ${normalizedContent}\n`;
   },
 });
-turndownService.addRule("mathInline", {
-  filter(node: Node) {
-    return node.nodeName === "SPAN" && (node as HTMLElement).hasAttribute("data-math-inline");
-  },
-  replacement(_content: string, node: Node) {
-    const latex = (node as HTMLElement).getAttribute("data-latex") ?? "";
-    return `$${latex}$`;
-  },
-});
-turndownService.addRule("mathBlock", {
-  filter(node: Node) {
-    return node.nodeName === "DIV" && (node as HTMLElement).hasAttribute("data-math-block");
-  },
-  replacement(_content: string, node: Node) {
-    const latex = (node as HTMLElement).getAttribute("data-latex") ?? "";
-    return `\n\n$$${latex}$$\n\n`;
-  },
-});
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 function protectNoteTokens(text: string) {
   const tokens: string[] = [];

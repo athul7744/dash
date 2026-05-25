@@ -1,5 +1,6 @@
 import { Node, mergeAttributes, InputRule } from "@tiptap/core";
 import katex from "katex";
+import { escapeHtml } from "@/lib/shared/utils";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -21,13 +22,7 @@ function renderKatex(latex: string, displayMode: boolean): string {
   }
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+
 
 // ---------------------------------------------------------------------------
 // Inline math  $...$

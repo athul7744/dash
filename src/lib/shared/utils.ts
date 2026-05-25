@@ -27,6 +27,18 @@ export function formatRelativeTime(date: Date): string {
 }
 
 /**
+ * Escapes a string for safe insertion into HTML content or attributes.
+ */
+export function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+/**
  * Auto-resize a textarea to fit its content.
  */
 export function autoResizeTextarea(textarea: HTMLTextAreaElement | null) {

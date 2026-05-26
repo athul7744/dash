@@ -7,6 +7,7 @@ import { getCurrentUserId } from "@/lib/shared/auth";
 import { cancelExecute, debouncedExecute, debouncedUpdate, SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 
 const NOTES_DEBOUNCE_MS = 10_000;
+const PAGE_META_DEBOUNCE_MS = 1_000;
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
@@ -356,11 +357,11 @@ export async function isNotePageTitleAvailable(title: string, excludePageId?: st
 }
 
 export function updateNotePageTitle(pageId: string, title: string) {
-  debouncedUpdate(pageId, "title", title, "pages", NOTES_DEBOUNCE_MS);
+  debouncedUpdate(pageId, "title", title, "pages", PAGE_META_DEBOUNCE_MS);
 }
 
 export function updateNotePageProperties(pageId: string, properties: Record<string, JsonValue>) {
-  debouncedUpdate(pageId, "properties", JSON.stringify(properties), "pages", NOTES_DEBOUNCE_MS);
+  debouncedUpdate(pageId, "properties", JSON.stringify(properties), "pages", PAGE_META_DEBOUNCE_MS);
 }
 
 export async function deleteNotePage(pageId: string) {

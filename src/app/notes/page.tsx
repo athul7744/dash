@@ -205,6 +205,7 @@ export default function NotesPage() {
   useEffect(() => {
     if (!selectedPageId) {
       hydratedPageIdRef.current = null;
+      setPageTitleDraft("");
       setPageTitleError(null);
       setPageEmojiDraft(undefined);
       setSummaryDraft("");
@@ -215,6 +216,18 @@ export default function NotesPage() {
       setStableUpdatedTimestamp(null);
       setFocusTarget(null);
       return;
+    }
+
+    // Clear drafts immediately when switching to a different page to prevent stale content flash
+    if (hydratedPageIdRef.current !== null && hydratedPageIdRef.current !== selectedPageId) {
+      setPageTitleDraft("");
+      setPageTitleError(null);
+      setPageEmojiDraft(undefined);
+      setSummaryDraft("");
+      setSelectedTagIdsDraft([]);
+      setBlockContentDrafts({});
+      setOptimisticBlockStructure({});
+      setFocusTarget(null);
     }
 
     if (!selectedPage || selectedPage.id !== selectedPageId) {

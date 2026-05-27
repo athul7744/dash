@@ -830,7 +830,7 @@ export function NotePageProperties({
         </div>
       </div>
 
-      {resolvedProperties.length > 0 && (
+      {resolvedProperties.length > 0 ? (
         <div
           className="grid transition-[grid-template-rows] duration-200 ease-in-out"
           style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
@@ -848,7 +848,11 @@ export function NotePageProperties({
             </div>
           </div>
         </div>
-      )}
+      ) : isExpanded ? (
+        <p className="pl-6 py-1.5 text-[11px] text-muted-foreground/50">
+          No properties assigned. Use + to add one.
+        </p>
+      ) : null}
     </div>
   );
 }

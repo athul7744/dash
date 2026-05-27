@@ -803,9 +803,9 @@ export function NotePageProperties({
 
   return (
     <div
-      className={`col-span-2 px-3 sm:col-start-2 sm:col-span-2 sm:px-0 pb-2 ${shouldAnimate ? "animate-stagger" : ""}`}
+      className={`col-span-2 px-3 sm:col-start-2 sm:col-span-2 sm:px-0 ${shouldAnimate ? "animate-stagger" : ""}`}
     >
-      <div className="flex items-center justify-between mb-1 group/header">
+      <div className="flex items-center justify-between group/header">
         <button
           type="button"
           onClick={() => setIsExpanded((prev) => !prev)}

@@ -130,7 +130,7 @@ export function NotesNavigationRailSkeleton({ showHeader = true }: NotesNavigati
 
 export function NotesEditorMainSkeleton() {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-1 gap-y-4 md:gap-x-2 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-1 gap-y-1.5 md:gap-x-2 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
       {/* Back button placeholder — always hidden (matches actual editor) */}
       <div className="hidden" />
       {/* Title */}
@@ -153,7 +153,7 @@ export function NotesEditorMainSkeleton() {
         <Bone className="h-3.5 w-16 rounded" />
       </div>
       {/* Block tree */}
-      <div className="col-span-2 space-y-1.5 rounded-2xl bg-muted/20 py-1 sm:col-start-2 sm:col-span-2">
+      <div className="col-span-2 space-y-1.5 rounded-2xl bg-muted/20 py-1 pt-2 sm:col-start-2 sm:col-span-2">
         <EditorBlockRowSkeleton widthClassName="w-4/5" />
         <EditorBlockRowSkeleton indent={1} widthClassName="w-3/4" />
         <EditorBlockRowSkeleton indent={1} widthClassName="w-5/6" />

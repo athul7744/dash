@@ -224,7 +224,7 @@ export function getPageDescription(properties: unknown, fallbackContent: string 
 
   if (!fallbackContent) return null;
   try {
-    const node = JSON.parse(fallbackContent);
+    const node = normalizeNoteDocument(fallbackContent) as RichContentNode;
     const text = extractTextFromRichContent(node).trim();
     return text || null;
   } catch {

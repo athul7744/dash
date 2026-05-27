@@ -642,6 +642,7 @@ export default function NotesPage() {
       onSetSummaryDraft={setSummaryDraft}
       onPersistSelectedPageProperties={persistSelectedPageProperties}
       onSetFocusTarget={setFocusTarget}
+      onNavigateToPage={openPageById}
     />
   );
 

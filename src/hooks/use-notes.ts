@@ -16,6 +16,7 @@ export type LinkedNoteReferenceRow = {
   source_page_title: string | null;
   source_block_content: string | null;
   source_block_updated_at: string | null;
+  source_page_properties: string | null;
 };
 export type NoteTagMentionRow = {
   tag_name: string;
@@ -165,6 +166,7 @@ export function useLinkedNoteReferences(pageId?: string | null) {
         "  e.source_block_id AS source_block_id,",
         "  b.page_id AS source_page_id,",
         "  p.title AS source_page_title,",
+        "  p.properties AS source_page_properties,",
         "  b.content AS source_block_content,",
         "  b.updated_at AS source_block_updated_at",
         "FROM edges e",

@@ -42,7 +42,7 @@ export function MobileRailDrawer({
           <DrawerTitle>{title}</DrawerTitle>
           <DrawerDescription>{description}</DrawerDescription>
         </DrawerHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto px-[var(--app-gutter-x)] py-4 animate-fade-slide-in">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto bg-background px-[var(--app-gutter-x)] py-4 animate-fade-slide-in">{children}</div>
       </DrawerContent>
     </Drawer>
   );

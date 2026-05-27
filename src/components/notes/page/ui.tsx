@@ -23,21 +23,19 @@ export function DetailsSection({
   const contentId = useId();
 
   return (
-    <section className="border-t border-border/30 pt-4 first:border-t-0 first:pt-0">
+    <section>
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-controls={contentId}
-        className="flex w-full items-center justify-between gap-3 py-1 text-left transition-colors hover:text-foreground"
+        className="flex w-full items-center justify-between gap-3 py-0.5 text-left transition-colors hover:text-foreground"
       >
-        <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
-          <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-lg", accentClassName)}>
-            <Icon className="h-3.5 w-3.5 shrink-0" />
-          </span>
-          <span className="truncate text-[14px] font-semibold text-foreground">{title}</span>
+        <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+          <Icon className={cn("h-3.5 w-3.5 shrink-0", accentClassName)} />
+          <span className="truncate text-[13px] font-medium text-muted-foreground">{title}</span>
         </span>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground/50 transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
       </button>
 
       <div
@@ -46,7 +44,7 @@ export function DetailsSection({
       >
         <div className="min-h-0" inert={!isOpen}>
           <div
-            className={`pt-2 pl-5 transition-all duration-200 ease-out ${isOpen ? "translate-y-0" : "-translate-y-1"}`}
+            className={`pt-1.5 transition-all duration-200 ease-out ${isOpen ? "translate-y-0" : "-translate-y-1"}`}
             aria-hidden={!isOpen}
           >
             {children}

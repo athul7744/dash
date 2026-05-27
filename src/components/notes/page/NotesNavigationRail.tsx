@@ -200,7 +200,7 @@ export function NotesNavigationRail({
 
                         <div
                           id={`tag-directory-${entry.key}`}
-                          className={`grid overflow-hidden transition-all duration-180 ease-out ${isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+                          className={`grid grid-cols-[minmax(0,1fr)] overflow-hidden transition-all duration-180 ease-out ${isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
                         >
                           <div className="min-h-0" inert={!isOpen}>
                             <div className={`space-y-0.5 pl-4 transition-all duration-180 ease-out ${isOpen ? "translate-y-0 opacity-100" : "-translate-y-0.5 opacity-0"}`} aria-hidden={!isOpen}>

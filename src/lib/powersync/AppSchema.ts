@@ -74,6 +74,14 @@ export const attachmentsTable = new Table({
   sync_state: column.text
 });
 
+export const propertyDefinitionsTable = new Table({
+  user_id: column.text,
+  name: column.text,
+  type: column.text, // 'text' | 'number' | 'date' | 'select' | 'checkbox' | 'url'
+  config: column.text, // stored as JSON string (e.g. select options)
+  created_at: column.text
+});
+
 export const AppSchema = new Schema({
   tasks: tasksTable,
   tags: tagsTable,
@@ -83,7 +91,8 @@ export const AppSchema = new Schema({
   pages: pagesTable,
   blocks: blocksTable,
   edges: edgesTable,
-  attachments: attachmentsTable
+  attachments: attachmentsTable,
+  property_definitions: propertyDefinitionsTable
 });
 
 export type Database = (typeof AppSchema)['types'];
@@ -96,3 +105,4 @@ export type PageRecord = Database['pages'];
 export type BlockRecord = Database['blocks'];
 export type EdgeRecord = Database['edges'];
 export type AttachmentRecord = Database['attachments'];
+export type PropertyDefinitionRecord = Database['property_definitions'];

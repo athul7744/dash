@@ -34,13 +34,37 @@ function orderTables(tables: string[], preferredOrder: string[]) {
   });
 }
 
+/** Columns that are JSONB in Supabase but stored as TEXT in PowerSync. */
+export const JSON_COLUMNS: Record<string, Set<string>> = {
+  tasks: new Set(['tags']),
+  pages: new Set(['properties']),
+  blocks: new Set(['content']),
+  property_definitions: new Set(['config']),
+};
+
+/** Parse known JSON columns from text back to objects for Supabase upload. */
+export function parseJsonColumns(table: string, opData: Record<string, any> | undefined): Record<string, any> {
+  if (!opData) return {};
+  const jsonCols = JSON_COLUMNS[table];
+  if (!jsonCols) return { ...opData };
+
+  const result = { ...opData };
+  for (const col of jsonCols) {
+    const val = result[col];
+    if (typeof val === 'string') {
+      try { result[col] = JSON.parse(val); } catch { /* keep as string */ }
+    }
+  }
+  return result;
+}
+
 export class SupabaseConnector implements PowerSyncBackendConnector {
   client = createClient();
 
   async fetchCredentials() {
     log.info("Fetching credentials...");
     const { data: { session }, error } = await this.client.auth.getSession();
-    
+
     if (error) {
       log.error("fetchCredentials error:", error.message);
       return null;
@@ -81,10 +105,12 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     const patchOps: CrudEntry[] = [];
 
     for (const op of batch.crud) {
+      const parsedData = parseJsonColumns(op.table, op.opData);
+
       switch (op.op) {
         case UpdateType.PUT:
           if (!putOps[op.table]) putOps[op.table] = [];
-          putOps[op.table].push({ ...op.opData, id: op.id });
+          putOps[op.table].push({ ...parsedData, id: op.id });
           break;
         case UpdateType.PATCH:
           patchOps.push(op);
@@ -115,8 +141,9 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
       // Execute PATCH operations individually (partial updates can't be easily batched)
       for (const op of patchOps) {
-        log.info(`PATCH ${op.table}/${op.id}`, Object.keys(op.opData || {}).join(", "));
-        const { error } = await this.client.from(op.table).update(op.opData || {}).eq('id', op.id);
+        const data = parseJsonColumns(op.table, op.opData);
+        log.info(`PATCH ${op.table}/${op.id}`, Object.keys(data).join(", "));
+        const { error } = await this.client.from(op.table).update(data).eq('id', op.id);
         if (error) throw new Error(`PATCH ${op.table}/${op.id} failed: ${error.message}`);
       }
 

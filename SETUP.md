@@ -135,6 +135,16 @@ CREATE TABLE public.attachments (
   )
 );
 
+-- Property definitions table (global custom properties for note pages)
+CREATE TABLE public.property_definitions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  config JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Row Level Security
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tags ENABLE ROW LEVEL SECURITY;
@@ -145,6 +155,7 @@ ALTER TABLE public.pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.edges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.property_definitions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can CRUD own tasks" ON public.tasks
   FOR ALL USING (auth.uid() = user_id)
@@ -182,6 +193,10 @@ CREATE POLICY "Users can CRUD own attachments" ON public.attachments
   FOR ALL USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Users can CRUD own property_definitions" ON public.property_definitions
+  FOR ALL USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
 -- Indexes
 CREATE INDEX idx_time_logs_user_start ON time_logs (user_id, start_timestamp);
 CREATE INDEX idx_pages_user_title ON pages (user_id, title);
@@ -193,7 +208,7 @@ CREATE INDEX idx_attachments_block ON attachments (block_id) WHERE block_id IS N
 CREATE INDEX idx_attachments_user_path ON attachments (user_id, file_path);
 
 -- Publication for PowerSync replication
-CREATE PUBLICATION powersync FOR TABLE public.tasks, public.tags, public.time_logs, public.activity_types, public.daily_ratings, public.pages, public.blocks, public.edges, public.attachments;
+CREATE PUBLICATION powersync FOR TABLE public.tasks, public.tags, public.time_logs, public.activity_types, public.daily_ratings, public.pages, public.blocks, public.edges, public.attachments, public.property_definitions;
 ```
 
 4. Go to **Authentication → Users → Add User** to create your account
@@ -232,6 +247,7 @@ streams:
       - SELECT * FROM blocks WHERE blocks.user_id = auth.user_id()
       - SELECT * FROM edges WHERE edges.user_id = auth.user_id()
       - SELECT * FROM attachments WHERE attachments.user_id = auth.user_id()
+      - SELECT * FROM property_definitions WHERE property_definitions.user_id = auth.user_id()
 ```
 
 4. Note your **PowerSync Instance URL**

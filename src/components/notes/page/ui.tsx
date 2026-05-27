@@ -23,7 +23,7 @@ export function DetailsSection({
   const contentId = useId();
 
   return (
-    <section>
+    <section className="min-w-0 overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
@@ -40,7 +40,7 @@ export function DetailsSection({
 
       <div
         id={contentId}
-        className={`grid overflow-hidden transition-all duration-200 ease-out ${isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+        className={`grid grid-cols-[minmax(0,1fr)] overflow-hidden transition-all duration-200 ease-out ${isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
       >
         <div className="min-h-0" inert={!isOpen}>
           <div

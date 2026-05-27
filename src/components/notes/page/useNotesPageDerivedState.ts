@@ -4,12 +4,11 @@ import { useQuery } from "@powersync/react";
 import { useMemo } from "react";
 
 import type { NoteBlockRow, NotePageRow } from "@/hooks/use-notes";
-import { extractNoteText } from "@/lib/notes/notes-content";
 import { normalizeNotePageTitle } from "@/lib/notes/notes";
 import type { Tag } from "@/lib/powersync/AppSchema";
 
 import { type NormalizedNotePage, type OutlineEntry, type TagDirectoryEntry } from "./types";
-import { buildOutlineEntries, formatTimestampLabel, normalizePageEmoji, parseProperties, parseStoredTagIds, resolveNoteTags } from "./utils";
+import { buildOutlineEntries, formatTimestampLabel, getPageDescription, normalizePageEmoji, parseProperties, parseStoredTagIds, resolveNoteTags } from "./utils";
 
 type UseNotesPageDerivedStateParams = {
   allPages: NotePageRow[];
@@ -23,13 +22,11 @@ type UseNotesPageDerivedStateParams = {
 function normalizePages(pages: NotePageRow[], availableTags: Tag[]): NormalizedNotePage[] {
   return pages.map((page) => {
     const properties = parseProperties(page.properties);
-    const persistedSummary = typeof properties.summary === "string" ? properties.summary.trim() : "";
-    const previewSummary = persistedSummary ? "" : extractNoteText(page.preview_content).trim();
     const tags = resolveNoteTags(parseStoredTagIds(properties.tags), availableTags);
 
     return {
       ...page,
-      summary: persistedSummary || previewSummary || null,
+      summary: getPageDescription(page.properties, page.preview_content),
       tags,
       emoji: normalizePageEmoji(properties.emoji),
     };

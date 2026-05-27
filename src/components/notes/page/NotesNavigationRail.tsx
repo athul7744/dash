@@ -90,8 +90,8 @@ export function NotesNavigationRail({
   onSelectPage: (pageId: string) => void;
 }) {
   return (
-    <div className="animate-fade-slide-in space-y-3 py-1 sm:flex sm:min-w-0 sm:min-h-0 sm:max-h-[calc(100dvh-2rem)] sm:flex-col sm:gap-3 sm:space-y-0">
-      <div className="min-w-0 space-y-3 pr-1 pb-4 transition-smooth sm:min-h-0 sm:flex-1 sm:overflow-y-auto">
+    <div className="animate-fade-slide-in w-full space-y-3 py-1 sm:flex sm:w-full sm:min-w-0 sm:min-h-0 sm:max-h-[calc(100dvh-2rem)] sm:flex-col sm:gap-3 sm:space-y-0 sm:overflow-hidden">
+      <div className="min-w-0 w-full space-y-3 pr-1 pb-4 transition-smooth sm:min-h-0 sm:w-0 sm:min-w-full sm:flex-1 sm:overflow-y-auto">
         <div className="flex items-center justify-between gap-3 sm:hidden">
           <p className="text-sm font-semibold text-foreground">Pages</p>
           <Button

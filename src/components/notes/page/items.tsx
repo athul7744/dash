@@ -110,7 +110,7 @@ export function OverviewPageCard({
         aria-label={`Open ${page.title || "Untitled page"}`}
       />
       {accentClasses ? <div className={cn("pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b", accentClasses.glow)} /> : null}
-      <div className="relative z-10 flex h-[11.5rem] flex-col gap-2.5 pointer-events-none sm:h-[12.5rem] sm:gap-3">
+      <div className="relative z-10 flex h-[12.5rem] flex-col gap-2.5 pointer-events-none sm:h-[13.5rem] sm:gap-3">
         <div className="flex items-center justify-between gap-2.5 sm:gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black text-white sm:h-10 sm:w-10">
             <PageIcon emoji={page.emoji} className="h-4 w-4 text-sm leading-none sm:h-4.5 sm:w-4.5 sm:text-base" />
@@ -133,7 +133,7 @@ export function OverviewPageCard({
           </Button>
         </div>
 
-        <div className="block min-w-0 space-y-1.5 overflow-hidden">
+        <div className="min-h-0 min-w-0 flex-1 space-y-1.5">
           <p className="line-clamp-2 text-[0.98rem] font-semibold leading-5 text-foreground sm:text-[1.05rem] sm:leading-6">
             {page.title || "Untitled page"}
           </p>

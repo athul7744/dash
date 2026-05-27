@@ -8,8 +8,8 @@ import type { LinkedNoteReferenceRow, NoteAttachmentRow, NotePageRow, NoteTagMen
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/shared/utils";
 
-import { attachmentLabel } from "./utils";
-import { Bone, DetailsRailCardSkeleton, DetailsSection } from "./ui";
+import { attachmentLabel, getPageDescription, parseProperties } from "./utils";
+import { Bone, DetailsRailCardSkeleton, DetailsSection, PageIcon } from "./ui";
 import type { NoteTag, OutlineEntry } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -250,10 +250,14 @@ export function NotesDetailsRail({
                   onClick={() => onNavigateToPage(reference.source_page_id)}
                   className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/60"
                 >
-                  <span className="mt-0.5 shrink-0 text-sm leading-none">{(() => { try { const props = reference.source_page_properties ? JSON.parse(reference.source_page_properties) : null; return props?.emoji || "📄"; } catch { return "📄"; } })()}</span>
+                  <PageIcon
+                    emoji={(() => { try { return parseProperties(reference.source_page_properties)?.emoji as string | undefined; } catch { return undefined; } })()}
+                    className="mt-0.5 h-4 w-4 shrink-0 text-sm leading-none"
+                    fallbackClassName="text-muted-foreground"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[12px] font-medium text-foreground">{reference.source_page_title || "Untitled page"}</p>
-                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">{reference.source_block_content ? JSON.parse(reference.source_block_content).content?.[0]?.content?.[0]?.text ?? "Referenced block" : "Referenced block"}</p>
+                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">{getPageDescription(reference.source_page_properties, reference.source_block_content) || "No description"}</p>
                   </div>
                 </button>
               ))}

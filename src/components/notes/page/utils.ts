@@ -14,6 +14,9 @@ type RichContentNode = {
   text?: string;
   attrs?: {
     level?: number;
+    title?: string;
+    label?: string;
+    [key: string]: unknown;
   };
   content?: RichContentNode[];
 };
@@ -31,10 +34,16 @@ export function formatTimestampLabel(value: string | null | undefined) {
   };
 }
 
-function extractTextFromRichContent(node: RichContentNode | null | undefined): string {
+export function extractTextFromRichContent(node: RichContentNode | null | undefined): string {
   if (!node) return "";
 
-  const ownText = typeof node.text === "string" ? node.text : "";
+  const ownText = typeof node.text === "string"
+    ? node.text
+    : typeof node.attrs?.title === "string"
+      ? node.attrs.title
+      : typeof node.attrs?.label === "string"
+        ? node.attrs.label
+        : "";
   const childText = Array.isArray(node.content)
     ? node.content.map((child) => extractTextFromRichContent(child)).join("")
     : "";
@@ -202,4 +211,23 @@ export function getDeterministicTagColor(tag: string | null | undefined) {
 
 export function normalizePageEmoji(value: unknown) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+/**
+ * Get a page description from properties (summary) or fallback content.
+ * Used by overview cards and linked references.
+ */
+export function getPageDescription(properties: unknown, fallbackContent: string | null | undefined): string | null {
+  const props = parseProperties(properties);
+  const summary = typeof props?.summary === "string" ? props.summary.trim() : "";
+  if (summary) return summary;
+
+  if (!fallbackContent) return null;
+  try {
+    const node = JSON.parse(fallbackContent);
+    const text = extractTextFromRichContent(node).trim();
+    return text || null;
+  } catch {
+    return null;
+  }
 }

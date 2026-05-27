@@ -20,6 +20,31 @@ export type NormalizedNotePage = NotePageRow & {
   emoji: string | null;
 };
 
+export const PROPERTY_TYPES = ["text", "number", "date", "select", "checkbox", "url"] as const;
+export type PropertyType = typeof PROPERTY_TYPES[number];
+
+export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
+  text: "Text",
+  number: "Number",
+  date: "Date",
+  select: "Select",
+  checkbox: "Checkbox",
+  url: "URL",
+};
+
+export type PropertyDefinitionConfig = {
+  options?: string[];
+  icon?: string;
+};
+
+export type ResolvedPageProperty = {
+  definitionId: string;
+  name: string;
+  type: PropertyType;
+  config: PropertyDefinitionConfig;
+  value: unknown;
+};
+
 export type TagDirectoryEntry = {
   key: string;
   label: string;

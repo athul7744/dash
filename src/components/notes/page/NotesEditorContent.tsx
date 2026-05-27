@@ -7,6 +7,7 @@ import { NotesEditorMainSkeleton } from "@/components/notes/NotesPageSkeleton";
 import type { JsonValue, NoteBlockInsert } from "@/lib/notes/notes";
 
 import { NotesEditorHeader } from "./NotesEditorHeader";
+import { NotePageProperties } from "./NotePageProperties";
 import type { NotesEditorRenderableContent } from "./types";
 import type { BlockRangeMoveDirection } from "@/lib/notes/block-editor-structure";
 
@@ -24,6 +25,7 @@ export function NotesEditorContent({
   selectedTagIdsDraft,
   focusTarget,
   notePageTitles,
+  selectedPageProperties,
   onBack,
   onTitleChange,
   onCommitTitle,
@@ -60,6 +62,7 @@ export function NotesEditorContent({
   selectedTagIdsDraft: string[];
   focusTarget: FocusTarget;
   notePageTitles: string[];
+  selectedPageProperties: Record<string, unknown>;
   onBack: () => void;
   onTitleChange: (value: string) => void;
   onCommitTitle: () => void | Promise<void>;
@@ -194,6 +197,14 @@ export function NotesEditorContent({
             onCopyDocument={onCopyDocument}
             onOpenDeleteDialog={onOpenDeleteDialog}
           />
+
+          {editorContent.pageId ? (
+            <NotePageProperties
+              pageId={editorContent.pageId}
+              pageProperties={selectedPageProperties}
+              shouldAnimate={shouldAnimateEditorContent}
+            />
+          ) : null}
 
           <div ref={blockTreeRefCallback} className={`col-span-2 sm:col-start-2 sm:col-span-2 ${shouldAnimateEditorContent ? "animate-fade-slide-in" : ""}`}>
             <NotesBlockTree

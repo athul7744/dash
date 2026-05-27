@@ -937,6 +937,7 @@ export default function NotesPage() {
                     selectedTagIdsDraft={selectedTagIdsDraft}
                     focusTarget={focusTarget}
                     notePageTitles={notePageTitles}
+                    selectedPageProperties={selectedPageProperties}
                     onBack={() => {
                       transitionToOverview();
                       router.push("/notes");

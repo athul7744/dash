@@ -36,7 +36,7 @@ export function NavigationPageLink({
     <Link
       href={`/notes?page=${page.id}`}
       onClick={() => onSelectPage(page.id)}
-      className={`group block rounded-xl px-1.5 py-2 transition-smooth ${
+      className={`group block overflow-hidden rounded-xl px-1.5 py-2 transition-smooth ${
         isSelected
           ? "text-amber-700 dark:text-amber-300"
           : "text-foreground hover:bg-accent/45"

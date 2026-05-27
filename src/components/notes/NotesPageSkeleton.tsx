@@ -148,6 +148,11 @@ export function NotesEditorMainSkeleton() {
           <Bone className="h-7 w-24 rounded-full" />
           <Bone className="h-7 w-26 rounded-full" />
         </div>
+        {/* Properties collapsed */}
+        <div className="col-span-2 flex items-center gap-1 pl-3 sm:col-start-2 sm:col-span-2 sm:pl-0">
+          <Bone className="h-3.5 w-3.5 rounded" />
+          <Bone className="h-3.5 w-16 rounded" />
+        </div>
         {/* Block tree */}
         <div className="col-span-2 space-y-1.5 rounded-2xl bg-muted/20 py-1 sm:col-start-2 sm:col-span-2">
           <EditorBlockRowSkeleton widthClassName="w-4/5" />

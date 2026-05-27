@@ -384,7 +384,6 @@ function PropertyValueEditor({
       if (!isFocused) {
         return (
           <div className="flex items-center gap-1 w-full">
-            <PillValue value={typeof localValue === "string" ? localValue : null} onClick={() => setIsFocused(true)} />
             {typeof localValue === "string" && localValue && /^https?:\/\//i.test(localValue) && (
               <a
                 href={localValue}
@@ -396,6 +395,7 @@ function PropertyValueEditor({
                 <Globe className="h-3 w-3" />
               </a>
             )}
+            <PillValue value={typeof localValue === "string" ? localValue : null} onClick={() => setIsFocused(true)} />
           </div>
         );
       }
@@ -718,7 +718,7 @@ export function NotePageProperties({
   shouldAnimate: boolean;
 }) {
   const { definitions } = usePropertyDefinitions();
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const pagePropertiesRef = useRef(pageProperties);
   pagePropertiesRef.current = pageProperties;
@@ -830,16 +830,23 @@ export function NotePageProperties({
         </div>
       </div>
 
-      {isExpanded && resolvedProperties.length > 0 && (
-        <div className="space-y-[1px] pl-3 border-l border-border/10 ml-[5px]">
-          {resolvedProperties.map((prop) => (
-            <PropertyRow
-              key={prop.definitionId}
-              property={prop}
-              onValueChange={handleValueChange}
-              onRemove={handleRemoveProperty}
-            />
-          ))}
+      {resolvedProperties.length > 0 && (
+        <div
+          className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+          style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
+        >
+          <div className="overflow-hidden">
+            <div className="space-y-[1px] pl-3 border-l border-border/10 ml-[5px]">
+              {resolvedProperties.map((prop) => (
+                <PropertyRow
+                  key={prop.definitionId}
+                  property={prop}
+                  onValueChange={handleValueChange}
+                  onRemove={handleRemoveProperty}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

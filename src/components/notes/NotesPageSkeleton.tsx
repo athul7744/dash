@@ -130,37 +130,35 @@ export function NotesNavigationRailSkeleton({ showHeader = true }: NotesNavigati
 
 export function NotesEditorMainSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-4">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-1 gap-y-4 md:gap-x-2 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
-        {/* Back button placeholder — hidden on mobile, visible on desktop */}
-        <Bone className="mt-1 hidden h-8 w-8 rounded-full sm:block md:h-9 md:w-9" />
-        {/* Title */}
-        <Bone className="col-start-1 h-12 w-3/4 sm:col-start-2" />
-        {/* Mobile star + menu — hidden on desktop */}
-        <div className="col-start-2 mt-1 flex items-center justify-self-end gap-1.5 sm:col-start-3 sm:hidden">
-          <Bone className="h-8 w-8 rounded-full" />
-          <Bone className="h-8 w-8 rounded-full" />
-        </div>
-        {/* Metadata row: emoji, tag, blocks, backlinks */}
-        <div className="col-span-2 flex gap-2 overflow-hidden pl-3 sm:col-span-1 sm:col-start-2 sm:pl-0">
-          <Bone className="h-7 w-7 shrink-0 rounded-full" />
-          <Bone className="h-7 w-20 rounded-full" />
-          <Bone className="h-7 w-24 rounded-full" />
-          <Bone className="h-7 w-26 rounded-full" />
-        </div>
-        {/* Properties collapsed */}
-        <div className="col-span-2 flex items-center gap-1 pl-3 sm:col-start-2 sm:col-span-2 sm:pl-0">
-          <Bone className="h-3.5 w-3.5 rounded" />
-          <Bone className="h-3.5 w-16 rounded" />
-        </div>
-        {/* Block tree */}
-        <div className="col-span-2 space-y-1.5 rounded-2xl bg-muted/20 py-1 sm:col-start-2 sm:col-span-2">
-          <EditorBlockRowSkeleton widthClassName="w-4/5" />
-          <EditorBlockRowSkeleton indent={1} widthClassName="w-3/4" />
-          <EditorBlockRowSkeleton indent={1} widthClassName="w-5/6" />
-          <EditorBlockRowSkeleton widthClassName="w-2/3" />
-          <EditorBlockRowSkeleton indent={2} widthClassName="w-3/5" />
-        </div>
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-1 gap-y-4 md:gap-x-2 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
+      {/* Back button placeholder — always hidden (matches actual editor) */}
+      <div className="hidden" />
+      {/* Title */}
+      <Bone className="col-start-1 h-12 w-3/4 sm:col-start-2" />
+      {/* Mobile star + menu — hidden on desktop */}
+      <div className="col-start-2 mt-1 flex items-center justify-self-end gap-1.5 sm:col-start-3 sm:hidden">
+        <Bone className="h-8 w-8 rounded-full" />
+        <Bone className="h-8 w-8 rounded-full" />
+      </div>
+      {/* Metadata row: emoji, tag, blocks, backlinks */}
+      <div className="col-span-2 flex gap-2 overflow-hidden pl-3 sm:col-span-1 sm:col-start-2 sm:pl-0">
+        <Bone className="h-7 w-7 shrink-0 rounded-full" />
+        <Bone className="h-7 w-20 rounded-full" />
+        <Bone className="h-7 w-24 rounded-full" />
+        <Bone className="h-7 w-26 rounded-full" />
+      </div>
+      {/* Properties collapsed */}
+      <div className="col-span-2 flex items-center gap-1 pl-3 sm:col-start-2 sm:col-span-2 sm:pl-0">
+        <Bone className="h-3.5 w-3.5 rounded" />
+        <Bone className="h-3.5 w-16 rounded" />
+      </div>
+      {/* Block tree */}
+      <div className="col-span-2 space-y-1.5 rounded-2xl bg-muted/20 py-1 sm:col-start-2 sm:col-span-2">
+        <EditorBlockRowSkeleton widthClassName="w-4/5" />
+        <EditorBlockRowSkeleton indent={1} widthClassName="w-3/4" />
+        <EditorBlockRowSkeleton indent={1} widthClassName="w-5/6" />
+        <EditorBlockRowSkeleton widthClassName="w-2/3" />
+        <EditorBlockRowSkeleton indent={2} widthClassName="w-3/5" />
       </div>
     </div>
   );
@@ -240,7 +238,9 @@ export function NotesPageSkeleton({ mode = "editor", showDesktopHeaderRow = true
         <NotesNavigationRailSkeleton showHeader={false} />
       </div>
 
-      <NotesEditorMainSkeleton />
+      <div className="mx-auto w-full max-w-3xl">
+        <NotesEditorMainSkeleton />
+      </div>
 
       <div className="hidden sm:block">
         <NotesDetailsRailSkeleton showHeader={false} />

@@ -53,6 +53,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/notes/useNotesSurfaceState.dom.test.ts`
   Runs jsdom-backed integration coverage for useNotesSurfaceState hook behavior covering editor content caching during page transitions and selected-page loading.
 
+- `tests/notes/properties.test.ts`
+  Covers property definition config parsing (parseJsonColumns) and custom property value extraction (parseCustomPropertyValues) including malformed JSON and empty inputs.
+
 ## Usage
 
 - `npm test` — one-shot node-based Vitest run.

@@ -136,6 +136,7 @@ Important convention:
 - `src/components/notes/NotesBlockTree.tsx`
 - `src/components/notes/BlockContextMenu.tsx`
 - `src/components/notes/block-context-menu-options.ts`
+- `src/components/notes/ManagePropertiesDialog.tsx`
 - `src/components/notes/MobileRailDrawer.tsx`
 - `src/components/notes/page/*`
 
@@ -158,6 +159,8 @@ Important convention:
 - `src/lib/notes/notes.ts` — note writes, attachment upserts, and edge reconciliation
 - `src/lib/notes/math-clipboard.ts` — math token protection/restoration for clipboard paste flows
 - `src/lib/notes/block-editor-keyboard.ts` — keyboard decision logic for Enter, Backspace, Tab, and arrow keys in the block editor
+- `src/lib/notes/properties.ts` — CRUD operations for property definitions and custom property value parsing
+- `src/hooks/use-property-definitions.ts` — reactive query hook for workspace property definitions
 
 ### PowerSync integration
 
@@ -185,6 +188,8 @@ Responsibilities:
 - Orchestrates overview and editor surfaces via `?page=` route state.
 - Reads pages, blocks, backlinks, attachments, and mentions from local SQLite through `src/hooks/use-notes.ts`.
 - Resolves note page tag ids from `pages.properties.tags` through the shared `tags` table.
+- Supports custom page properties stored in `pages.properties.custom`, resolved against workspace-wide `property_definitions`.
+- Uses `ManagePropertiesDialog` for workspace-wide property definition CRUD (create, rename, delete, emoji icons, and select-option editing).
 - Preserves the shared header-first loading model used across the app.
 - Uses the shared debounced write path for page and block updates.
 
@@ -195,7 +200,7 @@ Key modules:
   - Includes the notes editor header metadata row, which reuses the shared tag selector and tag pill strip.
 
 - `src/components/notes/NoteBlockEditor.tsx`
-  - Per-block Tiptap editor with markdown-style transforms, block key handling, local/external content reconciliation, a table contextual toolbar for focused-cell column and row actions, and math-aware copy/paste handling.
+  - Per-block Tiptap editor with markdown-style transforms, block key handling, local/external content reconciliation, a table contextual toolbar for focused-cell column and row actions, a code block toolbar with language selector and copy button, and math-aware copy/paste handling.
 
 - `src/components/notes/NoteBlockEditorSlash.ts`
   - Slash command definitions plus query, filtering, and grouping helpers used by the block editor. Includes a `/math` command for inserting display math blocks.
@@ -204,7 +209,7 @@ Key modules:
   - Tiptap extensions for inline math (`$...$`) and block math (`$$...$$`). Provides atom nodes with KaTeX rendering, click-to-edit NodeViews, and input rules.
 
 - `src/components/notes/NotesBlockTree.tsx`
-  - Nested visible block tree, block navigation wiring, sibling creation plumbing, block move controls (Alt+arrow), selection handling, and per-heading-level accent color and divider styling.
+  - Nested visible block tree, block navigation wiring, sibling creation plumbing, block move controls (Alt+arrow), selection handling, per-heading-level accent color and divider styling, and tree-line indentation from block to bullet.
 
 - `src/components/notes/BlockContextMenu.tsx`
   - Block-level right-click context menu with actions for type conversion, move, indent/outdent, delete, and duplication.
@@ -223,6 +228,17 @@ Conventions:
 - Attachments are owned by either a page or a block, never both.
 - Blocks are lazy-mounted via `IntersectionObserver` and settle via `onEditorCreate` callback, not MutationObserver.
 - Page navigation triggers an entrance animation; the skeleton/settled state resets on each page switch.
+
+### Custom Page Properties
+
+The notes app supports Notion-style custom properties per page:
+
+- **Schema**: `property_definitions` table holds workspace-wide definitions (name, type, config with optional icon and select options).
+- **Per-page values**: Stored in `pages.properties.custom` as `{ [definitionId]: value }`.
+- **Supported types**: text, number, date, select, checkbox, url.
+- **UI**: `src/components/notes/page/NotePageProperties.tsx` renders a collapsible properties section below the page title with inline editors per type.
+- **Management**: `src/components/notes/ManagePropertiesDialog.tsx` provides workspace-wide property definition CRUD with emoji picker, type selector, and select-option editing. Available on desktop via the header and on mobile via the 3-dots menu.
+- **Data flow**: `src/lib/notes/properties.ts` handles definition CRUD and value parsing. `src/hooks/use-property-definitions.ts` provides reactive query access.
 
 ## Tasks App Structure
 

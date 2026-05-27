@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQuery } from "@powersync/react";
 import { ArrowLeft, Copy, Ellipsis, Files, Link2, Star, Trash2 } from "lucide-react";
 
 import { TagPillStrip } from "@/components/tags/TagPillStrip";
@@ -33,6 +32,8 @@ export function NotesEditorHeader({
   isEmojiPickerOpen,
   activePageEmoji,
   selectedTagIdsDraft,
+  allTags,
+  isLoadingTags,
   onBack,
   onTitleChange,
   onCommitTitle,
@@ -51,6 +52,8 @@ export function NotesEditorHeader({
   isEmojiPickerOpen: boolean;
   activePageEmoji: string | null;
   selectedTagIdsDraft: string[];
+  allTags: Tag[];
+  isLoadingTags: boolean;
   onBack: () => void;
   onTitleChange: (value: string) => void;
   onCommitTitle: () => void | Promise<void>;
@@ -61,19 +64,25 @@ export function NotesEditorHeader({
   onCopyDocument: () => void | Promise<void>;
   onOpenDeleteDialog: () => void;
 }) {
-  const { data: allTags = [] } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
   const mobileHeaderChromeButtonClass = "inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-[color,background-color,box-shadow] duration-200 hover:bg-accent/60 hover:text-foreground hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)]";
-  const visibleTags = useMemo(
-    () => selectedTagIdsDraft
+  const visibleTags = useMemo(() => {
+    // When draft is empty but editor content has tags, use those (pre-hydration)
+    if (selectedTagIdsDraft.length === 0 && editorContent.tags.length > 0) {
+      return editorContent.tags.map((tag) => ({
+        id: tag.id,
+        name: tag.name?.trim() || "Tag",
+        color: tag.color || "slate",
+      }));
+    }
+    return selectedTagIdsDraft
       .map((tagId) => allTags.find((tag) => tag.id === tagId) ?? null)
       .filter((tag): tag is Tag => tag !== null)
       .map((tag) => ({
         id: tag.id,
         name: tag.name?.trim() || "Tag",
         color: tag.color || "slate",
-      })),
-    [allTags, selectedTagIdsDraft]
-  );
+      }));
+  }, [allTags, editorContent.tags, selectedTagIdsDraft]);
 
   return (
     <>
@@ -175,7 +184,7 @@ export function NotesEditorHeader({
               </button>
             </PopoverContent>
           </Popover>
-          {visibleTags.length === 0 ? (
+          {visibleTags.length === 0 && !isLoadingTags ? (
             <TagSelector
               selectedTagIds={selectedTagIdsDraft}
               onSelectedTagIdsChange={onSelectedTagIdsChange}
@@ -206,8 +215,12 @@ export function NotesEditorHeader({
               )}
             />
           )}
-          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1"><Files className="h-3 w-3" />{editorContent.blockCount} blocks</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1"><Link2 className="h-3 w-3" />{editorContent.backlinkCount} backlinks</span>
+          {editorContent.blockCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1"><Files className="h-3 w-3" />{editorContent.blockCount} blocks</span>
+          )}
+          {editorContent.backlinkCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1"><Link2 className="h-3 w-3" />{editorContent.backlinkCount} backlinks</span>
+          )}
         </div>
       </div>
     </>

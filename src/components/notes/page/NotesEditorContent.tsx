@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery } from "@powersync/react";
 
 import { NotesBlockTree } from "@/components/notes/NotesBlockTree";
 import { NotesEditorMainSkeleton } from "@/components/notes/NotesPageSkeleton";
 import type { JsonValue, NoteBlockInsert } from "@/lib/notes/notes";
+import { Tag } from "@/lib/powersync/AppSchema";
 
 import { NotesEditorHeader } from "./NotesEditorHeader";
 import { NotePageProperties } from "./NotePageProperties";
@@ -98,6 +100,7 @@ export function NotesEditorContent({
   onDeleteRange: (blockIds: string[]) => void | Promise<void>;
   onUpdateContent: (blockId: string, nextContent: JsonValue) => void;
 }) {
+  const { data: allTags = [], isLoading: isLoadingTags } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
   const [blocksSettled, setBlocksSettled] = useState(false);
   const blockCount = editorContent?.blocks.length ?? 0;
   const emptySettleTimerRef = useRef<number | null>(null);
@@ -156,7 +159,7 @@ export function NotesEditorContent({
     }
   }, []);
 
-  const showBlocksSettling = !blocksSettled;
+  const showBlocksSettling = !blocksSettled || isLoadingTags;
 
   if (showSelectedPageLoading && (!editorContent || blockCount === 0)) {
     return (
@@ -187,6 +190,8 @@ export function NotesEditorContent({
             isEmojiPickerOpen={isEmojiPickerOpen}
             activePageEmoji={activePageEmoji}
             selectedTagIdsDraft={selectedTagIdsDraft}
+            allTags={allTags}
+            isLoadingTags={isLoadingTags}
             onBack={onBack}
             onTitleChange={onTitleChange}
             onCommitTitle={onCommitTitle}

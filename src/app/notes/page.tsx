@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronDown, ChevronUp, Copy, Ellipsis, Files, NotebookTabs, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Star, Tag as TagIcon, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Columns3, Copy, Ellipsis, Files, NotebookTabs, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Star, Tag as TagIcon, Trash2 } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
@@ -39,6 +39,7 @@ import { useNotesPageDerivedState } from "@/components/notes/page/useNotesPageDe
 import { useNotesLayoutState } from "@/components/notes/page/useNotesLayoutState";
 import { useNotesSurfaceState } from "@/components/notes/page/useNotesSurfaceState";
 import { buildOutlineEntries, formatTimestampLabel } from "@/components/notes/page/utils";
+import { ManagePropertiesDialog } from "@/components/notes/ManagePropertiesDialog";
 import { ManageTagsDialog } from "@/components/tasks/ManageTagsDialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRelativeTimeTick } from "@/hooks/use-relative-time-tick";
@@ -70,6 +71,7 @@ export default function NotesPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingPage, setIsDeletingPage] = useState(false);
   const [isManageTagsOpen, setIsManageTagsOpen] = useState(false);
+  const [isManagePropertiesOpen, setIsManagePropertiesOpen] = useState(false);
   const {
     showEditorAppHeader,
     setShowEditorAppHeader,
@@ -727,17 +729,27 @@ export default function NotesPage() {
         <AppHeader
           app={notesApp}
           mobileMenuItems={isDisplayingOverview ? (
-            <DropdownMenuItem onClick={() => setIsManageTagsOpen(true)}>
-              <div className="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-0.5 py-0.5 text-sm outline-none transition-colors">
-                <TagIcon className="h-4 w-4" />
-                Manage Tags
-              </div>
-            </DropdownMenuItem>
+            <>
+              <DropdownMenuItem onClick={() => setIsManageTagsOpen(true)}>
+                <div className="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-0.5 py-0.5 text-sm outline-none transition-colors">
+                  <TagIcon className="h-4 w-4" />
+                  Manage Tags
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsManagePropertiesOpen(true)}>
+                <div className="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-0.5 py-0.5 text-sm outline-none transition-colors">
+                  <Columns3 className="h-4 w-4" />
+                  Manage Properties
+                </div>
+              </DropdownMenuItem>
+            </>
           ) : undefined}
           actions={isDisplayingOverview ? (
             <>
               <ManageTagsDialog />
               <ManageTagsDialog open={isManageTagsOpen} onOpenChange={setIsManageTagsOpen} hideTrigger />
+              <ManagePropertiesDialog />
+              <ManagePropertiesDialog open={isManagePropertiesOpen} onOpenChange={setIsManagePropertiesOpen} hideTrigger />
               <Button
                 onClick={handleCreateStarterPage}
                 variant="ghost"

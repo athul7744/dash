@@ -300,7 +300,62 @@ export function ManagePropertiesDialog({
   const open = controlledOpen ?? internalOpen;
   const setOpen = controlledOnOpenChange ?? setInternalOpen;
 
-  const { definitions } = usePropertyDefinitions();
+  const { definitions: dbDefinitions } = usePropertyDefinitions();
+
+  // Optimistic state overlays
+  const [optimisticAdds, setOptimisticAdds] = React.useState<PropertyDefinitionRow[]>([]);
+  const [optimisticDeletes, setOptimisticDeletes] = React.useState<Set<string>>(new Set());
+  const [optimisticEdits, setOptimisticEdits] = React.useState<Map<string, Partial<PropertyDefinitionRow>>>(new Map());
+
+  // Merge optimistic state with DB definitions
+  const definitions = React.useMemo(() => {
+    const dbIds = new Set(dbDefinitions.map((d) => d.id));
+
+    // Apply edits to existing definitions, filter out deleted
+    const edited = dbDefinitions
+      .filter((d) => !optimisticDeletes.has(d.id))
+      .map((d) => {
+        const edits = optimisticEdits.get(d.id);
+        return edits ? { ...d, ...edits } : d;
+      });
+
+    // Add optimistic creates not yet in DB
+    const pending = optimisticAdds.filter((d) => !dbIds.has(d.id));
+
+    return [...edited, ...pending];
+  }, [dbDefinitions, optimisticAdds, optimisticDeletes, optimisticEdits]);
+
+  // Clear optimistic state as DB catches up
+  React.useEffect(() => {
+    const dbIds = new Set(dbDefinitions.map((d) => d.id));
+    // Clear adds that are now in DB
+    setOptimisticAdds((prev) => {
+      const remaining = prev.filter((d) => !dbIds.has(d.id));
+      return remaining.length === prev.length ? prev : remaining;
+    });
+    // Clear deletes that are no longer in DB
+    setOptimisticDeletes((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const id of prev) {
+        if (!dbIds.has(id)) { next.delete(id); changed = true; }
+      }
+      return changed ? next : prev;
+    });
+    // Clear edits for rows that now match
+    setOptimisticEdits((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Map(prev);
+      for (const [id, edits] of prev) {
+        const dbRow = dbDefinitions.find((d) => d.id === id);
+        if (!dbRow) { next.delete(id); continue; }
+        const nameMatch = !edits.name || dbRow.name === edits.name;
+        const configMatch = !edits.config || dbRow.config === edits.config;
+        if (nameMatch && configMatch) next.delete(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [dbDefinitions]);
 
   const [newName, setNewName] = React.useState("");
   const [newType, setNewType] = React.useState<PropertyType>("text");
@@ -309,21 +364,38 @@ export function ManagePropertiesDialog({
   const handleCreate = async () => {
     const trimmed = newName.trim();
     if (!trimmed) return;
-    await createPropertyDefinition(trimmed, newType);
+    const type = newType;
     setNewName("");
     setNewType("text");
+
+    const id = await createPropertyDefinition(trimmed, type);
+    setOptimisticAdds((prev) => [
+      ...prev,
+      { id, user_id: "", name: trimmed, type, config: "{}", created_at: new Date().toISOString() } as PropertyDefinitionRow,
+    ]);
   };
 
-  const handleDelete = async (id: string) => {
-    await deletePropertyDefinition(id);
+  const handleDelete = (id: string) => {
+    setOptimisticDeletes((prev) => new Set(prev).add(id));
+    void deletePropertyDefinition(id);
   };
 
-  const handleRename = async (id: string, name: string) => {
-    await updatePropertyDefinitionName(id, name);
+  const handleRename = (id: string, name: string) => {
+    setOptimisticEdits((prev) => {
+      const next = new Map(prev);
+      next.set(id, { ...(prev.get(id) ?? {}), name });
+      return next;
+    });
+    void updatePropertyDefinitionName(id, name);
   };
 
-  const handleUpdateConfig = async (id: string, config: PropertyDefinitionConfig) => {
-    await updatePropertyDefinitionConfig(id, config);
+  const handleUpdateConfig = (id: string, config: PropertyDefinitionConfig) => {
+    setOptimisticEdits((prev) => {
+      const next = new Map(prev);
+      next.set(id, { ...(prev.get(id) ?? {}), config: JSON.stringify(config) });
+      return next;
+    });
+    void updatePropertyDefinitionConfig(id, config);
   };
 
   return (

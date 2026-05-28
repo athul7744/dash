@@ -322,7 +322,7 @@ function BlockNodeView({
 
   const childrenBorderStyle: CSSProperties | undefined = node.children.length > 0
     ? blockSpacingMeta.kind === "heading" && blockSpacingMeta.headingLevel
-      ? { marginLeft: 14, borderColor: getHeadingTreeLineColor(blockSpacingMeta.headingLevel), "--tree-line-color": getHeadingTreeLineColor(blockSpacingMeta.headingLevel) } as CSSProperties
+      ? { marginLeft: 14, borderColor: getHeadingTreeLineColor(blockSpacingMeta.headingLevel) } as CSSProperties
       : { marginLeft: 14, borderColor: "color-mix(in oklab, currentColor 15%, transparent)" } as CSSProperties
     : undefined;
 

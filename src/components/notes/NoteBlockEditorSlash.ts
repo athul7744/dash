@@ -1,7 +1,8 @@
 import type { Editor, JSONContent } from "@tiptap/core";
-import { Code2, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Quote, Sigma, Table2, TextCursorInput, type LucideIcon } from "lucide-react";
+import { format } from "date-fns";
+import { Calendar, Code2, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Quote, Sigma, Table2, TextCursorInput, type LucideIcon } from "lucide-react";
 
-export type SlashCommandSection = "basic" | "structure" | "media";
+export type SlashCommandSection = "basic" | "structure" | "media" | "dates";
 
 export type SlashCommand = {
   id: string;
@@ -119,6 +120,7 @@ export const slashCommandSections: Array<{ id: SlashCommandSection; title: strin
   { id: "basic", title: "Basic", icon: TextCursorInput },
   { id: "structure", title: "Structure", icon: Table2 },
   { id: "media", title: "Media", icon: ImageIcon },
+  { id: "dates", title: "Dates", icon: Calendar },
 ];
 
 export const slashCommands: SlashCommand[] = [
@@ -264,6 +266,92 @@ export const slashCommands: SlashCommand[] = [
   },
 ];
 
+function formatDateToken(date: Date): string {
+  return `{${format(date, "MMM d, yyyy")}}`;
+}
+
+function createDateDocument(date: Date): JSONContent {
+  return {
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text: formatDateToken(date) }] }],
+  };
+}
+
+function getRelativeDate(offset: "today" | "tomorrow" | "yesterday" | "next-week" | "next-month" | "next-year"): Date {
+  const d = new Date();
+  switch (offset) {
+    case "today": return d;
+    case "tomorrow": d.setDate(d.getDate() + 1); return d;
+    case "yesterday": d.setDate(d.getDate() - 1); return d;
+    case "next-week": d.setDate(d.getDate() + 7); return d;
+    case "next-month": d.setMonth(d.getMonth() + 1); return d;
+    case "next-year": d.setFullYear(d.getFullYear() + 1); return d;
+  }
+}
+
+export const dateSlashCommands: SlashCommand[] = [
+  {
+    id: "date-today",
+    section: "dates",
+    title: "Today",
+    description: "Insert today's date.",
+    shortcut: "/today",
+    icon: Calendar,
+    keywords: ["date", "today", "now"],
+    createContent: () => createDateDocument(getRelativeDate("today")),
+  },
+  {
+    id: "date-tomorrow",
+    section: "dates",
+    title: "Tomorrow",
+    description: "Insert tomorrow's date.",
+    shortcut: "/tomorrow",
+    icon: Calendar,
+    keywords: ["date", "tomorrow", "next day"],
+    createContent: () => createDateDocument(getRelativeDate("tomorrow")),
+  },
+  {
+    id: "date-yesterday",
+    section: "dates",
+    title: "Yesterday",
+    description: "Insert yesterday's date.",
+    shortcut: "/yesterday",
+    icon: Calendar,
+    keywords: ["date", "yesterday", "previous day"],
+    createContent: () => createDateDocument(getRelativeDate("yesterday")),
+  },
+  {
+    id: "date-next-week",
+    section: "dates",
+    title: "Next Week",
+    description: "Insert date one week from now.",
+    shortcut: "/nextweek",
+    icon: Calendar,
+    keywords: ["date", "next week", "week"],
+    createContent: () => createDateDocument(getRelativeDate("next-week")),
+  },
+  {
+    id: "date-next-month",
+    section: "dates",
+    title: "Next Month",
+    description: "Insert date one month from now.",
+    shortcut: "/nextmonth",
+    icon: Calendar,
+    keywords: ["date", "next month", "month"],
+    createContent: () => createDateDocument(getRelativeDate("next-month")),
+  },
+  {
+    id: "date-next-year",
+    section: "dates",
+    title: "Next Year",
+    description: "Insert date one year from now.",
+    shortcut: "/nextyear",
+    icon: Calendar,
+    keywords: ["date", "next year", "year"],
+    createContent: () => createDateDocument(getRelativeDate("next-year")),
+  },
+];
+
 export function getSlashQuery(editor: Editor) {
   const { state } = editor;
 
@@ -289,12 +377,13 @@ export function getFilteredSlashCommands(slashQuery: string | null) {
     return [];
   }
 
+  const allCommands = [...slashCommands, ...dateSlashCommands];
   const normalizedQuery = slashQuery.trim().toLowerCase();
   if (!normalizedQuery) {
-    return slashCommands;
+    return allCommands;
   }
 
-  return slashCommands.filter((command) => {
+  return allCommands.filter((command) => {
     const haystack = [command.title, command.description, command.shortcut, ...command.keywords]
       .join(" ")
       .toLowerCase();

@@ -3,6 +3,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Extension, InputRule, markInputRule, markPasteRule, type Editor, type JSONContent } from "@tiptap/core";
 import { Link2, Minus, Plus, Rows3, Trash2 } from "lucide-react";
+import { format, parse, parseISO, isValid } from "date-fns";
 import Blockquote from "@tiptap/extension-blockquote";
 import Bold from "@tiptap/extension-bold";
 import { CodeBlockWithToolbar } from "@/components/notes/NoteBlockEditorCode";
@@ -38,6 +39,8 @@ import { gfm } from "turndown-plugin-gfm";
 
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList, CommandShortcut } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   createScaffoldDocument,
   emptyDocument,
@@ -334,10 +337,44 @@ const ReferenceDecorations = Extension.create({
                   })
                 );
               }
+
+              for (const match of node.text.matchAll(/\{([^}]+)\}/g)) {
+                if (match.index === undefined) continue;
+                if (match[1].length < 6) continue;
+                const parsed = Date.parse(match[1]);
+                if (isNaN(parsed)) continue;
+
+                decorations.push(
+                  Decoration.inline(pos + match.index, pos + match.index + match[0].length, {
+                    class: "note-date-token",
+                  })
+                );
+              }
             });
 
             return DecorationSet.create(state.doc, decorations);
           },
+        },
+      }),
+    ];
+  },
+});
+
+const DateAutoFormat = Extension.create({
+  name: "dateAutoFormat",
+
+  addInputRules() {
+    return [
+      new InputRule({
+        find: /\{([^}]+)\}$/,
+        handler: ({ state, range, match }) => {
+          const dateStr = match[1];
+          const parsed = new Date(dateStr);
+          if (!isValid(parsed)) return;
+          const formatted = `{${format(parsed, "MMM d, yyyy")}}`;
+          if (formatted === match[0]) return;
+          const { tr } = state;
+          tr.replaceWith(range.from, range.to, state.schema.text(formatted));
         },
       }),
     ];
@@ -792,6 +829,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   const [tableToolbarState, setTableToolbarState] = useState<TableToolbarState>(hiddenTableToolbarState);
   const [tableToolbarPosition, setTableToolbarPosition] = useState<TableToolbarPosition | null>(null);
   const [isTableMenuOpen, setIsTableMenuOpen] = useState(false);
+  const [datePicker, setDatePicker] = useState<{ open: boolean; anchorRect: DOMRect | null; from: number; to: number; currentDate: Date | undefined }>({ open: false, anchorRect: null, from: 0, to: 0, currentDate: undefined });
   const isTableMenuOpenRef = useRef(false);
   isTableMenuOpenRef.current = isTableMenuOpen;
   const editorShellRef = useRef<HTMLDivElement | null>(null);
@@ -1051,6 +1089,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
       Dropcursor,
       Gapcursor,
       ReferenceDecorations,
+      DateAutoFormat,
       MathInline,
       MathBlock,
     ],
@@ -1067,7 +1106,33 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
         },
         click(view, event) {
           const target = event.target;
-          if (!(target instanceof HTMLElement) || !target.closest(".note-ref-token-page")) {
+          if (!(target instanceof HTMLElement)) {
+            return false;
+          }
+
+          // Handle date token click
+          const dateTokenEl = target.closest(".note-date-token") as HTMLElement | null;
+          if (dateTokenEl) {
+            event.preventDefault();
+            const rect = dateTokenEl.getBoundingClientRect();
+            const text = dateTokenEl.textContent ?? "";
+            // Extract date string from {…} format
+            const dateStr = text.replace(/^\{|\}$/g, "").trim();
+            const parsed = new Date(dateStr);
+            const from = view.posAtDOM(dateTokenEl, 0);
+            const to = from + text.length;
+            setDatePicker({
+              open: true,
+              anchorRect: rect,
+              from,
+              to,
+              currentDate: isValid(parsed) ? parsed : undefined,
+            });
+            return true;
+          }
+
+          // Handle page reference click
+          if (!target.closest(".note-ref-token-page")) {
             return false;
           }
 
@@ -1954,6 +2019,37 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
               })()}
             </CommandList>
           </Command>
+        </div>
+      ) : null}
+      {datePicker.open && datePicker.anchorRect && editorShellRef.current ? (
+        <div
+          className="fixed z-50"
+          style={{
+            top: datePicker.anchorRect.bottom + 4,
+            left: datePicker.anchorRect.left,
+          }}
+          onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setDatePicker({ open: false, anchorRect: null, from: 0, to: 0, currentDate: undefined }); } }}
+        >
+          <div className="rounded-xl border border-border/60 bg-popover/95 p-0 shadow-lg backdrop-blur-sm">
+            <Calendar
+              mode="single"
+              selected={datePicker.currentDate}
+              onSelect={(date) => {
+                if (!editor || !date) {
+                  setDatePicker((prev) => ({ ...prev, open: false }));
+                  return;
+                }
+                const formatted = `{${format(date, "MMM d, yyyy")}}`;
+                editor.chain().focus().command(({ tr }) => {
+                  tr.replaceWith(datePicker.from, datePicker.to, editor.state.schema.text(formatted));
+                  return true;
+                }).run();
+                setDatePicker({ open: false, anchorRect: null, from: 0, to: 0, currentDate: undefined });
+              }}
+              initialFocus
+            />
+          </div>
+          <div className="fixed inset-0 -z-10" onClick={() => setDatePicker({ open: false, anchorRect: null, from: 0, to: 0, currentDate: undefined })} />
         </div>
       ) : null}
     </div>

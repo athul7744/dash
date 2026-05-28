@@ -323,7 +323,7 @@ function BlockNodeView({
   const childrenBorderStyle: CSSProperties | undefined = node.children.length > 0
     ? blockSpacingMeta.kind === "heading" && blockSpacingMeta.headingLevel
       ? { marginLeft: 14, borderColor: getHeadingTreeLineColor(blockSpacingMeta.headingLevel), "--tree-line-color": getHeadingTreeLineColor(blockSpacingMeta.headingLevel) } as CSSProperties
-      : { marginLeft: 14 } as CSSProperties
+      : { marginLeft: 14, borderColor: "color-mix(in oklab, currentColor 15%, transparent)" } as CSSProperties
     : undefined;
 
   return (
@@ -388,7 +388,7 @@ function BlockNodeView({
               aria-haspopup="menu"
               aria-expanded={isBlockMenuOpen}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 transition-colors group-focus-within:bg-foreground" />
             </button>
             {isBlockMenuOpen ? <BlockContextMenu options={blockContextMenuOptions} onAction={handleBlockMenuAction} /> : null}
           </div>

@@ -91,6 +91,11 @@ function getHeadingDividerColor(level: 1 | 2 | 3 | 4 | 5) {
   return getHeadingAccentColor(level);
 }
 
+function getHeadingTreeLineColor(level: 1 | 2 | 3 | 4 | 5) {
+  const opacity = getHeadingDividerOpacity(level);
+  return `color-mix(in oklab, ${getHeadingAccentColor(level)} ${Math.round(opacity * 100)}%, transparent)`;
+}
+
 function blockEndsWithDividerLine(meta: BlockSpacingMeta) {
   return meta.kind === "hr" || meta.kind === "heading";
 }
@@ -315,11 +320,17 @@ function BlockNodeView({
     ? ({ "--note-hr-accent": getHeadingDividerColor(nextBlockSpacingMeta.headingLevel), "--note-hr-opacity": getHeadingDividerOpacity(nextBlockSpacingMeta.headingLevel) } as CSSProperties)
     : undefined;
 
+  const childrenBorderStyle: CSSProperties | undefined = node.children.length > 0
+    ? blockSpacingMeta.kind === "heading" && blockSpacingMeta.headingLevel
+      ? { marginLeft: 14, borderColor: getHeadingTreeLineColor(blockSpacingMeta.headingLevel), "--tree-line-color": getHeadingTreeLineColor(blockSpacingMeta.headingLevel) } as CSSProperties
+      : { marginLeft: 14 } as CSSProperties
+    : undefined;
+
   return (
     <div className="space-y-0">
       <article
         ref={articleRef}
-        className={`group relative ${blockSpacingMeta.kind === "heading" ? "sticky top-0 z-20 isolate bg-background shadow-[0_1px_0_0_hsl(var(--border)/0.5)] before:absolute before:-top-4 before:left-0 before:right-0 before:h-4 before:bg-background" : ""}`}
+        className={`group relative ${blockSpacingMeta.kind === "heading" ? `sm:sticky sm:top-0 z-20 isolate bg-background shadow-[0_1px_0_0_hsl(var(--border)/0.5)]` : ""}`}
         onMouseDownCapture={(event) => {
           if (event.target instanceof HTMLElement && event.target.closest('[data-block-context-menu="true"]')) {
             return;
@@ -329,7 +340,7 @@ function BlockNodeView({
             onClearSelection();
           }
         }}
-        style={{ marginLeft: depth === 0 ? 0 : depth * 18, ...(blockSpacingMeta.kind === "heading" ? { paddingTop: rowMarginTop } : { marginTop: rowMarginTop }) }}
+        style={{ marginTop: rowMarginTop }}
       >
         <div className="flex items-center gap-px px-0 py-0">
           <div ref={bulletRef} className={`relative flex min-h-6 w-3.5 shrink-0 items-center justify-start ${blockSpacingMeta.kind === "heading" ? `self-start ${blockSpacingMeta.headingLevel === 1 ? "pt-1.5" : blockSpacingMeta.headingLevel === 2 ? "pt-0.5" : blockSpacingMeta.headingLevel === 5 ? "-mt-px" : ""}` : "self-stretch"}`}>
@@ -380,8 +391,6 @@ function BlockNodeView({
               <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
             </button>
             {isBlockMenuOpen ? <BlockContextMenu options={blockContextMenuOptions} onAction={handleBlockMenuAction} /> : null}
-            {depth > 0 ? <span className="absolute bottom-0 left-1/2 top-1/2 -translate-x-1/2 border-l border-border/55" /> : null}
-            {depth > 0 ? <span className="absolute top-0 bottom-1/2 left-1/2 -translate-x-1/2 border-l border-border/55" /> : null}
           </div>
           <div className={`min-w-0 flex-1 rounded-sm transition-smooth ${selectedBlockIds.has(node.block.id) ? "bg-accent/45" : ""}`} style={editorSurfaceStyle}>
             {isNearViewport ? (
@@ -431,7 +440,7 @@ function BlockNodeView({
       </article>
 
       {node.children.length > 0 ? (
-        <div className="ml-2 space-y-0 border-l border-border/55 pl-2">
+        <div className="space-y-0 border-l border-border/55 pl-2" style={childrenBorderStyle}>
           {node.children.map((child, index) => (
             <BlockNodeView
               key={child.block.id}

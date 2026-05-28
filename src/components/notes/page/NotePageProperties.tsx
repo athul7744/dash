@@ -807,6 +807,7 @@ export function NotePageProperties({
         (def.type as PropertyType) === "checkbox" ? false : null;
       const next = { ...customValuesRef.current, [definitionId]: defaultValue };
       persistCustomValues(next);
+      setIsExpanded(true);
     },
     [definitions, persistCustomValues]
   );
@@ -831,6 +832,7 @@ export function NotePageProperties({
       const defaultValue = type === "checkbox" ? false : null;
       const next = { ...customValuesRef.current, [defId]: defaultValue };
       persistCustomValues(next);
+      setIsExpanded(true);
     },
     [persistCustomValues]
   );

@@ -717,8 +717,28 @@ export function NotePageProperties({
   pageProperties: Record<string, unknown>;
   shouldAnimate: boolean;
 }) {
-  const { definitions } = usePropertyDefinitions();
+  const { definitions: dbDefinitions } = usePropertyDefinitions();
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Optimistic definitions overlay for newly created properties
+  const [optimisticDefs, setOptimisticDefs] = useState<PropertyDefinitionRow[]>([]);
+  const definitions = useMemo(() => {
+    if (optimisticDefs.length === 0) return dbDefinitions;
+    const dbIds = new Set(dbDefinitions.map((d) => d.id));
+    // Keep only optimistic defs not yet in DB
+    const pending = optimisticDefs.filter((d) => !dbIds.has(d.id));
+    return [...dbDefinitions, ...pending];
+  }, [dbDefinitions, optimisticDefs]);
+
+  // Clear optimistic defs once DB catches up
+  useEffect(() => {
+    if (optimisticDefs.length === 0) return;
+    const dbIds = new Set(dbDefinitions.map((d) => d.id));
+    const remaining = optimisticDefs.filter((d) => !dbIds.has(d.id));
+    if (remaining.length !== optimisticDefs.length) {
+      setOptimisticDefs(remaining);
+    }
+  }, [dbDefinitions, optimisticDefs]);
 
   const pagePropertiesRef = useRef(pageProperties);
   pagePropertiesRef.current = pageProperties;
@@ -794,6 +814,20 @@ export function NotePageProperties({
   const handleCreateNew = useCallback(
     async (name: string, type: PropertyType, config?: PropertyDefinitionConfig) => {
       const defId = await createPropertyDefinition(name, type, config);
+
+      // Optimistically surface the definition immediately
+      setOptimisticDefs((prev) => [
+        ...prev,
+        {
+          id: defId,
+          user_id: "",
+          name,
+          type,
+          config: JSON.stringify(config ?? {}),
+          created_at: new Date().toISOString(),
+        } as PropertyDefinitionRow,
+      ]);
+
       const defaultValue = type === "checkbox" ? false : null;
       const next = { ...customValuesRef.current, [defId]: defaultValue };
       persistCustomValues(next);

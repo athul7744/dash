@@ -6,6 +6,16 @@ import { v4 as uuidv4 } from "uuid";
 
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -78,6 +88,7 @@ function ItemRow<TItem extends ManagedColorItem>({
   onUpdateColor: (id: string, color: string) => void | Promise<void>;
 }) {
   const [isColorPickerOpen, setIsColorPickerOpen] = React.useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const resolvedColor = item.color ?? null;
   const fallbackColor = colors[0];
 
@@ -120,10 +131,29 @@ function ItemRow<TItem extends ManagedColorItem>({
         variant="ghost"
         size="icon"
         className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-        onClick={() => void onDelete(item.id)}
+        onClick={() => setIsDeleteOpen(true)}
       >
         <Trash2 className="h-4 w-4" />
       </Button>
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete &ldquo;{item.name}&rdquo;?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this item. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void onDelete(item.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

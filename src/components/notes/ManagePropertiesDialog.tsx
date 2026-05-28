@@ -4,6 +4,16 @@ import * as React from "react";
 import { Calendar as CalendarIcon, Check, ChevronDown, Columns3, Globe, Hash, Plus, Trash2, Type, X } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -191,6 +201,7 @@ function PropertyRow({
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(definition.name ?? "");
   const [showOptions, setShowOptions] = React.useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -277,11 +288,30 @@ function PropertyRow({
           variant="ghost"
           size="icon"
           className="size-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-          onClick={() => onDelete(definition.id)}
+          onClick={() => setIsDeleteOpen(true)}
           aria-label={`Delete ${definition.name}`}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
+        <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete &ldquo;{definition.name}&rdquo;?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently remove this property definition from all pages.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => onDelete(definition.id)}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {isSelect && showOptions && (

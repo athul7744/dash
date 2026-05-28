@@ -319,7 +319,7 @@ function BlockNodeView({
     <div className="space-y-0">
       <article
         ref={articleRef}
-        className="group relative"
+        className={`group relative ${blockSpacingMeta.kind === "heading" ? "sticky top-0 z-20 isolate bg-background shadow-[0_1px_0_0_hsl(var(--border)/0.5)] before:absolute before:-top-4 before:left-0 before:right-0 before:h-4 before:bg-background" : ""}`}
         onMouseDownCapture={(event) => {
           if (event.target instanceof HTMLElement && event.target.closest('[data-block-context-menu="true"]')) {
             return;
@@ -329,7 +329,7 @@ function BlockNodeView({
             onClearSelection();
           }
         }}
-        style={{ marginLeft: depth === 0 ? 0 : depth * 18, marginTop: rowMarginTop }}
+        style={{ marginLeft: depth === 0 ? 0 : depth * 18, ...(blockSpacingMeta.kind === "heading" ? { paddingTop: rowMarginTop } : { marginTop: rowMarginTop }) }}
       >
         <div className="flex items-center gap-px px-0 py-0">
           <div ref={bulletRef} className={`relative flex min-h-6 w-3.5 shrink-0 items-center justify-start ${blockSpacingMeta.kind === "heading" ? `self-start ${blockSpacingMeta.headingLevel === 1 ? "pt-1.5" : blockSpacingMeta.headingLevel === 2 ? "pt-0.5" : blockSpacingMeta.headingLevel === 5 ? "-mt-px" : ""}` : "self-stretch"}`}>

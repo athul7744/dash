@@ -69,11 +69,12 @@ export function MobileBottomFabs({ app, centerContent, centerShellClassName, cen
       {centerContent && (
         <div
           className={cn(
-            "sm:hidden fixed inset-x-0 z-50 flex justify-center px-[var(--app-gutter-x)] pointer-events-none transition-all duration-200",
+            "sm:hidden fixed inset-x-0 z-50 flex items-center justify-center px-[var(--app-gutter-x)] pointer-events-none transition-all duration-200",
             hasBlockingOverlay && "opacity-0 translate-y-2"
           )}
           style={{
             bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+            height: "48px",
           }}
         >
           {centerUseShell ? (

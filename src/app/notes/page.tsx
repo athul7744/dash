@@ -7,6 +7,7 @@ import { ArrowLeft, ChevronDown, ChevronUp, Columns3, Copy, Ellipsis, Files, Not
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { NotesDetailsRailSkeleton, NotesPageSkeleton } from "@/components/notes/NotesPageSkeleton";
+import { NotesPageBreadcrumb } from "@/components/notes/NotesPageBreadcrumb";
 import { MobileRailDrawer } from "../../components/notes/MobileRailDrawer";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +43,7 @@ import { buildOutlineEntries, formatTimestampLabel } from "@/components/notes/pa
 import { ManagePropertiesDialog } from "@/components/notes/ManagePropertiesDialog";
 import { ManageTagsDialog } from "@/components/tasks/ManageTagsDialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { usePageNavStack } from "@/hooks/use-page-nav-stack";
 import { useRelativeTimeTick } from "@/hooks/use-relative-time-tick";
 
 const notesApp = getApp("notes");
@@ -53,6 +55,7 @@ export default function NotesPage() {
   const searchParams = useSearchParams();
   const selectedPageId = searchParams.get("page");
   const selectedPageIdForWrite: string | undefined = selectedPageId ?? undefined;
+  const navStack = usePageNavStack();
   const [isCreatingPage, setIsCreatingPage] = useState(false);
   const [isCreatingBlock, setIsCreatingBlock] = useState(false);
   const [isPageSearchOpen, setIsPageSearchOpen] = useState(false);
@@ -452,6 +455,12 @@ export default function NotesPage() {
   }, [linkedReferences.length, pageTagMentions.length, renderedPageOutline.length, selectedPage?.id, selectedPageAttachments.length, selectedPageSummary, selectedPageTags.length]);
 
   const openPageById = (pageId: string) => {
+    // Push current page (or overview) onto navigation stack before navigating away
+    if (selectedPageId) {
+      navStack.push({ pageId: selectedPageId, title: pageTitleDraft || selectedPage?.title || "Untitled" });
+    } else {
+      navStack.push({ pageId: "__overview__", title: "Overview" });
+    }
     transitionToEditor(pageId);
     startTransition(() => {
       router.push(`/notes?page=${pageId}`);
@@ -622,7 +631,14 @@ export default function NotesPage() {
       onToggleAllSections={toggleAllPageRailSections}
       onTogglePageRailSection={togglePageRailSection}
       onToggleTagDirectoryGroup={toggleTagDirectoryGroup}
-      onSelectPage={transitionToEditor}
+      onSelectPage={(pageId) => {
+        if (selectedPageId) {
+          navStack.push({ pageId: selectedPageId, title: pageTitleDraft || selectedPage?.title || "Untitled" });
+        } else {
+          navStack.push({ pageId: "__overview__", title: "Overview" });
+        }
+        transitionToEditor(pageId);
+      }}
     />
   );
 
@@ -777,7 +793,14 @@ export default function NotesPage() {
               showOverviewLoading={showOverviewLoading}
               shouldAnimateOverviewContent={shouldAnimateOverviewContent}
               onOpenSearch={() => setIsPageSearchOpen(true)}
-              onSelectPage={transitionToEditor}
+              onSelectPage={(pageId) => {
+                if (selectedPageId) {
+                  navStack.push({ pageId: selectedPageId, title: pageTitleDraft || selectedPage?.title || "Untitled" });
+                } else {
+                  navStack.push({ pageId: "__overview__", title: "Overview" });
+                }
+                transitionToEditor(pageId);
+              }}
               onToggleFavorite={togglePageFavorite}
             />
           ) : (
@@ -854,8 +877,14 @@ export default function NotesPage() {
                     <Button
                       variant="ghost"
                       onClick={() => {
-                        transitionToOverview();
-                        router.push("/notes");
+                        const prev = navStack.pop();
+                        if (prev && prev.pageId !== "__overview__") {
+                          transitionToEditor(prev.pageId);
+                          startTransition(() => { router.push(`/notes?page=${prev.pageId}`); });
+                        } else {
+                          transitionToOverview();
+                          router.push("/notes");
+                        }
                       }}
                       className={`-ml-2 -mr-1 flex shrink-0 items-center justify-center ${desktopChromeIconButtonClass}`}
                       aria-label="Back to notes list"
@@ -938,6 +967,29 @@ export default function NotesPage() {
                 ) : <div className="hidden sm:block" aria-hidden="true" />}
 
                 <section className="min-w-0 sm:min-h-0 sm:overflow-y-auto">
+                  {navStack.stack.length > 0 && selectedPageId && (
+                    <div className="mx-auto hidden max-w-3xl px-3 pt-1 sm:block sm:px-0">
+                      <NotesPageBreadcrumb
+                        stack={navStack.stack}
+                        currentTitle={pageTitleDraft || selectedPage?.title || "Untitled"}
+                        onNavigate={(pageId) => {
+                          navStack.popTo(pageId);
+                          if (pageId === "__overview__") {
+                            transitionToOverview();
+                            router.push("/notes");
+                          } else {
+                            transitionToEditor(pageId);
+                            startTransition(() => { router.push(`/notes?page=${pageId}`); });
+                          }
+                        }}
+                        onNavigateOverview={() => {
+                          navStack.clear();
+                          transitionToOverview();
+                          router.push("/notes");
+                        }}
+                      />
+                    </div>
+                  )}
                   <NotesEditorContent
                     editorContent={editorContentToRender}
                     showSelectedPageLoading={showSelectedPageLoading}
@@ -952,8 +1004,14 @@ export default function NotesPage() {
                     notePageTitles={notePageTitles}
                     selectedPageProperties={selectedPageProperties}
                     onBack={() => {
-                      transitionToOverview();
-                      router.push("/notes");
+                      const prev = navStack.pop();
+                      if (prev && prev.pageId !== "__overview__") {
+                        transitionToEditor(prev.pageId);
+                        startTransition(() => { router.push(`/notes?page=${prev.pageId}`); });
+                      } else {
+                        transitionToOverview();
+                        router.push("/notes");
+                      }
                     }}
                     onTitleChange={(value) => {
                       setPageTitleDraft(value);
@@ -1001,7 +1059,8 @@ export default function NotesPage() {
 
       <MobileBottomFabs
         app={notesApp}
-        centerUseShell={false}
+        centerUseShell={!isDisplayingOverview && navStack.stack.length > 0}
+        centerShellClassName={!isDisplayingOverview && navStack.stack.length > 0 ? "max-w-[55vw] px-2.5 py-1.5" : undefined}
         centerContent={isDisplayingOverview ? (
           <Button
             onClick={handleCreateStarterPage}
@@ -1012,6 +1071,26 @@ export default function NotesPage() {
           >
             <Plus className="h-5 w-5" />
           </Button>
+        ) : navStack.stack.length > 0 && selectedPageId ? (
+          <NotesPageBreadcrumb
+            stack={navStack.stack}
+            currentTitle={pageTitleDraft || selectedPage?.title || "Untitled"}
+            onNavigate={(pageId) => {
+              navStack.popTo(pageId);
+              if (pageId === "__overview__") {
+                transitionToOverview();
+                router.push("/notes");
+              } else {
+                transitionToEditor(pageId);
+                startTransition(() => { router.push(`/notes?page=${pageId}`); });
+              }
+            }}
+            onNavigateOverview={() => {
+              navStack.clear();
+              transitionToOverview();
+              router.push("/notes");
+            }}
+          />
         ) : undefined}
       />
 

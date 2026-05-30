@@ -4,6 +4,7 @@ import { useId, type ReactNode } from "react";
 import { ChevronDown, FileText, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/shared/utils";
+import { SpriteIcon } from "@/components/notes/SpriteIcon";
 
 export function DetailsSection({
   title,
@@ -74,11 +75,7 @@ export function DetailsRailCardSkeleton({ lines = 2 }: { lines?: number }) {
 
 export function PageIcon({ emoji, className, fallbackClassName }: { emoji?: string | null; className?: string; fallbackClassName?: string }) {
   if (emoji) {
-    return (
-      <span className={cn("inline-flex shrink-0 items-center justify-center", className)} aria-hidden="true">
-        {emoji}
-      </span>
-    );
+    return <SpriteIcon name={emoji} size={16} className={cn("shrink-0", className)} />;
   }
 
   return <FileText className={cn(className, fallbackClassName)} aria-hidden="true" />;

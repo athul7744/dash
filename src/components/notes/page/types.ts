@@ -1,12 +1,5 @@
 import type { NoteBlockRow, NotePageRow } from "@/hooks/use-notes";
 
-export const NOTE_PAGE_EMOJI_OPTIONS = [
-  "📝", "📓", "📚", "📔", "📒", "📖", "💡", "✅", "🔥", "🚀",
-  "🎯", "🌱", "✨", "🧠", "💼", "📌", "🗂️", "📅", "❤️", "💜",
-  "💛", "💙", "⭐", "🌟", "☀️", "🌙", "🌈", "⚡", "🎵", "🎨",
-  "📷", "🍀", "🌸", "🪴", "🏠", "✈️", "💬", "🔒", "🛠️", "🧩",
-] as const;
-
 export type NoteTag = {
   id: string;
   key: string;

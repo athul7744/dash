@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
+import { IconPicker } from "@/components/notes/IconPicker";
+import { SpriteIcon } from "@/components/notes/SpriteIcon";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
@@ -44,7 +47,6 @@ import { updateNotePageProperties } from "@/lib/notes/notes";
 import type { JsonValue } from "@/lib/notes/notes";
 
 import {
-  NOTE_PAGE_EMOJI_OPTIONS,
   PROPERTY_TYPES,
   PROPERTY_TYPE_LABELS,
   type PropertyDefinitionConfig,
@@ -450,38 +452,26 @@ function PropertyRow({
         <Popover>
           <PopoverTrigger className="h-5 w-5 flex items-center justify-center hover:bg-muted rounded transition-colors text-muted-foreground">
             {property.config.icon ? (
-              <span className="text-[14px] leading-none">{property.config.icon}</span>
+              <SpriteIcon name={property.config.icon} size={14} />
             ) : (
               <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
             )}
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-2" align="start">
-            <div className="grid grid-cols-8 gap-1">
-              {NOTE_PAGE_EMOJI_OPTIONS.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => {
-                    void updatePropertyDefinitionConfig(property.definitionId, {
-                      ...property.config,
-                      icon: emoji,
-                    });
-                  }}
-                  className="flex size-8 items-center justify-center rounded-lg text-lg hover:bg-muted"
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => {
+          <PopoverContent className="w-auto rounded-2xl p-2" align="start">
+            <IconPicker
+              value={property.config.icon}
+              onSelect={(icon) => {
+                void updatePropertyDefinitionConfig(property.definitionId, {
+                  ...property.config,
+                  icon,
+                });
+              }}
+              onClear={() => {
                 const nextConfig = { ...property.config };
                 delete nextConfig.icon;
                 void updatePropertyDefinitionConfig(property.definitionId, nextConfig);
               }}
-              className="mt-2 flex h-7 w-full items-center justify-center rounded-lg text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              Clear
-            </button>
+            />
           </PopoverContent>
         </Popover>
         <span className="truncate text-xs font-normal">{property.name}</span>
@@ -612,29 +602,17 @@ function AddPropertyPopover({
               <Popover>
                 <PopoverTrigger className="flex h-8 w-8 items-center justify-center rounded-md border border-input bg-transparent hover:bg-muted transition-colors shrink-0">
                   {newIcon ? (
-                    <span className="text-[14px] leading-none">{newIcon}</span>
+                    <SpriteIcon name={newIcon} size={16} />
                   ) : (
                     <Smile className="h-4 w-4 text-muted-foreground/50" />
                   )}
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-2" align="start">
-                  <div className="grid grid-cols-8 gap-1">
-                    {NOTE_PAGE_EMOJI_OPTIONS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => setNewIcon(emoji)}
-                        className="flex size-8 items-center justify-center rounded-lg text-lg hover:bg-muted"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => setNewIcon(null)}
-                    className="mt-2 flex h-7 w-full items-center justify-center rounded-lg text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground"
-                  >
-                    Clear
-                  </button>
+                <PopoverContent className="w-auto rounded-2xl p-2" align="start">
+                  <IconPicker
+                    value={newIcon}
+                    onSelect={(icon) => setNewIcon(icon)}
+                    onClear={() => setNewIcon(null)}
+                  />
                 </PopoverContent>
               </Popover>
               <Input

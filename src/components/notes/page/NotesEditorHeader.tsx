@@ -10,9 +10,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tag } from "@/lib/powersync/AppSchema";
-import { cn } from "@/lib/shared/utils";
+import { IconPicker } from "@/components/notes/IconPicker";
+import { SpriteIcon } from "@/components/notes/SpriteIcon";
 
-import { NOTE_PAGE_EMOJI_OPTIONS, type NoteTag } from "./types";
+import { type NoteTag } from "./types";
 
 type EditorHeaderContent = {
   title: string;
@@ -152,36 +153,18 @@ export function NotesEditorHeader({
         <div className="flex min-w-max items-center gap-2 pr-1">
           <Popover open={isEmojiPickerOpen} onOpenChange={onEmojiPickerOpenChange}>
             <PopoverTrigger className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-muted px-2.5 text-xs text-foreground transition-colors hover:bg-accent hover:text-foreground">
-              <span className="leading-none">{activePageEmoji ?? "🖤"}</span>
+              {activePageEmoji ? (
+                <SpriteIcon name={activePageEmoji} size={14} className="text-foreground" />
+              ) : (
+                <span className="leading-none">🖤</span>
+              )}
             </PopoverTrigger>
-            <PopoverContent className="w-auto gap-2 rounded-2xl p-2">
-              <div className="grid grid-cols-8 gap-1.5">
-                {NOTE_PAGE_EMOJI_OPTIONS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    className={cn(
-                      "flex size-8 items-center justify-center rounded-lg text-lg leading-none transition-colors hover:bg-muted",
-                      activePageEmoji === emoji ? "bg-muted text-foreground" : "text-foreground/80"
-                    )}
-                    onClick={() => {
-                      onSelectEmoji(emoji);
-                    }}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                className="flex h-7 items-center justify-center rounded-lg px-2.5 text-[12px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-                onClick={() => {
-                  onSelectEmoji(null);
-                }}
-                disabled={!activePageEmoji}
-              >
-                Clear icon
-              </button>
+            <PopoverContent className="w-auto rounded-2xl p-2">
+              <IconPicker
+                value={activePageEmoji}
+                onSelect={(icon) => { onSelectEmoji(icon); onEmojiPickerOpenChange(false); }}
+                onClear={() => { onSelectEmoji(null); onEmojiPickerOpenChange(false); }}
+              />
             </PopoverContent>
           </Popover>
           {visibleTags.length === 0 && !isLoadingTags ? (

@@ -53,7 +53,8 @@ import {
   type PropertyType,
   type PropertyDefinitionConfig,
 } from "@/components/notes/page/types";
-import { NOTE_PAGE_EMOJI_OPTIONS } from "@/components/notes/page/types";
+import { IconPicker } from "@/components/notes/IconPicker";
+import { SpriteIcon } from "@/components/notes/SpriteIcon";
 
 const PROPERTY_TYPE_ICONS: Record<PropertyType, typeof Type> = {
   text: Type,
@@ -86,33 +87,14 @@ function EmojiPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger className="flex size-7 shrink-0 items-center justify-center rounded-md text-base leading-none transition-colors hover:bg-muted">
-        {value ? <span>{value}</span> : <FallbackIcon className="h-3.5 w-3.5 text-muted-foreground/60" />}
+        {value ? <SpriteIcon name={value} size={14} /> : <FallbackIcon className="h-3.5 w-3.5 text-muted-foreground/60" />}
       </PopoverTrigger>
-      <PopoverContent className="w-auto gap-2 rounded-2xl p-2" side="bottom" align="start">
-        <div className="grid grid-cols-8 gap-1.5">
-          {NOTE_PAGE_EMOJI_OPTIONS.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              className={cn(
-                "flex size-8 items-center justify-center rounded-lg text-lg leading-none transition-colors hover:bg-muted",
-                value === emoji ? "bg-muted text-foreground" : "text-foreground/80"
-              )}
-              onClick={() => { onChange(emoji); setOpen(false); }}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-        {value && (
-          <button
-            type="button"
-            className="flex h-7 items-center justify-center rounded-lg px-2.5 text-[12px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            onClick={() => { onChange(undefined); setOpen(false); }}
-          >
-            Remove icon
-          </button>
-        )}
+      <PopoverContent className="w-auto rounded-2xl p-2" side="bottom" align="start">
+        <IconPicker
+          value={value}
+          onSelect={(icon) => { onChange(icon); setOpen(false); }}
+          onClear={() => { onChange(undefined); setOpen(false); }}
+        />
       </PopoverContent>
     </Popover>
   );

@@ -104,7 +104,7 @@ CREATE TABLE public.blocks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   page_id UUID NOT NULL REFERENCES public.pages(id) ON DELETE CASCADE,
-  parent_block_id UUID REFERENCES public.blocks(id) ON DELETE CASCADE,
+  parent_block_id UUID REFERENCES public.blocks(id) ON DELETE SET NULL,
   type TEXT NOT NULL,
   content JSONB NOT NULL DEFAULT '{}'::jsonb,
   sort_rank TEXT NOT NULL,

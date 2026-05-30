@@ -131,6 +131,7 @@ export default function NotesPage() {
   };
   const {
     handleCommitBlockContent,
+    handleConvertBlockType,
     handleCreateEmptySiblingBlock,
     handleCreateRootBlock,
     handleCreateSiblingBlock,
@@ -1045,6 +1046,7 @@ export default function NotesPage() {
                     onDelete={handleDeleteBlock}
                     onDeleteRange={handleDeleteBlockRange}
                     onUpdateContent={handleUpdateBlockContent}
+                    onConvertBlockType={handleConvertBlockType}
                   />
                 </section>
 

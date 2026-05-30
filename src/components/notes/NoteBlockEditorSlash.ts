@@ -1,8 +1,8 @@
 import type { Editor, JSONContent } from "@tiptap/core";
 import { format } from "date-fns";
-import { Calendar, Code2, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Paintbrush, Quote, Sigma, Table2, TextCursorInput, type LucideIcon } from "lucide-react";
+import { Calendar, Code2, Database, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Paintbrush, Quote, Sigma, Table2, TextCursorInput, type LucideIcon } from "lucide-react";
 
-export type SlashCommandSection = "basic" | "structure" | "media" | "dates" | "color";
+export type SlashCommandSection = "basic" | "structure" | "media" | "dates" | "color" | "advanced";
 
 export type SlashCommand = {
   id: string;
@@ -14,6 +14,8 @@ export type SlashCommand = {
   keywords: string[];
   createContent: () => JSONContent;
   execute?: (editor: Editor) => void;
+  /** If set, the block should be created with this type instead of "text" */
+  blockType?: string;
 };
 
 function createParagraphNode(text: string): JSONContent {
@@ -122,6 +124,7 @@ export const slashCommandSections: Array<{ id: SlashCommandSection; title: strin
   { id: "structure", title: "Structure", icon: Table2 },
   { id: "media", title: "Media", icon: ImageIcon },
   { id: "dates", title: "Dates", icon: Calendar },
+  { id: "advanced", title: "Advanced", icon: Database },
   { id: "color", title: "Color", icon: Paintbrush },
 ];
 
@@ -290,6 +293,18 @@ function getRelativeDate(offset: "today" | "tomorrow" | "yesterday" | "next-week
     case "next-year": d.setFullYear(d.getFullYear() + 1); return d;
   }
 }
+
+export const querySlashCommand: SlashCommand = {
+  id: "query",
+  section: "advanced",
+  title: "Query",
+  description: "Insert a live query that filters pages by properties.",
+  shortcut: "/query",
+  icon: Database,
+  keywords: ["query", "database", "filter", "live", "search", "view"],
+  blockType: "query",
+  createContent: () => ({ filters: [], limit: 20 } as unknown as JSONContent),
+};
 
 export const dateSlashCommands: SlashCommand[] = [
   {
@@ -488,7 +503,7 @@ export function getFilteredSlashCommands(slashQuery: string | null) {
     return [];
   }
 
-  const allCommands = [...slashCommands, ...dateSlashCommands, ...colorSlashCommands];
+  const allCommands = [...slashCommands, ...dateSlashCommands, querySlashCommand, ...colorSlashCommands];
   const normalizedQuery = slashQuery.trim().toLowerCase();
   if (!normalizedQuery) {
     return allCommands;

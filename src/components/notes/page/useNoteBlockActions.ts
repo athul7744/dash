@@ -831,10 +831,12 @@ export function useNoteBlockActions({
       [blockId]: serializedContent,
     }));
 
+    const blockType = selectedBlockMap.get(blockId)?.type;
     updateNoteBlock({
       blockId,
       pageId: selectedPageIdForWrite,
       content: nextContent,
+      rawContent: blockType != null && blockType !== "text",
     });
   };
 
@@ -851,10 +853,31 @@ export function useNoteBlockActions({
       [blockId]: serializedContent,
     }));
 
+    const blockType = selectedBlockMap.get(blockId)?.type;
     updateNoteBlock({
       blockId,
       pageId: selectedPageIdForWrite,
       content: nextContent,
+      rawContent: blockType != null && blockType !== "text",
+    });
+
+    void flushUpdate(blockId, "blocks");
+  };
+
+  const handleConvertBlockType = (blockId: string, blockType: string, content: unknown) => {
+    const serializedContent = JSON.stringify(content);
+
+    setBlockContentDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [blockId]: serializedContent,
+    }));
+
+    updateNoteBlock({
+      blockId,
+      pageId: selectedPageIdForWrite,
+      type: blockType,
+      content: content as JsonValue,
+      rawContent: true,
     });
 
     void flushUpdate(blockId, "blocks");
@@ -862,6 +885,7 @@ export function useNoteBlockActions({
 
   return {
     handleCommitBlockContent,
+    handleConvertBlockType,
     handleCreateEmptySiblingBlock,
     handleCreateRootBlock,
     handleCreateSiblingBlock,

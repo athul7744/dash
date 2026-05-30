@@ -52,6 +52,7 @@ export function NotesEditorContent({
   onDelete,
   onDeleteRange,
   onUpdateContent,
+  onConvertBlockType,
 }: {
   editorContent: NotesEditorRenderableContent;
   showSelectedPageLoading: boolean;
@@ -99,6 +100,7 @@ export function NotesEditorContent({
   onDelete: (blockId: string) => void | Promise<void>;
   onDeleteRange: (blockIds: string[]) => void | Promise<void>;
   onUpdateContent: (blockId: string, nextContent: JsonValue) => void;
+  onConvertBlockType?: (blockId: string, blockType: string, content: unknown) => void;
 }) {
   const { data: allTags = [], isLoading: isLoadingTags } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
   const [blocksSettled, setBlocksSettled] = useState(false);
@@ -233,6 +235,7 @@ export function NotesEditorContent({
               onDeleteRange={onDeleteRange}
               onUpdateContent={onUpdateContent}
               onFirstBlockReady={handleFirstBlockReady}
+              onConvertBlockType={onConvertBlockType}
             />
           </div>
         </div>

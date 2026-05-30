@@ -766,6 +766,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   onIndent,
   onOutdent,
   onDeleteEmpty,
+  onConvertBlockType,
 }: {
   content: string | null | undefined;
   notePageTitles: string[];
@@ -799,6 +800,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   onIndent: () => void;
   onOutdent: () => void;
   onDeleteEmpty: () => void;
+  onConvertBlockType?: (blockType: string, content: unknown) => void;
 }) {
   const initialContentRef = useRef(parseDocument(content));
   const onChangeRef = useRef(onChange);
@@ -818,6 +820,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   const onIndentRef = useRef(onIndent);
   const onOutdentRef = useRef(onOutdent);
   const onDeleteEmptyRef = useRef(onDeleteEmpty);
+  const onConvertBlockTypeRef = useRef(onConvertBlockType);
   const lastAppliedExternalContentRef = useRef(JSON.stringify(initialContentRef.current));
   const pendingLocalContentRef = useRef<string | null>(null);
   const suppressBlurCommitRef = useRef(false);
@@ -891,6 +894,14 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
 
   const applySlashCommand = (command: SlashCommand) => {
     if (!editor) return;
+
+    // Block type conversion (e.g. query block): convert entire block to a different type
+    if (command.blockType && onConvertBlockTypeRef.current) {
+      setSlashQuery(null);
+      setSelectedSlashIndex(0);
+      onConvertBlockTypeRef.current(command.blockType, command.createContent());
+      return;
+    }
 
     // Color / attribute commands: execute side-effect without replacing content
     if (command.execute) {
@@ -1017,7 +1028,8 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
     onIndentRef.current = onIndent;
     onOutdentRef.current = onOutdent;
     onDeleteEmptyRef.current = onDeleteEmpty;
-  }, [onChange, onCommit, onCreateSibling, onCreateSiblings, onDeleteEmpty, onFocus, onIndent, onMergeWithPrevious, onMoveSelectionDown, onMoveSelectionUp, onNavigateDown, onNavigateUp, onOpenPageReference, onOutdent, onSelectDown, onSelectUp]);
+    onConvertBlockTypeRef.current = onConvertBlockType;
+  }, [onChange, onCommit, onConvertBlockType, onCreateSibling, onCreateSiblings, onDeleteEmpty, onFocus, onIndent, onMergeWithPrevious, onMoveSelectionDown, onMoveSelectionUp, onNavigateDown, onNavigateUp, onOpenPageReference, onOutdent, onSelectDown, onSelectUp]);
 
   useEffect(() => {
     slashQueryRef.current = slashQuery;

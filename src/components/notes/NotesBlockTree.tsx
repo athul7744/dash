@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 
 import { BlockContextMenu } from "@/components/notes/BlockContextMenu";
 import { NoteBlockEditor } from "@/components/notes/NoteBlockEditor";
+import { QueryBlockView } from "@/components/notes/QueryBlockView";
 import { getBlockContextMenuOptions, type BlockContextMenuActionId } from "@/components/notes/block-context-menu-options";
 import type { BlockColorKey } from "@/components/notes/NoteBlockEditorColor";
 import type { NoteBlockRow } from "@/hooks/use-notes";
@@ -156,6 +157,7 @@ function BlockNodeView({
   onSelectDown,
   onClearSelection,
   onBlockEditorCreate,
+  onConvertBlockType,
 }: {
   node: BlockTreeNode;
   depth?: number;
@@ -199,6 +201,7 @@ function BlockNodeView({
   onSelectDown: (blockId: string, nextBlockId: string) => void;
   onClearSelection: () => void;
   onBlockEditorCreate?: () => void;
+  onConvertBlockType?: (blockId: string, blockType: string, content: unknown) => void;
 }) {
   const previousBlockId = previousBlockIdById.get(node.block.id) ?? null;
   const nextBlockId = nextBlockIdById.get(node.block.id) ?? null;
@@ -432,7 +435,16 @@ function BlockNodeView({
             {isBlockMenuOpen ? <BlockContextMenu options={blockContextMenuOptions} onAction={handleBlockMenuAction} onColorSelect={handleColorSelect} /> : null}
           </div>
           <div className={`min-w-0 flex-1 rounded-sm transition-smooth ${selectedBlockIds.has(node.block.id) ? "bg-accent/45" : ""}`} style={editorSurfaceStyle}>
-            {isNearViewport ? (
+            {blockType === "query" ? (
+              <QueryBlockView
+                content={node.block.content}
+                onUpdateContent={(nextContent) => {
+                  onUpdateContent(node.block.id, nextContent as JsonValue);
+                  onCommitContent(node.block.id, nextContent as JsonValue);
+                }}
+                onOpenPageReference={onOpenPageReference}
+              />
+            ) : isNearViewport ? (
               <NoteBlockEditor
                 content={node.block.content}
                 notePageTitles={notePageTitles}
@@ -470,6 +482,7 @@ function BlockNodeView({
                 onMoveSelectionUp={moveTargetBlockIds ? () => onMoveSelectedBlockRange(moveTargetBlockIds, "up", node.block.id) : undefined}
                 onMoveSelectionDown={moveTargetBlockIds ? () => onMoveSelectedBlockRange(moveTargetBlockIds, "down", node.block.id) : undefined}
                 onDeleteEmpty={() => onDelete(node.block.id)}
+                onConvertBlockType={onConvertBlockType ? (blockType, content) => onConvertBlockType(node.block.id, blockType, content) : undefined}
               />
             ) : (
               <div className="min-h-[1.5em] px-1 py-0.5 text-sm text-foreground/80 whitespace-pre-wrap">{extractBlockText(node.block.content) || "\u00A0"}</div>
@@ -515,6 +528,7 @@ function BlockNodeView({
               onSelectDown={onSelectDown}
               onClearSelection={onClearSelection}
               onBlockEditorCreate={onBlockEditorCreate}
+              onConvertBlockType={onConvertBlockType}
             />
           ))}
         </div>
@@ -544,6 +558,7 @@ export function NotesBlockTree({
   onDeleteRange,
   onUpdateContent,
   onFirstBlockReady,
+  onConvertBlockType,
 }: {
   blocks: NoteBlockRow[];
   onCreateFirstBlock: () => void;
@@ -575,6 +590,7 @@ export function NotesBlockTree({
   onDeleteRange: (blockIds: string[]) => void | Promise<void>;
   onUpdateContent: (blockId: string, nextContent: JsonValue) => void;
   onFirstBlockReady?: () => void;
+  onConvertBlockType?: (blockId: string, blockType: string, content: unknown) => void;
 }) {
   const [markdownToggleVersions, setMarkdownToggleVersions] = useState<Record<string, number>>({});
   const [blockRangeSelection, setBlockRangeSelection] = useState<{ anchorBlockId: string; focusBlockId: string } | null>(null);
@@ -741,6 +757,7 @@ export function NotesBlockTree({
           onSelectDown={handleSelectDown}
           onClearSelection={() => setBlockRangeSelection(null)}
           onBlockEditorCreate={handleBlockEditorCreate}
+          onConvertBlockType={onConvertBlockType}
         />
       ))}
 

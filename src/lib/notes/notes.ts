@@ -36,6 +36,7 @@ interface UpdateBlockInput {
   pageId?: string;
   content?: JsonValue;
   type?: string;
+  rawContent?: boolean; // skip serializeNoteDocument, store content as plain JSON
 }
 
 interface MoveBlockInput {
@@ -142,7 +143,7 @@ function queuePendingBlockCreateWrite(pageId: string) {
     pendingCreate.pageId,
     toNullableOwner(pendingCreate.parentBlockId),
     pendingCreate.type,
-    serializeNoteDocument(pendingCreate.content),
+    pendingCreate.type !== "text" ? JSON.stringify(pendingCreate.content) : serializeNoteDocument(pendingCreate.content),
     pendingCreate.sortRank,
     pendingCreate.updatedAt,
   ]);
@@ -179,7 +180,7 @@ async function insertNoteBlocksImmediately(inputs: CreateBlockInput[]) {
     input.pageId,
     toNullableOwner(input.parentBlockId),
     input.type ?? "text",
-    serializeNoteDocument(input.content),
+    (input.type && input.type !== "text") ? JSON.stringify(input.content) : serializeNoteDocument(input.content),
     input.sortRank,
     now,
   ]);
@@ -489,10 +490,11 @@ export function updateNoteBlock(input: UpdateBlockInput) {
 
   if (input.content !== undefined) {
     scheduleNoteBlockEdgeReconcile(input.blockId, input.content);
+    const serialized = input.rawContent ? JSON.stringify(input.content) : serializeNoteDocument(input.content);
     debouncedUpdate(
       input.blockId,
       "content",
-      serializeNoteDocument(input.content),
+      serialized,
       "blocks",
       getBlockFlushOptions(input.pageId, input.blockId)
     );

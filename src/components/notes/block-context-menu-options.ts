@@ -1,4 +1,4 @@
-export type BlockContextMenuActionId = "move-up" | "move-down" | "indent" | "outdent" | "delete";
+export type BlockContextMenuActionId = "move-up" | "move-down" | "indent" | "outdent" | "color" | "delete";
 
 export type BlockContextMenuOption = {
   id: BlockContextMenuActionId;
@@ -16,8 +16,8 @@ type BlockContextMenuOptionsInput = {
 };
 
 const BLOCK_CONTEXT_ACTION_IDS_BY_TYPE: Record<string, BlockContextMenuActionId[]> = {
-  default: ["move-up", "move-down", "indent", "outdent", "delete"],
-  text: ["move-up", "move-down", "indent", "outdent", "delete"],
+  default: ["move-up", "move-down", "indent", "outdent", "color", "delete"],
+  text: ["move-up", "move-down", "indent", "outdent", "color", "delete"],
 };
 
 export function getBlockContextMenuActionIds(blockType: string): BlockContextMenuActionId[] {
@@ -66,6 +66,12 @@ export function getBlockContextMenuOptions({
             label: "Outdent block",
           });
         }
+        return;
+      case "color":
+        options.push({
+          id: actionId,
+          label: "Block color",
+        });
         return;
       case "delete":
         options.push({

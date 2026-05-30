@@ -790,3 +790,37 @@
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.85em;
 }
+
+/* Block colors — subtle backgrounds for colored blocks (Notion-style) */
+[class*="block-color-"] {
+  border-left: 3px solid;
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.5rem 0.375rem 0.625rem;
+}
+
+/* Override tree line inside colored blocks for better contrast */
+[class*="block-color-"] > .border-l { border-color: color-mix(in oklab, currentColor 25%, transparent) !important; }
+
+/* Sticky headings inside colored blocks should inherit the block background, not bg-background */
+[class*="block-color-"] > article.bg-background {
+  background: inherit !important;
+  box-shadow: none !important;
+}
+
+.block-color-gray { background: oklch(0.97 0.005 250); border-color: oklch(0.75 0.02 250); }
+.block-color-brown { background: oklch(0.96 0.02 55); border-color: oklch(0.65 0.08 50); }
+.block-color-orange { background: oklch(0.97 0.03 65); border-color: oklch(0.78 0.12 55); }
+.block-color-yellow { background: oklch(0.98 0.035 95); border-color: oklch(0.85 0.12 90); }
+.block-color-green { background: oklch(0.97 0.03 155); border-color: oklch(0.72 0.12 155); }
+.block-color-blue { background: oklch(0.97 0.025 240); border-color: oklch(0.68 0.10 240); }
+.block-color-purple { background: oklch(0.97 0.025 300); border-color: oklch(0.68 0.12 295); }
+.block-color-pink { background: oklch(0.97 0.03 350); border-color: oklch(0.72 0.12 345); }
+
+.dark .block-color-gray { background: oklch(0.20 0.006 250); border-color: oklch(0.50 0.02 250); }
+.dark .block-color-brown { background: oklch(0.20 0.018 55); border-color: oklch(0.50 0.08 50); }
+.dark .block-color-orange { background: oklch(0.21 0.028 55); border-color: oklch(0.60 0.14 55); }
+.dark .block-color-yellow { background: oklch(0.22 0.028 90); border-color: oklch(0.70 0.14 90); }
+.dark .block-color-green { background: oklch(0.20 0.021 155); border-color: oklch(0.55 0.12 155); }
+.dark .block-color-blue { background: oklch(0.20 0.021 245); border-color: oklch(0.55 0.12 245); }
+.dark .block-color-purple { background: oklch(0.20 0.025 300); border-color: oklch(0.55 0.14 295); }
+.dark .block-color-pink { background: oklch(0.20 0.025 345); border-color: oklch(0.55 0.14 345); }

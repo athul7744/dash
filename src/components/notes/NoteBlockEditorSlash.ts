@@ -1,8 +1,8 @@
 import type { Editor, JSONContent } from "@tiptap/core";
 import { format } from "date-fns";
-import { Calendar, Code2, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Quote, Sigma, Table2, TextCursorInput, type LucideIcon } from "lucide-react";
+import { Calendar, Code2, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Paintbrush, Quote, Sigma, Table2, TextCursorInput, type LucideIcon } from "lucide-react";
 
-export type SlashCommandSection = "basic" | "structure" | "media" | "dates";
+export type SlashCommandSection = "basic" | "structure" | "media" | "dates" | "color";
 
 export type SlashCommand = {
   id: string;
@@ -13,6 +13,7 @@ export type SlashCommand = {
   icon: LucideIcon;
   keywords: string[];
   createContent: () => JSONContent;
+  execute?: (editor: Editor) => void;
 };
 
 function createParagraphNode(text: string): JSONContent {
@@ -121,6 +122,7 @@ export const slashCommandSections: Array<{ id: SlashCommandSection; title: strin
   { id: "structure", title: "Structure", icon: Table2 },
   { id: "media", title: "Media", icon: ImageIcon },
   { id: "dates", title: "Dates", icon: Calendar },
+  { id: "color", title: "Color", icon: Paintbrush },
 ];
 
 export const slashCommands: SlashCommand[] = [
@@ -352,6 +354,115 @@ export const dateSlashCommands: SlashCommand[] = [
   },
 ];
 
+function setBlockColor(editor: Editor, color: string | null) {
+  const nodeType = editor.state.doc.firstChild?.type.name;
+  if (nodeType) {
+    editor.commands.updateAttributes(nodeType, { color });
+  }
+}
+
+export const colorSlashCommands: SlashCommand[] = [
+  {
+    id: "color-gray",
+    section: "color",
+    title: "Gray",
+    description: "Gray background.",
+    shortcut: "/gray",
+    icon: Paintbrush,
+    keywords: ["color", "background", "gray", "grey"],
+    createContent: () => emptyDocument(),
+    execute: (editor) => setBlockColor(editor, "gray"),
+  },
+  {
+    id: "color-brown",
+    section: "color",
+    title: "Brown",
+    description: "Brown background.",
+    shortcut: "/brown",
+    icon: Paintbrush,
+    keywords: ["color", "background", "brown"],
+    createContent: () => emptyDocument(),
+    execute: (editor) => setBlockColor(editor, "brown"),
+  },
+  {
+    id: "color-orange",
+    section: "color",
+    title: "Orange",
+    description: "Orange background.",
+    shortcut: "/orange",
+    icon: Paintbrush,
+    keywords: ["color", "background", "orange"],
+    createContent: () => emptyDocument(),
+    execute: (editor) => setBlockColor(editor, "orange"),
+  },
+  {
+    id: "color-yellow",
+    section: "color",
+    title: "Yellow",
+    description: "Yellow background.",
+    shortcut: "/yellow",
+    icon: Paintbrush,
+    keywords: ["color", "background", "yellow"],
+    createContent: () => emptyDocument(),
+    execute: (editor) => setBlockColor(editor, "yellow"),
+  },
+  {
+    id: "color-green",
+    section: "color",
+    title: "Green",
+    description: "Green background.",
+    shortcut: "/green",
+    icon: Paintbrush,
+    keywords: ["color", "background", "green"],
+    createContent: () => emptyDocument(),
+    execute: (editor) => setBlockColor(editor, "green"),
+  },
+  {
+    id: "color-blue",
+    section: "color",
+    title: "Blue",
+    description: "Blue background.",
+    shortcut: "/blue",
+    icon: Paintbrush,
+    keywords: ["color", "background", "blue"],
+    createContent: () => emptyDocument(),
+    execute: (editor) => setBlockColor(editor, "blue"),
+  },
+  {
+    id: "color-purple",
+    section: "color",
+    title: "Purple",
+    description: "Purple background.",
+    shortcut: "/purple",
+    icon: Paintbrush,
+    keywords: ["color", "background", "purple", "violet"],
+    createContent: () => emptyDocument(),
+    execute: (editor) => setBlockColor(editor, "purple"),
+  },
+  {
+    id: "color-pink",
+    section: "color",
+    title: "Pink",
+    description: "Pink background.",
+    shortcut: "/pink",
+    icon: Paintbrush,
+    keywords: ["color", "background", "pink", "red"],
+    createContent: () => emptyDocument(),
+    execute: (editor) => setBlockColor(editor, "pink"),
+  },
+  {
+    id: "color-none",
+    section: "color",
+    title: "No Color",
+    description: "Remove background color.",
+    shortcut: "/nocolor",
+    icon: Paintbrush,
+    keywords: ["color", "none", "clear", "remove", "default"],
+    createContent: () => emptyDocument(),
+    execute: (editor) => setBlockColor(editor, null),
+  },
+];
+
 export function getSlashQuery(editor: Editor) {
   const { state } = editor;
 
@@ -377,7 +488,7 @@ export function getFilteredSlashCommands(slashQuery: string | null) {
     return [];
   }
 
-  const allCommands = [...slashCommands, ...dateSlashCommands];
+  const allCommands = [...slashCommands, ...dateSlashCommands, ...colorSlashCommands];
   const normalizedQuery = slashQuery.trim().toLowerCase();
   if (!normalizedQuery) {
     return allCommands;

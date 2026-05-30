@@ -51,6 +51,7 @@ import {
   getSlashQuery,
   type SlashCommand,
 } from "@/components/notes/NoteBlockEditorSlash";
+import { BlockColor } from "@/components/notes/NoteBlockEditorColor";
 import { MathInline, MathBlock } from "@/components/notes/NoteBlockEditorMath";
 import { protectMathTokens, restoreMathTokens } from "@/lib/notes/math-clipboard";
 import { escapeHtml } from "@/lib/shared/utils";
@@ -891,6 +892,22 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   const applySlashCommand = (command: SlashCommand) => {
     if (!editor) return;
 
+    // Color / attribute commands: execute side-effect without replacing content
+    if (command.execute) {
+      // Clear the slash text, restore to empty paragraph
+      const emptyContent = emptyDocument();
+      editor.commands.setContent(emptyContent, { emitUpdate: false });
+      setSlashQuery(null);
+      setSelectedSlashIndex(0);
+      command.execute(editor);
+      // Emit the updated content so it persists
+      onChangeRef.current(editor.getJSON());
+      requestAnimationFrame(() => {
+        editor.chain().focus("start").run();
+      });
+      return;
+    }
+
     const nextContent = command.createContent();
 
     if (command.id === "horizontal-rule") {
@@ -1066,6 +1083,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
       Heading.configure({
         levels: [1, 2, 3, 4, 5],
       }),
+      BlockColor,
       NotesArrowReplacement,
       NotesHorizontalRule,
       MarkdownLink,

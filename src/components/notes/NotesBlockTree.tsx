@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { BlockContextMenu } from "@/components/notes/BlockContextMenu";
 import { NoteBlockEditor } from "@/components/notes/NoteBlockEditor";
 import { getBlockContextMenuOptions, type BlockContextMenuActionId } from "@/components/notes/block-context-menu-options";
+import type { BlockColorKey } from "@/components/notes/NoteBlockEditorColor";
 import type { NoteBlockRow } from "@/hooks/use-notes";
 import {
   buildBlockClipboardBlocks,
@@ -51,6 +52,24 @@ function getBlockSpacingMeta(raw: string | null | undefined): BlockSpacingMeta {
   }
 
   return { kind: "other" };
+}
+
+const VALID_BLOCK_COLORS = new Set(["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink"]);
+
+function getBlockColor(raw: string | null | undefined): BlockColorKey | null {
+  const document = normalizeNoteDocument(raw);
+  const firstNode = Array.isArray(document.content) ? document.content[0] : null;
+
+  if (!firstNode || typeof firstNode !== "object" || !("attrs" in firstNode)) {
+    return null;
+  }
+
+  const attrs = firstNode.attrs;
+  if (attrs && typeof attrs === "object" && "color" in attrs && typeof attrs.color === "string" && VALID_BLOCK_COLORS.has(attrs.color)) {
+    return attrs.color as BlockColorKey;
+  }
+
+  return null;
 }
 
 function getHeadingOffsetPx(level: 1 | 2 | 3 | 4 | 5) {
@@ -274,11 +293,28 @@ function BlockNodeView({
           onOutdent(node.block.id, parentParentBlockId);
         }
         return;
+      case "color":
+        // Handled by onColorSelect in BlockContextMenu
+        return;
       case "delete":
         onDelete(node.block.id);
         return;
       default:
         return;
+    }
+  };
+
+  const handleColorSelect = (color: BlockColorKey | null) => {
+    setIsBlockMenuOpen(false);
+    const document = normalizeNoteDocument(node.block.content);
+    const content = document.content as Array<Record<string, unknown>> | undefined;
+    const firstNode = content?.[0];
+    if (firstNode) {
+      const attrs = (firstNode.attrs ?? {}) as Record<string, unknown>;
+      const updatedNode = { ...firstNode, attrs: { ...attrs, color } };
+      const updatedDocument = { ...document, content: [updatedNode, ...(content.slice(1))] };
+      onUpdateContent(node.block.id, updatedDocument as JsonValue);
+      onCommitContent(node.block.id, updatedDocument as JsonValue);
     }
   };
 
@@ -326,8 +362,11 @@ function BlockNodeView({
       : { marginLeft: 14, borderColor: "color-mix(in oklab, currentColor 15%, transparent)" } as CSSProperties
     : undefined;
 
+  const blockColor = getBlockColor(node.block.content);
+  const blockColorClass = blockColor ? `block-color-${blockColor}` : "";
+
   return (
-    <div className="space-y-0">
+    <div className={`space-y-0 ${blockColorClass}`}>
       <article
         ref={articleRef}
         className={`group relative ${blockSpacingMeta.kind === "heading" ? `sm:sticky sm:top-0 z-20 isolate bg-background shadow-[0_1px_0_0_hsl(var(--border)/0.5)]` : ""}`}
@@ -390,7 +429,7 @@ function BlockNodeView({
             >
               <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 transition-colors group-focus-within:bg-foreground" />
             </button>
-            {isBlockMenuOpen ? <BlockContextMenu options={blockContextMenuOptions} onAction={handleBlockMenuAction} /> : null}
+            {isBlockMenuOpen ? <BlockContextMenu options={blockContextMenuOptions} onAction={handleBlockMenuAction} onColorSelect={handleColorSelect} /> : null}
           </div>
           <div className={`min-w-0 flex-1 rounded-sm transition-smooth ${selectedBlockIds.has(node.block.id) ? "bg-accent/45" : ""}`} style={editorSurfaceStyle}>
             {isNearViewport ? (

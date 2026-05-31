@@ -39,18 +39,17 @@ import { NotesPageSearchPopup } from "@/components/notes/page/NotesPageSearchPop
 import { useNotesPageDerivedState } from "@/components/notes/page/useNotesPageDerivedState";
 import { useNotesLayoutState } from "@/components/notes/page/useNotesLayoutState";
 import { useNotesSurfaceState } from "@/components/notes/page/useNotesSurfaceState";
-import { buildOutlineEntries, formatTimestampLabel } from "@/components/notes/page/utils";
+import { buildOutlineEntries } from "@/components/notes/page/utils";
 import { ManagePropertiesDialog } from "@/components/notes/ManagePropertiesDialog";
 import { ManageTagsDialog } from "@/components/tasks/ManageTagsDialog";
+import { useEdgeSwipe } from "@/hooks/use-edge-swipe";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { usePageNavStack } from "@/hooks/use-page-nav-stack";
-import { useRelativeTimeTick } from "@/hooks/use-relative-time-tick";
+import { useSettledTimestamp } from "@/hooks/use-settled-timestamp";
 import { usePagePeek } from "@/components/notes/usePagePeek";
 import { PagePeekPopover } from "@/components/notes/PagePeekPopover";
 
 const notesApp = getApp("notes");
-const MOBILE_EDGE_SWIPE_TRIGGER_PX = 56;
-const MOBILE_EDGE_SWIPE_MAX_VERTICAL_DRIFT_PX = 48;
 
 export default function NotesPage() {
   const router = useRouter();
@@ -70,8 +69,6 @@ export default function NotesPage() {
   const [selectedTagIdsDraft, setSelectedTagIdsDraft] = useState<string[]>([]);
   const [blockContentDrafts, setBlockContentDrafts] = useState<Record<string, string>>({});
   const [optimisticBlockStructure, setOptimisticBlockStructure] = useState<Record<string, OptimisticBlockStructure>>({});
-  const [showAbsoluteUpdatedTime, setShowAbsoluteUpdatedTime] = useState(false);
-  const [stableUpdatedTimestamp, setStableUpdatedTimestamp] = useState<{ relative: string; absolute: string } | null>(null);
   const [focusTarget, setFocusTarget] = useState<{ blockId: string; placement: number | "start" | "end" } | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingPage, setIsDeletingPage] = useState(false);
@@ -100,7 +97,6 @@ export default function NotesPage() {
     toggleAllPageRailSections,
   } = useNotesLayoutState();
   const isMobileViewport = useMediaQuery("(max-width: 639px)");
-  const edgeSwipeStartRef = useRef<{ x: number; y: number; edge: "left" | "right" } | null>(null);
 
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
@@ -192,23 +188,13 @@ export default function NotesPage() {
   const activePageEmoji = pageEmojiDraft !== undefined
     ? pageEmojiDraft
     : selectedPageEmoji;
-  const absoluteUpdatedTimeTimeoutRef = useRef<number | null>(null);
-  const pendingUpdatedTimestampRef = useRef<{ relative: string; absolute: string } | null>(null);
-  const settleUpdatedTimestampTimeoutRef = useRef<number | null>(null);
+  const {
+    stableUpdatedTimestamp,
+    showAbsoluteUpdatedTime,
+    revealAbsoluteUpdatedTime,
+    resetTimestamp,
+  } = useSettledTimestamp(selectedPage, updatedTimestamp);
   const hydratedPageIdRef = useRef<string | null>(null);
-
-  const revealAbsoluteUpdatedTime = () => {
-    setShowAbsoluteUpdatedTime(true);
-
-    if (absoluteUpdatedTimeTimeoutRef.current !== null) {
-      window.clearTimeout(absoluteUpdatedTimeTimeoutRef.current);
-    }
-
-    absoluteUpdatedTimeTimeoutRef.current = window.setTimeout(() => {
-      setShowAbsoluteUpdatedTime(false);
-      absoluteUpdatedTimeTimeoutRef.current = null;
-    }, 3000);
-  };
 
   useEffect(() => {
     if (!selectedPageId) {
@@ -220,8 +206,7 @@ export default function NotesPage() {
       setSelectedTagIdsDraft([]);
       setBlockContentDrafts({});
       setOptimisticBlockStructure({});
-      setShowAbsoluteUpdatedTime(false);
-      setStableUpdatedTimestamp(null);
+      resetTimestamp(null);
       setFocusTarget(null);
       return;
     }
@@ -256,75 +241,9 @@ export default function NotesPage() {
     setSelectedTagIdsDraft(selectedPageTagIds);
     setBlockContentDrafts({});
     setOptimisticBlockStructure({});
-    setShowAbsoluteUpdatedTime(false);
-    setStableUpdatedTimestamp(updatedTimestamp);
+    resetTimestamp(updatedTimestamp);
     setFocusTarget(null);
   }, [selectedPage?.id, selectedPageId]);
-
-  useEffect(() => {
-    pendingUpdatedTimestampRef.current = updatedTimestamp;
-
-    if (!selectedPage) {
-      if (settleUpdatedTimestampTimeoutRef.current !== null) {
-        window.clearTimeout(settleUpdatedTimestampTimeoutRef.current);
-        settleUpdatedTimestampTimeoutRef.current = null;
-      }
-      setStableUpdatedTimestamp(null);
-      return;
-    }
-
-    if (!hasPendingWrites() && !hasPendingNoteEdgeReconciles()) {
-      if (settleUpdatedTimestampTimeoutRef.current !== null) {
-        window.clearTimeout(settleUpdatedTimestampTimeoutRef.current);
-        settleUpdatedTimestampTimeoutRef.current = null;
-      }
-      setStableUpdatedTimestamp(updatedTimestamp);
-      return;
-    }
-
-    if (settleUpdatedTimestampTimeoutRef.current !== null) {
-      return;
-    }
-
-    const waitForSettledTimestamp = () => {
-      if (hasPendingWrites() || hasPendingNoteEdgeReconciles()) {
-        settleUpdatedTimestampTimeoutRef.current = window.setTimeout(waitForSettledTimestamp, 240);
-        return;
-      }
-
-      settleUpdatedTimestampTimeoutRef.current = null;
-      setStableUpdatedTimestamp(pendingUpdatedTimestampRef.current);
-    };
-
-    settleUpdatedTimestampTimeoutRef.current = window.setTimeout(waitForSettledTimestamp, 240);
-
-    return () => {
-      if (settleUpdatedTimestampTimeoutRef.current !== null) {
-        window.clearTimeout(settleUpdatedTimestampTimeoutRef.current);
-        settleUpdatedTimestampTimeoutRef.current = null;
-      }
-    };
-  }, [selectedPage?.id, selectedPage?.updated_at]);
-
-  const relativeTimeTick = useRelativeTimeTick(30000);
-
-  useEffect(() => {
-    if (!selectedPage || hasPendingWrites() || hasPendingNoteEdgeReconciles()) {
-      return;
-    }
-
-    const nextTimestamp = formatTimestampLabel(selectedPage.updated_at ?? null);
-    setStableUpdatedTimestamp((currentTimestamp) => {
-      if (
-        currentTimestamp?.relative === nextTimestamp?.relative &&
-        currentTimestamp?.absolute === nextTimestamp?.absolute
-      ) {
-        return currentTimestamp;
-      }
-
-      return nextTimestamp;
-    });
-  }, [relativeTimeTick, selectedPage?.id, selectedPage?.updated_at]);
 
   useEffect(() => {
     if (!selectedPage || pageEmojiDraft === undefined) {
@@ -335,14 +254,6 @@ export default function NotesPage() {
       setPageEmojiDraft(undefined);
     }
   }, [pageEmojiDraft, selectedPage?.id, selectedPageEmoji]);
-
-  useEffect(() => {
-    return () => {
-      if (absoluteUpdatedTimeTimeoutRef.current !== null) {
-        window.clearTimeout(absoluteUpdatedTimeTimeoutRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     setOptimisticBlockStructure((current) => {
@@ -699,76 +610,22 @@ export default function NotesPage() {
     />
   );
 
-  const handleMobileEdgeSwipeStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (!isMobileViewport || isDeleteDialogOpen || isPageSearchOpen || isMobilePagesDrawerOpen || isMobileDetailsDrawerOpen) {
-      edgeSwipeStartRef.current = null;
-      return;
-    }
-
-    const touch = event.touches[0];
-    if (!touch) {
-      edgeSwipeStartRef.current = null;
-      return;
-    }
-
-    // Ignore swipes starting on horizontally scrollable containers (e.g. title/tag row)
-    let el = event.target as HTMLElement | null;
-    while (el && el !== event.currentTarget) {
-      const touchAction = getComputedStyle(el).touchAction;
-      if (touchAction === "pan-x" || el.scrollWidth > el.clientWidth + 1) {
-        edgeSwipeStartRef.current = null;
-        return;
-      }
-      el = el.parentElement;
-    }
-
-    const { clientX, clientY } = touch;
-    const viewportWidth = window.innerWidth;
-    const edgeZone = viewportWidth / 3;
-
-    if (clientX <= edgeZone) {
-      edgeSwipeStartRef.current = { x: clientX, y: clientY, edge: "left" };
-      return;
-    }
-
-    if (clientX >= viewportWidth - edgeZone) {
-      edgeSwipeStartRef.current = { x: clientX, y: clientY, edge: "right" };
-      return;
-    }
-
-    edgeSwipeStartRef.current = null;
-  };
-
-  const handleMobileEdgeSwipeEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-    const swipeStart = edgeSwipeStartRef.current;
-    edgeSwipeStartRef.current = null;
-
-    if (!swipeStart || !isMobileViewport || isDeleteDialogOpen || isPageSearchOpen) {
-      return;
-    }
-
-    const touch = event.changedTouches[0];
-    if (!touch) {
-      return;
-    }
-
-    const deltaX = touch.clientX - swipeStart.x;
-    const deltaY = Math.abs(touch.clientY - swipeStart.y);
-    if (deltaY > MOBILE_EDGE_SWIPE_MAX_VERTICAL_DRIFT_PX) {
-      return;
-    }
-
-    if (swipeStart.edge === "left" && deltaX >= MOBILE_EDGE_SWIPE_TRIGGER_PX) {
-      setIsMobileDetailsDrawerOpen(false);
-      setIsMobilePagesDrawerOpen(true);
-      return;
-    }
-
-    if (swipeStart.edge === "right" && deltaX <= -MOBILE_EDGE_SWIPE_TRIGGER_PX && (detailsRail || showSelectedPageLoading)) {
-      setIsMobilePagesDrawerOpen(false);
-      setIsMobileDetailsDrawerOpen(true);
-    }
-  };
+  const edgeSwipeEnabled = isMobileViewport && !isDeleteDialogOpen && !isPageSearchOpen && !isMobilePagesDrawerOpen && !isMobileDetailsDrawerOpen;
+  const { handleTouchStart: handleMobileEdgeSwipeStart, handleTouchEnd: handleMobileEdgeSwipeEnd } = useEdgeSwipe(
+    edgeSwipeEnabled,
+    {
+      onSwipeLeft: () => {
+        setIsMobileDetailsDrawerOpen(false);
+        setIsMobilePagesDrawerOpen(true);
+      },
+      onSwipeRight: () => {
+        if (detailsRail || showSelectedPageLoading) {
+          setIsMobilePagesDrawerOpen(false);
+          setIsMobileDetailsDrawerOpen(true);
+        }
+      },
+    },
+  );
 
   return (
     <div

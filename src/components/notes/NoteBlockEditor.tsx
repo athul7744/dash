@@ -1,9 +1,11 @@
 "use client";
 
+"use client";
+
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Extension, InputRule, markInputRule, markPasteRule, type Editor, type JSONContent } from "@tiptap/core";
+import { type Editor, type JSONContent } from "@tiptap/core";
 import { Link2, Minus, Plus, Rows3, Trash2 } from "lucide-react";
-import { format, parse, parseISO, isValid } from "date-fns";
+import { format, isValid } from "date-fns";
 import Blockquote from "@tiptap/extension-blockquote";
 import Bold from "@tiptap/extension-bold";
 import { CodeBlockWithToolbar } from "@/components/notes/NoteBlockEditorCode";
@@ -13,11 +15,9 @@ import Dropcursor from "@tiptap/extension-dropcursor";
 import Gapcursor from "@tiptap/extension-gapcursor";
 import HardBreak from "@tiptap/extension-hard-break";
 import Heading from "@tiptap/extension-heading";
-import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import History from "@tiptap/extension-history";
 import Image from "@tiptap/extension-image";
 import Italic from "@tiptap/extension-italic";
-import Link from "@tiptap/extension-link";
 import Paragraph from "@tiptap/extension-paragraph";
 import Strike from "@tiptap/extension-strike";
 import { Table } from "@tiptap/extension-table";
@@ -26,16 +26,12 @@ import TableHeader from "@tiptap/extension-table-header";
 import TableRow from "@tiptap/extension-table-row";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
-import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
-import { DOMParser as ProseMirrorDOMParser, DOMSerializer } from "@tiptap/pm/model";
-import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
+import { TextSelection } from "@tiptap/pm/state";
+import { type EditorView } from "@tiptap/pm/view";
 import { EditorContent, useEditor } from "@tiptap/react";
 import Text from "@tiptap/extension-text";
 import { common, createLowlight } from "lowlight";
-import { marked } from "marked";
 import { CellSelection, findCellPos } from "prosemirror-tables";
-import TurndownService from "turndown";
-import { gfm } from "turndown-plugin-gfm";
 
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList, CommandShortcut } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
@@ -52,9 +48,8 @@ import {
   type SlashCommand,
 } from "@/components/notes/NoteBlockEditorSlash";
 import { BlockColor } from "@/components/notes/NoteBlockEditorColor";
+import { ReferenceDecorations, DateAutoFormat, MarkdownLink, NotesHorizontalRule, NotesArrowReplacement } from "@/components/notes/NoteBlockEditorExtensions";
 import { MathInline, MathBlock } from "@/components/notes/NoteBlockEditorMath";
-import { protectMathTokens, restoreMathTokens } from "@/lib/notes/math-clipboard";
-import { escapeHtml } from "@/lib/shared/utils";
 import {
   getBlockArrowMoveAction,
   getBlockBackspaceAction,
@@ -64,22 +59,29 @@ import {
   shouldNavigateBetweenBlocks,
 } from "@/lib/notes/block-editor-keyboard";
 import { NOTES_BLOCK_CLIPBOARD_MIME, parseBlockClipboardData } from "@/lib/notes/block-line-selection";
+import {
+  getMarkdownClipboardText,
+  getSelectionHtml,
+  getSelectionMarkdown,
+  parseHtmlDocument,
+  parseMarkdownClipboardText,
+  parseMarkdownTextDocument,
+  tryConvertMarkdownBlock,
+} from "@/lib/notes/editor-serialization";
+import {
+  parseDocument,
+  splitEditorDocumentAtSelection,
+  createNormalTextSiblingContent,
+  isAtStartOfBlockContent,
+  isHorizontalRuleOnlyDocument,
+  getPageReferenceQuery,
+  getResolvedPageReferenceAtPosition,
+  type PageReferenceQuery,
+} from "@/lib/notes/editor-document-helpers";
 import { parseClipboardMarkdown, shouldReplaceOnMarkdownPaste } from "@/lib/notes/markdown-clipboard-blocks";
-import { createNoteDocumentFromText, extractNoteText, normalizeNoteDocument, serializeNoteDocumentToMarkdown } from "@/lib/notes/notes-content";
+import { createNoteDocumentFromText, serializeNoteDocumentToMarkdown } from "@/lib/notes/notes-content";
 import type { NoteBlockInsert } from "@/lib/notes/notes";
-import { logger } from "@/lib/shared/logger";
 
-const referenceDecorationsKey = new PluginKey("noteReferenceDecorations");
-const markdownLinkInputRegex = /(?:^|\s)\[([^\]]+)\]\((\S+?)\)$/;
-const markdownLinkPasteRegex = /(?:^|\s)\[([^\]]+)\]\((\S+?)\)/g;
-const markdownImageBlockRegex = /^!\[([^\]]*)\]\((\S+?)(?:\s+"([^"]+)")?\)$/;
-const markdownBlockHintRegex = /(^|\n)\s*(#{1,6}\s|>\s|[-*+]\s|\d+\.\s|```|~~~|\|.+\||!\[[^\]]*\]\(|\[[^\]]+\]\([^\)]+\)|-{3,}|\*\*[^*]+\*\*|_[^_]+_)/;
-const markdownLinkOrImageRegex = /!\[[^\]]*\]\([^\)]+\)|\[[^\]]+\]\([^\)]+\)/;
-const markdownTableSeparatorRegex = /(^|\n)\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*($|\n)/;
-const markdownTaskListRegex = /(^|\n)\s*[-*+]\s\[[ xX]\]\s/;
-const markdownMathRegex = /\$\$[^\$]+\$\$|\$[^\$\s][^\$]*?\$/;
-const notePageReferenceRegex = /\[\[[^\]]+\]\]/g;
-const noteInlineTagRegex = /(^|[\s(])#([a-z0-9][a-z0-9_/-]*)/gi;
 const lowlight = createLowlight(common);
 
 type TableToolbarState = {
@@ -113,54 +115,6 @@ const visibleTableToolbarState: TableToolbarState = {
   canDeleteRow: true,
   canDeleteTable: true,
 };
-
-const turndownService = new TurndownService({
-  bulletListMarker: "-",
-  codeBlockStyle: "fenced",
-  emDelimiter: "*",
-  headingStyle: "atx",
-});
-
-turndownService.use(gfm);
-turndownService.addRule("taskListItems", {
-  filter(node: Node) {
-    return node.nodeName === "LI" && (node as HTMLElement).getAttribute("data-type") === "taskItem";
-  },
-  replacement(content: string, node: Node) {
-    const element = node as HTMLElement;
-    const checkbox = element.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
-    const isChecked = checkbox?.checked || element.getAttribute("data-checked") === "true";
-    const normalizedContent = content.replace(/^\s*\[[ xX]\]\s*/, "").trim();
-    return `\n- [${isChecked ? "x" : " "}] ${normalizedContent}\n`;
-  },
-});
-
-function protectNoteTokens(text: string) {
-  const tokens: string[] = [];
-  const createPlaceholder = (value: string) => {
-    const index = tokens.push(value) - 1;
-    return `NOTESCLIPTOK${index}END`;
-  };
-
-  const withProtectedReferences = text.replace(notePageReferenceRegex, (match) => createPlaceholder(match));
-  const protectedText = withProtectedReferences.replace(noteInlineTagRegex, (_, prefix: string, tag: string) => `${prefix}${createPlaceholder(`#${tag}`)}`);
-
-  return { protectedText, tokens };
-}
-
-function restoreProtectedTokens(value: string, tokens: string[], escape = false) {
-  return value.replace(/NOTESCLIPTOK(\d+)END/g, (_, index: string) => {
-    const token = tokens[Number(index)] ?? "";
-    return escape ? escapeHtml(token) : token;
-  });
-}
-
-function normalizeExportedMarkdownTokens(markdown: string) {
-  return markdown
-    .replace(/\\\[\\\[/g, "[[")
-    .replace(/\\\]\\\]/g, "]]")
-    .replace(/(^|[\s(])\\#([a-z0-9][a-z0-9_/-]*)/gi, "$1#$2");
-}
 
 function getTableToolbarState(editor: Editor | null): TableToolbarState {
   if (!editor || !editor.isActive("table")) {
@@ -252,493 +206,6 @@ function runTableActionAtFocusedCell(
   }
 
   return action();
-}
-
-function getMarkdownClipboardText(event: ClipboardEvent) {
-  const explicitMarkdown = event.clipboardData?.getData("text/markdown")?.trim() ?? "";
-  if (explicitMarkdown) {
-    return explicitMarkdown;
-  }
-
-  const clipboardText = event.clipboardData?.getData("text/plain")?.trim() ?? "";
-  if (!clipboardText) {
-    return null;
-  }
-
-  const lineCount = clipboardText.split(/\r?\n/).length;
-  const hasMarkdownLinkOrImage = markdownLinkOrImageRegex.test(clipboardText);
-  const hasMarkdownTable = markdownTableSeparatorRegex.test(clipboardText);
-  const hasTaskList = markdownTaskListRegex.test(clipboardText);
-  const hasBlockSyntax = markdownBlockHintRegex.test(clipboardText);
-  const hasMath = markdownMathRegex.test(clipboardText);
-
-  if (hasMarkdownLinkOrImage || hasMarkdownTable || hasTaskList || hasMath) {
-    return clipboardText;
-  }
-
-  if (lineCount > 1 && hasBlockSyntax) {
-    return clipboardText;
-  }
-
-  return null;
-}
-
-function parseMarkdownClipboardText(text: string) {
-  const { protectedText: mathProtectedText, mathTokens } = protectMathTokens(text);
-  const { protectedText, tokens } = protectNoteTokens(mathProtectedText);
-  const rendered = marked.parse(protectedText, {
-    async: false,
-    breaks: true,
-    gfm: true,
-  });
-
-  if (typeof rendered !== "string") {
-    return "";
-  }
-
-  return restoreMathTokens(restoreProtectedTokens(rendered, tokens, true), mathTokens);
-}
-
-const ReferenceDecorations = Extension.create({
-  name: "referenceDecorations",
-
-  addProseMirrorPlugins() {
-    return [
-      new Plugin({
-        key: referenceDecorationsKey,
-        props: {
-          decorations(state) {
-            const decorations: Decoration[] = [];
-
-            state.doc.descendants((node, pos) => {
-              if (!node.isText || !node.text) {
-                return;
-              }
-
-              for (const match of node.text.matchAll(/\[\[[^\]]+\]\]/g)) {
-                if (match.index === undefined) continue;
-
-                decorations.push(
-                  Decoration.inline(pos + match.index, pos + match.index + match[0].length, {
-                    class: "note-ref-token note-ref-token-page",
-                  })
-                );
-              }
-
-              for (const match of node.text.matchAll(/(^|[\s(])#([a-z0-9][a-z0-9_/-]*)/gi)) {
-                if (match.index === undefined) continue;
-
-                const prefixLength = match[1]?.length ?? 0;
-                const start = pos + match.index + prefixLength;
-                const end = start + (match[2]?.length ?? 0) + 1;
-
-                decorations.push(
-                  Decoration.inline(start, end, {
-                    class: "note-ref-token note-ref-token-tag",
-                  })
-                );
-              }
-
-              for (const match of node.text.matchAll(/\{([^}]+)\}/g)) {
-                if (match.index === undefined) continue;
-                if (match[1].length < 6) continue;
-                const parsed = Date.parse(match[1]);
-                if (isNaN(parsed)) continue;
-
-                decorations.push(
-                  Decoration.inline(pos + match.index, pos + match.index + match[0].length, {
-                    class: "note-date-token",
-                  })
-                );
-              }
-            });
-
-            return DecorationSet.create(state.doc, decorations);
-          },
-        },
-      }),
-    ];
-  },
-});
-
-const DateAutoFormat = Extension.create({
-  name: "dateAutoFormat",
-
-  addInputRules() {
-    return [
-      new InputRule({
-        find: /\{([^}]+)\}$/,
-        handler: ({ state, range, match }) => {
-          const dateStr = match[1];
-          const parsed = new Date(dateStr);
-          if (!isValid(parsed)) return;
-          const formatted = `{${format(parsed, "MMM d, yyyy")}}`;
-          if (formatted === match[0]) return;
-          const { tr } = state;
-          tr.replaceWith(range.from, range.to, state.schema.text(formatted));
-        },
-      }),
-    ];
-  },
-});
-
-const MarkdownLink = Link.extend({
-  addInputRules() {
-    return [
-      markInputRule({
-        find: markdownLinkInputRegex,
-        type: this.type,
-        getAttributes: (match) => ({ href: match[2] }),
-      }),
-    ];
-  },
-
-  addPasteRules() {
-    return [
-      markPasteRule({
-        find: markdownLinkPasteRegex,
-        type: this.type,
-        getAttributes: (match) => ({ href: match[2] }),
-      }),
-    ];
-  },
-}).configure({
-  autolink: true,
-  linkOnPaste: true,
-  openOnClick: false,
-  HTMLAttributes: {
-    rel: "noopener noreferrer nofollow",
-    target: "_blank",
-  },
-});
-
-const NotesHorizontalRule = HorizontalRule.extend({
-  addInputRules() {
-    return [];
-  },
-});
-
-const NotesArrowReplacement = Extension.create({
-  name: "notesArrowReplacement",
-
-  addInputRules() {
-    return [
-      new InputRule({
-        find: /-->$/,
-        handler: ({ chain, range }) => {
-          chain().insertContentAt(range, "→").run();
-        },
-      }),
-      new InputRule({
-        find: /<--$/,
-        handler: ({ chain, range }) => {
-          chain().insertContentAt(range, "←").run();
-        },
-      }),
-    ];
-  },
-});
-
-function isJsonContent(value: unknown): value is JSONContent {
-  return Boolean(value) && typeof value === "object" && "type" in (value as Record<string, unknown>);
-}
-
-function parseDocument(raw: unknown): JSONContent {
-  const normalized = normalizeNoteDocument(raw);
-
-  if (isJsonContent(normalized)) {
-    return normalized;
-  }
-
-  logger.warn("[notes] Normalized block content was not a valid document", {
-    raw,
-    normalized,
-  });
-  return emptyDocument();
-}
-
-function splitEditorDocumentAtSelection(editor: Editor) {
-  const { from, to } = editor.state.selection;
-  const currentContent = parseDocument(editor.state.doc.cut(0, from).toJSON());
-  const nextSiblingContent = parseDocument(editor.state.doc.cut(to).toJSON());
-
-  return {
-    currentContent,
-    nextSiblingContent,
-  };
-}
-
-function createNormalTextSiblingContent(content: JSONContent) {
-  const text = extractNoteText(content);
-  return text.trim().length > 0 ? createNoteDocumentFromText(text) : emptyDocument();
-}
-
-function isAtStartOfBlockContent(editor: Editor) {
-  const { from } = editor.state.selection;
-  return editor.state.doc.textBetween(0, from, "\n", "\0").length === 0;
-}
-
-function createParagraphNode(text: string): JSONContent {
-  return {
-    type: "paragraph",
-    content: text.length > 0 ? [{ type: "text", text }] : [],
-  };
-}
-
-function getEditorPlainText(view: EditorView) {
-  return view.state.doc.textBetween(0, view.state.doc.content.size, "\n").trim();
-}
-
-function getSelectionHtml(view: EditorView) {
-  const fragment = view.state.selection.content().content;
-  if (fragment.childCount === 0) {
-    return "";
-  }
-
-  const serializer = DOMSerializer.fromSchema(view.state.schema);
-  const wrapper = document.createElement("div");
-  wrapper.appendChild(serializer.serializeFragment(fragment));
-  return wrapper.innerHTML;
-}
-
-function getSelectionMarkdown(view: EditorView) {
-  const html = getSelectionHtml(view);
-  if (!html) {
-    return "";
-  }
-
-  // Replace math atom nodes with their markdown text before turndown processes them.
-  // Turndown can struggle with empty inline elements produced by DOMSerializer for atom nodes.
-  const wrapper = document.createElement("div");
-  wrapper.innerHTML = html;
-  wrapper.querySelectorAll("span[data-math-inline]").forEach((el) => {
-    const latex = el.getAttribute("data-latex") ?? "";
-    el.replaceWith(`$${latex}$`);
-  });
-  wrapper.querySelectorAll("div[data-math-block]").forEach((el) => {
-    const latex = el.getAttribute("data-latex") ?? "";
-    el.replaceWith(`$$${latex}$$`);
-  });
-
-  return normalizeExportedMarkdownTokens(turndownService.turndown(wrapper.innerHTML).trim());
-}
-
-function parseHtmlDocument(view: EditorView, html: string): JSONContent | null {
-  const wrapper = document.createElement("div");
-  wrapper.innerHTML = html;
-
-  const parser = ProseMirrorDOMParser.fromSchema(view.state.schema);
-  const documentNode = parser.parse(wrapper);
-  return documentNode.toJSON() as JSONContent;
-}
-
-function splitMarkdownTableRow(line: string) {
-  const normalized = line.trim().replace(/^\||\|$/g, "");
-  return normalized.split("|").map((cell) => cell.trim());
-}
-
-function createTableCellNode(type: "tableHeader" | "tableCell", text: string): JSONContent {
-  return {
-    type,
-    content: [createParagraphNode(text)],
-  };
-}
-
-function parseMarkdownTable(text: string): JSONContent | null {
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  if (lines.length < 2) {
-    return null;
-  }
-
-  const headerCells = splitMarkdownTableRow(lines[0]);
-  const separatorCells = splitMarkdownTableRow(lines[1]);
-
-  if (
-    headerCells.length === 0 ||
-    headerCells.length !== separatorCells.length ||
-    !separatorCells.every((cell) => /^:?-{3,}:?$/.test(cell))
-  ) {
-    return null;
-  }
-
-  const bodyRows = lines.slice(2).map((line) => splitMarkdownTableRow(line));
-  if (bodyRows.some((row) => row.length !== headerCells.length)) {
-    return null;
-  }
-
-  return {
-    type: "doc",
-    content: [
-      {
-        type: "table",
-        content: [
-          {
-            type: "tableRow",
-            content: headerCells.map((cell) => createTableCellNode("tableHeader", cell)),
-          },
-          ...bodyRows.map((row) => ({
-            type: "tableRow",
-            content: row.map((cell) => createTableCellNode("tableCell", cell)),
-          })),
-        ],
-      },
-    ],
-  };
-}
-
-function parseMarkdownImage(text: string): JSONContent | null {
-  const match = text.match(markdownImageBlockRegex);
-  if (!match) {
-    return null;
-  }
-
-  return {
-    type: "doc",
-    content: [
-      {
-        type: "image",
-        attrs: {
-          src: match[2],
-          alt: match[1] || null,
-          title: match[3] || null,
-        },
-      },
-    ],
-  };
-}
-
-function parseMarkdownTextDocument(view: EditorView, text: string): JSONContent {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    return emptyDocument();
-  }
-
-  const nextImageDocument = parseMarkdownImage(trimmed);
-  if (nextImageDocument) {
-    return nextImageDocument;
-  }
-
-  const nextTableDocument = parseMarkdownTable(trimmed);
-  if (nextTableDocument) {
-    return nextTableDocument;
-  }
-
-  const nextHtml = parseMarkdownClipboardText(text);
-  return parseHtmlDocument(view, nextHtml) ?? createScaffoldDocument(text);
-}
-
-function tryConvertMarkdownBlock(editor: Editor) {
-  const nextImageDocument = parseMarkdownImage(getEditorPlainText(editor.view));
-  if (nextImageDocument) {
-    editor.commands.setContent(nextImageDocument, { emitUpdate: true });
-    return true;
-  }
-
-  const nextTableDocument = parseMarkdownTable(getEditorPlainText(editor.view));
-  if (nextTableDocument) {
-    editor.commands.setContent(nextTableDocument, { emitUpdate: true });
-    return true;
-  }
-
-  return false;
-}
-
-function isHorizontalRuleOnlyDocument(value: JSONContent | null | undefined) {
-  if (!value || value.type !== "doc" || !Array.isArray(value.content) || value.content.length !== 1) {
-    return false;
-  }
-
-  return value.content[0]?.type === "horizontalRule";
-}
-
-type PageReferenceQuery = {
-  query: string;
-  from: number;
-  to: number;
-};
-
-type ResolvedPageReference = {
-  title: string;
-  from: number;
-  to: number;
-};
-
-function getPageReferenceQuery(editor: Editor): PageReferenceQuery | null {
-  const { state } = editor;
-
-  if (!state.selection.empty) {
-    return null;
-  }
-
-  const { $from, from } = state.selection;
-  const textBefore = $from.parent.textBetween(0, $from.parentOffset, "", "\0");
-  const triggerIndex = textBefore.lastIndexOf("[[");
-  if (triggerIndex < 0) {
-    return null;
-  }
-
-  const lastClosedIndex = textBefore.lastIndexOf("]]"
-  );
-  if (lastClosedIndex > triggerIndex) {
-    return null;
-  }
-
-  const textAfter = $from.parent.textBetween($from.parentOffset, $from.parent.content.size, "", "\0");
-  const closingIndex = textAfter.indexOf("]]"
-  );
-  const suffix = closingIndex >= 0 ? textAfter.slice(0, closingIndex) : "";
-  const prefix = textBefore.slice(triggerIndex + 2);
-  const query = `${textBefore.slice(triggerIndex + 2)}${suffix}`;
-
-  if (closingIndex === 0 && prefix.trim().length === 0) {
-    return null;
-  }
-
-  if (query.includes("[[") || query.includes("]]")) {
-    return null;
-  }
-
-  return {
-    query,
-    from: $from.start() + triggerIndex,
-    to: closingIndex >= 0 ? from + closingIndex + 2 : from,
-  };
-}
-
-function getResolvedPageReferenceAtPosition(editor: Editor, position: number): ResolvedPageReference | null {
-  const boundedPosition = Math.max(0, Math.min(position, editor.state.doc.content.size));
-  const resolvedPosition = editor.state.doc.resolve(boundedPosition);
-  const parentText = resolvedPosition.parent.textBetween(0, resolvedPosition.parent.content.size, "", "\0");
-  const parentOffset = resolvedPosition.parentOffset;
-
-  for (const match of parentText.matchAll(/\[\[([^\]]+)\]\]/g)) {
-    if (match.index === undefined) {
-      continue;
-    }
-
-    const from = match.index;
-    const to = from + match[0].length;
-    if (parentOffset < from || parentOffset > to) {
-      continue;
-    }
-
-    const title = (match[1] ?? "").trim();
-    if (!title) {
-      return null;
-    }
-
-    return {
-      title,
-      from,
-      to,
-    };
-  }
-
-  return null;
 }
 
 export const NoteBlockEditor = memo(function NoteBlockEditor({

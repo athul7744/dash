@@ -406,6 +406,11 @@ export default function NotesPage() {
     const currentTitle = pageTitleDraft || selectedPage?.title || "Untitled";
     const prevPageId = selectedPageId;
     setPageTitleDraft(resolvedTitle);
+    if (isMobilePagesDrawerOpen || isMobileDetailsDrawerOpen) {
+      (document.activeElement as HTMLElement)?.blur?.();
+      setIsMobilePagesDrawerOpen(false);
+      setIsMobileDetailsDrawerOpen(false);
+    }
     appNavigationRef.current = true;
     transitionToEditor(pageId);
     startTransition(() => {

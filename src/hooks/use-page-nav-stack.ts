@@ -1,14 +1,11 @@
 "use client";
 
-import { useCallback, useRef, useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
-export interface PageNavEntry {
-  pageId: string;
-  title: string;
-}
+import { pushEntry, popEntry, popToEntry, type PageNavEntry } from "@/lib/notes/page-nav-stack";
+export type { PageNavEntry } from "@/lib/notes/page-nav-stack";
 
 const STORAGE_KEY = "notes-nav-stack";
-const MAX_STACK_DEPTH = 20;
 
 let stack: PageNavEntry[] = [];
 let listeners = new Set<() => void>();
@@ -51,30 +48,29 @@ export function usePageNavStack() {
   const currentStack = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const push = useCallback((entry: PageNavEntry) => {
-    // Don't push duplicates of the same page at the top
-    if (stack.length > 0 && stack[stack.length - 1].pageId === entry.pageId) return;
-    stack = [...stack, entry].slice(-MAX_STACK_DEPTH);
+    const next = pushEntry(stack, entry);
+    if (next === stack) return;
+    stack = next;
     persistToSession();
     emit();
   }, []);
 
   const pop = useCallback((): PageNavEntry | undefined => {
-    if (stack.length === 0) return undefined;
-    const popped = stack[stack.length - 1];
-    stack = stack.slice(0, -1);
+    const result = popEntry(stack);
+    if (result.stack === stack) return undefined;
+    stack = result.stack;
     persistToSession();
     emit();
-    return popped;
+    return result.popped;
   }, []);
 
   const popTo = useCallback((pageId: string): PageNavEntry | undefined => {
-    const idx = stack.findIndex((e) => e.pageId === pageId);
-    if (idx === -1) return undefined;
-    const target = stack[idx];
-    stack = stack.slice(0, idx);
+    const result = popToEntry(stack, pageId);
+    if (result.stack === stack) return undefined;
+    stack = result.stack;
     persistToSession();
     emit();
-    return target;
+    return result.target;
   }, []);
 
   const clear = useCallback(() => {

@@ -1,8 +1,9 @@
 import type { Editor, JSONContent } from "@tiptap/core";
-import { format } from "date-fns";
 import { Calendar, Code2, Database, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Paintbrush, Quote, Sigma, Table2, TextCursorInput, type LucideIcon } from "lucide-react";
 
-export type SlashCommandSection = "basic" | "structure" | "media" | "dates" | "color" | "advanced";
+import { formatDateToken, getRelativeDate } from "@/lib/notes/date-tokens";
+import { filterSlashCommands, groupSlashCommands, type SlashCommandSection } from "@/lib/notes/slash-command-filter";
+export type { SlashCommandSection } from "@/lib/notes/slash-command-filter";
 
 export type SlashCommand = {
   id: string;
@@ -271,27 +272,11 @@ export const slashCommands: SlashCommand[] = [
   },
 ];
 
-function formatDateToken(date: Date): string {
-  return `{${format(date, "MMM d, yyyy")}}`;
-}
-
 function createDateDocument(date: Date): JSONContent {
   return {
     type: "doc",
     content: [{ type: "paragraph", content: [{ type: "text", text: formatDateToken(date) }] }],
   };
-}
-
-function getRelativeDate(offset: "today" | "tomorrow" | "yesterday" | "next-week" | "next-month" | "next-year"): Date {
-  const d = new Date();
-  switch (offset) {
-    case "today": return d;
-    case "tomorrow": d.setDate(d.getDate() + 1); return d;
-    case "yesterday": d.setDate(d.getDate() - 1); return d;
-    case "next-week": d.setDate(d.getDate() + 7); return d;
-    case "next-month": d.setMonth(d.getMonth() + 1); return d;
-    case "next-year": d.setFullYear(d.getFullYear() + 1); return d;
-  }
 }
 
 export const querySlashCommand: SlashCommand = {
@@ -499,30 +484,10 @@ export function getSlashQuery(editor: Editor) {
 }
 
 export function getFilteredSlashCommands(slashQuery: string | null) {
-  if (slashQuery === null) {
-    return [];
-  }
-
   const allCommands = [...slashCommands, ...dateSlashCommands, querySlashCommand, ...colorSlashCommands];
-  const normalizedQuery = slashQuery.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return allCommands;
-  }
-
-  return allCommands.filter((command) => {
-    const haystack = [command.title, command.description, command.shortcut, ...command.keywords]
-      .join(" ")
-      .toLowerCase();
-
-    return haystack.includes(normalizedQuery);
-  });
+  return filterSlashCommands(allCommands, slashQuery);
 }
 
 export function getGroupedSlashCommands(filteredSlashCommands: SlashCommand[]) {
-  return slashCommandSections
-    .map((section) => ({
-      ...section,
-      commands: filteredSlashCommands.filter((command) => command.section === section.id),
-    }))
-    .filter((section) => section.commands.length > 0);
+  return groupSlashCommands(slashCommandSections, filteredSlashCommands);
 }

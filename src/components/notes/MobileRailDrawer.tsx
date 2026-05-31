@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
@@ -29,6 +30,8 @@ export function MobileRailDrawer({
   onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
   return (
     <Drawer direction={direction} open={open} onOpenChange={onOpenChange}>
       <DrawerTrigger asChild>
@@ -37,12 +40,17 @@ export function MobileRailDrawer({
           {triggerLabel}
         </Button>
       </DrawerTrigger>
-      <DrawerContent className="flex h-full flex-col overflow-hidden p-0 transition-smooth">
+      <DrawerContent className="flex h-full flex-col overflow-hidden p-0 transition-smooth" onOpenAutoFocus={(e) => {
+        // Move focus to the content container to prevent aria-hidden warning
+        // when the trigger button (inside now-hidden content) retains focus.
+        e.preventDefault();
+        contentRef.current?.focus();
+      }}>
         <DrawerHeader className="sr-only">
           <DrawerTitle>{title}</DrawerTitle>
           <DrawerDescription>{description}</DrawerDescription>
         </DrawerHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto bg-background px-[var(--app-gutter-x)] py-4 animate-fade-slide-in">{children}</div>
+        <div ref={contentRef} tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto bg-background px-[var(--app-gutter-x)] py-4 animate-fade-slide-in outline-none">{children}</div>
       </DrawerContent>
     </Drawer>
   );

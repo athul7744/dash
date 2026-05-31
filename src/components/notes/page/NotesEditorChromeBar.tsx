@@ -89,7 +89,12 @@ export function NotesEditorChromeBar({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"
-                onClick={onDelete}
+                onClick={() => {
+                  // Blur the menu trigger before opening the dialog to avoid
+                  // aria-hidden conflict (dialog hides ancestor while trigger has focus).
+                  (document.activeElement as HTMLElement)?.blur?.();
+                  onDelete();
+                }}
               >
                 <Trash2 className="h-4 w-4" />
                 Delete page

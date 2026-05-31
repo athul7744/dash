@@ -374,6 +374,7 @@ export default function NotesPage() {
     if (selectedPageId) {
       navStack.push({ pageId: selectedPageId, title: pageTitleDraft || selectedPage?.title || "Untitled" });
     } else {
+      navStack.clear();
       navStack.push({ pageId: "__overview__", title: "Overview" });
     }
     if (targetTitle) {
@@ -581,6 +582,7 @@ export default function NotesPage() {
         if (selectedPageId) {
           navStack.push({ pageId: selectedPageId, title: pageTitleDraft || selectedPage?.title || "Untitled" });
         } else {
+          navStack.clear();
           navStack.push({ pageId: "__overview__", title: "Overview" });
         }
         transitionToEditor(pageId);
@@ -689,6 +691,7 @@ export default function NotesPage() {
                 if (selectedPageId) {
                   navStack.push({ pageId: selectedPageId, title: pageTitleDraft || selectedPage?.title || "Untitled" });
                 } else {
+                  navStack.clear();
                   navStack.push({ pageId: "__overview__", title: "Overview" });
                 }
                 transitionToEditor(pageId);

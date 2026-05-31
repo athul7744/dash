@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronDown, ChevronUp, Columns3, Copy, Ellipsis, Files, NotebookTabs, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Star, Tag as TagIcon, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Columns3, Files, NotebookTabs, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Tag as TagIcon } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
@@ -21,12 +21,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SEARCH_POPUP_CLOSE_ANIMATION_MS } from "@/components/ui/search-popup";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAllNotePages, useNoteCounts, useRecentNotePages } from "@/hooks/use-notes";
 import { createStarterPage, flushPendingNoteEdgeReconciles, hasPendingNoteEdgeReconciles, normalizeNotePageTitle, updateNotePageProperties } from "@/lib/notes/notes";
 import { getApp } from "@/lib/shared/apps";
 import { flushAllUpdates, hasPendingWrites } from "@/lib/shared/debounced-update";
 import { NotesDetailsRail } from "@/components/notes/page/NotesDetailsRail";
+import { NotesEditorChromeBar } from "@/components/notes/page/NotesEditorChromeBar";
 import { NotePageShell, type NotePageShellHandle } from "@/components/notes/page/NotePageShell";
 import { NotesNavigationRail, NotesNavigationRailHeader } from "@/components/notes/page/NotesNavigationRail";
 import { NotesOverview } from "@/components/notes/page/NotesOverview";
@@ -34,6 +35,7 @@ import { NotesPageSearchPopup } from "@/components/notes/page/NotesPageSearchPop
 import { useNotesPageDerivedState } from "@/components/notes/page/useNotesPageDerivedState";
 import { useNotesLayoutState } from "@/components/notes/page/useNotesLayoutState";
 import { useNotesSurfaceState } from "@/components/notes/page/useNotesSurfaceState";
+import { useNotesNavigation } from "@/components/notes/page/useNotesNavigation";
 import { parseProperties } from "@/components/notes/page/utils";
 import { ManagePropertiesDialog } from "@/components/notes/ManagePropertiesDialog";
 import { ManageTagsDialog } from "@/components/tasks/ManageTagsDialog";
@@ -57,7 +59,6 @@ export default function NotesPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isManageTagsOpen, setIsManageTagsOpen] = useState(false);
   const [isManagePropertiesOpen, setIsManagePropertiesOpen] = useState(false);
-  const [editorPageTitle, setEditorPageTitle] = useState("");
   const {
     showEditorAppHeader,
     setShowEditorAppHeader,
@@ -215,97 +216,32 @@ export default function NotesPage() {
   }, [shellHandle?.isReady, selectedPageId]);
 
   // ─── Navigation ─────────────────────────────────────────────────────────
-  const appNavigationRef = useRef(false);
-  const prevSelectedPageIdRef = useRef<string | null>(selectedPageId);
-
-  // Reconcile nav stack when browser back/forward changes the URL externally
-  useEffect(() => {
-    const prev = prevSelectedPageIdRef.current;
-    prevSelectedPageIdRef.current = selectedPageId;
-
-    if (prev === selectedPageId) return;
-
-    if (appNavigationRef.current) {
-      appNavigationRef.current = false;
-      return;
-    }
-
-    if (!selectedPageId) {
-      navStack.clear();
-      return;
-    }
-
-    const matchIdx = navStack.stack.findLastIndex((e) => e.pageId === selectedPageId);
-    if (matchIdx !== -1) {
-      const entry = navStack.stack[matchIdx];
-      setEditorPageTitle(entry.title);
-      navStack.popTo(selectedPageId);
-    }
-  }, [selectedPageId]);
-
-  // Reset editor title when navigating to overview
-  useEffect(() => {
-    if (!selectedPageId) {
-      setEditorPageTitle("");
-    }
-    setShowAbsoluteUpdatedTime(false);
-  }, [selectedPageId]);
-
-  const openPageById = (pageId: string, targetTitle?: string) => {
-    if (pageId === selectedPageId) return;
-
-    // Handle shell's __back__ navigation request
-    if (pageId === "__back__") {
-      const prev = navStack.pop();
-      appNavigationRef.current = true;
-      if (prev && prev.pageId !== "__overview__") {
-        setEditorPageTitle(prev.title);
-        transitionToEditor(prev.pageId);
-        startTransition(() => { router.push(`/notes?page=${prev.pageId}`); });
-      } else {
-        transitionToOverview();
-        router.push("/notes");
-      }
-      return;
-    }
-
-    const resolvedTitle = targetTitle || allPages.find((p) => p.id === pageId)?.title || "";
-    const currentTitle = editorPageTitle || shellHandle?.pageTitleDraft || "Untitled";
-    const prevPageId = selectedPageId;
-    setEditorPageTitle(resolvedTitle);
-    if (isMobilePagesDrawerOpen || isMobileDetailsDrawerOpen) {
+  const {
+    editorPageTitle,
+    currentPageTitle,
+    appNavigationRef,
+    openPageById,
+    goBack,
+    navigateBreadcrumb,
+    navigateFromPeek,
+  } = useNotesNavigation({
+    selectedPageId,
+    navStack,
+    allPages,
+    transitionToEditor,
+    transitionToOverview,
+    onCloseMobileDrawers: () => {
       (document.activeElement as HTMLElement)?.blur?.();
       setIsMobilePagesDrawerOpen(false);
       setIsMobileDetailsDrawerOpen(false);
-    }
-    appNavigationRef.current = true;
-    transitionToEditor(pageId);
-    startTransition(() => {
-      router.push(`/notes?page=${pageId}`);
-    });
-    queueMicrotask(() => {
-      if (prevPageId) {
-        navStack.push({ pageId: prevPageId, title: currentTitle });
-      } else {
-        navStack.clear();
-        navStack.push({ pageId: "__overview__", title: "Overview" });
-      }
-    });
-  };
+    },
+    shellPageTitleDraft: shellHandle?.pageTitleDraft,
+  });
 
-  const handleBreadcrumbNavigate = (pageId: string) => {
-    const entry = navStack.stack.find((e) => e.pageId === pageId);
-    navStack.popTo(pageId);
-    appNavigationRef.current = true;
-    if (pageId === "__overview__") {
-      transitionToOverview();
-      router.push("/notes");
-    } else {
-      if (entry) setEditorPageTitle(entry.title);
-      transitionToEditor(pageId);
-      startTransition(() => { router.push(`/notes?page=${pageId}`); });
-    }
-  };
+  // Reset absolute time display on page change
+  useEffect(() => {
+    setShowAbsoluteUpdatedTime(false);
+  }, [selectedPageId]);
 
   const handleCreateStarterPage = async () => {
     setPageSearchQuery("");
@@ -349,20 +285,9 @@ export default function NotesPage() {
     closePeek();
     const targetPageId = notePageIdByTitle.get(title.trim().toLocaleLowerCase());
     if (targetPageId) {
-      if (selectedPageId) {
-        navStack.push({ pageId: selectedPageId, title: editorPageTitle || shellHandle?.pageTitleDraft || "Untitled" });
-      } else {
-        navStack.clear();
-        navStack.push({ pageId: "__overview__", title: "Overview" });
-      }
-      setEditorPageTitle(title.trim());
-      appNavigationRef.current = true;
-      transitionToEditor(targetPageId);
-      startTransition(() => {
-        router.push(`/notes?page=${targetPageId}`);
-      });
+      navigateFromPeek(title, targetPageId);
     }
-  }, [closePeek, notePageIdByTitle, selectedPageId, editorPageTitle, shellHandle?.pageTitleDraft, navStack, transitionToEditor, router]);
+  }, [closePeek, notePageIdByTitle, navigateFromPeek]);
 
   // ─── Overview actions ────────────────────────────────────────────────────
   const togglePageFavorite = useCallback((page: NormalizedNotePage) => {
@@ -393,8 +318,6 @@ export default function NotesPage() {
   // ─── Desktop chrome variables ─────────────────────────────────────────────
   const showDesktopUpdatedTimestamp = Boolean(editorUpdatedTimestamp && !isLoading && !showSelectedPageLoading && shellHandle?.isReady);
   const showMobileUpdatedTimestamp = Boolean(editorUpdatedTimestamp);
-  const desktopChromeIconButtonClass = "size-8 rounded-full text-muted-foreground transition-[color,background-color,box-shadow] duration-200 hover:bg-accent/60 hover:text-foreground hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)] md:size-9";
-  const desktopChromeTextButtonClass = "inline-flex h-8 w-fit items-center justify-self-start px-0 text-[11px] text-muted-foreground/80 transition-colors duration-200 hover:text-foreground";
   const desktopGridColumns = showDesktopPagesRail && showDesktopDetailsRail
     ? "sm:grid-cols-[280px_minmax(0,1fr)_320px]"
     : showDesktopPagesRail
@@ -505,7 +428,6 @@ export default function NotesPage() {
     },
   );
 
-  const currentPageTitle = editorPageTitle || shellHandle?.pageTitleDraft || "";
   const isFavorite = shellHandle?.selectedPageProperties?.favorite === true;
 
   return (
@@ -638,87 +560,22 @@ export default function NotesPage() {
                   </div>
                 )}
 
-                <div className="hidden h-9 items-center sm:flex">
-                  <div className="mx-auto grid w-full max-w-3xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-1 md:gap-x-2">
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        const prev = navStack.pop();
-                        appNavigationRef.current = true;
-                        if (prev && prev.pageId !== "__overview__") {
-                          setEditorPageTitle(prev.title);
-                          transitionToEditor(prev.pageId);
-                          startTransition(() => { router.push(`/notes?page=${prev.pageId}`); });
-                        } else {
-                          transitionToOverview();
-                          router.push("/notes");
-                        }
-                      }}
-                      className={`-ml-2 -mr-1 flex shrink-0 items-center justify-center ${desktopChromeIconButtonClass}`}
-                      aria-label="Back to notes list"
-                    >
-                      <ArrowLeft className="h-6 w-6 md:h-7 md:w-7" />
-                    </Button>
-                    {showDesktopUpdatedTimestamp ? (
-                      <button
-                        type="button"
-                        onClick={revealAbsoluteUpdatedTime}
-                        key={editorUpdatedTimestamp?.absolute}
-                        className={`${desktopChromeTextButtonClass} animate-fade-slide-in-soft`}
-                      >
-                        {showAbsoluteUpdatedTime ? editorUpdatedTimestamp?.absolute : `Edited ${editorUpdatedTimestamp?.relative}`}
-                      </button>
-                    ) : <span className="block h-4 w-32" aria-hidden="true" />}
-                    <div className="flex items-center justify-self-end gap-1.5">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => shellHandle?.handleToggleFavorite()}
-                        className={desktopChromeIconButtonClass}
-                        aria-label={showEditorAppHeader ? "Hide app header" : "Show app header"}
-                      >
-                        {showEditorAppHeader ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => shellHandle?.handleToggleFavorite()}
-                        className={`${desktopChromeIconButtonClass} ${isFavorite ? "text-amber-500 hover:text-amber-500" : ""}`}
-                        aria-label="Toggle favorite"
-                      >
-                        <Star className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger className={`inline-flex items-center justify-center ${desktopChromeIconButtonClass}`} aria-label="Page actions">
-                          <Ellipsis className="h-4 w-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              void shellHandle?.handleCopyDocument();
-                            }}
-                          >
-                            <Copy className="h-4 w-4" />
-                            Copy document
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => {
-                              setIsMobileDetailsDrawerOpen(false);
-                              setIsDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete page
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </div>
+                <NotesEditorChromeBar
+                  showTimestamp={showDesktopUpdatedTimestamp}
+                  showAbsoluteTime={showAbsoluteUpdatedTime}
+                  timestamp={editorUpdatedTimestamp}
+                  isFavorite={isFavorite}
+                  showAppHeader={showEditorAppHeader}
+                  onBack={goBack}
+                  onToggleTimestamp={revealAbsoluteUpdatedTime}
+                  onToggleAppHeader={() => setShowEditorAppHeader((current) => !current)}
+                  onToggleFavorite={() => shellHandle?.handleToggleFavorite()}
+                  onCopyDocument={() => { void shellHandle?.handleCopyDocument(); }}
+                  onDelete={() => {
+                    setIsMobileDetailsDrawerOpen(false);
+                    setIsDeleteDialogOpen(true);
+                  }}
+                />
 
                 {showDesktopDetailsRail ? (
                   <div className="hidden h-9 items-center sm:flex">
@@ -740,7 +597,7 @@ export default function NotesPage() {
                       <NotesPageBreadcrumb
                         stack={navStack.stack}
                         currentTitle={currentPageTitle}
-                        onNavigate={handleBreadcrumbNavigate}
+                        onNavigate={navigateBreadcrumb}
                       />
                     </div>
                   )}
@@ -791,7 +648,7 @@ export default function NotesPage() {
           <NotesPageBreadcrumb
             stack={navStack.stack}
             currentTitle={currentPageTitle}
-            onNavigate={handleBreadcrumbNavigate}
+            onNavigate={navigateBreadcrumb}
           />
         ) : undefined}
       />

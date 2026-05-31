@@ -160,12 +160,14 @@ Important convention:
 - `src/hooks/use-notes.ts` — local SQLite query hooks for note pages and blocks
 - `src/hooks/use-settled-timestamp.ts` — debounced timestamp display that waits for pending writes to settle
 - `src/hooks/use-edge-swipe.ts` — mobile edge swipe gesture detection
+- `src/hooks/use-page-nav-stack.ts` — page navigation stack with sessionStorage persistence (used by breadcrumb)
 - `src/hooks/use-property-definitions.ts` — reactive query hook for workspace property definitions
 - `src/lib/notes/notes-content.ts` — note document normalization, serialization (including math nodes), and plain-text extraction
 - `src/lib/notes/notes-tree.ts` — tree building and visible block ordering helpers for note blocks
 - `src/lib/notes/notes.ts` — note writes, attachment upserts, and edge reconciliation
 - `src/lib/notes/math-clipboard.ts` — math token protection/restoration for clipboard paste flows
 - `src/lib/notes/block-editor-keyboard.ts` — keyboard decision logic for Enter, Backspace, Tab, and arrow keys in the block editor
+- `src/lib/notes/page-nav-stack.ts` — pure push/pop/popTo logic for the page breadcrumb stack
 - `src/lib/notes/properties.ts` — CRUD operations for property definitions and custom property value parsing
 
 ### PowerSync integration
@@ -245,10 +247,28 @@ Key modules:
   - Block-level right-click context menu with actions for type conversion, move, indent/outdent, delete, and duplication.
 
 - `src/components/notes/block-context-menu-options.ts`
-  - Context menu option generation logic, providing block-type-aware action lists.
+  - Context menu option generation logic, providing block-type-aware action lists including block color.
+
+- `src/components/notes/NotesPageBreadcrumb.tsx`
+  - Breadcrumb navigation trail rendered in both desktop header and mobile bottom FAB. Shares a single nav stack managed by `src/hooks/use-page-nav-stack.ts` with sessionStorage persistence.
+
+- `src/components/notes/QueryBlockFilters.tsx` / `QueryBlockCells.tsx`
+  - Inline query block UI: filter builder, column selector, sorting, and cell renderers. Query blocks display filtered views of pages with property columns.
 
 - `src/components/notes/MobileRailDrawer.tsx`
   - Shared mobile drawer shell for the notes rails.
+
+- `src/components/notes/page/NotesPagePeek.tsx`
+  - Page peek preview shown on hover (desktop) or long-press (mobile) over page reference links.
+
+Additional notes editor behavior:
+
+- **Sticky headings** — heading blocks stick to the top of the scroll viewport for orientation in long documents.
+- **Block colors** — blocks can be assigned a background color via the context menu. Colors persist per-block.
+- **Date tokens** — slash commands (`/today`, `/tomorrow`, `/date`) insert styled inline date tokens.
+- **Focused bullet highlight** — the bullet dot highlights when a block's editor is focused.
+- **Tree-line coloring** — vertical indentation lines inherit the nearest heading's accent color.
+- **Emoji icons** — pages and property definitions use a Fluent Emoji Flat picker for visual identity.
 
 Conventions:
 
@@ -371,6 +391,7 @@ This component owns:
 - create input and color picker UI
 - optimistic create overlays
 - optimistic color updates
+- delete confirmation dialog before removing items
 - reconciliation between optimistic and persisted rows
 
 It is wrapped by:

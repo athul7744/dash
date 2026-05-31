@@ -2,9 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import type { NoteBlockRow } from "@/hooks/use-notes";
-
-import type { NormalizedNotePage, NoteTag, NotesEditorRenderableContent } from "./types";
+import type { NormalizedNotePage } from "./types";
 
 type UseNotesSurfaceStateParams = {
   selectedPageId: string | null;
@@ -13,13 +11,6 @@ type UseNotesSurfaceStateParams = {
   favoritePages: NormalizedNotePage[];
   recentAccessPages: NormalizedNotePage[];
   selectedPageIdForEditor: string | null | undefined;
-  selectedPageTitle: string | null | undefined;
-  activePageEmoji: string | null;
-  isSelectedPageFavorite: boolean;
-  selectedPageTags?: NoteTag[];
-  selectedBlockCount: number;
-  linkedReferenceCount: number;
-  displayBlocks: NoteBlockRow[];
   updatedTimestamp: { relative: string; absolute: string } | null;
 };
 
@@ -30,13 +21,6 @@ export function useNotesSurfaceState({
   favoritePages,
   recentAccessPages,
   selectedPageIdForEditor,
-  selectedPageTitle,
-  activePageEmoji,
-  isSelectedPageFavorite,
-  selectedPageTags = [],
-  selectedBlockCount,
-  linkedReferenceCount,
-  displayBlocks,
   updatedTimestamp,
 }: UseNotesSurfaceStateParams) {
   const [pendingSurfaceKey, setPendingSurfaceKey] = useState<string | null>(null);
@@ -77,22 +61,10 @@ export function useNotesSurfaceState({
   const shouldAnimateOverviewContent = !hasRenderedOverviewRef.current && !showOverviewLoading;
   const shouldAnimateEditorContent = !hasRenderedEditorRef.current && !showSelectedPageLoading;
 
-  const liveEditorContent: NotesEditorRenderableContent = selectedPageIdForEditor
-    ? {
-        pageId: selectedPageIdForEditor,
-        title: selectedPageTitle || "Untitled page",
-        emoji: activePageEmoji,
-        favorite: isSelectedPageFavorite,
-        tags: selectedPageTags,
-        blockCount: selectedBlockCount,
-        backlinkCount: linkedReferenceCount,
-        blocks: displayBlocks.length > 0 && displayBlocks[0].page_id !== selectedPageIdForEditor ? [] : displayBlocks,
-      }
-    : null;
+  const hasEditorContent = Boolean(selectedPageIdForEditor);
 
   return {
-    editorContentToRender: liveEditorContent,
-    editorUpdatedTimestamp: liveEditorContent ? updatedTimestamp : null,
+    editorUpdatedTimestamp: hasEditorContent ? updatedTimestamp : null,
     isDisplayingOverview,
     overviewFavoritePagesToRender: favoritePages,
     overviewRecentPagesToRender: recentAccessPages,

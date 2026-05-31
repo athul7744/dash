@@ -196,6 +196,7 @@ export default function NotesPage() {
   } = useSettledTimestamp(selectedPage, updatedTimestamp);
   const hydratedPageIdRef = useRef<string | null>(null);
   const prevSelectedPageIdRef = useRef<string | null>(selectedPageId);
+  const appNavigationRef = useRef(false);
 
   // Reconcile nav stack when browser back/forward changes the URL externally
   useEffect(() => {
@@ -204,6 +205,12 @@ export default function NotesPage() {
 
     // Skip the initial render or same-page case
     if (prev === selectedPageId) return;
+
+    // Skip if navigation was initiated by the app (stack already managed)
+    if (appNavigationRef.current) {
+      appNavigationRef.current = false;
+      return;
+    }
 
     // If navigated to overview externally, clear the stack
     if (!selectedPageId) {
@@ -214,6 +221,8 @@ export default function NotesPage() {
     // If the new page is already in the stack, it's a back navigation — pop to last occurrence
     const matchIdx = navStack.stack.findLastIndex((e) => e.pageId === selectedPageId);
     if (matchIdx !== -1) {
+      const entry = navStack.stack[matchIdx];
+      setPageTitleDraft(entry.title);
       navStack.popTo(selectedPageId);
     }
   }, [selectedPageId]);
@@ -392,25 +401,32 @@ export default function NotesPage() {
   }, [linkedReferences.length, pageTagMentions.length, renderedPageOutline.length, selectedPage?.id, selectedPageAttachments.length, selectedPageSummary, selectedPageTags.length]);
 
   const openPageById = (pageId: string, targetTitle?: string) => {
-    // Push current page (or overview) onto navigation stack before navigating away
-    if (selectedPageId) {
-      navStack.push({ pageId: selectedPageId, title: pageTitleDraft || selectedPage?.title || "Untitled" });
-    } else {
-      navStack.clear();
-      navStack.push({ pageId: "__overview__", title: "Overview" });
-    }
-    if (targetTitle) {
-      setPageTitleDraft(targetTitle);
-    }
+    if (pageId === selectedPageId) return;
+    const resolvedTitle = targetTitle || allPages.find((p) => p.id === pageId)?.title || "";
+    const currentTitle = pageTitleDraft || selectedPage?.title || "Untitled";
+    const prevPageId = selectedPageId;
+    setPageTitleDraft(resolvedTitle);
+    appNavigationRef.current = true;
     transitionToEditor(pageId);
     startTransition(() => {
       router.push(`/notes?page=${pageId}`);
+    });
+    // Defer stack push so React commits the title state update first,
+    // avoiding a stale-title flash from useSyncExternalStore's sync re-render
+    queueMicrotask(() => {
+      if (prevPageId) {
+        navStack.push({ pageId: prevPageId, title: currentTitle });
+      } else {
+        navStack.clear();
+        navStack.push({ pageId: "__overview__", title: "Overview" });
+      }
     });
   };
 
   const handleBreadcrumbNavigate = (pageId: string) => {
     const entry = navStack.stack.find((e) => e.pageId === pageId);
     navStack.popTo(pageId);
+    appNavigationRef.current = true;
     if (pageId === "__overview__") {
       transitionToOverview();
       router.push("/notes");
@@ -482,6 +498,7 @@ export default function NotesPage() {
         navStack.push({ pageId: "__overview__", title: "Overview" });
       }
       setPageTitleDraft(title.trim());
+      appNavigationRef.current = true;
       transitionToEditor(targetPageId);
       startTransition(() => {
         router.push(`/notes?page=${targetPageId}`);
@@ -535,6 +552,7 @@ export default function NotesPage() {
     setIsDeletingPage,
     setIsDeleteDialogOpen,
     onDeleteSuccess: () => {
+      appNavigationRef.current = true;
       transitionToOverview();
       startTransition(() => {
         router.push("/notes");
@@ -610,15 +628,7 @@ export default function NotesPage() {
       onToggleAllSections={toggleAllPageRailSections}
       onTogglePageRailSection={togglePageRailSection}
       onToggleTagDirectoryGroup={toggleTagDirectoryGroup}
-      onSelectPage={(pageId) => {
-        if (selectedPageId) {
-          navStack.push({ pageId: selectedPageId, title: pageTitleDraft || selectedPage?.title || "Untitled" });
-        } else {
-          navStack.clear();
-          navStack.push({ pageId: "__overview__", title: "Overview" });
-        }
-        transitionToEditor(pageId);
-      }}
+      onSelectPage={(pageId) => openPageById(pageId)}
     />
   );
 
@@ -719,15 +729,7 @@ export default function NotesPage() {
               showOverviewLoading={showOverviewLoading}
               shouldAnimateOverviewContent={shouldAnimateOverviewContent}
               onOpenSearch={() => setIsPageSearchOpen(true)}
-              onSelectPage={(pageId) => {
-                if (selectedPageId) {
-                  navStack.push({ pageId: selectedPageId, title: pageTitleDraft || selectedPage?.title || "Untitled" });
-                } else {
-                  navStack.clear();
-                  navStack.push({ pageId: "__overview__", title: "Overview" });
-                }
-                transitionToEditor(pageId);
-              }}
+              onSelectPage={(pageId) => openPageById(pageId)}
               onToggleFavorite={togglePageFavorite}
             />
           ) : (
@@ -805,6 +807,7 @@ export default function NotesPage() {
                       variant="ghost"
                       onClick={() => {
                         const prev = navStack.pop();
+                        appNavigationRef.current = true;
                         if (prev && prev.pageId !== "__overview__") {
                           setPageTitleDraft(prev.title);
                           transitionToEditor(prev.pageId);
@@ -919,6 +922,7 @@ export default function NotesPage() {
                     selectedPageProperties={selectedPageProperties}
                     onBack={() => {
                       const prev = navStack.pop();
+                      appNavigationRef.current = true;
                       if (prev && prev.pageId !== "__overview__") {
                         setPageTitleDraft(prev.title);
                         transitionToEditor(prev.pageId);

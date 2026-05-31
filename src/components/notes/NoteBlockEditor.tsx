@@ -295,10 +295,14 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   const pendingLocalContentRef = useRef<string | null>(null);
   const suppressBlurCommitRef = useRef(false);
   const peekHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPointerTypeRef = useRef<string>("mouse");
 
-  // Clean up peek hover timeout on unmount
+  // Track pointer type to distinguish touch from mouse interactions
   useEffect(() => {
+    const handler = (e: PointerEvent) => { lastPointerTypeRef.current = e.pointerType; };
+    document.addEventListener("pointerdown", handler, true);
     return () => {
+      document.removeEventListener("pointerdown", handler, true);
       if (peekHoverTimeoutRef.current) clearTimeout(peekHoverTimeoutRef.current);
     };
   }, []);
@@ -658,9 +662,9 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
           }
 
           event.preventDefault();
-          // On mobile (no hover capability), click opens peek; on desktop click navigates
-          const isTouchDevice = window.matchMedia('(hover: none)').matches;
-          if (onPeekPageReferenceRef.current && isTouchDevice) {
+          // If the interaction came from touch, show peek; mouse click navigates directly
+          const isTouchInteraction = lastPointerTypeRef.current === "touch";
+          if (onPeekPageReferenceRef.current && isTouchInteraction) {
             const refSpan = target.closest(".note-ref-token-page") as HTMLElement;
             if (refSpan) {
               onPeekPageReferenceRef.current(reference.title, refSpan.getBoundingClientRect());
@@ -671,7 +675,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
           return true;
         },
         mouseover(view, event) {
-          if (window.matchMedia('(hover: none)').matches) return false;
+          if (lastPointerTypeRef.current === "touch") return false;
           const target = event.target as HTMLElement;
           const refSpan = target.closest?.(".note-ref-token-page") as HTMLElement | null;
           if (!refSpan) return false;

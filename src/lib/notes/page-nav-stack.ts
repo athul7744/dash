@@ -17,7 +17,7 @@ export function popEntry(stack: PageNavEntry[]): { stack: PageNavEntry[]; popped
 }
 
 export function popToEntry(stack: PageNavEntry[], pageId: string): { stack: PageNavEntry[]; target: PageNavEntry | undefined } {
-  const idx = stack.findIndex((e) => e.pageId === pageId);
+  const idx = stack.findLastIndex((e) => e.pageId === pageId);
   if (idx === -1) return { stack, target: undefined };
   return { stack: stack.slice(0, idx), target: stack[idx] };
 }

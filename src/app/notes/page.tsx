@@ -195,6 +195,28 @@ export default function NotesPage() {
     resetTimestamp,
   } = useSettledTimestamp(selectedPage, updatedTimestamp);
   const hydratedPageIdRef = useRef<string | null>(null);
+  const prevSelectedPageIdRef = useRef<string | null>(selectedPageId);
+
+  // Reconcile nav stack when browser back/forward changes the URL externally
+  useEffect(() => {
+    const prev = prevSelectedPageIdRef.current;
+    prevSelectedPageIdRef.current = selectedPageId;
+
+    // Skip the initial render or same-page case
+    if (prev === selectedPageId) return;
+
+    // If navigated to overview externally, clear the stack
+    if (!selectedPageId) {
+      navStack.clear();
+      return;
+    }
+
+    // If the new page is already in the stack, it's a back navigation — pop to last occurrence
+    const matchIdx = navStack.stack.findLastIndex((e) => e.pageId === selectedPageId);
+    if (matchIdx !== -1) {
+      navStack.popTo(selectedPageId);
+    }
+  }, [selectedPageId]);
 
   useEffect(() => {
     if (!selectedPageId) {
@@ -452,10 +474,20 @@ export default function NotesPage() {
     closePeek();
     const targetPageId = notePageIdByTitle.get(title.trim().toLocaleLowerCase());
     if (targetPageId) {
-      openPageById(targetPageId, title.trim());
+      // Push current page onto nav stack before navigating
+      if (selectedPageId) {
+        navStack.push({ pageId: selectedPageId, title: pageTitleDraft || selectedPage?.title || "Untitled" });
+      } else {
+        navStack.clear();
+        navStack.push({ pageId: "__overview__", title: "Overview" });
+      }
+      setPageTitleDraft(title.trim());
+      transitionToEditor(targetPageId);
+      startTransition(() => {
+        router.push(`/notes?page=${targetPageId}`);
+      });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closePeek, notePageIdByTitle]);
+  }, [closePeek, notePageIdByTitle, selectedPageId, pageTitleDraft, selectedPage?.title, navStack, transitionToEditor, router]);
 
   const overviewSearchTriggerRef = useRef<HTMLButtonElement | null>(null);
 

@@ -86,9 +86,9 @@ describe("popToEntry", () => {
     expect(result.stack).toEqual([entry("a"), entry("b")]);
   });
 
-  it("handles duplicate pageIds by finding the first occurrence", () => {
+  it("handles duplicate pageIds by finding the last occurrence", () => {
     const result = popToEntry([entry("a"), entry("b"), entry("a", "Second A")], "a");
-    expect(result.target).toEqual(entry("a"));
-    expect(result.stack).toEqual([]);
+    expect(result.target).toEqual(entry("a", "Second A"));
+    expect(result.stack).toEqual([entry("a"), entry("b")]);
   });
 });

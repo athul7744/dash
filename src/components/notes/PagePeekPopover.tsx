@@ -73,31 +73,40 @@ export function PagePeekPopover({
   }, [blocks]);
 
   // Position calculation
-  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  const [position, setPosition] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
 
   useEffect(() => {
     const rect = target.anchorRect;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const popoverWidth = Math.min(400, viewportWidth - 32);
-    const popoverMaxHeight = 380;
+    const margin = 16;
 
     let left = rect.left;
-    let top = rect.bottom + 8;
+
+    // Determine available space above and below the anchor
+    const spaceBelow = viewportHeight - rect.bottom - margin - 8;
+    const spaceAbove = rect.top - margin - 8;
+
+    // Pick direction with more room; cap between 280 and 70% of viewport
+    const maxAvailable = Math.max(spaceBelow, spaceAbove);
+    const maxHeight = Math.max(280, Math.min(maxAvailable, viewportHeight * 0.7));
+
+    let top: number;
+    if (spaceBelow >= maxHeight || spaceBelow >= spaceAbove) {
+      top = rect.bottom + 8;
+    } else {
+      top = rect.top - maxHeight - 8;
+      if (top < margin) top = margin;
+    }
 
     // Fit horizontally
-    if (left + popoverWidth > viewportWidth - 16) {
-      left = viewportWidth - popoverWidth - 16;
+    if (left + popoverWidth > viewportWidth - margin) {
+      left = viewportWidth - popoverWidth - margin;
     }
-    if (left < 16) left = 16;
+    if (left < margin) left = margin;
 
-    // Flip vertically if needed
-    if (top + popoverMaxHeight > viewportHeight - 16) {
-      top = rect.top - popoverMaxHeight - 8;
-      if (top < 16) top = 16;
-    }
-
-    setPosition({ top, left });
+    setPosition({ top, left, maxHeight });
   }, [target.anchorRect]);
 
   // Close on click outside
@@ -130,11 +139,11 @@ export function PagePeekPopover({
   return (
     <div
       ref={popoverRef}
-      className="fixed z-50 w-[min(400px,calc(100vw-2rem))] rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/5 animate-in fade-in-0 zoom-in-95 duration-150"
-      style={{ top: position.top, left: position.left }}
+      className="fixed z-50 w-[min(400px,calc(100vw-2rem))] flex flex-col rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/5 animate-in fade-in-0 zoom-in-95 duration-150"
+      style={{ top: position.top, left: position.left, maxHeight: position.maxHeight }}
       onPointerLeave={(e) => {
-        // On desktop only, close when pointer leaves the popover
-        if (window.matchMedia('(hover: none)').matches) return;
+        // On desktop (mouse) only, close when pointer leaves the popover
+        if (e.pointerType === "touch") return;
         const related = e.relatedTarget as HTMLElement | null;
         if (!related?.closest?.(".note-ref-token-page")) {
           onClose();
@@ -170,7 +179,7 @@ export function PagePeekPopover({
       )}
 
       {/* Content */}
-      <div className="max-h-[320px] overflow-y-auto px-3 py-2 text-sm">
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 text-sm">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />

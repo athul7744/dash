@@ -1,12 +1,12 @@
 "use client";
 
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronUp, Columns3, Copy, Ellipsis, Files, NotebookTabs, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Star, Tag as TagIcon, Trash2 } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
-import { NotesDetailsRailSkeleton, NotesPageSkeleton } from "@/components/notes/NotesPageSkeleton";
+import { NotesDetailsRailSkeleton } from "@/components/notes/NotesPageSkeleton";
 import { NotesPageBreadcrumb } from "@/components/notes/NotesPageBreadcrumb";
 import { MobileRailDrawer } from "../../components/notes/MobileRailDrawer";
 import { Button } from "@/components/ui/button";
@@ -22,32 +22,27 @@ import {
 } from "@/components/ui/alert-dialog";
 import { SEARCH_POPUP_CLOSE_ANIMATION_MS } from "@/components/ui/search-popup";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useAllNotePages, useLinkedNoteReferences, useNoteCounts, useNotePageWithBlocks, usePageAttachments, usePageTagMentions, useRecentNotePages } from "@/hooks/use-notes";
-import { createStarterPage, flushPendingNoteEdgeReconciles, hasPendingNoteEdgeReconciles, normalizeNotePageTitle } from "@/lib/notes/notes";
+import { useAllNotePages, useNoteCounts, useRecentNotePages } from "@/hooks/use-notes";
+import { createStarterPage, flushPendingNoteEdgeReconciles, hasPendingNoteEdgeReconciles, normalizeNotePageTitle, updateNotePageProperties } from "@/lib/notes/notes";
 import { getApp } from "@/lib/shared/apps";
 import { flushAllUpdates, hasPendingWrites } from "@/lib/shared/debounced-update";
-import {
-  type OptimisticBlockStructure,
-} from "@/components/notes/page/types";
 import { NotesDetailsRail } from "@/components/notes/page/NotesDetailsRail";
-import { NotesEditorContent } from "@/components/notes/page/NotesEditorContent";
+import { NotePageShell, type NotePageShellHandle } from "@/components/notes/page/NotePageShell";
 import { NotesNavigationRail, NotesNavigationRailHeader } from "@/components/notes/page/NotesNavigationRail";
 import { NotesOverview } from "@/components/notes/page/NotesOverview";
-import { useNoteBlockActions } from "@/components/notes/page/useNoteBlockActions";
-import { useNotePageActions } from "@/components/notes/page/useNotePageActions";
 import { NotesPageSearchPopup } from "@/components/notes/page/NotesPageSearchPopup";
 import { useNotesPageDerivedState } from "@/components/notes/page/useNotesPageDerivedState";
 import { useNotesLayoutState } from "@/components/notes/page/useNotesLayoutState";
 import { useNotesSurfaceState } from "@/components/notes/page/useNotesSurfaceState";
-import { buildOutlineEntries } from "@/components/notes/page/utils";
+import { parseProperties } from "@/components/notes/page/utils";
 import { ManagePropertiesDialog } from "@/components/notes/ManagePropertiesDialog";
 import { ManageTagsDialog } from "@/components/tasks/ManageTagsDialog";
 import { useEdgeSwipe } from "@/hooks/use-edge-swipe";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { usePageNavStack } from "@/hooks/use-page-nav-stack";
-import { useSettledTimestamp } from "@/hooks/use-settled-timestamp";
 import { usePagePeek } from "@/components/notes/usePagePeek";
 import { PagePeekPopover } from "@/components/notes/PagePeekPopover";
+import type { NormalizedNotePage } from "@/components/notes/page/types";
 
 const notesApp = getApp("notes");
 
@@ -55,25 +50,14 @@ export default function NotesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedPageId = searchParams.get("page");
-  const selectedPageIdForWrite: string | undefined = selectedPageId ?? undefined;
   const navStack = usePageNavStack();
   const [isCreatingPage, setIsCreatingPage] = useState(false);
-  const [isCreatingBlock, setIsCreatingBlock] = useState(false);
   const [isPageSearchOpen, setIsPageSearchOpen] = useState(false);
   const [pageSearchQuery, setPageSearchQuery] = useState("");
-  const [pageTitleDraft, setPageTitleDraft] = useState("");
-  const [pageTitleError, setPageTitleError] = useState<string | null>(null);
-  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
-  const [pageEmojiDraft, setPageEmojiDraft] = useState<string | null | undefined>(undefined);
-  const [summaryDraft, setSummaryDraft] = useState("");
-  const [selectedTagIdsDraft, setSelectedTagIdsDraft] = useState<string[]>([]);
-  const [blockContentDrafts, setBlockContentDrafts] = useState<Record<string, string>>({});
-  const [optimisticBlockStructure, setOptimisticBlockStructure] = useState<Record<string, OptimisticBlockStructure>>({});
-  const [focusTarget, setFocusTarget] = useState<{ blockId: string; placement: number | "start" | "end" } | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeletingPage, setIsDeletingPage] = useState(false);
   const [isManageTagsOpen, setIsManageTagsOpen] = useState(false);
   const [isManagePropertiesOpen, setIsManagePropertiesOpen] = useState(false);
+  const [editorPageTitle, setEditorPageTitle] = useState("");
   const {
     showEditorAppHeader,
     setShowEditorAppHeader,
@@ -98,6 +82,9 @@ export default function NotesPage() {
   } = useNotesLayoutState();
   const isMobileViewport = useMediaQuery("(max-width: 639px)");
 
+  // Shell ref for reading page-level state
+  const shellRef = useRef<NotePageShellHandle>(null);
+
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
       if (!hasPendingWrites() && !hasPendingNoteEdgeReconciles()) {
@@ -113,223 +100,36 @@ export default function NotesPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
 
-
-
+  // ─── Overview-level data ─────────────────────────────────────────────────
   const { isLoading: isLoadingCounts } = useNoteCounts();
   const { pages: allPages = [] } = useAllNotePages();
   const { pages: recentPages = [], isLoading: isLoadingRecentPages } = useRecentNotePages(8);
-  const { page: selectedPage, blocks: selectedBlocks, isLoading: isLoadingSelectedPage } = useNotePageWithBlocks(selectedPageId);
-  const { attachments: selectedPageAttachments, isLoading: isLoadingAttachments } = usePageAttachments(selectedPageId);
-  const { references: linkedReferences, isLoading: isLoadingLinkedReferences } = useLinkedNoteReferences(selectedPageId);
-  const { tags: pageTagMentions, isLoading: isLoadingTagMentions } = usePageTagMentions(selectedPageId);
-
-  const handleCreateStarterPage = async () => {
-    setPageSearchQuery("");
-    setIsPageSearchOpen(true);
-  };
-  const {
-    handleCommitBlockContent,
-    handleConvertBlockType,
-    handleCreateEmptySiblingBlock,
-    handleCreateRootBlock,
-    handleCreateSiblingBlock,
-    handleCreateSiblingBlocks,
-    handleDeleteBlock,
-    handleDeleteBlockRange,
-    handleIndentBlock,
-    handleMergeWithPreviousBlock,
-    handleMoveSelectedBlockRange,
-    handleOutdentBlock,
-    handleUpdateBlockContent,
-    orderedVisibleBlockIds,
-    selectedBlockMap,
-    structuredBlocks,
-  } = useNoteBlockActions({
-    selectedBlocks,
-    selectedPageId,
-    selectedPageIdForWrite,
-    isCreatingBlock,
-    currentFocusTarget: focusTarget,
-    blockContentDrafts,
-    optimisticBlockStructure,
-    setIsCreatingBlock,
-    setBlockContentDrafts,
-    setOptimisticBlockStructure,
-    setFocusTarget,
-  });
 
   const {
     canCreatePageFromSearch,
-    createdTimestamp,
-    displayBlocks,
     favoritePages,
     filteredSearchPages,
     normalizedPages,
     normalizedSearchQuery,
     notePageIdByTitle,
     notePageTitles,
-    pageOutline,
     recentAccessPages,
-    selectedPageEmoji,
-    selectedPageProperties,
-    selectedPageSummary,
-    selectedPageTagIds,
-    selectedPageTags,
     tagDirectory,
-    updatedTimestamp,
   } = useNotesPageDerivedState({
     allPages,
     recentPages,
-    selectedPage,
-    structuredBlocks,
-    blockContentDrafts,
     pageSearchQuery,
   });
-  const activePageEmoji = pageEmojiDraft !== undefined
-    ? pageEmojiDraft
-    : selectedPageEmoji;
-  const {
-    stableUpdatedTimestamp,
-    showAbsoluteUpdatedTime,
-    revealAbsoluteUpdatedTime,
-    resetTimestamp,
-  } = useSettledTimestamp(selectedPage, updatedTimestamp);
-  const hydratedPageIdRef = useRef<string | null>(null);
-  const prevSelectedPageIdRef = useRef<string | null>(selectedPageId);
-  const appNavigationRef = useRef(false);
 
-  // Reconcile nav stack when browser back/forward changes the URL externally
-  useEffect(() => {
-    const prev = prevSelectedPageIdRef.current;
-    prevSelectedPageIdRef.current = selectedPageId;
-
-    // Skip the initial render or same-page case
-    if (prev === selectedPageId) return;
-
-    // Skip if navigation was initiated by the app (stack already managed)
-    if (appNavigationRef.current) {
-      appNavigationRef.current = false;
-      return;
-    }
-
-    // If navigated to overview externally, clear the stack
-    if (!selectedPageId) {
-      navStack.clear();
-      return;
-    }
-
-    // If the new page is already in the stack, it's a back navigation — pop to last occurrence
-    const matchIdx = navStack.stack.findLastIndex((e) => e.pageId === selectedPageId);
-    if (matchIdx !== -1) {
-      const entry = navStack.stack[matchIdx];
-      setPageTitleDraft(entry.title);
-      navStack.popTo(selectedPageId);
-    }
-  }, [selectedPageId]);
-
-  useEffect(() => {
-    if (!selectedPageId) {
-      hydratedPageIdRef.current = null;
-      setPageTitleDraft("");
-      setPageTitleError(null);
-      setPageEmojiDraft(undefined);
-      setSummaryDraft("");
-      setSelectedTagIdsDraft([]);
-      setBlockContentDrafts({});
-      setOptimisticBlockStructure({});
-      resetTimestamp(null);
-      setFocusTarget(null);
-      return;
-    }
-
-    // Clear drafts immediately when switching to a different page to prevent stale content flash
-    // Note: pageTitleDraft is NOT cleared here — it's pre-set by navigation handlers
-    // so the breadcrumb title stays stable during transitions.
-    if (hydratedPageIdRef.current !== null && hydratedPageIdRef.current !== selectedPageId) {
-      setPageTitleError(null);
-      setPageEmojiDraft(undefined);
-      setSummaryDraft("");
-      setSelectedTagIdsDraft([]);
-      setBlockContentDrafts({});
-      setOptimisticBlockStructure({});
-      setFocusTarget(null);
-    }
-
-    if (!selectedPage || selectedPage.id !== selectedPageId) {
-      return;
-    }
-
-    if (hydratedPageIdRef.current === selectedPageId) {
-      return;
-    }
-
-    hydratedPageIdRef.current = selectedPageId;
-
-    setPageTitleDraft(selectedPage.title ?? "");
-    setPageTitleError(null);
-    setPageEmojiDraft(undefined);
-    setSummaryDraft(selectedPageSummary ?? "");
-    setSelectedTagIdsDraft(selectedPageTagIds);
-    setBlockContentDrafts({});
-    setOptimisticBlockStructure({});
-    resetTimestamp(updatedTimestamp);
-    setFocusTarget(null);
-  }, [selectedPage?.id, selectedPageId]);
-
-  useEffect(() => {
-    if (!selectedPage || pageEmojiDraft === undefined) {
-      return;
-    }
-
-    if (pageEmojiDraft === selectedPageEmoji) {
-      setPageEmojiDraft(undefined);
-    }
-  }, [pageEmojiDraft, selectedPage?.id, selectedPageEmoji]);
-
-  useEffect(() => {
-    setOptimisticBlockStructure((current) => {
-      const optimisticIds = Object.keys(current);
-      if (optimisticIds.length === 0) {
-        return current;
-      }
-
-      const selectedBlockById = new Map(selectedBlocks.map((block) => [block.id, block]));
-      let hasChanged = false;
-      const next = { ...current };
-
-      optimisticIds.forEach((blockId) => {
-        const optimisticMove = current[blockId];
-        const selectedBlock = selectedBlockById.get(blockId);
-
-        if (!selectedBlock) {
-          delete next[blockId];
-          hasChanged = true;
-          return;
-        }
-
-        if (
-          (selectedBlock.parent_block_id ?? null) === optimisticMove.parent_block_id &&
-          selectedBlock.sort_rank === optimisticMove.sort_rank
-        ) {
-          delete next[blockId];
-          hasChanged = true;
-        }
-      });
-
-      return hasChanged ? next : current;
-    });
-  }, [selectedBlocks]);
-
+  // ─── Tag directory open state reconciliation ─────────────────────────────
   useEffect(() => {
     setTagDirectoryOpen((current) => {
-      const selectedTagKeys = new Set(selectedPageTags.map((tag) => tag.key));
       const next: Record<string, boolean> = {};
       let hasChanged = Object.keys(current).length !== tagDirectory.length;
 
       tagDirectory.forEach((entry, index) => {
-        const nextValue = current[entry.key] ?? (selectedTagKeys.has(entry.key) || index === 0);
+        const nextValue = current[entry.key] ?? (index === 0);
         next[entry.key] = nextValue;
-
         if (current[entry.key] !== nextValue) {
           hasChanged = true;
         }
@@ -337,19 +137,41 @@ export default function NotesPage() {
 
       return hasChanged ? next : current;
     });
-  }, [selectedPageTags, tagDirectory]);
+  }, [tagDirectory]);
 
   const isLoading = isLoadingCounts || isLoadingRecentPages;
 
+  // Force re-render when shell becomes ready so ref-based reads are fresh
+  const [, setShellTick] = useState(0);
+  const handleShellReady = useCallback(() => setShellTick((n) => n + 1), []);
+
+  // Local toggle for absolute/relative updated time display in top bar
+  const [showAbsoluteUpdatedTime, setShowAbsoluteUpdatedTime] = useState(false);
+  const absoluteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const revealAbsoluteUpdatedTime = useCallback(() => {
+    setShowAbsoluteUpdatedTime((prev) => {
+      if (prev) {
+        if (absoluteTimerRef.current) clearTimeout(absoluteTimerRef.current);
+        absoluteTimerRef.current = null;
+        return false;
+      }
+      absoluteTimerRef.current = setTimeout(() => {
+        setShowAbsoluteUpdatedTime(false);
+        absoluteTimerRef.current = null;
+      }, 5000);
+      return true;
+    });
+  }, []);
+
+  // ─── Surface state (overview vs editor) ──────────────────────────────────
+  const shellHandle = shellRef.current;
+
   const {
-    editorContentToRender,
     editorUpdatedTimestamp,
     isDisplayingOverview,
     overviewFavoritePagesToRender,
     overviewRecentPagesToRender,
-    shouldAnimateEditorContent,
     shouldAnimateOverviewContent,
-    showEditorOverlay,
     showOverviewLoading,
     showOverviewOverlay,
     showSelectedPageLoading,
@@ -358,25 +180,17 @@ export default function NotesPage() {
   } = useNotesSurfaceState({
     selectedPageId,
     isLoading,
-    isLoadingSelectedPage,
+    isLoadingSelectedPage: !shellHandle?.isReady && Boolean(selectedPageId),
     favoritePages,
     recentAccessPages,
     selectedPageIdForEditor: selectedPageId,
-    selectedPageTitle: pageTitleDraft || selectedPage?.title || "Untitled page",
-    activePageEmoji,
-    isSelectedPageFavorite: selectedPageProperties.favorite === true,
-    selectedPageTags,
-    selectedBlockCount: displayBlocks.length,
-    linkedReferenceCount: linkedReferences.length,
-    displayBlocks,
-    updatedTimestamp: stableUpdatedTimestamp,
+    updatedTimestamp: shellHandle?.stableUpdatedTimestamp ?? null,
   });
-  const renderedPageOutline = useMemo(
-    () => buildOutlineEntries(editorContentToRender?.blocks ?? []),
-    [editorContentToRender?.blocks]
-  );
 
+  // ─── Details section open state ──────────────────────────────────────────
   useEffect(() => {
+    if (!shellHandle?.isReady) return;
+
     const nextState = {
       outline: true,
       summary: true,
@@ -398,14 +212,67 @@ export default function NotesPage() {
 
       return nextState;
     });
-  }, [linkedReferences.length, pageTagMentions.length, renderedPageOutline.length, selectedPage?.id, selectedPageAttachments.length, selectedPageSummary, selectedPageTags.length]);
+  }, [shellHandle?.isReady, selectedPageId]);
+
+  // ─── Navigation ─────────────────────────────────────────────────────────
+  const appNavigationRef = useRef(false);
+  const prevSelectedPageIdRef = useRef<string | null>(selectedPageId);
+
+  // Reconcile nav stack when browser back/forward changes the URL externally
+  useEffect(() => {
+    const prev = prevSelectedPageIdRef.current;
+    prevSelectedPageIdRef.current = selectedPageId;
+
+    if (prev === selectedPageId) return;
+
+    if (appNavigationRef.current) {
+      appNavigationRef.current = false;
+      return;
+    }
+
+    if (!selectedPageId) {
+      navStack.clear();
+      return;
+    }
+
+    const matchIdx = navStack.stack.findLastIndex((e) => e.pageId === selectedPageId);
+    if (matchIdx !== -1) {
+      const entry = navStack.stack[matchIdx];
+      setEditorPageTitle(entry.title);
+      navStack.popTo(selectedPageId);
+    }
+  }, [selectedPageId]);
+
+  // Reset editor title when navigating to overview
+  useEffect(() => {
+    if (!selectedPageId) {
+      setEditorPageTitle("");
+    }
+    setShowAbsoluteUpdatedTime(false);
+  }, [selectedPageId]);
 
   const openPageById = (pageId: string, targetTitle?: string) => {
     if (pageId === selectedPageId) return;
+
+    // Handle shell's __back__ navigation request
+    if (pageId === "__back__") {
+      const prev = navStack.pop();
+      appNavigationRef.current = true;
+      if (prev && prev.pageId !== "__overview__") {
+        setEditorPageTitle(prev.title);
+        transitionToEditor(prev.pageId);
+        startTransition(() => { router.push(`/notes?page=${prev.pageId}`); });
+      } else {
+        transitionToOverview();
+        router.push("/notes");
+      }
+      return;
+    }
+
     const resolvedTitle = targetTitle || allPages.find((p) => p.id === pageId)?.title || "";
-    const currentTitle = pageTitleDraft || selectedPage?.title || "Untitled";
+    const currentTitle = editorPageTitle || shellHandle?.pageTitleDraft || "Untitled";
     const prevPageId = selectedPageId;
-    setPageTitleDraft(resolvedTitle);
+    setEditorPageTitle(resolvedTitle);
     if (isMobilePagesDrawerOpen || isMobileDetailsDrawerOpen) {
       (document.activeElement as HTMLElement)?.blur?.();
       setIsMobilePagesDrawerOpen(false);
@@ -416,8 +283,6 @@ export default function NotesPage() {
     startTransition(() => {
       router.push(`/notes?page=${pageId}`);
     });
-    // Defer stack push so React commits the title state update first,
-    // avoiding a stale-title flash from useSyncExternalStore's sync re-render
     queueMicrotask(() => {
       if (prevPageId) {
         navStack.push({ pageId: prevPageId, title: currentTitle });
@@ -436,19 +301,16 @@ export default function NotesPage() {
       transitionToOverview();
       router.push("/notes");
     } else {
-      if (entry) setPageTitleDraft(entry.title);
+      if (entry) setEditorPageTitle(entry.title);
       transitionToEditor(pageId);
       startTransition(() => { router.push(`/notes?page=${pageId}`); });
     }
   };
 
-  const handleFocusApplied = useCallback(() => {
-    setFocusTarget(null);
-  }, []);
-
-  const handleFocusBlock = useCallback((blockId: string, placement: "start" | "end") => {
-    setFocusTarget({ blockId, placement });
-  }, []);
+  const handleCreateStarterPage = async () => {
+    setPageSearchQuery("");
+    setIsPageSearchOpen(true);
+  };
 
   const handleSelectPageFromSearch = (pageId: string) => {
     setIsPageSearchOpen(false);
@@ -476,15 +338,7 @@ export default function NotesPage() {
     }
   };
 
-  const handleOpenPageReference = (title: string) => {
-    const targetPageId = notePageIdByTitle.get(title.trim().toLocaleLowerCase());
-    if (!targetPageId) {
-      return;
-    }
-
-    openPageById(targetPageId, title.trim());
-  };
-
+  // ─── Page peek ───────────────────────────────────────────────────────────
   const { peekTarget, openPeek, closePeek } = usePagePeek();
 
   const handlePeekPageReference = useCallback((title: string, rect: DOMRect) => {
@@ -495,22 +349,31 @@ export default function NotesPage() {
     closePeek();
     const targetPageId = notePageIdByTitle.get(title.trim().toLocaleLowerCase());
     if (targetPageId) {
-      // Push current page onto nav stack before navigating
       if (selectedPageId) {
-        navStack.push({ pageId: selectedPageId, title: pageTitleDraft || selectedPage?.title || "Untitled" });
+        navStack.push({ pageId: selectedPageId, title: editorPageTitle || shellHandle?.pageTitleDraft || "Untitled" });
       } else {
         navStack.clear();
         navStack.push({ pageId: "__overview__", title: "Overview" });
       }
-      setPageTitleDraft(title.trim());
+      setEditorPageTitle(title.trim());
       appNavigationRef.current = true;
       transitionToEditor(targetPageId);
       startTransition(() => {
         router.push(`/notes?page=${targetPageId}`);
       });
     }
-  }, [closePeek, notePageIdByTitle, selectedPageId, pageTitleDraft, selectedPage?.title, navStack, transitionToEditor, router]);
+  }, [closePeek, notePageIdByTitle, selectedPageId, editorPageTitle, shellHandle?.pageTitleDraft, navStack, transitionToEditor, router]);
 
+  // ─── Overview actions ────────────────────────────────────────────────────
+  const togglePageFavorite = useCallback((page: NormalizedNotePage) => {
+    const pageProperties = parseProperties(page.properties);
+    updateNotePageProperties(page.id, {
+      ...(pageProperties as Record<string, unknown>),
+      favorite: pageProperties.favorite !== true,
+    });
+  }, []);
+
+  // ─── Search popup close delay ────────────────────────────────────────────
   const overviewSearchTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -527,45 +390,8 @@ export default function NotesPage() {
     };
   }, [isPageSearchOpen, pageSearchQuery]);
 
-
-
-  const {
-    commitPageTitleDraft,
-    handleCopyDocument,
-    handleDeletePage,
-    handleSelectPageEmoji,
-    handleToggleFavorite,
-    persistSelectedPageProperties,
-    togglePageFavorite,
-  } = useNotePageActions({
-    selectedPageId,
-    selectedPage,
-    selectedPageProperties,
-    selectedPageSummary,
-    selectedPageTags,
-    pageTitleDraft,
-    activePageEmoji,
-    summaryDraft,
-    selectedTagIdsDraft,
-    blockContentDrafts,
-    orderedVisibleBlockIds,
-    selectedBlockMap,
-    setPageTitleDraft,
-    setPageTitleError,
-    setPageEmojiDraft,
-    setIsEmojiPickerOpen,
-    setIsDeletingPage,
-    setIsDeleteDialogOpen,
-    onDeleteSuccess: () => {
-      appNavigationRef.current = true;
-      transitionToOverview();
-      startTransition(() => {
-        router.push("/notes");
-      });
-    },
-  });
-
-  const showDesktopUpdatedTimestamp = Boolean(editorUpdatedTimestamp && !isLoading && !showSelectedPageLoading && selectedPage);
+  // ─── Desktop chrome variables ─────────────────────────────────────────────
+  const showDesktopUpdatedTimestamp = Boolean(editorUpdatedTimestamp && !isLoading && !showSelectedPageLoading && shellHandle?.isReady);
   const showMobileUpdatedTimestamp = Boolean(editorUpdatedTimestamp);
   const desktopChromeIconButtonClass = "size-8 rounded-full text-muted-foreground transition-[color,background-color,box-shadow] duration-200 hover:bg-accent/60 hover:text-foreground hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)] md:size-9";
   const desktopChromeTextButtonClass = "inline-flex h-8 w-fit items-center justify-self-start px-0 text-[11px] text-muted-foreground/80 transition-colors duration-200 hover:text-foreground";
@@ -637,27 +463,30 @@ export default function NotesPage() {
     />
   );
 
-  const detailsRail = (
+  const detailsRail = shellHandle?.isReady ? (
     <NotesDetailsRail
-      selectedPage={selectedPage}
+      selectedPage={shellHandle.page}
       detailsSectionOpen={detailsSectionOpen}
-      pageOutline={renderedPageOutline}
-      summaryDraft={summaryDraft}
-      selectedTagIdsDraft={selectedTagIdsDraft}
-      linkedReferences={linkedReferences}
-      pageTagMentions={pageTagMentions}
-      selectedPageAttachments={selectedPageAttachments}
-      createdTimestamp={createdTimestamp}
-      isLoadingLinkedReferences={isLoadingLinkedReferences}
-      isLoadingTagMentions={isLoadingTagMentions}
-      isLoadingAttachments={isLoadingAttachments}
+      pageOutline={shellHandle.pageOutline}
+      summaryDraft={shellHandle.summaryDraft}
+      selectedTagIdsDraft={shellHandle.selectedTagIdsDraft}
+      linkedReferences={shellHandle.linkedReferences}
+      pageTagMentions={shellHandle.pageTagMentions}
+      selectedPageAttachments={shellHandle.attachments}
+      createdTimestamp={shellHandle.createdTimestamp}
+      isLoadingLinkedReferences={shellHandle.isLoadingLinkedReferences}
+      isLoadingTagMentions={shellHandle.isLoadingTagMentions}
+      isLoadingAttachments={shellHandle.isLoadingAttachments}
       onToggleDetailsSection={toggleDetailsSection}
-      onSetSummaryDraft={setSummaryDraft}
-      onPersistSelectedPageProperties={persistSelectedPageProperties}
-      onSetFocusTarget={setFocusTarget}
+      onSetSummaryDraft={(value) => {
+        // Shell owns summaryDraft — persist through shell's page actions
+        shellHandle.persistSelectedPageProperties(value, shellHandle.selectedTagIdsDraft);
+      }}
+      onPersistSelectedPageProperties={shellHandle.persistSelectedPageProperties}
+      onSetFocusTarget={shellHandle.setFocusTarget}
       onNavigateToPage={openPageById}
     />
-  );
+  ) : null;
 
   const edgeSwipeEnabled = isMobileViewport && !isDeleteDialogOpen && !isPageSearchOpen && !isMobilePagesDrawerOpen && !isMobileDetailsDrawerOpen;
   const { handleTouchStart: handleMobileEdgeSwipeStart, handleTouchEnd: handleMobileEdgeSwipeEnd } = useEdgeSwipe(
@@ -675,6 +504,9 @@ export default function NotesPage() {
       },
     },
   );
+
+  const currentPageTitle = editorPageTitle || shellHandle?.pageTitleDraft || "";
+  const isFavorite = shellHandle?.selectedPageProperties?.favorite === true;
 
   return (
     <div
@@ -814,7 +646,7 @@ export default function NotesPage() {
                         const prev = navStack.pop();
                         appNavigationRef.current = true;
                         if (prev && prev.pageId !== "__overview__") {
-                          setPageTitleDraft(prev.title);
+                          setEditorPageTitle(prev.title);
                           transitionToEditor(prev.pageId);
                           startTransition(() => { router.push(`/notes?page=${prev.pageId}`); });
                         } else {
@@ -842,7 +674,7 @@ export default function NotesPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => setShowEditorAppHeader((current) => !current)}
+                        onClick={() => shellHandle?.handleToggleFavorite()}
                         className={desktopChromeIconButtonClass}
                         aria-label={showEditorAppHeader ? "Hide app header" : "Show app header"}
                       >
@@ -852,11 +684,11 @@ export default function NotesPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={handleToggleFavorite}
-                        className={`${desktopChromeIconButtonClass} ${selectedPageProperties.favorite === true ? "text-amber-500 hover:text-amber-500" : ""}`}
+                        onClick={() => shellHandle?.handleToggleFavorite()}
+                        className={`${desktopChromeIconButtonClass} ${isFavorite ? "text-amber-500 hover:text-amber-500" : ""}`}
                         aria-label="Toggle favorite"
                       >
-                        <Star className={`h-4 w-4 ${selectedPageProperties.favorite === true ? "fill-current" : ""}`} />
+                        <Star className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
                       </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger className={`inline-flex items-center justify-center ${desktopChromeIconButtonClass}`} aria-label="Page actions">
@@ -865,7 +697,7 @@ export default function NotesPage() {
                         <DropdownMenuContent align="end" className="w-40">
                           <DropdownMenuItem
                             onClick={() => {
-                              void handleCopyDocument();
+                              void shellHandle?.handleCopyDocument();
                             }}
                           >
                             <Copy className="h-4 w-4" />
@@ -907,71 +739,29 @@ export default function NotesPage() {
                     <div className="mx-auto hidden max-w-3xl px-3 pt-1 sm:block sm:px-0">
                       <NotesPageBreadcrumb
                         stack={navStack.stack}
-                        currentTitle={pageTitleDraft || selectedPage?.title || ""}
+                        currentTitle={currentPageTitle}
                         onNavigate={handleBreadcrumbNavigate}
                       />
                     </div>
                   )}
-                  <NotesEditorContent
-                    editorContent={editorContentToRender}
-                    showSelectedPageLoading={showSelectedPageLoading}
-                    showEditorOverlay={showEditorOverlay}
-                    shouldAnimateEditorContent={shouldAnimateEditorContent}
-                    pageTitleDraft={pageTitleDraft}
-                    pageTitleError={pageTitleError}
-                    isEmojiPickerOpen={isEmojiPickerOpen}
-                    activePageEmoji={activePageEmoji}
-                    selectedTagIdsDraft={selectedTagIdsDraft}
-                    focusTarget={focusTarget}
-                    notePageTitles={notePageTitles}
-                    selectedPageProperties={selectedPageProperties}
-                    onBack={() => {
-                      const prev = navStack.pop();
-                      appNavigationRef.current = true;
-                      if (prev && prev.pageId !== "__overview__") {
-                        setPageTitleDraft(prev.title);
-                        transitionToEditor(prev.pageId);
-                        startTransition(() => { router.push(`/notes?page=${prev.pageId}`); });
-                      } else {
+                  {selectedPageId && (
+                    <NotePageShell
+                      ref={shellRef}
+                      pageId={selectedPageId}
+                      notePageTitles={notePageTitles}
+                      notePageIdByTitle={notePageIdByTitle}
+                      onNavigateToPage={openPageById}
+                      onDeleteSuccess={() => {
+                        appNavigationRef.current = true;
                         transitionToOverview();
-                        router.push("/notes");
-                      }
-                    }}
-                    onTitleChange={(value) => {
-                      setPageTitleDraft(value);
-                      setPageTitleError(null);
-                    }}
-                    onCommitTitle={commitPageTitleDraft}
-                    onToggleFavorite={handleToggleFavorite}
-                    onEmojiPickerOpenChange={setIsEmojiPickerOpen}
-                    onSelectEmoji={handleSelectPageEmoji}
-                    onSelectedTagIdsChange={(nextTagIds) => {
-                      setSelectedTagIdsDraft(nextTagIds);
-                      persistSelectedPageProperties(summaryDraft, nextTagIds);
-                    }}
-                    onCopyDocument={handleCopyDocument}
-                    onOpenDeleteDialog={() => {
-                      setIsMobileDetailsDrawerOpen(false);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                    onCreateFirstBlock={handleCreateRootBlock}
-                    onFocusApplied={handleFocusApplied}
-                    onFocusBlock={handleFocusBlock}
-                    onOpenPageReference={handleOpenPageReference}
-                    onPeekPageReference={handlePeekPageReference}
-                    onCreateSibling={handleCreateSiblingBlock}
-                    onCreateEmptySibling={handleCreateEmptySiblingBlock}
-                    onCreateSiblings={handleCreateSiblingBlocks}
-                    onMergeWithPrevious={handleMergeWithPreviousBlock}
-                    onCommitContent={handleCommitBlockContent}
-                    onIndent={handleIndentBlock}
-                    onOutdent={handleOutdentBlock}
-                    onMoveSelectedBlockRange={handleMoveSelectedBlockRange}
-                    onDelete={handleDeleteBlock}
-                    onDeleteRange={handleDeleteBlockRange}
-                    onUpdateContent={handleUpdateBlockContent}
-                    onConvertBlockType={handleConvertBlockType}
-                  />
+                        startTransition(() => {
+                          router.push("/notes");
+                        });
+                      }}
+                      onPeekPageReference={handlePeekPageReference}
+                      onReady={handleShellReady}
+                    />
+                  )}
                 </section>
 
                 {showDesktopDetailsRail ? (
@@ -1000,7 +790,7 @@ export default function NotesPage() {
         ) : navStack.stack.length > 0 && !isDisplayingOverview ? (
           <NotesPageBreadcrumb
             stack={navStack.stack}
-            currentTitle={pageTitleDraft || selectedPage?.title || ""}
+            currentTitle={currentPageTitle}
             onNavigate={handleBreadcrumbNavigate}
           />
         ) : undefined}
@@ -1029,13 +819,13 @@ export default function NotesPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingPage}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={shellHandle?.isDeletingPage}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeletePage}
-              disabled={isDeletingPage}
+              onClick={() => { void shellHandle?.handleDeletePage(); }}
+              disabled={shellHandle?.isDeletingPage}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeletingPage ? "Deleting..." : "Delete page"}
+              {shellHandle?.isDeletingPage ? "Deleting..." : "Delete page"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

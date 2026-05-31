@@ -1,11 +1,15 @@
 # Project Guide
 
-This document is the best starting point for a developer or coding agent that needs to understand, modify, or debug Dash.
+This document is the technical reference for developers and coding agents working on Dash.
 
 Use this together with:
 
-- [README.md](../README.md) for product overview and quick start
+- [README.md](../README.md) for product overview
 - [SETUP.md](../SETUP.md) for environment setup, backend provisioning, and deployment
+
+## Tech Stack
+
+Next.js 16 · PowerSync · Supabase · Tailwind CSS v4 · Shadcn/UI · Tiptap 3.22.5 · KaTeX · Vitest · Serwist
 
 ## What Dash Is
 
@@ -154,13 +158,15 @@ Important convention:
 - `src/lib/tasks/tags.ts` — tag creation helpers
 - `src/lib/tracker/activities.ts` — tracker activity palette and class maps
 - `src/hooks/use-notes.ts` — local SQLite query hooks for note pages and blocks
+- `src/hooks/use-settled-timestamp.ts` — debounced timestamp display that waits for pending writes to settle
+- `src/hooks/use-edge-swipe.ts` — mobile edge swipe gesture detection
+- `src/hooks/use-property-definitions.ts` — reactive query hook for workspace property definitions
 - `src/lib/notes/notes-content.ts` — note document normalization, serialization (including math nodes), and plain-text extraction
 - `src/lib/notes/notes-tree.ts` — tree building and visible block ordering helpers for note blocks
 - `src/lib/notes/notes.ts` — note writes, attachment upserts, and edge reconciliation
 - `src/lib/notes/math-clipboard.ts` — math token protection/restoration for clipboard paste flows
 - `src/lib/notes/block-editor-keyboard.ts` — keyboard decision logic for Enter, Backspace, Tab, and arrow keys in the block editor
 - `src/lib/notes/properties.ts` — CRUD operations for property definitions and custom property value parsing
-- `src/hooks/use-property-definitions.ts` — reactive query hook for workspace property definitions
 
 ### PowerSync integration
 
@@ -202,6 +208,9 @@ Key modules:
 - `src/components/notes/NoteBlockEditor.tsx`
   - Per-block Tiptap editor with markdown-style transforms, block key handling, local/external content reconciliation, a table contextual toolbar for focused-cell column and row actions, a code block toolbar with language selector and copy button, and math-aware copy/paste handling.
 
+- `src/components/notes/NoteBlockEditorExtensions.ts`
+  - Custom Tiptap extensions: reference decorations, date auto-format, markdown link parsing, notes-specific horizontal rule and arrow replacement.
+
 - `src/components/notes/NoteBlockEditorSlash.ts`
   - Slash command definitions plus query, filtering, and grouping helpers used by the block editor. Includes a `/math` command for inserting display math blocks.
 
@@ -209,7 +218,28 @@ Key modules:
   - Tiptap extensions for inline math (`$...$`) and block math (`$$...$$`). Provides atom nodes with KaTeX rendering, click-to-edit NodeViews, and input rules.
 
 - `src/components/notes/NotesBlockTree.tsx`
-  - Nested visible block tree, block navigation wiring, sibling creation plumbing, block move controls (Alt+arrow), selection handling, per-heading-level accent color and divider styling, and tree-line indentation from block to bullet.
+  - Nested visible block tree, block navigation wiring, sibling creation plumbing, block move controls (Alt+arrow), selection handling, and tree-line indentation from block to bullet.
+
+- `src/components/notes/page/useOptimisticBlockState.ts`
+  - Optimistic state management for block CRUD operations (create, hide, restore, reorder).
+
+- `src/lib/notes/block-styling.ts`
+  - Block spacing metadata, per-heading-level accent color, divider styling, and tree-line color utilities.
+
+- `src/lib/notes/editor-serialization.ts`
+  - Markdown/HTML serialization, clipboard text detection, table/image parsing, and turndown configuration.
+
+- `src/lib/notes/editor-document-helpers.ts`
+  - Editor document manipulation: splitting, parsing, position resolution, and page reference query.
+
+- `src/lib/notes/editor-token-protection.ts`
+  - Token protection/restoration for note reference tokens during markdown conversion.
+
+- `src/lib/notes/property-helpers.ts`
+  - Property definition config parsing, property resolution, and option badge styling.
+
+- `src/components/notes/NotesBlockTree.tsx`
+  - Nested visible block tree, block navigation wiring, sibling creation plumbing, block move controls (Alt+arrow), selection handling, and tree-line indentation from block to bullet.
 
 - `src/components/notes/BlockContextMenu.tsx`
   - Block-level right-click context menu with actions for type conversion, move, indent/outdent, delete, and duplication.
@@ -447,9 +477,42 @@ A few repo-specific patterns matter repeatedly:
 
 ```bash
 npm run dev
+npm run build
 npm run lint
+npm test
+npm run test:dom
 npx tsc --noEmit
 ```
+
+### Testing
+
+Vitest is split between fast node-based suites and a jsdom integration layer for hook-level and DOM-adjacent behavior.
+
+- `tests/notes/` — notes-specific tests
+- `tests/tasks/` — task-specific tests
+- `tests/tracker/` — tracker-specific tests
+- `tests/shared/` — reusable fixtures, builders, and assertions shared across app groups
+
+Primary commands:
+
+- `npm test` runs the default node-based suites.
+- `npm run test:dom` runs the jsdom-backed integration suites.
+
+See [tests/README.md](../tests/README.md) for the current suite map.
+
+### Project Organization
+
+- `src/app/` — App Router routes for launcher, tasks, tracker, notes, login, and share-target flows
+- `src/components/` — shared shell UI plus app-specific task, tracker, and notes components
+- `src/lib/shared/`, `src/lib/tasks/`, `src/lib/tracker/`, `src/lib/notes/` — helpers grouped by responsibility
+- `src/lib/powersync/` — local SQLite schema, database bootstrap, and sync connector
+- `tests/` — Vitest suites grouped by app plus shared test helpers
+
+Feature entry points:
+
+- `src/app/tasks/page.tsx` + `src/components/tasks/`
+- `src/app/tracker/page.tsx` + `src/components/tracker/`
+- `src/app/notes/page.tsx` + `src/components/notes/page/` + `src/components/notes/NoteBlockEditor.tsx`
 
 ## When To Update This Document
 

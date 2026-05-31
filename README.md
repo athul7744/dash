@@ -1,27 +1,26 @@
 # Dash.
 
-An offline-first productivity workspace with **Tasks**, **Tracker**, and **Notes** under one shell. It works offline, keeps local interactions responsive, and syncs to the cloud in the background when connectivity returns.
+A personal productivity workspace that works offline and syncs across devices. Tasks, time tracking, and a full notes editor — all in one place.
 
-## Docs
+## What It Does
 
-- [SETUP.md](SETUP.md) — environment setup, Supabase, PowerSync, and deployment
-- [docs/PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md) — architecture, app structure, component map, and implementation notes for future contributors or coding agents
+### Tasks
 
-## Features
+Manage your to-do list with subtasks, tags, due dates, and priorities. Filter by state, tag, or priority. Deleted tasks go to trash where they can be restored. On mobile, save tasks directly from your phone's share sheet — share a link or text from any app and it becomes a task.
 
-**Tasks** — Offline-first task manager with subtasks, shared tags, due dates, priorities, smart filters, trash and restore, responsive masonry layout, and direct save from the system share sheet.
+### Tracker
 
-**Tracker** — 7-day × 24-hour paint grid for logging time blocks, inline daily mood ratings, yearly heatmaps, weekly widgets, and mobile-friendly navigation with shared bottom FAB controls.
+Paint your week on a 7-day × 24-hour grid to log how you spend your time. Rate your mood each day. View yearly heatmaps to spot patterns over months. Weekly widgets break down your activity, sleep, and productivity at a glance.
 
-**Notes** — Local-first outline editor with pages, nested blocks, shared tags, backlinks, and owned attachments. Supports inline references, mdast-backed markdown paste, markdown-style transforms, slash commands, block context menu (move, indent/outdent, type conversion), table toolbar, code block toolbar (language selector + copy), LaTeX math (inline `$...$` and block `$$...$$` via KaTeX), per-level heading/HR styling, tree-line block indentation, custom page properties (text, number, date, select, checkbox, URL) with workspace-wide definitions and per-page values, and a Manage Properties dialog for property CRUD.
+### Notes
 
-**Week Widgets** — Activity breakdown donut chart, mood insights with sleep correlation, daily stacked bars, sleep stats (avg/range/per-night chart), and productivity ratio bar.
+A structured editor for thinking and writing. Create pages, nest blocks into outlines, and link between pages with backlinks. Supports markdown shortcuts, slash commands, tables, code blocks with syntax highlighting, and LaTeX math. Attach custom properties to pages (dates, tags, checkboxes, URLs) to build a personal knowledge base.
 
-**General** — Installable PWA, web share target routed through `/share`, cross-device sync via PowerSync ↔ Supabase, sync status indicator, and production-safe logging.
+## How It Works
 
-## Tech Stack
+Everything happens locally first. The app reads and writes to a database in your browser, so interactions are instant even without internet. Changes sync to the cloud in the background when you're online, keeping all your devices up to date.
 
-Next.js 16 · PowerSync · Supabase · Tailwind CSS v4 · Shadcn/UI · Tiptap 3.22.5 · KaTeX · Vitest · Serwist
+Install it as a PWA from your browser for a native app experience on desktop or mobile.
 
 ## Quick Start
 
@@ -30,47 +29,9 @@ npm install
 npm run dev
 ```
 
-Copy `.env.example` to `.env.local`, then fill in your Supabase and PowerSync values.
+See [SETUP.md](SETUP.md) for backend configuration (Supabase + PowerSync).
 
-Optional validation:
+## Documentation
 
-```bash
-npm run lint
-npm test
-npm run test:dom
-npx tsc --noEmit
-```
-
-## Testing
-
-Vitest is split between fast node-based suites and a small jsdom integration layer for hook-level behavior.
-
-- `tests/notes/` contains notes-focused tests.
-- `tests/tasks/` contains task-focused tests.
-- `tests/tracker/` contains tracker-focused tests.
-- `tests/shared/` contains reusable fixtures, builders, and assertions shared across app groups.
-
-Primary commands:
-
-- `npm test` runs the default node-based suites.
-- `npm run test:dom` runs the jsdom-backed integration suites.
-
-See [tests/README.md](tests/README.md) for the current test suite map and what each suite covers.
-
-## How The Project Is Organized
-
-- `src/app/` contains the App Router routes for launcher, tasks, tracker, notes, login, and share-target flows.
-- `src/components/` contains shared shell UI plus app-specific task, tracker, and notes components.
-- `src/lib/shared/`, `src/lib/tasks/`, `src/lib/tracker/`, and `src/lib/notes/` group shared and app-owned helpers by responsibility.
-- `src/lib/powersync/` contains the local SQLite schema, database bootstrap, and sync connector.
-- `tests/` contains Vitest suites grouped by app plus shared test helpers.
-- `SETUP.md` contains the SQL you need to create the hosted Supabase schema and PowerSync stream configuration.
-
-Feature entry points:
-
-- `src/app/tasks/page.tsx` with `src/components/tasks/` for task editing, metadata, tags, and loading states.
-- `src/app/tracker/page.tsx` with `src/components/tracker/` for the week grid, activity management, yearly views, and widgets.
-- `src/app/notes/page.tsx` with `src/components/notes/page/` for route-local notes surfaces, plus `src/components/notes/NoteBlockEditor.tsx` and `src/components/notes/NoteBlockEditorSlash.ts` for block editing behavior.
-
-> For a deeper map of how tasks, tracker, share capture, optimistic updates, route loading, and PowerSync fit together, read [docs/PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md).
-> For environment setup and deployment, read [SETUP.md](SETUP.md).
+- [SETUP.md](SETUP.md) — Environment setup, database provisioning, and deployment
+- [docs/PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md) — Architecture, codebase structure, and implementation reference for contributors

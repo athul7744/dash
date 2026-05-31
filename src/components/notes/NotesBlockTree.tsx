@@ -140,6 +140,7 @@ function BlockNodeView({
   onEditorFocus,
   notePageTitles,
   onOpenPageReference,
+  onPeekPageReference,
   onCreateSibling,
   onCreateSiblings,
   onMergeWithPrevious,
@@ -174,6 +175,7 @@ function BlockNodeView({
   onEditorFocus: (blockId: string, placement: "start" | "end") => void;
   notePageTitles: string[];
   onOpenPageReference?: (title: string) => void;
+  onPeekPageReference?: (title: string, rect: DOMRect) => void;
   onCreateSibling: (
     blockId: string,
     parentBlockId: string | null | undefined,
@@ -467,6 +469,7 @@ function BlockNodeView({
                 onCreateSiblings={onCreateSiblings ? (nextContent, nextSiblingContents) => onCreateSiblings(node.block.id, parentBlockId, nextContent, nextSiblingContents) : undefined}
                 onMergeWithPrevious={previousBlockId ? (nextContent, options) => onMergeWithPrevious(node.block.id, previousBlockId, nextContent as JsonValue, options) : undefined}
                 onOpenPageReference={onOpenPageReference}
+                onPeekPageReference={onPeekPageReference}
                 onNavigateUp={previousBlockId ? () => onFocusBlock(previousBlockId, "end") : undefined}
                 onNavigateDown={nextBlockId ? () => onFocusBlock(nextBlockId, "start") : undefined}
                 onSelectUp={previousBlockId ? () => onSelectUp(node.block.id, previousBlockId) : undefined}
@@ -511,6 +514,7 @@ function BlockNodeView({
               onEditorFocus={onEditorFocus}
               notePageTitles={notePageTitles}
               onOpenPageReference={onOpenPageReference}
+              onPeekPageReference={onPeekPageReference}
               onCreateSibling={onCreateSibling}
               onCreateSiblings={onCreateSiblings}
               onCommitContent={onCommitContent}
@@ -546,6 +550,7 @@ export function NotesBlockTree({
   onFocusBlock,
   notePageTitles,
   onOpenPageReference,
+  onPeekPageReference,
   onCreateSibling,
   onCreateEmptySibling,
   onCreateSiblings,
@@ -568,6 +573,7 @@ export function NotesBlockTree({
   onFocusBlock: (blockId: string, placement: "start" | "end") => void;
   notePageTitles: string[];
   onOpenPageReference?: (title: string) => void;
+  onPeekPageReference?: (title: string, rect: DOMRect) => void;
   onCreateSibling: (
     blockId: string,
     parentBlockId: string | null | undefined,
@@ -740,6 +746,7 @@ export function NotesBlockTree({
           onEditorFocus={handleEditorFocus}
           notePageTitles={notePageTitles}
           onOpenPageReference={onOpenPageReference}
+          onPeekPageReference={onPeekPageReference}
           onCreateSibling={onCreateSibling}
             onCreateSiblings={onCreateSiblings}
           onMergeWithPrevious={onMergeWithPrevious}

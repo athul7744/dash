@@ -45,6 +45,8 @@ import { ManageTagsDialog } from "@/components/tasks/ManageTagsDialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { usePageNavStack } from "@/hooks/use-page-nav-stack";
 import { useRelativeTimeTick } from "@/hooks/use-relative-time-tick";
+import { usePagePeek } from "@/components/notes/usePagePeek";
+import { PagePeekPopover } from "@/components/notes/PagePeekPopover";
 
 const notesApp = getApp("notes");
 const MOBILE_EDGE_SWIPE_TRIGGER_PX = 56;
@@ -510,6 +512,21 @@ export default function NotesPage() {
 
     openPageById(targetPageId);
   };
+
+  const { peekTarget, openPeek, closePeek } = usePagePeek();
+
+  const handlePeekPageReference = useCallback((title: string, rect: DOMRect) => {
+    openPeek({ pageTitle: title, anchorRect: rect });
+  }, [openPeek]);
+
+  const handlePeekNavigate = useCallback((title: string) => {
+    closePeek();
+    const targetPageId = notePageIdByTitle.get(title.trim().toLocaleLowerCase());
+    if (targetPageId) {
+      openPageById(targetPageId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closePeek, notePageIdByTitle]);
 
   const overviewSearchTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -1035,6 +1052,7 @@ export default function NotesPage() {
                     onFocusApplied={handleFocusApplied}
                     onFocusBlock={handleFocusBlock}
                     onOpenPageReference={handleOpenPageReference}
+                    onPeekPageReference={handlePeekPageReference}
                     onCreateSibling={handleCreateSiblingBlock}
                     onCreateEmptySibling={handleCreateEmptySiblingBlock}
                     onCreateSiblings={handleCreateSiblingBlocks}
@@ -1130,6 +1148,14 @@ export default function NotesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {peekTarget && (
+        <PagePeekPopover
+          target={peekTarget}
+          onClose={closePeek}
+          onNavigate={handlePeekNavigate}
+        />
+      )}
     </div>
   );
 }

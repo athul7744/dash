@@ -756,6 +756,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   onCreateSiblings,
   onMergeWithPrevious,
   onOpenPageReference,
+  onPeekPageReference,
   onEditorCreate,
   onNavigateUp,
   onNavigateDown,
@@ -790,6 +791,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   onCreateSiblings?: (content: NoteBlockInsert, siblingContents: NoteBlockInsert[]) => Promise<void> | void;
   onMergeWithPrevious?: (content: JSONContent, options?: { hasChildren?: boolean }) => void | Promise<void>;
   onOpenPageReference?: (title: string) => void;
+  onPeekPageReference?: (title: string, rect: DOMRect) => void;
   onEditorCreate?: () => void;
   onNavigateUp?: () => void;
   onNavigateDown?: () => void;
@@ -810,6 +812,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   const onCreateSiblingsRef = useRef(onCreateSiblings);
   const onMergeWithPreviousRef = useRef(onMergeWithPrevious);
   const onOpenPageReferenceRef = useRef(onOpenPageReference);
+  const onPeekPageReferenceRef = useRef(onPeekPageReference);
   const onEditorCreateRef = useRef(onEditorCreate);
   const onNavigateUpRef = useRef(onNavigateUp);
   const onNavigateDownRef = useRef(onNavigateDown);
@@ -824,6 +827,14 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   const lastAppliedExternalContentRef = useRef(JSON.stringify(initialContentRef.current));
   const pendingLocalContentRef = useRef<string | null>(null);
   const suppressBlurCommitRef = useRef(false);
+  const peekHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up peek hover timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (peekHoverTimeoutRef.current) clearTimeout(peekHoverTimeoutRef.current);
+    };
+  }, []);
   const isEditingMarkdownSourceRef = useRef(false);
   const lastMarkdownToggleVersionRef = useRef(markdownToggleVersion);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
@@ -1018,6 +1029,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
     onCreateSiblingsRef.current = onCreateSiblings;
     onMergeWithPreviousRef.current = onMergeWithPrevious;
     onOpenPageReferenceRef.current = onOpenPageReference;
+    onPeekPageReferenceRef.current = onPeekPageReference;
     onEditorCreateRef.current = onEditorCreate;
     onNavigateUpRef.current = onNavigateUp;
     onNavigateDownRef.current = onNavigateDown;
@@ -1179,8 +1191,47 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
           }
 
           event.preventDefault();
-          onOpenPageReferenceRef.current?.(reference.title);
+          // On mobile (no hover capability), click opens peek; on desktop click navigates
+          const isTouchDevice = window.matchMedia('(hover: none)').matches;
+          if (onPeekPageReferenceRef.current && isTouchDevice) {
+            const refSpan = target.closest(".note-ref-token-page") as HTMLElement;
+            if (refSpan) {
+              onPeekPageReferenceRef.current(reference.title, refSpan.getBoundingClientRect());
+            }
+          } else {
+            onOpenPageReferenceRef.current?.(reference.title);
+          }
           return true;
+        },
+        mouseover(view, event) {
+          if (window.matchMedia('(hover: none)').matches) return false;
+          const target = event.target as HTMLElement;
+          const refSpan = target.closest?.(".note-ref-token-page") as HTMLElement | null;
+          if (!refSpan) return false;
+
+          const nextEditor = editor ?? view as unknown as Editor;
+          const position = view.posAtDOM(refSpan, 0);
+          const reference = getResolvedPageReferenceAtPosition(nextEditor, position);
+          if (!reference) return false;
+
+          const canOpen = notePageTitles.some((t) => t.localeCompare(reference.title, undefined, { sensitivity: "accent" }) === 0);
+          if (!canOpen) return false;
+
+          if (peekHoverTimeoutRef.current) clearTimeout(peekHoverTimeoutRef.current);
+          peekHoverTimeoutRef.current = setTimeout(() => {
+            onPeekPageReferenceRef.current?.(reference.title, refSpan.getBoundingClientRect());
+          }, 350);
+          return false;
+        },
+        mouseout(_view, event) {
+          const target = event.target as HTMLElement;
+          if (target.closest?.(".note-ref-token-page")) {
+            if (peekHoverTimeoutRef.current) {
+              clearTimeout(peekHoverTimeoutRef.current);
+              peekHoverTimeoutRef.current = null;
+            }
+          }
+          return false;
         },
         blur() {
           if (suppressBlurCommitRef.current) {

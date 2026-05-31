@@ -41,6 +41,7 @@ export function NotesEditorContent({
   onFocusApplied,
   onFocusBlock,
   onOpenPageReference,
+  onPeekPageReference,
   onCreateSibling,
   onCreateEmptySibling,
   onCreateSiblings,
@@ -79,6 +80,7 @@ export function NotesEditorContent({
   onFocusApplied: () => void;
   onFocusBlock: (blockId: string, placement: "start" | "end") => void;
   onOpenPageReference: (title: string) => void;
+  onPeekPageReference?: (title: string, rect: DOMRect) => void;
   onCreateSibling: (
     blockId: string,
     parentBlockId: string | null | undefined,
@@ -223,6 +225,7 @@ export function NotesEditorContent({
               onFocusBlock={onFocusBlock}
               notePageTitles={notePageTitles}
               onOpenPageReference={onOpenPageReference}
+              onPeekPageReference={onPeekPageReference}
               onCreateSibling={onCreateSibling}
               onCreateEmptySibling={onCreateEmptySibling}
               onCreateSiblings={onCreateSiblings}

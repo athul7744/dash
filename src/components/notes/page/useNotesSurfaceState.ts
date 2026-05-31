@@ -86,7 +86,7 @@ export function useNotesSurfaceState({
         tags: selectedPageTags,
         blockCount: selectedBlockCount,
         backlinkCount: linkedReferenceCount,
-        blocks: displayBlocks,
+        blocks: displayBlocks.length > 0 && displayBlocks[0].page_id !== selectedPageIdForEditor ? [] : displayBlocks,
       }
     : null;
 

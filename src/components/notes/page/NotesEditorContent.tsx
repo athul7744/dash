@@ -165,7 +165,7 @@ export function NotesEditorContent({
 
   const showBlocksSettling = !blocksSettled || isLoadingTags;
 
-  if (showSelectedPageLoading && (!editorContent || blockCount === 0)) {
+  if (showSelectedPageLoading) {
     return (
       <div className="mx-auto max-w-3xl">
         <NotesEditorMainSkeleton />

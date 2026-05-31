@@ -227,8 +227,9 @@ export default function NotesPage() {
     }
 
     // Clear drafts immediately when switching to a different page to prevent stale content flash
+    // Note: pageTitleDraft is NOT cleared here — it's pre-set by navigation handlers
+    // so the breadcrumb title stays stable during transitions.
     if (hydratedPageIdRef.current !== null && hydratedPageIdRef.current !== selectedPageId) {
-      setPageTitleDraft("");
       setPageTitleError(null);
       setPageEmojiDraft(undefined);
       setSummaryDraft("");
@@ -457,17 +458,33 @@ export default function NotesPage() {
     });
   }, [linkedReferences.length, pageTagMentions.length, renderedPageOutline.length, selectedPage?.id, selectedPageAttachments.length, selectedPageSummary, selectedPageTags.length]);
 
-  const openPageById = (pageId: string) => {
+  const openPageById = (pageId: string, targetTitle?: string) => {
     // Push current page (or overview) onto navigation stack before navigating away
     if (selectedPageId) {
       navStack.push({ pageId: selectedPageId, title: pageTitleDraft || selectedPage?.title || "Untitled" });
     } else {
       navStack.push({ pageId: "__overview__", title: "Overview" });
     }
+    if (targetTitle) {
+      setPageTitleDraft(targetTitle);
+    }
     transitionToEditor(pageId);
     startTransition(() => {
       router.push(`/notes?page=${pageId}`);
     });
+  };
+
+  const handleBreadcrumbNavigate = (pageId: string) => {
+    const entry = navStack.stack.find((e) => e.pageId === pageId);
+    navStack.popTo(pageId);
+    if (pageId === "__overview__") {
+      transitionToOverview();
+      router.push("/notes");
+    } else {
+      if (entry) setPageTitleDraft(entry.title);
+      transitionToEditor(pageId);
+      startTransition(() => { router.push(`/notes?page=${pageId}`); });
+    }
   };
 
   const handleFocusApplied = useCallback(() => {
@@ -498,7 +515,7 @@ export default function NotesPage() {
     try {
       const pageId = await createStarterPage(normalizedTitle);
       setIsPageSearchOpen(false);
-      openPageById(pageId);
+      openPageById(pageId, normalizedTitle);
     } finally {
       setIsCreatingPage(false);
     }
@@ -510,7 +527,7 @@ export default function NotesPage() {
       return;
     }
 
-    openPageById(targetPageId);
+    openPageById(targetPageId, title.trim());
   };
 
   const { peekTarget, openPeek, closePeek } = usePagePeek();
@@ -523,7 +540,7 @@ export default function NotesPage() {
     closePeek();
     const targetPageId = notePageIdByTitle.get(title.trim().toLocaleLowerCase());
     if (targetPageId) {
-      openPageById(targetPageId);
+      openPageById(targetPageId, title.trim());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [closePeek, notePageIdByTitle]);
@@ -897,6 +914,7 @@ export default function NotesPage() {
                       onClick={() => {
                         const prev = navStack.pop();
                         if (prev && prev.pageId !== "__overview__") {
+                          setPageTitleDraft(prev.title);
                           transitionToEditor(prev.pageId);
                           startTransition(() => { router.push(`/notes?page=${prev.pageId}`); });
                         } else {
@@ -985,26 +1003,12 @@ export default function NotesPage() {
                 ) : <div className="hidden sm:block" aria-hidden="true" />}
 
                 <section className="min-w-0 sm:min-h-0 sm:overflow-y-auto">
-                  {navStack.stack.length > 0 && selectedPageId && (
+                  {navStack.stack.length > 0 && !isDisplayingOverview && (
                     <div className="mx-auto hidden max-w-3xl px-3 pt-1 sm:block sm:px-0">
                       <NotesPageBreadcrumb
                         stack={navStack.stack}
-                        currentTitle={pageTitleDraft || selectedPage?.title || "Untitled"}
-                        onNavigate={(pageId) => {
-                          navStack.popTo(pageId);
-                          if (pageId === "__overview__") {
-                            transitionToOverview();
-                            router.push("/notes");
-                          } else {
-                            transitionToEditor(pageId);
-                            startTransition(() => { router.push(`/notes?page=${pageId}`); });
-                          }
-                        }}
-                        onNavigateOverview={() => {
-                          navStack.clear();
-                          transitionToOverview();
-                          router.push("/notes");
-                        }}
+                        currentTitle={pageTitleDraft || selectedPage?.title || ""}
+                        onNavigate={handleBreadcrumbNavigate}
                       />
                     </div>
                   )}
@@ -1024,6 +1028,7 @@ export default function NotesPage() {
                     onBack={() => {
                       const prev = navStack.pop();
                       if (prev && prev.pageId !== "__overview__") {
+                        setPageTitleDraft(prev.title);
                         transitionToEditor(prev.pageId);
                         startTransition(() => { router.push(`/notes?page=${prev.pageId}`); });
                       } else {
@@ -1091,25 +1096,11 @@ export default function NotesPage() {
           >
             <Plus className="h-5 w-5" />
           </Button>
-        ) : navStack.stack.length > 0 && selectedPageId ? (
+        ) : navStack.stack.length > 0 && !isDisplayingOverview ? (
           <NotesPageBreadcrumb
             stack={navStack.stack}
-            currentTitle={pageTitleDraft || selectedPage?.title || "Untitled"}
-            onNavigate={(pageId) => {
-              navStack.popTo(pageId);
-              if (pageId === "__overview__") {
-                transitionToOverview();
-                router.push("/notes");
-              } else {
-                transitionToEditor(pageId);
-                startTransition(() => { router.push(`/notes?page=${pageId}`); });
-              }
-            }}
-            onNavigateOverview={() => {
-              navStack.clear();
-              transitionToOverview();
-              router.push("/notes");
-            }}
+            currentTitle={pageTitleDraft || selectedPage?.title || ""}
+            onNavigate={handleBreadcrumbNavigate}
           />
         ) : undefined}
       />

@@ -8,10 +8,7 @@ interface NotesPageBreadcrumbProps {
   stack: PageNavEntry[];
   currentTitle: string;
   onNavigate: (pageId: string) => void;
-  onNavigateOverview: () => void;
   className?: string;
-  /** Ignored — kept for API compat */
-  maxVisible?: number;
 }
 
 export function NotesPageBreadcrumb({
@@ -51,8 +48,8 @@ export function NotesPageBreadcrumb({
             <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/40" />
           </span>
         ))}
-        <span className="shrink-0 whitespace-nowrap px-1 py-0.5 font-medium text-foreground" title={currentTitle}>
-          {currentTitle || "Untitled"}
+        <span className="shrink-0 whitespace-nowrap px-1 py-0.5 font-medium text-foreground" title={currentTitle || undefined}>
+          {currentTitle}
         </span>
       </div>
     </nav>

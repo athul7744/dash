@@ -4,6 +4,7 @@ import {
   createEmptyNoteDocument,
   createNoteDocumentFromText,
   extractNoteText,
+  getNoteDocumentEndSelection,
   mergeNoteDocuments,
   normalizeNoteDocument,
   serializeNoteDocument,
@@ -144,7 +145,6 @@ describe("notes-content", () => {
       content: [
         {
           type: "codeBlock",
-          attrs: { language: null },
           content: [{ type: "text", text: "const value = 1" }],
         },
         { type: "paragraph", content: [{ type: "text", text: "Next" }] },
@@ -394,5 +394,36 @@ describe("notes-content", () => {
       ],
     };
     expect(serializeNoteDocumentToMarkdown(document)).toBe("> Where $e^{i\\pi} + 1 = 0$");
+  });
+});
+
+describe("getNoteDocumentEndSelection", () => {
+  it("returns 1 for an empty document", () => {
+    expect(getNoteDocumentEndSelection(null)).toBe(1);
+    expect(getNoteDocumentEndSelection({ type: "doc", content: [{ type: "paragraph" }] })).toBe(1);
+  });
+
+  it("returns correct position for a single paragraph with text", () => {
+    const doc = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "hello" }] }] };
+    // paragraph node: content(5) + 2 border = 7, doc total = 7, result = max(1, 7-1) = 6
+    expect(getNoteDocumentEndSelection(doc)).toBe(6);
+  });
+
+  it("returns correct position for multiple paragraphs", () => {
+    const doc = {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "ab" }] },
+        { type: "paragraph", content: [{ type: "text", text: "cd" }] },
+      ],
+    };
+    // Each paragraph: content(2) + 2 = 4, total = 8, result = max(1, 8-1) = 7
+    expect(getNoteDocumentEndSelection(doc)).toBe(7);
+  });
+
+  it("handles a heading with text", () => {
+    const doc = { type: "doc", content: [{ type: "heading", content: [{ type: "text", text: "Title" }] }] };
+    // heading: content(5) + 2 = 7, result = max(1, 7-1) = 6
+    expect(getNoteDocumentEndSelection(doc)).toBe(6);
   });
 });

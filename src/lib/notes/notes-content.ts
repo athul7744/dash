@@ -45,8 +45,9 @@ function normalizeNoteMark(mark: unknown) {
 
   if (isRecord(mark.attrs)) {
     const attrs = normalizeObjectEntries(mark.attrs);
-    if (Object.keys(attrs).length > 0) {
-      normalizedMark.attrs = attrs;
+    const filteredAttrs = Object.fromEntries(Object.entries(attrs).filter(([, v]) => v !== null));
+    if (Object.keys(filteredAttrs).length > 0) {
+      normalizedMark.attrs = filteredAttrs;
     }
   }
 
@@ -64,8 +65,10 @@ function normalizeNoteNode(node: unknown): Record<string, unknown> | null {
 
   if (isRecord(node.attrs)) {
     const attrs = normalizeObjectEntries(node.attrs);
-    if (Object.keys(attrs).length > 0) {
-      normalizedNode.attrs = attrs;
+    // Strip null-valued attrs (Tiptap includes defaults like color:null, but they're semantically "not set")
+    const filteredAttrs = Object.fromEntries(Object.entries(attrs).filter(([, v]) => v !== null));
+    if (Object.keys(filteredAttrs).length > 0) {
+      normalizedNode.attrs = filteredAttrs;
     }
   }
 
@@ -186,7 +189,7 @@ function parseSerializedDocument(raw: string): Record<string, unknown> | null {
   return isNoteDocument(parsedRecord) ? parsedRecord : null;
 }
 
-export function normalizeNoteDocument(raw: unknown) {
+export function normalizeNoteDocument(raw: unknown): Record<string, unknown> {
   const normalizeResolvedDocument = (value: unknown) => normalizeNoteNode(value) ?? createEmptyNoteDocument();
 
   if (!raw) {

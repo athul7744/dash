@@ -47,8 +47,20 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/notes/notes-block-tree.dom.test.ts`
   Runs jsdom-backed integration coverage for NotesBlockTree component including paste routing, block deletion, Alt+arrow moving, selection handling, and context menu block operations.
 
-- `tests/notes/useNotesSurfaceState.dom.test.ts`
-  Runs jsdom-backed integration coverage for useNotesSurfaceState hook behavior covering editor content caching during page transitions and selected-page loading.
+- `tests/notes/note-page-shell.dom.test.ts`
+  Runs jsdom-backed integration coverage for NotePageShell component including skeleton rendering, isReady handle state, backlink counts, linked references, and block state reflection.
+
+- `tests/notes/slash-commands.test.ts`
+  Covers slash command filtering, grouping, and query matching logic used by the block editor command palette.
+
+- `tests/notes/date-tokens.test.ts`
+  Covers date token formatting and relative date resolution for inline date slash commands.
+
+- `tests/notes/page-nav-stack.test.ts`
+  Covers pure push/pop/popTo logic for the page breadcrumb navigation stack.
+
+- `tests/notes/notes-write.test.ts`
+  Covers immediate starter-page creation write behavior.
 
 - `tests/notes/properties.test.ts`
   Covers property definition config parsing (parseJsonColumns) and custom property value extraction (parseCustomPropertyValues) including malformed JSON and empty inputs.

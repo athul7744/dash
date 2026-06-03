@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import { hasPendingWrites } from "@/lib/shared/debounced-update";
-import { hasPendingNoteEdgeReconciles } from "@/lib/notes/notes";
 import { useRelativeTimeTick } from "@/hooks/use-relative-time-tick";
 import { formatTimestampLabel } from "@/components/notes/page/utils";
 
@@ -49,7 +48,7 @@ export function useSettledTimestamp(
       return;
     }
 
-    if (!hasPendingWrites() && !hasPendingNoteEdgeReconciles()) {
+    if (!hasPendingWrites()) {
       if (settleUpdatedTimestampTimeoutRef.current !== null) {
         window.clearTimeout(settleUpdatedTimestampTimeoutRef.current);
         settleUpdatedTimestampTimeoutRef.current = null;
@@ -63,7 +62,7 @@ export function useSettledTimestamp(
     }
 
     const waitForSettledTimestamp = () => {
-      if (hasPendingWrites() || hasPendingNoteEdgeReconciles()) {
+      if (hasPendingWrites()) {
         settleUpdatedTimestampTimeoutRef.current = window.setTimeout(waitForSettledTimestamp, 240);
         return;
       }
@@ -85,7 +84,7 @@ export function useSettledTimestamp(
   const relativeTimeTick = useRelativeTimeTick(30000);
 
   useEffect(() => {
-    if (!selectedPage || hasPendingWrites() || hasPendingNoteEdgeReconciles()) {
+    if (!selectedPage || hasPendingWrites()) {
       return;
     }
 

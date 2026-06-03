@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import type { Editor } from "@tiptap/core";
 
 import { useQuery } from "@powersync/react";
 
@@ -17,15 +18,14 @@ import {
 } from "@/hooks/use-notes";
 import { usePropertyDefinitions } from "@/hooks/use-property-definitions";
 import { useSettledTimestamp } from "@/hooks/use-settled-timestamp";
-import type { JsonValue } from "@/lib/notes/notes";
 import type { Tag } from "@/lib/powersync/AppSchema";
 
 import { NotesEditorContent } from "./NotesEditorContent";
 import { NotesEditorMainSkeleton } from "@/components/notes/NotesPageSkeleton";
-import { useNoteBlockActions } from "./useNoteBlockActions";
+import { useNoteBlockStoreActions } from "./useNoteBlockStoreActions";
 import { useNotePageActions } from "./useNotePageActions";
 import { buildOutlineEntries, formatTimestampLabel, normalizePageEmoji, parseProperties, parseStoredTagIds, resolveNoteTags } from "./utils";
-import type { NormalizedNotePage, NoteTag, OptimisticBlockStructure, OutlineEntry } from "./types";
+import type { NormalizedNotePage, NoteTag, OutlineEntry } from "./types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -88,10 +88,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState("");
   const [selectedTagIdsDraft, setSelectedTagIdsDraft] = useState<string[]>([]);
-  const [blockContentDrafts, setBlockContentDrafts] = useState<Record<string, string>>({});
-  const [optimisticBlockStructure, setOptimisticBlockStructure] = useState<Record<string, OptimisticBlockStructure>>({});
-  const [focusTarget, setFocusTarget] = useState<{ blockId: string; placement: number | "start" | "end" } | null>(null);
-  const [isCreatingBlock, setIsCreatingBlock] = useState(false);
   const [isDeletingPage, setIsDeletingPage] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -108,9 +104,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     setPageEmojiDraft(undefined);
     setSummaryDraft(pageSummary ?? "");
     setSelectedTagIdsDraft(pageTagIds);
-    setBlockContentDrafts({});
-    setOptimisticBlockStructure({});
-    setFocusTarget(null);
   }, [page?.id, pageId]);
 
   // Reset drafts when switching pages (before new data arrives)
@@ -123,9 +116,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     setPageEmojiDraft(undefined);
     setSummaryDraft("");
     setSelectedTagIdsDraft([]);
-    setBlockContentDrafts({});
-    setOptimisticBlockStructure({});
-    setFocusTarget(null);
   }, [pageId]);
 
   // Emoji draft reconciliation
@@ -136,41 +126,18 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     }
   }, [pageEmojiDraft, page?.id, pageEmoji]);
 
-  // Optimistic structure reconciliation
-  useEffect(() => {
-    setOptimisticBlockStructure((current) => {
-      const optimisticIds = Object.keys(current);
-      if (optimisticIds.length === 0) return current;
-
-      const selectedBlockById = new Map(selectedBlocks.map((block) => [block.id, block]));
-      let hasChanged = false;
-      const next = { ...current };
-
-      optimisticIds.forEach((blockId) => {
-        const optimisticMove = current[blockId];
-        const selectedBlock = selectedBlockById.get(blockId);
-
-        if (!selectedBlock) {
-          delete next[blockId];
-          hasChanged = true;
-          return;
-        }
-
-        if (
-          (selectedBlock.parent_block_id ?? null) === optimisticMove.parent_block_id &&
-          selectedBlock.sort_rank === optimisticMove.sort_rank
-        ) {
-          delete next[blockId];
-          hasChanged = true;
-        }
-      });
-
-      return hasChanged ? next : current;
-    });
-  }, [selectedBlocks]);
-
-  // ─── Block actions ─────────────────────────────────────────────────────────
+  // ─── Block store ───────────────────────────────────────────────────────────
   const {
+    store,
+    displayBlocks,
+    orderedVisibleBlockIds,
+    blockMap: selectedBlockMap,
+    focusTarget,
+    setFocusTarget,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
     handleCommitBlockContent,
     handleConvertBlockType,
     handleCreateEmptySiblingBlock,
@@ -184,31 +151,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     handleMoveSelectedBlockRange,
     handleOutdentBlock,
     handleUpdateBlockContent,
-    orderedVisibleBlockIds,
-    selectedBlockMap,
-    structuredBlocks,
-  } = useNoteBlockActions({
-    selectedBlocks,
-    selectedPageId: pageId,
-    selectedPageIdForWrite: pageId,
-    isCreatingBlock,
-    currentFocusTarget: focusTarget,
-    blockContentDrafts,
-    optimisticBlockStructure,
-    setIsCreatingBlock,
-    setBlockContentDrafts,
-    setOptimisticBlockStructure,
-    setFocusTarget,
-  });
-
-  // ─── Display blocks (with draft overlays) ─────────────────────────────────
-  const displayBlocks = useMemo(
-    () => structuredBlocks.map((block) => ({
-      ...block,
-      content: blockContentDrafts[block.id] ?? block.content,
-    })),
-    [blockContentDrafts, structuredBlocks]
-  );
+  } = useNoteBlockStoreActions({ pageId, selectedBlocks });
 
   // ─── Settled timestamp ─────────────────────────────────────────────────────
   const {
@@ -246,7 +189,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     activePageEmoji,
     summaryDraft,
     selectedTagIdsDraft,
-    blockContentDrafts,
+    displayBlocks,
     orderedVisibleBlockIds,
     selectedBlockMap,
     setPageTitleDraft,
@@ -258,6 +201,14 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     onDeleteSuccess,
   });
 
+  // ─── Editor ref registration ───────────────────────────────────────────────
+  const handleEditorRef = useCallback(
+    (blockId: string, editor: Editor | null) => {
+      store.setEditorRef(blockId, editor);
+    },
+    [store],
+  );
+
   // ─── Outline ───────────────────────────────────────────────────────────────
   const pageOutline = useMemo(
     () => buildOutlineEntries(displayBlocks),
@@ -266,6 +217,33 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
 
   // ─── Loading gate ──────────────────────────────────────────────────────────
   const isReady = Boolean(page && page.id === pageId && !isLoadingPage && !isLoadingPropertyDefs);
+
+  // ─── Global Ctrl+Z / Ctrl+Y keyboard shortcuts for page-level undo/redo ───
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!isReady) return;
+
+      const isUndo = (e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "z";
+      const isRedo = (e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z") || (e.shiftKey && e.key === "Z"));
+
+      if (!isUndo && !isRedo) return;
+
+      // If a Tiptap editor is focused and can handle undo/redo itself, let it
+      const activeEl = document.activeElement;
+      const prosemirror = activeEl?.closest(".ProseMirror");
+      if (prosemirror) return; // Tiptap handles it
+
+      e.preventDefault();
+      if (isUndo) {
+        undo();
+      } else {
+        redo();
+      }
+    };
+
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isReady, undo, redo]);
 
   // Notify parent when shell becomes ready (triggers re-render so ref reads pick up new values)
   const prevIsReadyRef = useRef(false);
@@ -306,6 +284,10 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     setFocusTarget: (target) => setFocusTarget(target),
     togglePageFavorite,
     isReady,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   }));
 
   // ─── Focus callbacks ───────────────────────────────────────────────────────
@@ -389,6 +371,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
       onDelete={handleDeleteBlock}
       onDeleteRange={handleDeleteBlockRange}
       onUpdateContent={handleUpdateBlockContent}
+      onEditorRef={handleEditorRef}
       onConvertBlockType={handleConvertBlockType}
     />
   );
@@ -425,4 +408,8 @@ export type NotePageShellHandle = {
   setFocusTarget: (target: { blockId: string; placement: "start" | "end" }) => void;
   togglePageFavorite: (page: NormalizedNotePage) => void;
   isReady: boolean;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 };

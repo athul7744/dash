@@ -29,7 +29,7 @@ type UseNotePageActionsParams = {
   activePageEmoji: string | null;
   summaryDraft: string;
   selectedTagIdsDraft: string[];
-  blockContentDrafts: Record<string, string>;
+  displayBlocks: NoteBlockRow[];
   orderedVisibleBlockIds: string[];
   selectedBlockMap: Map<string, NoteBlockRow>;
   setPageTitleDraft: Dispatch<SetStateAction<string>>;
@@ -51,7 +51,7 @@ export function useNotePageActions({
   activePageEmoji,
   summaryDraft,
   selectedTagIdsDraft,
-  blockContentDrafts,
+  displayBlocks,
   orderedVisibleBlockIds,
   selectedBlockMap,
   setPageTitleDraft,
@@ -157,7 +157,7 @@ export function useNotePageActions({
 
     const blockLines = orderedVisibleBlockIds
       .map((blockId) => {
-        const serialized = blockContentDrafts[blockId] ?? selectedBlockMap.get(blockId)?.content ?? null;
+        const serialized = selectedBlockMap.get(blockId)?.content ?? null;
         return extractNoteText(serialized);
       })
       .filter((text) => text.length > 0);

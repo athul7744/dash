@@ -259,7 +259,7 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
   onMergeWithPrevious?: (content: JSONContent, options?: { hasChildren?: boolean }) => void | Promise<void>;
   onOpenPageReference?: (title: string) => void;
   onPeekPageReference?: (title: string, rect: DOMRect) => void;
-  onEditorCreate?: () => void;
+  onEditorCreate?: (editor: Editor) => void;
   onNavigateUp?: () => void;
   onNavigateDown?: () => void;
   onSelectUp?: () => void;
@@ -1049,11 +1049,9 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
 
             if (hasChildren) {
               pendingLocalContentRef.current = JSON.stringify(nextSiblingContent);
-              editor.commands.setContent(nextSiblingContent, { emitUpdate: true });
               onCreateSiblingRef.current(nextSiblingContent, createNormalTextSiblingContent(currentContent), splitOptions);
             } else {
               pendingLocalContentRef.current = JSON.stringify(currentContent);
-              editor.commands.setContent(currentContent, { emitUpdate: true });
               onCreateSiblingRef.current(currentContent, createNormalTextSiblingContent(nextSiblingContent), splitOptions);
             }
           }
@@ -1191,8 +1189,8 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
       updateSlashQuery(nextEditor);
       updatePageReferenceQuery(nextEditor);
     },
-    onCreate() {
-      onEditorCreateRef.current?.();
+    onCreate({ editor: createdEditor }: { editor: Editor }) {
+      onEditorCreateRef.current?.(createdEditor);
     },
   }, []);
 

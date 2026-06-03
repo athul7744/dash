@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Editor } from "@tiptap/core";
 import { useQuery } from "@powersync/react";
 
 import { NotesBlockTree } from "@/components/notes/NotesBlockTree";
@@ -53,6 +54,7 @@ export function NotesEditorContent({
   onDelete,
   onDeleteRange,
   onUpdateContent,
+  onEditorRef,
   onConvertBlockType,
 }: {
   editorContent: NotesEditorRenderableContent;
@@ -102,6 +104,7 @@ export function NotesEditorContent({
   onDelete: (blockId: string) => void | Promise<void>;
   onDeleteRange: (blockIds: string[]) => void | Promise<void>;
   onUpdateContent: (blockId: string, nextContent: JsonValue) => void;
+  onEditorRef?: (blockId: string, editor: Editor | null) => void;
   onConvertBlockType?: (blockId: string, blockType: string, content: unknown) => void;
 }) {
   const { data: allTags = [], isLoading: isLoadingTags } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
@@ -238,6 +241,7 @@ export function NotesEditorContent({
               onDeleteRange={onDeleteRange}
               onUpdateContent={onUpdateContent}
               onFirstBlockReady={handleFirstBlockReady}
+              onEditorRef={onEditorRef}
               onConvertBlockType={onConvertBlockType}
             />
           </div>

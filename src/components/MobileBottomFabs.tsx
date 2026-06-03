@@ -10,6 +10,7 @@ interface MobileBottomFabsProps {
   centerContent?: ReactNode;
   centerShellClassName?: string;
   centerUseShell?: boolean;
+  rightContent?: ReactNode;
 }
 
 const MOBILE_OVERLAY_SELECTOR = [
@@ -18,7 +19,7 @@ const MOBILE_OVERLAY_SELECTOR = [
   '[data-slot="alert-dialog-content"]',
 ].join(", ");
 
-export function MobileBottomFabs({ app, centerContent, centerShellClassName, centerUseShell = true }: MobileBottomFabsProps) {
+export function MobileBottomFabs({ app, centerContent, centerShellClassName, centerUseShell = true, rightContent }: MobileBottomFabsProps) {
   const [hasBlockingOverlay, setHasBlockingOverlay] = useState(false);
 
   useEffect(() => {
@@ -89,6 +90,21 @@ export function MobileBottomFabs({ app, centerContent, centerShellClassName, cen
           ) : (
             <div className="pointer-events-auto">{centerContent}</div>
           )}
+        </div>
+      )}
+
+      {rightContent && (
+        <div
+          className={cn(
+            "sm:hidden fixed z-50 transition-all duration-200",
+            hasBlockingOverlay && "pointer-events-none opacity-0 translate-y-2"
+          )}
+          style={{
+            right: "calc(env(safe-area-inset-right, 0px) + var(--app-gutter-x))",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+          }}
+        >
+          {rightContent}
         </div>
       )}
     </>

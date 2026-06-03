@@ -1,6 +1,7 @@
 "use client";
 
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import type { Editor } from "@tiptap/core";
 import { Plus } from "lucide-react";
 
 import { BlockContextMenu } from "@/components/notes/BlockContextMenu";
@@ -72,6 +73,7 @@ function BlockNodeView({
   onSelectDown,
   onClearSelection,
   onBlockEditorCreate,
+  onEditorRef,
   onConvertBlockType,
 }: {
   node: BlockTreeNode;
@@ -117,6 +119,7 @@ function BlockNodeView({
   onSelectDown: (blockId: string, nextBlockId: string) => void;
   onClearSelection: () => void;
   onBlockEditorCreate?: () => void;
+  onEditorRef?: (blockId: string, editor: Editor | null) => void;
   onConvertBlockType?: (blockId: string, blockType: string, content: unknown) => void;
 }) {
   const previousBlockId = previousBlockIdById.get(node.block.id) ?? null;
@@ -356,7 +359,6 @@ function BlockNodeView({
                 content={node.block.content}
                 onUpdateContent={(nextContent) => {
                   onUpdateContent(node.block.id, nextContent as JsonValue);
-                  onCommitContent(node.block.id, nextContent as JsonValue);
                 }}
                 onOpenPageReference={onOpenPageReference}
               />
@@ -369,7 +371,10 @@ function BlockNodeView({
                 shouldFocus={isFocused}
                 focusPlacement={focusPlacement}
                 onFocusApplied={onFocusApplied}
-                onEditorCreate={onBlockEditorCreate}
+                onEditorCreate={(editor) => {
+                  onBlockEditorCreate?.();
+                  onEditorRef?.(node.block.id, editor);
+                }}
                 onFocus={() => {
                   onEditorFocus(node.block.id, "start");
                 }}
@@ -446,6 +451,7 @@ function BlockNodeView({
               onSelectDown={onSelectDown}
               onClearSelection={onClearSelection}
               onBlockEditorCreate={onBlockEditorCreate}
+              onEditorRef={onEditorRef}
               onConvertBlockType={onConvertBlockType}
             />
           ))}
@@ -477,6 +483,7 @@ export function NotesBlockTree({
   onDeleteRange,
   onUpdateContent,
   onFirstBlockReady,
+  onEditorRef,
   onConvertBlockType,
 }: {
   blocks: NoteBlockRow[];
@@ -510,6 +517,7 @@ export function NotesBlockTree({
   onDeleteRange: (blockIds: string[]) => void | Promise<void>;
   onUpdateContent: (blockId: string, nextContent: JsonValue) => void;
   onFirstBlockReady?: () => void;
+  onEditorRef?: (blockId: string, editor: Editor | null) => void;
   onConvertBlockType?: (blockId: string, blockType: string, content: unknown) => void;
 }) {
   const [markdownToggleVersions, setMarkdownToggleVersions] = useState<Record<string, number>>({});
@@ -678,6 +686,7 @@ export function NotesBlockTree({
           onSelectDown={handleSelectDown}
           onClearSelection={() => setBlockRangeSelection(null)}
           onBlockEditorCreate={handleBlockEditorCreate}
+          onEditorRef={onEditorRef}
           onConvertBlockType={onConvertBlockType}
         />
       ))}

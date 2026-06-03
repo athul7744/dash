@@ -2,13 +2,12 @@
 
 import { useQuery } from "@powersync/react";
 
-import type { AttachmentRecord, BlockRecord, EdgeRecord, PageRecord } from "@/lib/powersync/AppSchema";
+import type { AttachmentRecord, BlockRecord, PageRecord } from "@/lib/powersync/AppSchema";
 
 type NoteCountRow = { count: number };
 
 export type NotePageRow = PageRecord & { id: string; preview_content?: string | null };
 export type NoteBlockRow = BlockRecord & { id: string };
-export type NoteEdgeRow = EdgeRecord & { id: string };
 export type NoteAttachmentRow = AttachmentRecord & { id: string };
 export type LinkedNoteReferenceRow = {
   source_block_id: string;

@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown, ChevronUp, Copy, Ellipsis, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Copy, Ellipsis, Redo2, Star, Trash2, Undo2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -11,12 +11,16 @@ type NotesEditorChromeBarProps = {
   timestamp: TimestampInfo;
   isFavorite: boolean;
   showAppHeader: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
   onBack: () => void;
   onToggleTimestamp: () => void;
   onToggleAppHeader: () => void;
   onToggleFavorite: () => void;
   onCopyDocument: () => void;
   onDelete: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
 };
 
 const iconButtonClass = "size-8 rounded-full text-muted-foreground transition-[color,background-color,box-shadow] duration-200 hover:bg-accent/60 hover:text-foreground hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)] md:size-9";
@@ -28,12 +32,16 @@ export function NotesEditorChromeBar({
   timestamp,
   isFavorite,
   showAppHeader,
+  canUndo,
+  canRedo,
   onBack,
   onToggleTimestamp,
   onToggleAppHeader,
   onToggleFavorite,
   onCopyDocument,
   onDelete,
+  onUndo,
+  onRedo,
 }: NotesEditorChromeBarProps) {
   return (
     <div className="hidden h-9 items-center sm:flex">
@@ -57,6 +65,28 @@ export function NotesEditorChromeBar({
           </button>
         ) : <span className="block h-4 w-32" aria-hidden="true" />}
         <div className="flex items-center justify-self-end gap-1.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onUndo}
+            disabled={!canUndo}
+            className={iconButtonClass}
+            aria-label="Undo"
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onRedo}
+            disabled={!canRedo}
+            className={iconButtonClass}
+            aria-label="Redo"
+          >
+            <Redo2 className="h-4 w-4" />
+          </Button>
           <Button
             type="button"
             variant="ghost"

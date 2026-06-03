@@ -46,8 +46,6 @@ export type TagDirectoryEntry = {
   pages: NormalizedNotePage[];
 };
 
-export type OptimisticBlockStructure = Pick<NoteBlockRow, "parent_block_id" | "sort_rank">;
-
 export type OutlineEntry = {
   blockId: string;
   indentLevel: number;

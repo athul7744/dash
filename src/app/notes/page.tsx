@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, Columns3, Files, NotebookTabs, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Tag as TagIcon } from "lucide-react";
+import { ChevronDown, ChevronUp, Columns3, Files, NotebookTabs, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Redo2, Tag as TagIcon, Undo2 } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
@@ -23,7 +23,8 @@ import {
 import { SEARCH_POPUP_CLOSE_ANIMATION_MS } from "@/components/ui/search-popup";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAllNotePages, useNoteCounts, useRecentNotePages } from "@/hooks/use-notes";
-import { createStarterPage, flushPendingNoteEdgeReconciles, hasPendingNoteEdgeReconciles, normalizeNotePageTitle, updateNotePageProperties } from "@/lib/notes/notes";
+import { createStarterPage, normalizeNotePageTitle, updateNotePageProperties } from "@/lib/notes/notes";
+import { flushAllNoteBlockStores } from "@/lib/notes/note-block-store";
 import { getApp } from "@/lib/shared/apps";
 import { flushAllUpdates, hasPendingWrites } from "@/lib/shared/debounced-update";
 import { NotesDetailsRail } from "@/components/notes/page/NotesDetailsRail";
@@ -88,12 +89,12 @@ export default function NotesPage() {
 
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
-      if (!hasPendingWrites() && !hasPendingNoteEdgeReconciles()) {
+      if (!hasPendingWrites()) {
         return;
       }
 
       flushAllUpdates();
-      void flushPendingNoteEdgeReconciles();
+      flushAllNoteBlockStores();
       event.preventDefault();
     };
 
@@ -566,11 +567,15 @@ export default function NotesPage() {
                   timestamp={editorUpdatedTimestamp}
                   isFavorite={isFavorite}
                   showAppHeader={showEditorAppHeader}
+                  canUndo={shellHandle?.canUndo ?? false}
+                  canRedo={shellHandle?.canRedo ?? false}
                   onBack={goBack}
                   onToggleTimestamp={revealAbsoluteUpdatedTime}
                   onToggleAppHeader={() => setShowEditorAppHeader((current) => !current)}
                   onToggleFavorite={() => shellHandle?.handleToggleFavorite()}
                   onCopyDocument={() => { void shellHandle?.handleCopyDocument(); }}
+                  onUndo={() => { void shellHandle?.undo(); }}
+                  onRedo={() => { void shellHandle?.redo(); }}
                   onDelete={() => {
                     setIsMobileDetailsDrawerOpen(false);
                     setIsDeleteDialogOpen(true);
@@ -650,6 +655,32 @@ export default function NotesPage() {
             currentTitle={currentPageTitle}
             onNavigate={navigateBreadcrumb}
           />
+        ) : undefined}
+        rightContent={!isDisplayingOverview ? (
+          <div className="flex items-center gap-1 rounded-full border border-border bg-card/90 px-1.5 py-1 shadow-sm backdrop-blur-sm dark:bg-card/75">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => { void shellHandle?.undo(); }}
+              disabled={!shellHandle?.canUndo}
+              className="size-8 rounded-full text-muted-foreground hover:text-foreground disabled:opacity-30"
+              aria-label="Undo"
+            >
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => { void shellHandle?.redo(); }}
+              disabled={!shellHandle?.canRedo}
+              className="size-8 rounded-full text-muted-foreground hover:text-foreground disabled:opacity-30"
+              aria-label="Redo"
+            >
+              <Redo2 className="h-4 w-4" />
+            </Button>
+          </div>
         ) : undefined}
       />
 

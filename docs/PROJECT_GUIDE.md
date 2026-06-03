@@ -149,6 +149,7 @@ Important convention:
 - `src/lib/shared/apps.ts` — app registry used by header/switcher/FAB shell
 - `src/lib/shared/auth.ts` — current-user lookup with session caching
 - `src/lib/shared/share.ts` — parsing incoming share payloads and title generation
+- `src/lib/shared/entity-store.ts` — generic base class for in-memory stores with dirty tracking, debounced persistence, and undo/redo
 - `src/lib/shared/debounced-update.ts` — debounced local writes and execute batching
 - `src/lib/shared/logger.ts` — runtime logging abstraction
 - `src/lib/shared/ranked-order.ts` — reusable LexoRank ordering helpers that can be shared across app groups
@@ -164,7 +165,8 @@ Important convention:
 - `src/hooks/use-property-definitions.ts` — reactive query hook for workspace property definitions
 - `src/lib/notes/notes-content.ts` — note document normalization, serialization (including math nodes), and plain-text extraction
 - `src/lib/notes/notes-tree.ts` — tree building and visible block ordering helpers for note blocks
-- `src/lib/notes/notes.ts` — note writes, attachment upserts, and edge reconciliation
+- `src/lib/notes/note-block-store.ts` — per-page block store with cached persistence, reconcile fast-path, undo/redo, and query block content support
+- `src/lib/notes/notes.ts` — note page CRUD, metadata writes, attachment upserts, and edge reconciliation
 - `src/lib/notes/math-clipboard.ts` — math token protection/restoration for clipboard paste flows
 - `src/lib/notes/block-editor-keyboard.ts` — keyboard decision logic for Enter, Backspace, Tab, and arrow keys in the block editor
 - `src/lib/notes/page-nav-stack.ts` — pure push/pop/popTo logic for the page breadcrumb stack
@@ -199,7 +201,7 @@ Responsibilities:
 - Supports custom page properties stored in `pages.properties.custom`, resolved against workspace-wide `property_definitions`.
 - Uses `ManagePropertiesDialog` for workspace-wide property definition CRUD (create, rename, delete, emoji icons, and select-option editing).
 - Preserves the shared header-first loading model used across the app.
-- Uses the shared debounced write path for page and block updates.
+- Block state is managed by `NoteBlockStore` — an in-memory store with dirty tracking, debounced batched persistence, and undo/redo.
 
 Key modules:
 
@@ -222,8 +224,14 @@ Key modules:
 - `src/components/notes/NotesBlockTree.tsx`
   - Nested visible block tree, block navigation wiring, sibling creation plumbing, block move controls (Alt+arrow), selection handling, and tree-line indentation from block to bullet.
 
-- `src/components/notes/page/useOptimisticBlockState.ts`
-  - Optimistic state management for block CRUD operations (create, hide, restore, reorder).
+- `src/lib/shared/entity-store.ts`
+  - Generic base class for in-memory entity stores with dirty tracking, debounced persistence, and undo/redo stack.
+
+- `src/lib/notes/note-block-store.ts`
+  - Per-page block store built on EntityStore. Manages block nodes, Tiptap editor refs, cached ordered blocks, content cache with reconcile fast-path, batched write transactions, full redo for all commands, and direct content updates for non-editor blocks (query blocks).
+
+- `src/components/notes/page/useNoteBlockStoreActions.ts`
+  - React hook connecting NoteBlockStore to the component tree via `useSyncExternalStore`. Provides all block mutation callbacks (create, delete, split, merge, indent, outdent, move, content update, undo/redo).
 
 - `src/lib/notes/block-styling.ts`
   - Block spacing metadata, per-heading-level accent color, divider styling, and tree-line color utilities.
@@ -440,9 +448,14 @@ There are three common write patterns:
 2. Debounced field updates
   - Implemented in `src/lib/shared/debounced-update.ts`
    - Used when rapid repeated edits should merge into one update
-  - Important for task editing and notes page/block updates
+  - Important for task editing and notes page metadata updates
 
-3. Debounced execute batching
+3. Entity store persistence
+   - Implemented in `src/lib/shared/entity-store.ts` and `src/lib/notes/note-block-store.ts`
+   - Used for notes block persistence — dirty blocks are batched into a single write transaction after a debounce window
+   - The store owns the content cache and protects in-flight writes from being overwritten by stale reconcile events
+
+4. Debounced execute batching
   - Also implemented in `src/lib/shared/debounced-update.ts`
    - Used for insert-like or one-shot writes that should batch and dedupe
 
@@ -489,7 +502,8 @@ If you are debugging behavior in this repo, start from the narrowest owning surf
 
 A few repo-specific patterns matter repeatedly:
 
-- Many views use optimistic local state on top of PowerSync query data.
+- Notes blocks use an in-memory store (`NoteBlockStore`) that owns local state and reconciles against PowerSync reactive queries.
+- Other views use optimistic local state on top of PowerSync query data.
 - Route loading uses real header chrome where possible and skeletonizes only the content below it.
 - Mobile dialogs launched from overflow menus are opened outside the dropdown subtree to avoid key input problems.
 - The app intentionally favors local responsiveness over immediate cloud confirmation.

@@ -82,6 +82,14 @@ vi.mock("@/lib/shared/debounced-update", () => ({
   hasPendingWrites: () => false,
 }));
 
+vi.mock("@/lib/powersync/db", () => ({
+  db: { execute: vi.fn(async () => undefined) },
+}));
+
+vi.mock("@/lib/shared/auth", () => ({
+  getCurrentUserId: vi.fn(async () => "user-1"),
+}));
+
 vi.mock("@/lib/notes/notes-content", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/notes/notes-content")>();
   return actual;
@@ -159,7 +167,11 @@ beforeAll(async () => {
   NotePageShell = mod.NotePageShell;
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // Dispose store to avoid stale state between tests
+  const { disposeNoteBlockStore } = await import("@/lib/notes/note-block-store");
+  disposeNoteBlockStore("page-1");
+
   mockPageData = { page: null, blocks: [], isLoading: true };
   mockAttachmentsData = { attachments: [], isLoading: false };
   mockLinkedRefsData = { references: [], isLoading: false };

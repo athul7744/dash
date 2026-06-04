@@ -37,6 +37,7 @@ export type NotePageShellProps = {
   onDeleteSuccess: () => void;
   onPeekPageReference?: (title: string, rect: DOMRect) => void;
   onReady?: () => void;
+  onUndoStateChange?: (state: { canUndo: boolean; canRedo: boolean }) => void;
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   onDeleteSuccess,
   onPeekPageReference,
   onReady,
+  onUndoStateChange,
 }, ref) {
   // ─── Queries (gate rendering) ──────────────────────────────────────────────
   const { page, blocks: selectedBlocks, isLoading: isLoadingPage } = useNotePageWithBlocks(pageId);
@@ -152,6 +154,11 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     handleOutdentBlock,
     handleUpdateBlockContent,
   } = useNoteBlockStoreActions({ pageId, selectedBlocks });
+
+  // Propagate undo/redo availability to the parent (shell owns the store lifecycle).
+  useEffect(() => {
+    onUndoStateChange?.({ canUndo, canRedo });
+  }, [canUndo, canRedo, onUndoStateChange]);
 
   // ─── Settled timestamp ─────────────────────────────────────────────────────
   const {

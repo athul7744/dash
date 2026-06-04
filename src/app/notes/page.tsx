@@ -87,6 +87,15 @@ export default function NotesPage() {
   // Shell ref for reading page-level state
   const shellRef = useRef<NotePageShellHandle>(null);
 
+  // Undo/redo availability is pushed up from the shell (which owns the store lifecycle),
+  // so the parent re-renders the toolbar buttons immediately on any edit.
+  const [undoState, setUndoState] = useState<{ canUndo: boolean; canRedo: boolean }>({ canUndo: false, canRedo: false });
+  const handleUndoStateChange = useCallback((state: { canUndo: boolean; canRedo: boolean }) => {
+    setUndoState((prev) => (prev.canUndo === state.canUndo && prev.canRedo === state.canRedo ? prev : state));
+  }, []);
+  const canUndo = undoState.canUndo;
+  const canRedo = undoState.canRedo;
+
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
       if (!hasPendingWrites()) {
@@ -567,8 +576,8 @@ export default function NotesPage() {
                   timestamp={editorUpdatedTimestamp}
                   isFavorite={isFavorite}
                   showAppHeader={showEditorAppHeader}
-                  canUndo={shellHandle?.canUndo ?? false}
-                  canRedo={shellHandle?.canRedo ?? false}
+                  canUndo={canUndo}
+                  canRedo={canRedo}
                   onBack={goBack}
                   onToggleTimestamp={revealAbsoluteUpdatedTime}
                   onToggleAppHeader={() => setShowEditorAppHeader((current) => !current)}
@@ -622,6 +631,7 @@ export default function NotesPage() {
                       }}
                       onPeekPageReference={handlePeekPageReference}
                       onReady={handleShellReady}
+                      onUndoStateChange={handleUndoStateChange}
                     />
                   )}
                 </section>
@@ -663,7 +673,7 @@ export default function NotesPage() {
               variant="ghost"
               size="icon"
               onClick={() => { void shellHandle?.undo(); }}
-              disabled={!shellHandle?.canUndo}
+              disabled={!canUndo}
               className="size-8 rounded-full text-muted-foreground hover:text-foreground disabled:opacity-30"
               aria-label="Undo"
             >
@@ -674,7 +684,7 @@ export default function NotesPage() {
               variant="ghost"
               size="icon"
               onClick={() => { void shellHandle?.redo(); }}
-              disabled={!shellHandle?.canRedo}
+              disabled={!canRedo}
               className="size-8 rounded-full text-muted-foreground hover:text-foreground disabled:opacity-30"
               aria-label="Redo"
             >

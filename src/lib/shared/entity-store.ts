@@ -117,16 +117,16 @@ export abstract class EntityStore<TNode, TCommand> {
   undo() {
     const cmd = this.undoStack.pop();
     if (!cmd) return;
-    this.applyUndo(cmd);
     this.redoStack.push(cmd);
+    this.applyUndo(cmd);
     this.schedulePersist();
   }
 
   redo() {
     const cmd = this.redoStack.pop();
     if (!cmd) return;
-    this.applyRedo(cmd);
     this.undoStack.push(cmd);
+    this.applyRedo(cmd);
     this.schedulePersist();
   }
 

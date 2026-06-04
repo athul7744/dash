@@ -276,6 +276,40 @@ describe("EntityStore", () => {
       }
       expect(undoCount).toBe(80);
     });
+
+    it("exposes the updated undo/redo availability to subscribers notified during apply", () => {
+      // A store whose applyUndo/applyRedo notify synchronously, mirroring how
+      // NoteBlockStore notifies the editor while applying a command. This pins
+      // the ordering: the command must be moved onto the opposite stack BEFORE
+      // apply runs, so any notification during apply already sees the correct
+      // canUndo/canRedo values.
+      class NotifyingStore extends TestStore {
+        protected applyUndo(cmd: TestCommand) {
+          super.applyUndo(cmd);
+          this.notify();
+        }
+        protected applyRedo(cmd: TestCommand) {
+          super.applyRedo(cmd);
+          this.notify();
+        }
+      }
+
+      const store = new NotifyingStore();
+      store.addNode("a", "v1");
+      store.setValue("a", "v2");
+
+      const seen: { canUndo: boolean; canRedo: boolean }[] = [];
+      store.subscribe(() => seen.push({ canUndo: store.canUndo, canRedo: store.canRedo }));
+
+      store.undo();
+      // During the undo's notification, redo must already be available.
+      expect(seen.at(-1)).toEqual({ canUndo: false, canRedo: true });
+
+      seen.length = 0;
+      store.redo();
+      // During the redo's notification, undo must already be available.
+      expect(seen.at(-1)).toEqual({ canUndo: true, canRedo: false });
+    });
   });
 
   describe("subscription", () => {

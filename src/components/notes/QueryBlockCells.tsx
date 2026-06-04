@@ -13,38 +13,69 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/shared/utils";
 import { getTagColorClasses, getTagDotClass } from "@/lib/tasks/colors";
+import { TagSelector } from "@/components/tags/TagSelector";
 import type { PropertyDefinitionRow } from "@/hooks/use-property-definitions";
 import type { Tag as TagRecord } from "@/lib/powersync/AppSchema";
 import { updateNotePageProperties } from "@/lib/notes/notes";
 import type { JsonValue } from "@/lib/notes/notes";
 import { parseCustomPropertyValues, updatePropertyDefinitionConfig } from "@/lib/notes/properties";
+import { useOptimisticValue } from "@/hooks/use-optimistic-value";
 import { getPropertyType } from "./query-block-sql";
 import { getOptionBadgeStyle } from "./query-block-helpers";
 
-function InlineTagsCell({ pageProperties, allTags }: { pageProperties: Record<string, unknown>; allTags: (TagRecord & { id: string })[] }) {
-  const tagIds: string[] = Array.isArray(pageProperties.tags) ? pageProperties.tags : [];
+function InlineTagsCell({
+  pageId,
+  pageProperties,
+  allTags,
+}: {
+  pageId: string;
+  pageProperties: Record<string, unknown>;
+  allTags: (TagRecord & { id: string })[];
+}) {
+  const upstreamTagIds: string[] = Array.isArray(pageProperties.tags) ? (pageProperties.tags as string[]) : [];
 
-  if (tagIds.length === 0) return <span className="text-muted-foreground/40">—</span>;
+  const [tagIds, setOptimisticTagIds] = useOptimisticValue<string[]>(upstreamTagIds);
+
+  const handleChange = (nextTagIds: string[]) => {
+    setOptimisticTagIds(nextTagIds);
+    updateNotePageProperties(pageId, { ...pageProperties, tags: nextTagIds } as Record<string, JsonValue>);
+  };
 
   const resolvedTags = tagIds
     .map((id) => allTags.find((t) => t.id === id))
     .filter(Boolean) as (TagRecord & { id: string })[];
 
   return (
-    <div className="flex items-center gap-1 flex-wrap">
-      {resolvedTags.map((tag) => (
-        <span
-          key={tag.id}
-          className={cn(
-            "inline-flex h-5 shrink-0 items-center gap-1 rounded-sm px-1.5 py-0 text-[10px] font-medium shadow-none",
-            getTagColorClasses(tag.color || "slate"),
-          )}
-        >
-          <span className={cn("h-1.5 w-1.5 rounded-full", getTagDotClass(tag.color || "slate"))} />
-          {tag.name}
-        </span>
-      ))}
-    </div>
+    <TagSelector
+      selectedTagIds={tagIds}
+      onSelectedTagIdsChange={handleChange}
+      density="compact"
+      triggerLabel="—"
+      triggerClassName="h-auto w-full justify-start border-none bg-transparent px-0 py-0 text-muted-foreground/40 hover:bg-transparent"
+      popoverWidthClassName="w-[220px]"
+      showSelectedTags={false}
+      maxSelected={5}
+      triggerContent={
+        resolvedTags.length > 0 ? (
+          <div className="flex items-center gap-1 flex-wrap">
+            {resolvedTags.map((tag) => (
+              <span
+                key={tag.id}
+                className={cn(
+                  "inline-flex h-5 shrink-0 items-center gap-1 rounded-sm px-1.5 py-0 text-[10px] font-medium shadow-none",
+                  getTagColorClasses(tag.color || "slate"),
+                )}
+              >
+                <span className={cn("h-1.5 w-1.5 rounded-full", getTagDotClass(tag.color || "slate"))} />
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="text-muted-foreground/40">—</span>
+        )
+      }
+    />
   );
 }
 
@@ -241,6 +272,8 @@ export function InlineCellValue({
 }) {
   const propType = getPropertyType(propertyId, definitions);
 
+  const [effectiveValue, setOptimisticValue] = useOptimisticValue<unknown>(value);
+
   // Built-in read-only columns
   if (propertyId === "__created_at__" || propertyId === "__updated_at__") {
     const dateStr = value as string | null;
@@ -253,10 +286,11 @@ export function InlineCellValue({
   }
 
   if (propertyId === "__tags__") {
-    return <InlineTagsCell pageProperties={properties} allTags={allTags} />;
+    return <InlineTagsCell pageId={pageId} pageProperties={properties} allTags={allTags} />;
   }
 
   const updateValue = (nextValue: unknown) => {
+    setOptimisticValue(nextValue);
     const customValues = parseCustomPropertyValues(properties);
     const nextCustom = { ...customValues, [propertyId]: nextValue };
     const nextProperties = { ...properties, custom: nextCustom };
@@ -264,19 +298,19 @@ export function InlineCellValue({
   };
 
   if (propType === "checkbox") {
-    return <InlineCheckbox value={value} onChange={updateValue} />;
+    return <InlineCheckbox value={effectiveValue} onChange={updateValue} />;
   }
   if (propType === "select") {
     const def = definitions.find((d) => d.id === propertyId);
     const options: string[] = def ? (JSON.parse(def.config || "{}").options ?? []) : [];
-    return <InlineSelect value={value as string} options={options} onChange={updateValue} definitionId={propertyId} definitions={definitions} />;
+    return <InlineSelect value={effectiveValue as string} options={options} onChange={updateValue} definitionId={propertyId} definitions={definitions} />;
   }
   if (propType === "date") {
-    return <InlineDate value={value as string} onChange={updateValue} />;
+    return <InlineDate value={effectiveValue as string} onChange={updateValue} />;
   }
   if (propType === "number") {
-    return <InlineNumber value={value} onChange={updateValue} />;
+    return <InlineNumber value={effectiveValue} onChange={updateValue} />;
   }
   // text, url, title
-  return <InlineText value={value as string} onChange={updateValue} />;
+  return <InlineText value={effectiveValue as string} onChange={updateValue} />;
 }

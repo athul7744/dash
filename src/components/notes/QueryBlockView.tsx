@@ -25,6 +25,7 @@ import { usePropertyDefinitions } from "@/hooks/use-property-definitions";
 import type { Tag as TagRecord } from "@/lib/powersync/AppSchema";
 import type { QueryBlockConfig, QueryFilterCondition, QuerySortConfig } from "@/lib/notes/query-block";
 import { BUILT_IN_PROPERTIES, OPERATORS_BY_TYPE } from "@/lib/notes/query-block";
+import { encodeQueryConfig } from "@/lib/notes/query-block-content";
 import type { PropertyType } from "@/components/notes/page/types";
 import { parseCustomPropertyValues } from "@/lib/notes/properties";
 
@@ -32,6 +33,12 @@ import { type QueryResultRow, parseConfig, buildQuerySQL, getPropertyName } from
 import { PROPERTY_TYPE_ICONS, getPropertyIcon, getPropertyCustomIcon } from "./query-block-helpers";
 import { FilterRow } from "./QueryBlockFilters";
 import { InlineCellValue } from "./QueryBlockCells";
+
+// Result-table column widths (px). The title column flexes from this minimum;
+// data columns are fixed. Kept as constants so the inner wrapper's computed
+// min-width stays in sync with the actual column sizing.
+const TITLE_COL_MIN_PX = 160;
+const DATA_COL_PX = 120;
 
 // --- Column chooser popover ---
 function ColumnChooser({
@@ -155,7 +162,7 @@ export function QueryBlockView({
 
   const updateConfig = useCallback(
     (next: QueryBlockConfig) => {
-      onUpdateContent(next);
+      onUpdateContent(encodeQueryConfig(next));
     },
     [onUpdateContent]
   );
@@ -249,70 +256,72 @@ export function QueryBlockView({
           <p className="py-4 text-center text-xs text-muted-foreground">No matching pages</p>
         ) : (
           <div className="overflow-x-auto">
-            {/* Column headers */}
-            <div className="flex items-stretch border-b border-border/50">
-              <div className="min-w-[160px] flex-1 flex items-center px-3 py-2">
-                <SortableHeader
-                  label="Title"
-                  propertyId="__title__"
-                  sort={config.sort}
-                  onSort={(sort) => updateConfig({ ...config, sort })}
-                />
+            <div style={{ minWidth: `max(100%, ${TITLE_COL_MIN_PX + columns.length * DATA_COL_PX}px)` }}>
+              {/* Column headers */}
+              <div className="flex items-stretch border-b border-border/50">
+                <div className="flex-1 flex items-center px-3 py-2" style={{ minWidth: TITLE_COL_MIN_PX }}>
+                  <SortableHeader
+                    label="Title"
+                    propertyId="__title__"
+                    sort={config.sort}
+                    onSort={(sort) => updateConfig({ ...config, sort })}
+                  />
+                </div>
+                {columns.map((colId) => {
+                  const customIcon = getPropertyCustomIcon(colId, definitions);
+                  const ColIcon = getPropertyIcon(colId, definitions);
+                  return (
+                    <div key={colId} className="shrink-0 flex items-center gap-1 border-l border-border/30 px-3 py-2" style={{ width: DATA_COL_PX }}>
+                      {customIcon ? (
+                        <SpriteIcon name={customIcon} size={12} className="shrink-0" />
+                      ) : (
+                        <ColIcon className="h-3 w-3 shrink-0 opacity-60" />
+                      )}
+                      <SortableHeader
+                        label={getPropertyName(colId, definitions)}
+                        propertyId={colId}
+                        sort={config.sort}
+                        onSort={(sort) => updateConfig({ ...config, sort })}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-              {columns.map((colId) => {
-                const customIcon = getPropertyCustomIcon(colId, definitions);
-                const ColIcon = getPropertyIcon(colId, definitions);
+
+              {/* Rows */}
+              {results.map((row) => {
+                const emoji = getPageEmoji(row);
+                const props = getPageProperties(row);
                 return (
-                  <div key={colId} className="w-[120px] shrink-0 flex items-center gap-1 border-l border-border/30 px-3 py-2">
-                    {customIcon ? (
-                      <SpriteIcon name={customIcon} size={12} className="shrink-0" />
-                    ) : (
-                      <ColIcon className="h-3 w-3 shrink-0 opacity-60" />
-                    )}
-                    <SortableHeader
-                      label={getPropertyName(colId, definitions)}
-                      propertyId={colId}
-                      sort={config.sort}
-                      onSort={(sort) => updateConfig({ ...config, sort })}
-                    />
+                  <div
+                    key={row.id}
+                    className="flex items-stretch border-b border-border/20 last:border-b-0 hover:bg-accent/30 transition-colors group"
+                  >
+                    <div className="flex-1 flex items-center gap-1.5 px-3 py-2" style={{ minWidth: TITLE_COL_MIN_PX }}>
+                      {emoji && <SpriteIcon name={emoji} size={16} className="shrink-0" />}
+                      <button
+                        className="text-sm text-left truncate hover:underline"
+                        onClick={() => onOpenPageReference?.(row.title)}
+                      >
+                        {row.title}
+                      </button>
+                    </div>
+                    {columns.map((colId) => (
+                      <div key={colId} className="shrink-0 flex items-center border-l border-border/20 px-3 py-2 text-xs" style={{ width: DATA_COL_PX }}>
+                        <InlineCellValue
+                          pageId={row.id}
+                          propertyId={colId}
+                          value={getCellValue(row, colId)}
+                          properties={props}
+                          definitions={definitions}
+                          allTags={allTags}
+                        />
+                      </div>
+                    ))}
                   </div>
                 );
               })}
             </div>
-
-            {/* Rows */}
-            {results.map((row) => {
-              const emoji = getPageEmoji(row);
-              const props = getPageProperties(row);
-              return (
-                <div
-                  key={row.id}
-                  className="flex items-stretch border-b border-border/20 last:border-b-0 hover:bg-accent/30 transition-colors group"
-                >
-                  <div className="min-w-[160px] flex-1 flex items-center gap-1.5 px-3 py-2">
-                    {emoji && <SpriteIcon name={emoji} size={16} className="shrink-0" />}
-                    <button
-                      className="text-sm text-left truncate hover:underline"
-                      onClick={() => onOpenPageReference?.(row.title)}
-                    >
-                      {row.title}
-                    </button>
-                  </div>
-                  {columns.map((colId) => (
-                    <div key={colId} className="w-[120px] shrink-0 flex items-center border-l border-border/20 px-3 py-2 text-xs">
-                      <InlineCellValue
-                        pageId={row.id}
-                        propertyId={colId}
-                        value={getCellValue(row, colId)}
-                        properties={props}
-                        definitions={definitions}
-                        allTags={allTags}
-                      />
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
           </div>
         )}
         {results.length >= (config.limit ?? 20) && (

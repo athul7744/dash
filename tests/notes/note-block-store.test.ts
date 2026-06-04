@@ -60,16 +60,25 @@ vi.mock("@/lib/shared/auth", () => ({
 }));
 
 vi.mock("@/lib/notes/notes-content", () => ({
-  serializeNoteDocument: (doc: unknown) => JSON.stringify(doc),
-  normalizeNoteDocument: (raw: unknown) => {
-    if (!raw) return { type: "doc", content: [{ type: "paragraph" }] };
-    if (typeof raw === "string") {
-      try { return JSON.parse(raw); } catch { return { type: "doc", content: [{ type: "paragraph" }] }; }
-    }
-    return raw;
-  },
+  serializeNoteDocument: (doc: unknown) => JSON.stringify(normalizeDoc(doc)),
+  normalizeNoteDocument: (raw: unknown) => normalizeDoc(raw),
   extractNoteText: () => "",
 }));
+
+// Mirror the real normalizeNoteDocument: anything that isn't a Tiptap note
+// document (an object with a string `type`) is wiped to an empty doc. This is
+// what makes query-block config JSON get destroyed if it's normalized.
+function normalizeDoc(raw: unknown): any {
+  const EMPTY = { type: "doc", content: [{ type: "paragraph" }] };
+  if (!raw) return EMPTY;
+  if (typeof raw === "string") {
+    try { return normalizeDoc(JSON.parse(raw)); } catch { return EMPTY; }
+  }
+  if (typeof raw === "object" && raw !== null && typeof (raw as any).type === "string") {
+    return raw;
+  }
+  return EMPTY;
+}
 
 vi.mock("@/lib/notes/notes", () => ({
   reconcileNoteBlockEdges: vi.fn().mockResolvedValue(undefined),
@@ -905,15 +914,32 @@ describe("NoteBlockStore", () => {
       expect(editor.commands.setContent).not.toHaveBeenCalled();
     });
 
-    it("setContentDirect stores raw JSON for non-editor blocks (query blocks)", () => {
-      store.hydrate([makeBlockRow({ id: "b1", sort_rank: "a0", type: "query", content: JSON.stringify({ filters: [] }) })]);
+    it("setContentDirect normalizes note-doc content for non-editor blocks (query blocks)", () => {
+      const initialDoc = { type: "doc", content: [{ type: "queryBlock", attrs: { filters: [], columns: [], sort: null, limit: 20 } }] };
+      store.hydrate([makeBlockRow({ id: "b1", sort_rank: "a0", type: "query", content: JSON.stringify(initialDoc) })]);
       // No editor ref set — simulates a query block
 
-      const newConfig = { filters: [{ propertyId: "__title__", operator: "contains" }], columns: ["__created_at__"] };
-      store.setContentDirect("b1", newConfig as any);
+      const nextDoc = { type: "doc", content: [{ type: "queryBlock", attrs: { filters: [{ propertyId: "__title__", operator: "contains" }], columns: ["__created_at__"], limit: 20 } }] };
+      store.setContentDirect("b1", nextDoc as any);
 
-      // Content should be the raw JSON, not run through normalizeNoteDocument
-      expect(store.getContent("b1")).toBe(JSON.stringify(newConfig));
+      // Content is stored as a normalized note document (queryBlock node preserved)
+      expect(store.getContent("b1")).toBe(JSON.stringify(nextDoc));
+    });
+
+    it("preserves query block config across hydrate (refresh) without wiping it", () => {
+      const doc = { type: "doc", content: [{ type: "queryBlock", attrs: { filters: [{ propertyId: "__title__", operator: "contains", value: "x" }], columns: ["__created_at__"], limit: 20 } }] };
+      store.hydrate([makeBlockRow({ id: "q1", sort_rank: "a0", type: "query", content: JSON.stringify(doc) })]);
+
+      // On refresh, getContent must return the query document, not an empty doc.
+      expect(store.getContent("q1")).toBe(JSON.stringify(doc));
+    });
+
+    it("preserves remotely created query block config via reconcile", () => {
+      store.hydrate([]);
+      const doc = { type: "doc", content: [{ type: "queryBlock", attrs: { filters: [], columns: ["__title__"], limit: 20 } }] };
+      store.reconcile([makeBlockRow({ id: "q2", sort_rank: "a0", type: "query", content: JSON.stringify(doc) })] as any);
+
+      expect(store.getContent("q2")).toBe(JSON.stringify(doc));
     });
   });
 

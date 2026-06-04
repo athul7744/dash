@@ -2,6 +2,7 @@ import type { Editor, JSONContent } from "@tiptap/core";
 import { Calendar, Code2, Database, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Paintbrush, Quote, Sigma, Table2, TextCursorInput, type LucideIcon } from "lucide-react";
 
 import { formatDateToken, getRelativeDate } from "@/lib/notes/date-tokens";
+import { encodeQueryConfig } from "@/lib/notes/query-block-content";
 import { filterSlashCommands, groupSlashCommands, type SlashCommandSection } from "@/lib/notes/slash-command-filter";
 export type { SlashCommandSection } from "@/lib/notes/slash-command-filter";
 
@@ -288,7 +289,7 @@ export const querySlashCommand: SlashCommand = {
   icon: Database,
   keywords: ["query", "database", "filter", "live", "search", "view"],
   blockType: "query",
-  createContent: () => ({ filters: [], limit: 20 } as unknown as JSONContent),
+  createContent: () => encodeQueryConfig({ filters: [], limit: 20 }) as unknown as JSONContent,
 };
 
 export const dateSlashCommands: SlashCommand[] = [

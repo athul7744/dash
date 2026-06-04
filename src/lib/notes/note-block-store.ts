@@ -179,7 +179,7 @@ export class NoteBlockStore extends EntityStore<BlockNode, NoteBlockCommand> {
     }
     // Fallback: pending initial content
     const initial = this.pendingInitialContent.get(blockId);
-    if (initial) {
+    if (initial !== undefined) {
       const serialized = serializeNoteDocument(initial);
       this.contentCache.set(blockId, serialized);
       return serialized;
@@ -216,9 +216,10 @@ export class NoteBlockStore extends EntityStore<BlockNode, NoteBlockCommand> {
 
   /**
    * Directly set content for blocks without a Tiptap editor (e.g. query blocks).
+   * Content is normalized like any other note document.
    */
   setContentDirect(blockId: string, content: JsonValue) {
-    const serialized = JSON.stringify(content);
+    const serialized = serializeNoteDocument(content);
     this.markDirty(blockId);
     this.contentCache.set(blockId, serialized);
     this.notify();
@@ -850,14 +851,15 @@ export class NoteBlockStore extends EntityStore<BlockNode, NoteBlockCommand> {
           this.contentCache.set(row.id, remoteNormalized);
         }
       } else {
-        // No editor mounted (e.g. query block) — use raw content, no normalization
+        // No editor mounted (e.g. query block) — normalize remote content uniformly
+        const remoteNormalized = serializeNoteDocument(normalizeNoteDocument(row.content));
         if (!cached) {
           // No local state — accept remote content
-          this.pendingInitialContent.set(row.id, JSON.parse(row.content));
-          this.contentCache.set(row.id, row.content);
-        } else {
+          this.pendingInitialContent.set(row.id, normalizeNoteDocument(row.content) as JsonValue);
+          this.contentCache.set(row.id, remoteNormalized);
+        } else if (cached !== remoteNormalized) {
           // Local cache exists but differs from DB — genuine remote change, accept it
-          this.contentCache.set(row.id, row.content);
+          this.contentCache.set(row.id, remoteNormalized);
           this.notify();
         }
       }

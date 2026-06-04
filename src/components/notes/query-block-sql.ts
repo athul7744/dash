@@ -1,6 +1,7 @@
 import type { PropertyDefinitionRow } from "@/hooks/use-property-definitions";
 import type { QueryBlockConfig, QueryFilterCondition } from "@/lib/notes/query-block";
 import { BUILT_IN_PROPERTIES } from "@/lib/notes/query-block";
+import { decodeQueryConfig } from "@/lib/notes/query-block-content";
 import type { PropertyType } from "@/components/notes/page/types";
 
 export type QueryResultRow = {
@@ -12,13 +13,7 @@ export type QueryResultRow = {
 };
 
 export function parseConfig(content: string | null | undefined): QueryBlockConfig {
-  if (!content) return { filters: [], columns: [], limit: 20 };
-  try {
-    const parsed = JSON.parse(content);
-    return { filters: parsed.filters ?? [], columns: parsed.columns ?? [], sort: parsed.sort, limit: parsed.limit ?? 20 };
-  } catch {
-    return { filters: [], columns: [], limit: 20 };
-  }
+  return decodeQueryConfig(content);
 }
 
 export function getPropertyType(propertyId: string, definitions: PropertyDefinitionRow[]): PropertyType | "title" | "date_meta" | "tags" {

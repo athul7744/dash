@@ -397,12 +397,20 @@ export function useNoteBlockStoreActions({
     const prevContent = store.getContent(blockId);
     const prevType = node.type;
 
-    // Update content + type
-    if (node.editorRef) {
-      node.editorRef.commands.setContent(content as any, { emitUpdate: false });
-    }
     store.setBlockType(blockId, blockType);
-    store.commitContent(blockId);
+
+    // The source block may still hold a live text editor ref during conversion.
+    // Query blocks render without an editor, so detach the ref and write the
+    // encoded document straight to the store — routing it through the text editor
+    // would drop the queryBlock node it doesn't recognize. Editor-backed targets
+    // apply content through the editor so the mounted instance updates in place.
+    if (blockType === "query") {
+      store.setEditorRef(blockId, null);
+      store.setContentDirect(blockId, content as JsonValue);
+    } else if (node.editorRef) {
+      node.editorRef.commands.setContent(content as any, { emitUpdate: false });
+      store.commitContent(blockId);
+    }
 
     store.recordContentChange(blockId, prevContent, prevType);
   }, [store]);

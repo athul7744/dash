@@ -163,9 +163,11 @@ Important convention:
 - `src/hooks/use-edge-swipe.ts` — mobile edge swipe gesture detection
 - `src/hooks/use-page-nav-stack.ts` — page navigation stack with sessionStorage persistence (used by breadcrumb)
 - `src/hooks/use-property-definitions.ts` — reactive query hook for workspace property definitions
+- `src/hooks/use-optimistic-value.ts` — generic optimistic-override hook (keyed on a serialized upstream snapshot) for edits that render before a DB write round-trips
 - `src/lib/notes/notes-content.ts` — note document normalization, serialization (including math nodes), and plain-text extraction
 - `src/lib/notes/notes-tree.ts` — tree building and visible block ordering helpers for note blocks
 - `src/lib/notes/note-block-store.ts` — per-page block store with cached persistence, reconcile fast-path, undo/redo, and query block content support
+- `src/lib/notes/query-block-content.ts` — encode/decode codec between the query UI's `QueryBlockConfig` and the stored note document (config lives in a `queryBlock` node's attrs)
 - `src/lib/notes/notes.ts` — note page CRUD, metadata writes, attachment upserts, and edge reconciliation
 - `src/lib/notes/math-clipboard.ts` — math token protection/restoration for clipboard paste flows
 - `src/lib/notes/block-editor-keyboard.ts` — keyboard decision logic for Enter, Backspace, Tab, and arrow keys in the block editor
@@ -229,6 +231,7 @@ Key modules:
 
 - `src/lib/notes/note-block-store.ts`
   - Per-page block store built on EntityStore. Manages block nodes, Tiptap editor refs, cached ordered blocks, content cache with reconcile fast-path, batched write transactions, full redo for all commands, and direct content updates for non-editor blocks (query blocks).
+  - All block content shares one shape — a normalized note document. Query blocks store their config inside a `queryBlock` node's attrs (via `src/lib/notes/query-block-content.ts`) rather than as a special opaque payload, so the store never special-cases query content.
 
 - `src/components/notes/page/useNoteBlockStoreActions.ts`
   - React hook connecting NoteBlockStore to the component tree via `useSyncExternalStore`. Provides all block mutation callbacks (create, delete, split, merge, indent, outdent, move, content update, undo/redo).
@@ -260,8 +263,10 @@ Key modules:
 - `src/components/notes/NotesPageBreadcrumb.tsx`
   - Breadcrumb navigation trail rendered in both desktop header and mobile bottom FAB. Shares a single nav stack managed by `src/hooks/use-page-nav-stack.ts` with sessionStorage persistence.
 
-- `src/components/notes/QueryBlockFilters.tsx` / `QueryBlockCells.tsx`
+- `src/components/notes/QueryBlockView.tsx` / `QueryBlockFilters.tsx` / `QueryBlockCells.tsx`
   - Inline query block UI: filter builder, column selector, sorting, and cell renderers. Query blocks display filtered views of pages with property columns.
+  - Config is encoded/decoded through `src/lib/notes/query-block-content.ts`; the result table sizes columns from shared width constants so rows span the full scrollable width.
+  - Inline cell and tag edits are optimistic via `src/hooks/use-optimistic-value.ts`, and tag cells reuse the shared `TagSelector`.
 
 - `src/components/notes/MobileRailDrawer.tsx`
   - Shared mobile drawer shell for the notes rails.
@@ -454,6 +459,8 @@ There are three common write patterns:
    - Implemented in `src/lib/shared/entity-store.ts` and `src/lib/notes/note-block-store.ts`
    - Used for notes block persistence — dirty blocks are batched into a single write transaction after a debounce window
    - The store owns the content cache and protects in-flight writes from being overwritten by stale reconcile events
+   - Before writing, current block state is compared against the DB so net-zero churn (e.g. edit + undo within the debounce window) writes nothing
+   - Pending create/delete deltas are cleared only after the write transaction commits, so a failed flush leaves them pending for a future retry instead of being dropped
 
 4. Debounced execute batching
   - Also implemented in `src/lib/shared/debounced-update.ts`

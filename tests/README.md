@@ -30,7 +30,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
   Covers LaTeX math token protection and restoration during markdown paste flows, including inline/block detection, HTML escaping, backslash unescaping, and roundtrip correctness.
 
 - `tests/notes/note-block-store.test.ts`
-  Covers the NoteBlockStore including hydration, block CRUD, move/indent/outdent, split/merge, content commit, undo/redo for all command types, ordered blocks caching, reconcile fast-path, query block setContentDirect, and store registry lifecycle.
+  Covers the NoteBlockStore including hydration, block CRUD, move/indent/outdent, split/merge, content commit, undo/redo for all command types, ordered blocks caching, reconcile fast-path, query block setContentDirect, net-zero flush skipping, failed-flush delta retention/retry, and store registry lifecycle.
 
 - `tests/notes/note-page-utils.test.ts`
   Covers note page metadata helpers for stored tag id parsing and shared tag resolution from the shared tags table.
@@ -65,10 +65,16 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/notes/properties.test.ts`
   Covers property definition config parsing (parseJsonColumns) and custom property value extraction (parseCustomPropertyValues) including malformed JSON and empty inputs.
 
+- `tests/notes/query-block-content.test.ts`
+  Covers the query-block content codec: encoding a config into a `queryBlock` note document, round-tripping, decoding JSON strings and legacy raw-config forms, and default values.
+
+- `tests/notes/use-optimistic-value.dom.test.ts`
+  Covers the useOptimisticValue hook: immediate optimistic display, clearing once upstream catches up, surviving reference-only upstream changes (no flicker), and adopting genuine upstream changes.
+
 ## Current Shared Suites
 
 - `tests/shared/entity-store.test.ts`
-  Covers the EntityStore base class including dirty tracking, debounced persistence, undo/redo stack overflow, markStructureDirty, onPersisted callbacks, and subscription versioning.
+  Covers the EntityStore base class including dirty tracking, debounced persistence, undo/redo stack overflow, undo/redo availability for subscribers notified during apply, markStructureDirty, onPersisted callbacks, and subscription versioning.
 
 - `tests/shared/ranked-order.test.ts`
   Covers LexoRank ordering helpers for between-rank insertion, start/end ranks, and edge cases.

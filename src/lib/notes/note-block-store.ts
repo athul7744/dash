@@ -714,7 +714,7 @@ export class NoteBlockStore extends EntityStore<BlockNode, NoteBlockCommand> {
         for (const { blockId, content, node } of candidates) {
           const dbRow = dbById.get(blockId);
           if (dbRow) {
-            // Normalize stored content so formatting-only differences don't trigger a write.
+            // Normalize so formatting-only differences don't trigger a write.
             const dbContent = serializeNoteDocument(normalizeNoteDocument(dbRow.content));
             const unchanged =
               dbContent === content &&
@@ -757,16 +757,22 @@ export class NoteBlockStore extends EntityStore<BlockNode, NoteBlockCommand> {
       deleteCandidates.push(blockId);
     }
 
-    // Always clear the pending sets; they've been resolved into concrete deltas.
-    this.pendingCreates.clear();
-    this.pendingDeletes.clear();
+    // Resolve the pending initial-content map (created blocks, or remote blocks
+    // whose editor has since mounted). This is independent of the DB write, so
+    // it's safe to clear up front.
     for (const blockId of [...this.pendingInitialContent.keys()]) {
       if (!this.nodes.has(blockId) || this.nodes.get(blockId)!.editorRef) {
         this.pendingInitialContent.delete(blockId);
       }
     }
 
-    if (createCandidates.length === 0 && deleteCandidates.length === 0) return false;
+    if (createCandidates.length === 0 && deleteCandidates.length === 0) {
+      // Net-zero churn (create+delete, or delete+undo) — nothing to persist, but
+      // the pending sets are now resolved.
+      this.pendingCreates.clear();
+      this.pendingDeletes.clear();
+      return false;
+    }
 
     const userId = await getCurrentUserId();
     let didWrite = false;
@@ -805,6 +811,12 @@ export class NoteBlockStore extends EntityStore<BlockNode, NoteBlockCommand> {
         didWrite = true;
       }
     });
+
+    // Clear the pending sets only after the write commits, so a failed
+    // transaction leaves the deltas pending for a future flush instead of
+    // silently dropping them.
+    this.pendingCreates.clear();
+    this.pendingDeletes.clear();
 
     return didWrite;
   }

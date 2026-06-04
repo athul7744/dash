@@ -317,6 +317,63 @@ describe("NoteBlockStore", () => {
     });
   });
 
+  describe("flush failure handling", () => {
+    function sqlCalls(fragment: string) {
+      return vi.mocked(db.execute).mock.calls.filter((c) => (c[0] as string).includes(fragment));
+    }
+
+    it("retains pending creates when the flush transaction fails, retrying on the next flush", async () => {
+      store.hydrate([]);
+      store.createBlock({ id: "new-1", sortRank: "a0" });
+
+      // First flush: the write transaction rejects before anything is persisted.
+      vi.mocked(db.writeTransaction).mockRejectedValueOnce(new Error("write failed"));
+      await expect(store.flush()).rejects.toThrow("write failed");
+
+      // Nothing was written, but the block is still in the store and still pending.
+      expect(sqlCalls("INSERT INTO blocks")).toHaveLength(0);
+      expect(store.has("new-1")).toBe(true);
+
+      // A subsequent structural change triggers another flush, which must retry
+      // the create that failed earlier (not silently drop it).
+      store.createBlock({ id: "new-2", sortRank: "a1" });
+      await store.flush();
+
+      expect(db.execute).toHaveBeenCalledWith(
+        expect.stringContaining("INSERT INTO blocks"),
+        expect.arrayContaining(["new-1"]),
+      );
+      expect(db.execute).toHaveBeenCalledWith(
+        expect.stringContaining("INSERT INTO blocks"),
+        expect.arrayContaining(["new-2"]),
+      );
+    });
+
+    it("retains pending deletes when the flush transaction fails, retrying on the next flush", async () => {
+      store.hydrate([makeBlockRow({ id: "b1" }), makeBlockRow({ id: "b2", sort_rank: "a1" })]);
+      (db as any).__seed([
+        { id: "b1", content: JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] }) },
+        { id: "b2", content: JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] }), sort_rank: "a1" },
+      ]);
+      store.setEditorRef("b1", createMockEditor());
+      store.setEditorRef("b2", createMockEditor());
+      store.deleteBlock("b1");
+
+      // First flush fails.
+      vi.mocked(db.writeTransaction).mockRejectedValueOnce(new Error("write failed"));
+      await expect(store.flush()).rejects.toThrow("write failed");
+
+      expect(sqlCalls("DELETE FROM blocks")).toHaveLength(0);
+
+      // Next structural change retries the pending delete.
+      store.deleteBlock("b2");
+      await store.flush();
+
+      expect(db.execute).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM blocks"), ["b1"]);
+      expect(db.execute).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM blocks"), ["b2"]);
+    });
+  });
+
   describe("moveBlock", () => {
     it("updates parent and sort rank", () => {
       store.hydrate([

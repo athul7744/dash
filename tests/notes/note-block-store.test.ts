@@ -4,15 +4,53 @@ import { NoteBlockStore, type BlockNode, type BlockRow } from "@/lib/notes/note-
 
 // Mock dependencies
 vi.mock("@/lib/powersync/db", () => {
-  const execute = vi.fn().mockResolvedValue(undefined);
+  // In-memory simulation of the `blocks` table so the read-compare flush logic
+  // (which SELECTs current rows before writing) can be exercised realistically.
+  const table = new Map<string, { id: string; content: string; type: string; parent_block_id: string | null; sort_rank: string }>();
+
+  const runExecute = (sql: string, params: any[] = []) => {
+    if (sql.includes("INSERT INTO blocks")) {
+      const [id, , , parent_block_id, type, content, sort_rank] = params;
+      table.set(id, { id, content, type, parent_block_id, sort_rank });
+    } else if (sql.includes("UPDATE blocks SET content")) {
+      const [content, type, parent_block_id, sort_rank, id] = params;
+      table.set(id, { id, content, type, parent_block_id, sort_rank });
+    } else if (sql.includes("DELETE FROM blocks")) {
+      table.delete(params[0]);
+    }
+    return Promise.resolve(undefined);
+  };
+
+  const runGetAll = (sql: string, params: any[] = []) => {
+    if (sql.includes("FROM blocks WHERE id IN")) {
+      return Promise.resolve(params.map((id) => table.get(id)).filter(Boolean));
+    }
+    return Promise.resolve([]);
+  };
+
+  const execute = vi.fn(runExecute);
+  const getAll = vi.fn(runGetAll);
+
   return {
     db: {
       execute,
-      getAll: vi.fn().mockResolvedValue([]),
+      getAll,
       writeTransaction: vi.fn().mockImplementation(async (fn: (tx: any) => Promise<void>) => {
-        const tx = { execute, getAll: vi.fn().mockResolvedValue([]) };
-        await fn(tx);
+        // Share the same spies so existing assertions on db.execute still see tx writes
+        await fn({ execute, getAll });
       }),
+      __seed: (rows: { id: string; content: string; type?: string; parent_block_id?: string | null; sort_rank?: string }[]) => {
+        for (const r of rows) {
+          table.set(r.id, {
+            id: r.id,
+            content: r.content,
+            type: r.type ?? "text",
+            parent_block_id: r.parent_block_id ?? null,
+            sort_rank: r.sort_rank ?? "a0",
+          });
+        }
+      },
+      __clear: () => table.clear(),
     },
   };
 });
@@ -61,6 +99,20 @@ function createMockEditor(content: object = { type: "doc", content: [] }) {
   } as any;
 }
 
+/** Editor mock whose getJSON() reflects the latest setContent() call (for round-trip tests). */
+function createLiveMockEditor(initial: object = { type: "doc", content: [] }) {
+  let current: object = initial;
+  return {
+    getJSON: () => current,
+    commands: {
+      setContent: vi.fn((next: object) => {
+        current = next;
+        return true;
+      }),
+    },
+  } as any;
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("NoteBlockStore", () => {
@@ -68,7 +120,9 @@ describe("NoteBlockStore", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    (db as any).__clear();
     vi.mocked(db.execute).mockClear();
+    vi.mocked(db.getAll).mockClear();
     store = new NoteBlockStore("page-1", { debounceMs: 100 });
   });
 
@@ -163,6 +217,7 @@ describe("NoteBlockStore", () => {
 
     it("persists deletes in flushStructure", async () => {
       store.hydrate([makeBlockRow({ id: "b1" })]);
+      (db as any).__seed([{ id: "b1", content: JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] }) }]);
       store.setEditorRef("b1", createMockEditor());
       store.deleteBlock("b1");
 
@@ -185,6 +240,71 @@ describe("NoteBlockStore", () => {
         (c) => (c[0] as string).includes("DELETE FROM blocks")
       );
       expect(deleteCalls).toHaveLength(0);
+    });
+  });
+
+  describe("net-zero flush (edit + undo within debounce window)", () => {
+    const originalDoc = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "hello world" }] }] };
+
+    function sqlCalls(fragment: string) {
+      return vi.mocked(db.execute).mock.calls.filter((c) => (c[0] as string).includes(fragment));
+    }
+
+    it("writes nothing when a split is undone before the flush fires", async () => {
+      store.hydrate([makeBlockRow({ id: "b1", sort_rank: "a0", content: JSON.stringify(originalDoc) })]);
+      (db as any).__seed([{ id: "b1", content: JSON.stringify(originalDoc), sort_rank: "a0" }]);
+      store.setEditorRef("b1", createLiveMockEditor(originalDoc));
+
+      const newId = store.splitBlock({
+        sourceBlockId: "b1",
+        leftContent: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "hello" }] }] },
+        rightContent: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: " world" }] }] },
+        newSortRank: "a0z",
+      });
+      store.undo();
+
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(store.has(newId)).toBe(false);
+      expect(sqlCalls("INSERT INTO blocks")).toHaveLength(0);
+      expect(sqlCalls("UPDATE blocks SET content")).toHaveLength(0);
+      expect(sqlCalls("DELETE FROM blocks")).toHaveLength(0);
+      // onPersisted (page timestamp bump) must not fire when nothing was written
+      expect(sqlCalls("UPDATE pages SET updated_at")).toHaveLength(0);
+    });
+
+    it("writes nothing when a content change is undone before the flush fires", async () => {
+      store.hydrate([makeBlockRow({ id: "b1", sort_rank: "a0", content: JSON.stringify(originalDoc) })]);
+      (db as any).__seed([{ id: "b1", content: JSON.stringify(originalDoc), sort_rank: "a0" }]);
+      const editor = createLiveMockEditor(originalDoc);
+      store.setEditorRef("b1", editor);
+
+      const prevContent = store.getContent("b1");
+      // Simulate an edit committed for undo, then reverted.
+      editor.commands.setContent({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "changed" }] }] });
+      store.commitContent("b1");
+      store.recordContentChange("b1", prevContent);
+      store.undo();
+
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(sqlCalls("UPDATE blocks SET content")).toHaveLength(0);
+      expect(sqlCalls("UPDATE pages SET updated_at")).toHaveLength(0);
+    });
+
+    it("still writes a genuine change that is not undone", async () => {
+      store.hydrate([makeBlockRow({ id: "b1", sort_rank: "a0", content: JSON.stringify(originalDoc) })]);
+      (db as any).__seed([{ id: "b1", content: JSON.stringify(originalDoc), sort_rank: "a0" }]);
+      const editor = createLiveMockEditor(originalDoc);
+      store.setEditorRef("b1", editor);
+
+      editor.commands.setContent({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "changed" }] }] });
+      store.commitContent("b1");
+
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(sqlCalls("UPDATE blocks SET content").length).toBeGreaterThan(0);
+      expect(sqlCalls("UPDATE pages SET updated_at").length).toBeGreaterThan(0);
     });
   });
 

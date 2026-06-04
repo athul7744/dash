@@ -72,13 +72,11 @@ export abstract class EntityStore<TNode, TCommand> {
     let didWrite = false;
 
     if (dirty.size > 0) {
-      await this.flushDirtyEntities(dirty);
-      didWrite = true;
+      if (await this.flushDirtyEntities(dirty)) didWrite = true;
     }
 
     if (structDirty) {
-      await this.flushStructure();
-      didWrite = true;
+      if (await this.flushStructure()) didWrite = true;
     }
 
     if (didWrite) {
@@ -174,11 +172,11 @@ export abstract class EntityStore<TNode, TCommand> {
 
   // ─── Abstract: implemented by each app ──────────────────────────────────────
 
-  /** Flush dirty entity content/fields to DB. */
-  protected abstract flushDirtyEntities(dirtyIds: Set<string>): Promise<void>;
+  /** Flush dirty entity content/fields to DB. Returns true if any row was written. */
+  protected abstract flushDirtyEntities(dirtyIds: Set<string>): Promise<boolean>;
 
-  /** Flush structural changes (INSERT/DELETE rows) to DB. */
-  protected abstract flushStructure(): Promise<void>;
+  /** Flush structural changes (INSERT/DELETE rows) to DB. Returns true if any row was written. */
+  protected abstract flushStructure(): Promise<boolean>;
 
   /** Apply an undo command to in-memory state. */
   protected abstract applyUndo(cmd: TCommand): void;

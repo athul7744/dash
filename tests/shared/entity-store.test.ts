@@ -67,12 +67,14 @@ class TestStore extends EntityStore<TestNode, TestCommand> {
   // Abstract implementations
   protected async flushDirtyEntities(dirtyIds: Set<string>) {
     this.flushCalls.push({ dirty: [...dirtyIds], structure: false });
+    return true;
   }
 
   protected async flushStructure() {
     this.flushCalls.push({ dirty: [], structure: true });
     this.structDirty = false;
     this.pendingCreateIds.clear();
+    return true;
   }
 
   protected applyUndo(cmd: TestCommand) {

@@ -680,18 +680,48 @@ export class NoteBlockStore extends EntityStore<BlockNode, NoteBlockCommand> {
   // ─── Persistence ────────────────────────────────────────────────────────────
 
   protected async flushDirtyEntities(dirtyIds: Set<string>) {
-    if (dirtyIds.size === 0) return;
+    if (dirtyIds.size === 0) return false;
 
-    // Track blocks being flushed so reconcileNode doesn't overwrite during the async write
-    for (const id of dirtyIds) this.flushingIds.add(id);
+    // Collect the candidate blocks that still exist locally. Blocks not yet in the
+    // DB are handled by flushStructure (INSERT), so skip pending creates here.
+    const candidates: { blockId: string; content: string; node: BlockNode }[] = [];
+    for (const blockId of dirtyIds) {
+      const node = this.nodes.get(blockId);
+      if (!node) continue;
+      if (this.pendingCreates.has(blockId)) continue;
+      candidates.push({ blockId, content: this.getContent(blockId), node });
+    }
 
+    if (candidates.length === 0) return false;
+
+    // Track candidates being flushed so reconcileNode doesn't overwrite during the async write
+    for (const { blockId } of candidates) this.flushingIds.add(blockId);
+
+    let didWrite = false;
     try {
       await db.writeTransaction(async (tx) => {
-        for (const blockId of dirtyIds) {
-          const node = this.nodes.get(blockId);
-          if (!node) continue;
+        // Read current DB rows once; compare so net-zero edits (e.g. edit + undo
+        // within the debounce window) write nothing.
+        const ids = candidates.map((c) => c.blockId);
+        const placeholders = ids.map(() => "?").join(",");
+        const dbRows = await tx.getAll<{ id: string; content: string; type: string; parent_block_id: string | null; sort_rank: string }>(
+          `SELECT id, content, type, parent_block_id, sort_rank FROM blocks WHERE id IN (${placeholders})`,
+          ids
+        );
+        const dbById = new Map(dbRows.map((r) => [r.id, r]));
 
-          const content = this.getContent(blockId);
+        for (const { blockId, content, node } of candidates) {
+          const dbRow = dbById.get(blockId);
+          if (dbRow) {
+            // Normalize stored content so formatting-only differences don't trigger a write.
+            const dbContent = serializeNoteDocument(normalizeNoteDocument(dbRow.content));
+            const unchanged =
+              dbContent === content &&
+              dbRow.type === node.type &&
+              dbRow.parent_block_id === node.parentId &&
+              dbRow.sort_rank === node.sortRank;
+            if (unchanged) continue;
+          }
 
           await tx.execute(
             `UPDATE blocks SET content = ?, type = ?, parent_block_id = ?, sort_rank = ?, updated_at = ${SQL_UTC_NOW} WHERE id = ?`,
@@ -700,25 +730,61 @@ export class NoteBlockStore extends EntityStore<BlockNode, NoteBlockCommand> {
 
           // Reconcile [[page references]] and #tags in the edges table
           await reconcileNoteBlockEdges(blockId, JSON.parse(content), tx);
+          didWrite = true;
         }
       });
     } finally {
-      for (const id of dirtyIds) this.flushingIds.delete(id);
+      for (const { blockId } of candidates) this.flushingIds.delete(blockId);
     }
+
+    return didWrite;
   }
 
   protected async flushStructure() {
+    // Candidate ids from the pending sets. We resolve the real structural deltas
+    // against what's actually in the DB inside the transaction, so net-zero churn
+    // (create+delete, or delete+undo within the debounce window) writes nothing.
+    const createCandidates: string[] = [];
+    for (const blockId of this.pendingCreates) {
+      if (!this.nodes.has(blockId)) continue; // created and removed within the window
+      createCandidates.push(blockId);
+    }
+
+    const deleteCandidates: string[] = [];
+    for (const blockId of this.pendingDeletes) {
+      if (this.nodes.has(blockId)) continue; // still present (delete + undo) — don't delete
+      deleteCandidates.push(blockId);
+    }
+
+    // Always clear the pending sets; they've been resolved into concrete deltas.
+    this.pendingCreates.clear();
+    this.pendingDeletes.clear();
+    for (const blockId of [...this.pendingInitialContent.keys()]) {
+      if (!this.nodes.has(blockId) || this.nodes.get(blockId)!.editorRef) {
+        this.pendingInitialContent.delete(blockId);
+      }
+    }
+
+    if (createCandidates.length === 0 && deleteCandidates.length === 0) return false;
+
     const userId = await getCurrentUserId();
+    let didWrite = false;
 
     await db.writeTransaction(async (tx) => {
-      // Flush creates (only blocks that still exist in the tree)
-      for (const blockId of this.pendingCreates) {
-        const node = this.nodes.get(blockId);
-        if (!node) {
-          // Created and deleted within the debounce window — net zero, skip
-          continue;
-        }
+      // Resolve existence against the DB in one read so we don't INSERT a row that
+      // already exists (delete + undo) or DELETE a row that was never persisted.
+      const ids = [...createCandidates, ...deleteCandidates];
+      const placeholders = ids.map(() => "?").join(",");
+      const existingRows = await tx.getAll<{ id: string }>(
+        `SELECT id FROM blocks WHERE id IN (${placeholders})`,
+        ids
+      );
+      const existsInDb = new Set(existingRows.map((r) => r.id));
 
+      // Flush creates (skip ones already in the DB)
+      for (const blockId of createCandidates) {
+        if (existsInDb.has(blockId)) continue;
+        const node = this.nodes.get(blockId)!;
         const content = this.getContent(blockId);
 
         await tx.execute(
@@ -727,23 +793,19 @@ export class NoteBlockStore extends EntityStore<BlockNode, NoteBlockCommand> {
         );
 
         await reconcileNoteBlockEdges(blockId, JSON.parse(content), tx);
+        didWrite = true;
       }
 
-      // Flush deletes
-      for (const blockId of this.pendingDeletes) {
+      // Flush deletes (skip ones never persisted)
+      for (const blockId of deleteCandidates) {
+        if (!existsInDb.has(blockId)) continue;
         await tx.execute(`DELETE FROM edges WHERE source_block_id = ?`, [blockId]);
         await tx.execute(`DELETE FROM blocks WHERE id = ?`, [blockId]);
+        didWrite = true;
       }
     });
 
-    this.pendingCreates.clear();
-    // Only clear initial content for blocks that were just created (not remote blocks pending editor mount)
-    for (const blockId of [...this.pendingInitialContent.keys()]) {
-      if (!this.nodes.has(blockId) || this.nodes.get(blockId)!.editorRef) {
-        this.pendingInitialContent.delete(blockId);
-      }
-    }
-    this.pendingDeletes.clear();
+    return didWrite;
   }
 
   // ─── Reconcile (PowerSync) ──────────────────────────────────────────────────

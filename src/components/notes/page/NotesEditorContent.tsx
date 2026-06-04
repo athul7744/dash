@@ -170,7 +170,7 @@ export function NotesEditorContent({
 
   if (showSelectedPageLoading) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto h-full max-w-3xl">
         <NotesEditorMainSkeleton />
       </div>
     );

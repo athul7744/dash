@@ -130,7 +130,7 @@ export function NotesNavigationRailSkeleton({ showHeader = true }: NotesNavigati
 
 export function NotesEditorMainSkeleton() {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-1 gap-y-1.5 pt-1 md:gap-x-2 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-1 gap-y-1.5 pt-1 md:gap-x-2 sm:h-full sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:grid-rows-[auto_auto_auto_minmax(0,1fr)]">
       {/* Back button placeholder — always hidden (matches actual editor) */}
       <div className="hidden" />
       {/* Title */}
@@ -153,12 +153,14 @@ export function NotesEditorMainSkeleton() {
         <Bone className="h-3.5 w-16 rounded" />
       </div>
       {/* Block tree */}
-      <div className="col-span-2 space-y-1.5 rounded-2xl bg-muted/20 py-1 pt-2 sm:col-start-2 sm:col-span-2">
+      <div className="col-span-2 space-y-1.5 rounded-2xl bg-muted/20 py-1 pt-2 sm:col-start-2 sm:col-span-2 sm:h-full">
         <EditorBlockRowSkeleton widthClassName="w-4/5" />
         <EditorBlockRowSkeleton indent={1} widthClassName="w-3/4" />
         <EditorBlockRowSkeleton indent={1} widthClassName="w-5/6" />
         <EditorBlockRowSkeleton widthClassName="w-2/3" />
         <EditorBlockRowSkeleton indent={2} widthClassName="w-3/5" />
+        <EditorBlockRowSkeleton widthClassName="w-3/4" />
+        <EditorBlockRowSkeleton indent={1} widthClassName="w-2/3" />
       </div>
     </div>
   );
@@ -203,7 +205,7 @@ export function NotesPageSkeleton({ mode = "editor", showDesktopHeaderRow = true
   }
 
   return (
-    <section className="grid gap-4 sm:grid-cols-[280px_minmax(0,1fr)_320px] sm:gap-y-2 animate-fade-slide-in">
+    <section className="grid gap-4 sm:h-full sm:min-h-0 sm:grid-rows-[auto_minmax(0,1fr)] sm:grid-cols-[280px_minmax(0,1fr)_320px] sm:gap-y-2 animate-fade-slide-in">
       {showDesktopHeaderRow ? (
         <>
           <div className="hidden h-9 items-center sm:flex">
@@ -234,15 +236,15 @@ export function NotesPageSkeleton({ mode = "editor", showDesktopHeaderRow = true
         </>
       ) : null}
 
-      <div className="hidden sm:block">
+      <div className="hidden sm:block sm:min-h-0 sm:overflow-hidden">
         <NotesNavigationRailSkeleton showHeader={false} />
       </div>
 
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="mx-auto w-full max-w-3xl sm:min-h-0 sm:overflow-hidden">
         <NotesEditorMainSkeleton />
       </div>
 
-      <div className="hidden sm:block">
+      <div className="hidden sm:block sm:min-h-0 sm:overflow-hidden">
         <NotesDetailsRailSkeleton showHeader={false} />
       </div>
     </section>

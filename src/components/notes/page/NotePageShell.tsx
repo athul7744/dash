@@ -316,7 +316,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   // ─── Render ────────────────────────────────────────────────────────────────
   if (!isReady) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto h-full max-w-3xl">
         <NotesEditorMainSkeleton />
       </div>
     );

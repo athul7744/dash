@@ -1,5 +1,5 @@
 import { LexoRank } from "lexorank";
-import { v4 as uuidv4 } from "uuid";
+import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
 
 import { extractNoteText, serializeNoteDocument } from "@/lib/notes/notes-content";
 import { db } from "@/lib/powersync/db";
@@ -46,6 +46,8 @@ interface ReplaceEdgesInput {
     type: string;
   }>;
 }
+
+const EDGE_ID_NAMESPACE = "9b17a01f-3454-4db0-8f39-7f093ac0f56b";
 
 type PageLookupRow = {
   id: string;
@@ -253,16 +255,64 @@ export async function deleteNotePage(pageId: string) {
 }
 
 async function replaceNoteEdges(input: ReplaceEdgesInput, ctx: DbContext = db) {
-  const userId = await getCurrentUserId();
+  const buildEdgeKey = (targetId: string, type: string) => `${type}:${targetId}`;
+  const createDeterministicEdgeId = (sourceBlockId: string, targetId: string, type: string) => (
+    uuidv5(`${sourceBlockId}|${targetId}|${type}`, EDGE_ID_NAMESPACE)
+  );
 
-  await ctx.execute(`DELETE FROM edges WHERE source_block_id = ?`, [input.sourceBlockId]);
+  const existingRows = await ctx.getAll<{ id: string; target_id: string; type: string }>(
+    `SELECT id, target_id, type FROM edges WHERE source_block_id = ?`,
+    [input.sourceBlockId]
+  );
 
+  const desiredByKey = new Map<string, { id: string; targetId: string; type: string }>();
   for (const edge of input.edges) {
-    const edgeId = edge.id ?? uuidv4();
+    const key = buildEdgeKey(edge.targetId, edge.type);
+    if (desiredByKey.has(key)) continue;
 
+    desiredByKey.set(key, {
+      id: edge.id ?? createDeterministicEdgeId(input.sourceBlockId, edge.targetId, edge.type),
+      targetId: edge.targetId,
+      type: edge.type,
+    });
+  }
+
+  const existingByKey = new Map<string, { id: string; targetId: string; type: string }>();
+  const duplicateIdsToDelete: string[] = [];
+
+  for (const row of existingRows) {
+    const key = buildEdgeKey(row.target_id, row.type);
+    if (existingByKey.has(key)) {
+      duplicateIdsToDelete.push(row.id);
+      continue;
+    }
+
+    existingByKey.set(key, {
+      id: row.id,
+      targetId: row.target_id,
+      type: row.type,
+    });
+  }
+
+  for (const duplicateId of duplicateIdsToDelete) {
+    await ctx.execute(`DELETE FROM edges WHERE id = ?`, [duplicateId]);
+  }
+
+  for (const [key, existing] of existingByKey) {
+    if (desiredByKey.has(key)) continue;
+    await ctx.execute(`DELETE FROM edges WHERE id = ?`, [existing.id]);
+  }
+
+  const needsInsert = [...desiredByKey.entries()].filter(([key]) => !existingByKey.has(key));
+  if (needsInsert.length === 0) {
+    return;
+  }
+
+  const userId = await getCurrentUserId();
+  for (const [, edge] of needsInsert) {
     await ctx.execute(
       `INSERT INTO edges (id, source_block_id, target_id, user_id, type) VALUES (?, ?, ?, ?, ?)`,
-      [edgeId, input.sourceBlockId, edge.targetId, userId, edge.type]
+      [edge.id, input.sourceBlockId, edge.targetId, userId, edge.type]
     );
   }
 }

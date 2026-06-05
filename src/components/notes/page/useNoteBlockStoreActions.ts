@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type { NoteBlockRow } from "@/hooks/use-notes";
-import { mergeNoteDocuments, getNoteDocumentEndSelection } from "@/lib/notes/notes-content";
+import { mergeNoteDocuments, getNoteDocumentEndSelection, serializeNoteDocument } from "@/lib/notes/notes-content";
 import {
   getDeleteChildMoves,
   getDeleteFocusTarget,
@@ -331,6 +331,12 @@ export function useNoteBlockStoreActions({
     // For non-text blocks or programmatic content updates
     const node = store.getBlock(blockId);
     if (node?.editorRef) {
+      const currentContent = node.editorRef.getJSON();
+      if (serializeNoteDocument(currentContent) === serializeNoteDocument(nextContent)) {
+        store.commitContent(blockId);
+        return;
+      }
+
       node.editorRef.commands.setContent(nextContent as any, { emitUpdate: false });
       store.commitContent(blockId);
     } else {

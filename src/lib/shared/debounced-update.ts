@@ -5,6 +5,7 @@ const DEBOUNCE_MS = 1000;
 type SQLValue = string | number | null;
 const TABLES_WITH_UPDATED_AT = new Set(['tasks', 'pages', 'blocks']);
 export const SQL_UTC_NOW_EXPRESSION = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
+type SQLValueComparator = (currentValue: SQLValue, nextValue: SQLValue) => boolean;
 
 type AfterFlushCallback = () => Promise<void> | void;
 
@@ -28,13 +29,58 @@ interface PendingUpdate {
 
 const pendingUpdates = new Map<string, PendingUpdate>();
 
+function normalizeJsonValueForComparison(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeJsonValueForComparison(item));
+  }
+
+  if (value && typeof value === 'object') {
+    const sortedEntries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right));
+    return Object.fromEntries(
+      sortedEntries.map(([key, nestedValue]) => [key, normalizeJsonValueForComparison(nestedValue)])
+    );
+  }
+
+  return value;
+}
+
+function parseJsonString(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function areCanonicalJsonStringsEqual(currentValue: string, nextValue: string) {
+  const currentCanonical = JSON.stringify(normalizeJsonValueForComparison(parseJsonString(currentValue)));
+  const nextCanonical = JSON.stringify(normalizeJsonValueForComparison(parseJsonString(nextValue)));
+  return currentCanonical === nextCanonical;
+}
+
+const sqlValueComparators: Record<string, SQLValueComparator> = {
+  'blocks.content': (currentValue, nextValue) => (
+    typeof currentValue === 'string'
+    && typeof nextValue === 'string'
+    && serializeNoteDocument(currentValue) === serializeNoteDocument(nextValue)
+  ),
+  'pages.properties': (currentValue, nextValue) => (
+    typeof currentValue === 'string'
+    && typeof nextValue === 'string'
+    && areCanonicalJsonStringsEqual(currentValue, nextValue)
+  ),
+};
+
+// Any new field-level skip-write equality used by debouncedUpdate/flushUpdate
+// should be added as a table.field entry in sqlValueComparators above.
 function areSQLValuesEqual(table: string, field: string, currentValue: SQLValue, nextValue: SQLValue) {
   if (currentValue === nextValue) {
     return true;
   }
 
-  if (table === 'blocks' && field === 'content' && typeof currentValue === 'string' && typeof nextValue === 'string') {
-    return serializeNoteDocument(currentValue) === serializeNoteDocument(nextValue);
+  const comparator = sqlValueComparators[`${table}.${field}`];
+  if (comparator) {
+    return comparator(currentValue, nextValue);
   }
 
   return false;

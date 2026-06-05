@@ -38,6 +38,7 @@ export type NotePageShellProps = {
   onPeekPageReference?: (title: string, rect: DOMRect) => void;
   onReady?: () => void;
   onUndoStateChange?: (state: { canUndo: boolean; canRedo: boolean }) => void;
+  onSummaryDraftChange?: (summary: string) => void;
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   onPeekPageReference,
   onReady,
   onUndoStateChange,
+  onSummaryDraftChange,
 }, ref) {
   // ─── Queries (gate rendering) ──────────────────────────────────────────────
   const { page, blocks: selectedBlocks, isLoading: isLoadingPage } = useNotePageWithBlocks(pageId);
@@ -160,6 +162,11 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     onUndoStateChange?.({ canUndo, canRedo });
   }, [canUndo, canRedo, onUndoStateChange]);
 
+  // Keep parent-controlled consumers (details rail) in sync with local summary draft edits.
+  useEffect(() => {
+    onSummaryDraftChange?.(summaryDraft);
+  }, [summaryDraft, onSummaryDraftChange]);
+
   // ─── Settled timestamp ─────────────────────────────────────────────────────
   const {
     stableUpdatedTimestamp,
@@ -268,6 +275,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     attachments,
     pageOutline,
     summaryDraft,
+    setSummaryDraft,
     selectedTagIdsDraft,
     createdTimestamp,
     isLoadingLinkedReferences,
@@ -392,6 +400,7 @@ export type NotePageShellHandle = {
   attachments: NoteAttachmentRow[];
   pageOutline: OutlineEntry[];
   summaryDraft: string;
+  setSummaryDraft: (summary: string) => void;
   selectedTagIdsDraft: string[];
   createdTimestamp: { relative: string; absolute: string; dateOnly: string } | null;
   isLoadingLinkedReferences: boolean;

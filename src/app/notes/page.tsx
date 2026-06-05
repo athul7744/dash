@@ -60,6 +60,7 @@ export default function NotesPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isManageTagsOpen, setIsManageTagsOpen] = useState(false);
   const [isManagePropertiesOpen, setIsManagePropertiesOpen] = useState(false);
+  const [summaryDraft, setSummaryDraft] = useState("");
   const {
     showEditorAppHeader,
     setShowEditorAppHeader,
@@ -401,7 +402,7 @@ export default function NotesPage() {
       selectedPage={shellHandle.page}
       detailsSectionOpen={detailsSectionOpen}
       pageOutline={shellHandle.pageOutline}
-      summaryDraft={shellHandle.summaryDraft}
+      summaryDraft={summaryDraft}
       selectedTagIdsDraft={shellHandle.selectedTagIdsDraft}
       linkedReferences={shellHandle.linkedReferences}
       pageTagMentions={shellHandle.pageTagMentions}
@@ -412,8 +413,8 @@ export default function NotesPage() {
       isLoadingAttachments={shellHandle.isLoadingAttachments}
       onToggleDetailsSection={toggleDetailsSection}
       onSetSummaryDraft={(value) => {
-        // Shell owns summaryDraft — persist through shell's page actions
-        shellHandle.persistSelectedPageProperties(value, shellHandle.selectedTagIdsDraft);
+        setSummaryDraft(value);
+        shellHandle.setSummaryDraft(value);
       }}
       onPersistSelectedPageProperties={shellHandle.persistSelectedPageProperties}
       onSetFocusTarget={shellHandle.setFocusTarget}
@@ -486,7 +487,7 @@ export default function NotesPage() {
         />
       ) : null}
 
-      <main className={`flex-1 overflow-y-auto overflow-x-hidden px-[var(--app-gutter-x)] pb-[var(--mobile-bottom-fab-clearance)] sm:overflow-hidden sm:pb-4 ${isDisplayingOverview ? "pt-0 md:pt-0 md:pb-8" : "py-4 md:py-8 md:pb-8"}`}>
+      <main className={`flex-1 overflow-y-auto overflow-x-hidden px-[var(--app-gutter-x)] pb-[var(--mobile-bottom-fab-clearance)] sm:pb-4 ${isDisplayingOverview ? "sm:overflow-y-auto pt-0 md:pt-0 md:pb-8" : "sm:overflow-hidden py-4 md:py-8 md:pb-8"}`}>
         <div className="mx-auto max-w-[1600px] space-y-4 sm:flex sm:h-full sm:min-h-0 sm:flex-col sm:space-y-0">
           {isDisplayingOverview ? (
             <NotesOverview
@@ -602,10 +603,10 @@ export default function NotesPage() {
                 )}
 
                 {showDesktopPagesRail ? (
-                  <aside className="hidden sm:block sm:min-h-0 sm:overflow-hidden">{navigationRail}</aside>
+                  <aside className="hidden sm:block sm:h-full sm:min-h-0 sm:overflow-hidden">{navigationRail}</aside>
                 ) : <div className="hidden sm:block" aria-hidden="true" />}
 
-                <section className="min-w-0 sm:min-h-0 sm:overflow-y-auto">
+                <section className="min-w-0 sm:h-full sm:min-h-0 sm:overflow-y-auto">
                   {navStack.stack.length > 0 && !isDisplayingOverview && (
                     <div className="mx-auto hidden max-w-3xl px-3 pt-1 sm:block sm:px-0">
                       <NotesPageBreadcrumb
@@ -632,12 +633,13 @@ export default function NotesPage() {
                       onPeekPageReference={handlePeekPageReference}
                       onReady={handleShellReady}
                       onUndoStateChange={handleUndoStateChange}
+                      onSummaryDraftChange={setSummaryDraft}
                     />
                   )}
                 </section>
 
                 {showDesktopDetailsRail ? (
-                  <aside className="hidden sm:flex sm:min-h-0 sm:overflow-hidden">{detailsRail ?? (showSelectedPageLoading ? <NotesDetailsRailSkeleton showHeader={false} /> : null)}</aside>
+                  <aside className="hidden sm:flex sm:h-full sm:min-h-0 sm:overflow-hidden">{detailsRail ?? (showSelectedPageLoading ? <NotesDetailsRailSkeleton showHeader={false} /> : null)}</aside>
                 ) : <div className="hidden sm:block" aria-hidden="true" />}
               </section>
             </>

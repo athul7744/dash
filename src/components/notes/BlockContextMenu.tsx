@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, IndentDecrease, IndentIncrease, Paintbrush, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Heading1, Heading2, Heading3, Heading4, Heading5, IndentDecrease, IndentIncrease, Paintbrush, TextCursorInput, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
 import type { BlockContextMenuActionId, BlockContextMenuOption } from "@/components/notes/block-context-menu-options";
@@ -9,6 +9,12 @@ const ACTION_ICON_BY_ID: Record<BlockContextMenuActionId, typeof ArrowUp> = {
   "move-down": ArrowDown,
   indent: IndentIncrease,
   outdent: IndentDecrease,
+  "convert-paragraph": TextCursorInput,
+  "convert-heading-1": Heading1,
+  "convert-heading-2": Heading2,
+  "convert-heading-3": Heading3,
+  "convert-heading-4": Heading4,
+  "convert-heading-5": Heading5,
   color: Paintbrush,
   delete: Trash2,
 };

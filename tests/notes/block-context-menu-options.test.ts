@@ -39,3 +39,34 @@ it("omits indent and outdent when not available", () => {
   expect(options.find((o) => o.id === "indent")).toBeUndefined();
   expect(options.find((o) => o.id === "outdent")).toBeUndefined();
 });
+
+it("includes heading conversions for paragraph blocks", () => {
+  const options = getBlockContextMenuOptions({ blockType: "text", textStyle: "paragraph" });
+  expect(options.map((option) => option.id)).toEqual([
+    "convert-heading-1",
+    "convert-heading-2",
+    "convert-heading-3",
+    "convert-heading-4",
+    "convert-heading-5",
+    "color",
+    "delete",
+  ]);
+});
+
+it("includes paragraph and other heading conversions for heading blocks", () => {
+  const options = getBlockContextMenuOptions({ blockType: "text", textStyle: "heading-3" });
+  expect(options.map((option) => option.id)).toEqual([
+    "convert-paragraph",
+    "convert-heading-1",
+    "convert-heading-2",
+    "convert-heading-4",
+    "convert-heading-5",
+    "color",
+    "delete",
+  ]);
+});
+
+it("omits text style conversions when a text block is not paragraph or heading content", () => {
+  const options = getBlockContextMenuOptions({ blockType: "text", textStyle: null });
+  expect(options.map((option) => option.id)).toEqual(["color", "delete"]);
+});

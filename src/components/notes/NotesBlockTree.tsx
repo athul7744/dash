@@ -7,7 +7,7 @@ import { Plus } from "lucide-react";
 import { BlockContextMenu } from "@/components/notes/BlockContextMenu";
 import { NoteBlockEditor } from "@/components/notes/NoteBlockEditor";
 import { QueryBlockView } from "@/components/notes/QueryBlockView";
-import { getBlockContextMenuOptions, type BlockContextMenuActionId } from "@/components/notes/block-context-menu-options";
+import { getBlockContextMenuOptions, type BlockContextMenuActionId, type BlockContextMenuTextStyle } from "@/components/notes/block-context-menu-options";
 import type { BlockColorKey } from "@/components/notes/NoteBlockEditorColor";
 import type { NoteBlockRow } from "@/hooks/use-notes";
 import {
@@ -37,6 +37,67 @@ type BlockTreeNode = NoteTreeNode<NoteBlockRow>;
 
 export function extractBlockText(raw: string | null | undefined) {
   return extractNoteText(raw);
+}
+
+const HEADING_LEVELS = [1, 2, 3, 4, 5] as const;
+
+function getBlockContextTextStyle(raw: unknown): BlockContextMenuTextStyle | null {
+  const document = normalizeNoteDocument(raw);
+  const firstNode = Array.isArray(document.content) ? document.content[0] : null;
+
+  if (!firstNode || typeof firstNode !== "object") {
+    return null;
+  }
+
+  if (firstNode.type === "paragraph") {
+    return "paragraph";
+  }
+
+  if (firstNode.type !== "heading") {
+    return null;
+  }
+
+  const level = typeof firstNode.attrs === "object" && firstNode.attrs && "level" in firstNode.attrs
+    ? firstNode.attrs.level
+    : null;
+
+  return HEADING_LEVELS.includes(level as (typeof HEADING_LEVELS)[number])
+    ? `heading-${level}` as BlockContextMenuTextStyle
+    : null;
+}
+
+function convertBlockTextStyle(raw: unknown, targetStyle: BlockContextMenuTextStyle): JsonValue | null {
+  const document = normalizeNoteDocument(raw);
+  const content = Array.isArray(document.content) ? document.content : [];
+  const firstNode = content[0];
+
+  if (!firstNode || typeof firstNode !== "object" || (firstNode.type !== "paragraph" && firstNode.type !== "heading")) {
+    return null;
+  }
+
+  if (targetStyle === "paragraph") {
+    const { level: _level, ...attrsWithoutLevel } = ((firstNode.attrs ?? {}) as Record<string, unknown>);
+    const nextNode: Record<string, unknown> = {
+      ...firstNode,
+      type: "paragraph",
+    };
+    if (Object.keys(attrsWithoutLevel).length > 0) {
+      nextNode.attrs = attrsWithoutLevel;
+    } else {
+      delete nextNode.attrs;
+    }
+
+    return { ...document, content: [nextNode, ...content.slice(1)] } as JsonValue;
+  }
+
+  const level = Number(targetStyle.replace("heading-", "")) as (typeof HEADING_LEVELS)[number];
+  if (!HEADING_LEVELS.includes(level)) {
+    return null;
+  }
+
+  const attrs = { ...((firstNode.attrs ?? {}) as Record<string, unknown>), level };
+  const nextNode = { ...firstNode, type: "heading", attrs };
+  return { ...document, content: [nextNode, ...content.slice(1)] } as JsonValue;
 }
 
 function BlockNodeView({
@@ -128,11 +189,13 @@ function BlockNodeView({
   const previousBlockSpacingMeta = previousBlockId ? (blockSpacingMetaById.get(previousBlockId) ?? defaultBlockSpacingMeta) : defaultBlockSpacingMeta;
   const nextBlockSpacingMeta = nextBlockId ? (blockSpacingMetaById.get(nextBlockId) ?? defaultBlockSpacingMeta) : defaultBlockSpacingMeta;
   const blockType = node.block.type ?? "text";
+  const blockContextTextStyle = blockType === "text" ? getBlockContextTextStyle(node.block.content) : null;
   const moveTargetBlockIds = selectedBlockIds.has(node.block.id)
     ? [...selectedBlockIds]
     : [node.block.id];
   const blockContextMenuOptions = getBlockContextMenuOptions({
     blockType,
+    textStyle: blockContextTextStyle,
     canMoveUp: previousBlockId !== null,
     canMoveDown: nextBlockId !== null,
     canIndent: !!previousSiblingId,
@@ -215,6 +278,28 @@ function BlockNodeView({
           onOutdent(node.block.id, parentParentBlockId);
         }
         return;
+      case "convert-paragraph":
+      case "convert-heading-1":
+      case "convert-heading-2":
+      case "convert-heading-3":
+      case "convert-heading-4":
+      case "convert-heading-5": {
+        const targetStyle = actionId === "convert-paragraph"
+          ? "paragraph"
+          : actionId.replace("convert-", "") as BlockContextMenuTextStyle;
+        const nextContent = convertBlockTextStyle(node.block.content, targetStyle);
+        if (!nextContent) {
+          return;
+        }
+
+        if (onConvertBlockType) {
+          onConvertBlockType(node.block.id, "text", nextContent);
+        } else {
+          onUpdateContent(node.block.id, nextContent);
+          onCommitContent(node.block.id, nextContent);
+        }
+        return;
+      }
       case "color":
         // Handled by onColorSelect in BlockContextMenu
         return;

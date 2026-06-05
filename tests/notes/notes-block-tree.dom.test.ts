@@ -87,6 +87,38 @@ function createBlock(id: string, parentBlockId: string | null, sortRank: string,
   };
 }
 
+function createBlockWithContent(id: string, parentBlockId: string | null, sortRank: string, content: unknown): NoteBlockRow {
+  return {
+    id,
+    user_id: "user-1",
+    page_id: "page-1",
+    parent_block_id: parentBlockId,
+    type: "text",
+    content: serializeNoteDocument(content),
+    sort_rank: sortRank,
+    updated_at: "2026-05-14T00:00:00.000Z",
+  };
+}
+
+function createTableDocument() {
+  return {
+    type: "doc",
+    content: [
+      {
+        type: "table",
+        content: [
+          {
+            type: "tableRow",
+            content: [
+              { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "Cell" }] }] },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 function toBlockRows(blocks: NoteBlockRow[]): BlockRow[] {
   return blocks.map((b) => ({
     id: b.id,
@@ -571,6 +603,74 @@ it("shows block context menu move actions and routes them through the block move
 
   expect(onMoveSelectedBlockRange).toHaveBeenNthCalledWith(2, ["second"], "down", "second");
   expect(onDelete).not.toHaveBeenCalled();
+
+  await act(async () => {
+    root?.unmount();
+  });
+  container.remove();
+});
+
+it("shows heading conversions for paragraph blocks but not table blocks", async () => {
+  const onConvertBlockType = vi.fn();
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  let root: Root | null = null;
+
+  await act(async () => {
+    root = createRoot(container);
+    root.render(
+      React.createElement(NotesBlockTree, {
+        blocks: [
+          createBlock("paragraph", null, "0|hzzzzz:", "First"),
+          createBlockWithContent("table", null, "0|i00007:", createTableDocument()),
+        ],
+        onCreateFirstBlock: vi.fn(),
+        onFocusBlock: vi.fn(),
+        notePageTitles: [],
+        onCreateSibling: vi.fn(),
+        onCreateEmptySibling: vi.fn(),
+        onCreateSiblings: vi.fn(),
+        onMergeWithPrevious: vi.fn(),
+        onCommitContent: vi.fn(),
+        onIndent: vi.fn(),
+        onOutdent: vi.fn(),
+        onMoveSelectedBlockRange: vi.fn(),
+        onDelete: vi.fn(),
+        onDeleteRange: vi.fn(),
+        onUpdateContent: vi.fn(),
+        onConvertBlockType,
+      }),
+    );
+  });
+
+  const bulletButtons = Array.from(container.querySelectorAll('button[aria-label="Toggle raw markdown view"]')) as HTMLButtonElement[];
+
+  await act(async () => {
+    bulletButtons[0].dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+  });
+
+  const headingOneButton = container.querySelector('button[aria-label="Heading 1"]') as HTMLButtonElement | null;
+  expect(headingOneButton).not.toBeNull();
+
+  await act(async () => {
+    if (headingOneButton) {
+      dispatchMouseClick(headingOneButton);
+    }
+  });
+
+  expect(onConvertBlockType).toHaveBeenCalledTimes(1);
+  expect(onConvertBlockType.mock.calls[0][0]).toBe("paragraph");
+  expect(onConvertBlockType.mock.calls[0][1]).toBe("text");
+  expect(onConvertBlockType.mock.calls[0][2]).toEqual({
+    type: "doc",
+    content: [{ type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "First" }] }],
+  });
+
+  await act(async () => {
+    bulletButtons[1].dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+  });
+
+  expect(container.querySelector('button[aria-label="Heading 1"]')).toBeNull();
 
   await act(async () => {
     root?.unmount();

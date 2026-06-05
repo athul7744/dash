@@ -1,4 +1,18 @@
-export type BlockContextMenuActionId = "move-up" | "move-down" | "indent" | "outdent" | "color" | "delete";
+export type BlockContextMenuTextStyle = "paragraph" | "heading-1" | "heading-2" | "heading-3" | "heading-4" | "heading-5";
+
+export type BlockContextMenuActionId =
+  | "move-up"
+  | "move-down"
+  | "indent"
+  | "outdent"
+  | "convert-paragraph"
+  | "convert-heading-1"
+  | "convert-heading-2"
+  | "convert-heading-3"
+  | "convert-heading-4"
+  | "convert-heading-5"
+  | "color"
+  | "delete";
 
 export type BlockContextMenuOption = {
   id: BlockContextMenuActionId;
@@ -9,6 +23,7 @@ export type BlockContextMenuOption = {
 
 type BlockContextMenuOptionsInput = {
   blockType: string;
+  textStyle?: BlockContextMenuTextStyle | null;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   canIndent?: boolean;
@@ -26,6 +41,7 @@ export function getBlockContextMenuActionIds(blockType: string): BlockContextMen
 
 export function getBlockContextMenuOptions({
   blockType,
+  textStyle = null,
   canMoveUp = false,
   canMoveDown = false,
   canIndent = false,
@@ -68,6 +84,27 @@ export function getBlockContextMenuOptions({
         }
         return;
       case "color":
+        if (textStyle) {
+          if (textStyle !== "paragraph") {
+            options.push({
+              id: "convert-paragraph",
+              label: "Text",
+            });
+          }
+
+          ([1, 2, 3, 4, 5] as const).forEach((level) => {
+            const id = `convert-heading-${level}` as const;
+            if (textStyle === `heading-${level}`) {
+              return;
+            }
+
+            options.push({
+              id,
+              label: `Heading ${level}`,
+            });
+          });
+        }
+
         options.push({
           id: actionId,
           label: "Block color",

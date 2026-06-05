@@ -617,6 +617,62 @@ export const NoteBlockEditor = memo(function NoteBlockEditor({
           onFocusRef.current?.();
           return false;
         },
+        mousedown(view, event) {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) {
+            return false;
+          }
+
+          const refSpan = target.closest(".note-ref-token-page") as HTMLElement | null;
+          if (!refSpan) {
+            return false;
+          }
+
+          const nextEditor = editor ?? view as unknown as Editor;
+          const position = view.posAtDOM(refSpan, 0);
+          const reference = getResolvedPageReferenceAtPosition(nextEditor, position);
+          if (!reference) {
+            return false;
+          }
+
+          const canOpenReference = notePageTitles.some((title) => title.localeCompare(reference.title, undefined, { sensitivity: "accent" }) === 0);
+          if (!canOpenReference) {
+            return false;
+          }
+
+          // Prevent native contenteditable caret placement inside [[ref]] tokens.
+          event.preventDefault();
+          return true;
+        },
+        touchstart(view, event) {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) {
+            return false;
+          }
+
+          const refSpan = target.closest(".note-ref-token-page") as HTMLElement | null;
+          if (!refSpan) {
+            return false;
+          }
+
+          const nextEditor = editor ?? view as unknown as Editor;
+          const position = view.posAtDOM(refSpan, 0);
+          const reference = getResolvedPageReferenceAtPosition(nextEditor, position);
+          if (!reference) {
+            return false;
+          }
+
+          const canOpenReference = notePageTitles.some((title) => title.localeCompare(reference.title, undefined, { sensitivity: "accent" }) === 0);
+          if (!canOpenReference) {
+            return false;
+          }
+
+          // On touch, block focus/keyboard and open peek immediately.
+          event.preventDefault();
+          lastPointerTypeRef.current = "touch";
+          onPeekPageReferenceRef.current?.(reference.title, refSpan.getBoundingClientRect());
+          return true;
+        },
         click(view, event) {
           const target = event.target;
           if (!(target instanceof HTMLElement)) {

@@ -145,6 +145,9 @@ async function mountNoteBlockEditor(options?: {
   hasChildren?: boolean;
   focusPlacement?: number | "start" | "end";
   shouldFocus?: boolean;
+  notePageTitles?: string[];
+  onPeekPageReference?: (title: string, rect: DOMRect) => void;
+  onOpenPageReference?: (title: string) => void;
 }) {
   const onChange = vi.fn();
   const onCommit = vi.fn();
@@ -167,7 +170,7 @@ async function mountNoteBlockEditor(options?: {
     root.render(
       React.createElement(NoteBlockEditor, {
         content: options?.content ?? serializeNoteDocument(createNoteDocumentFromText("Hello world")),
-        notePageTitles: [],
+        notePageTitles: options?.notePageTitles ?? [],
         hasChildren: options?.hasChildren ?? false,
         shouldFocus: options?.shouldFocus ?? true,
         focusPlacement: options?.focusPlacement ?? "end",
@@ -183,6 +186,8 @@ async function mountNoteBlockEditor(options?: {
         onIndent,
         onOutdent,
         onDeleteEmpty,
+        onPeekPageReference: options?.onPeekPageReference,
+        onOpenPageReference: options?.onOpenPageReference,
       })
     );
   });
@@ -532,6 +537,33 @@ it("keeps the focused column target after the editor blurs while the table menu 
   const firstRowCells = Array.isArray(firstRow?.content) ? firstRow.content : [];
   expect(firstRowCells.length).toBe(1);
   expect(firstRowCells[0]?.content?.[0]?.content?.[0]).toEqual({ type: "text", text: "A" });
+
+  await mounted.unmount();
+});
+
+it("opens page peek on touchstart without focusing editor caret", async () => {
+  const onPeekPageReference = vi.fn();
+  const onOpenPageReference = vi.fn();
+  const mounted = await mountNoteBlockEditor({
+    content: serializeNoteDocument(createNoteDocumentFromText("Visit [[Linked Page]] now")),
+    notePageTitles: ["Linked Page"],
+    shouldFocus: false,
+    onPeekPageReference,
+    onOpenPageReference,
+  });
+
+  const referenceToken = await waitForElement(mounted.container, ".note-ref-token-page");
+  const touchStartEvent = new Event("touchstart", { bubbles: true, cancelable: true });
+
+  await act(async () => {
+    referenceToken.dispatchEvent(touchStartEvent);
+    await Promise.resolve();
+  });
+
+  expect(onPeekPageReference).toHaveBeenCalledTimes(1);
+  expect(onPeekPageReference).toHaveBeenCalledWith("Linked Page", expect.any(Object));
+  expect(onOpenPageReference).not.toHaveBeenCalled();
+  expect(document.activeElement).not.toBe(mounted.editorElement);
 
   await mounted.unmount();
 });

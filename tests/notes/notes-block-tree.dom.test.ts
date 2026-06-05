@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { NotesBlockTree } from "@/components/notes/NotesBlockTree";
 import type { NoteBlockRow } from "@/hooks/use-notes";
 import { createNoteDocumentFromText, serializeNoteDocument } from "@/lib/notes/notes-content";
-import { NoteBlockStore, type BlockRow, type BlockNode } from "@/lib/notes/note-block-store";
+import { NoteBlockStore, type BlockStoreHydrationRow, type BlockNode } from "@/lib/notes/note-block-store";
 import {
   getDeleteChildMoves,
   getDeleteFocusTarget,
@@ -119,7 +119,7 @@ function createTableDocument() {
   };
 }
 
-function toBlockRows(blocks: NoteBlockRow[]): BlockRow[] {
+function toBlockRows(blocks: NoteBlockRow[]): BlockStoreHydrationRow[] {
   return blocks.map((b) => ({
     id: b.id,
     page_id: b.page_id ?? "page-1",

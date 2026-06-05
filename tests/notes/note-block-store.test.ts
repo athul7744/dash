@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import { NoteBlockStore, type BlockNode, type BlockRow } from "@/lib/notes/note-block-store";
+import { NoteBlockStore, type BlockNode, type BlockStoreHydrationRow } from "@/lib/notes/note-block-store";
 
 // Mock dependencies
 vi.mock("@/lib/powersync/db", () => {
@@ -88,7 +88,7 @@ const { db } = await import("@/lib/powersync/db");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeBlockRow(overrides: Partial<BlockRow> = {}): BlockRow {
+function makeBlockRow(overrides: Partial<BlockStoreHydrationRow> = {}): BlockStoreHydrationRow {
   return {
     id: overrides.id ?? "block-1",
     page_id: overrides.page_id ?? "page-1",

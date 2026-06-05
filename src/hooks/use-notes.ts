@@ -145,19 +145,6 @@ export function usePageAttachments(pageId?: string | null) {
   };
 }
 
-export function useBlockAttachments(blockId?: string | null) {
-  const query = blockId
-    ? "SELECT id, user_id, page_id, block_id, file_path, sync_state FROM attachments WHERE block_id = ? ORDER BY id ASC"
-    : EMPTY_ATTACHMENTS_QUERY;
-  const args = blockId ? [blockId] : [];
-  const { data = [], isLoading } = useQuery<NoteAttachmentRow>(query, args);
-
-  return {
-    attachments: data,
-    isLoading
-  };
-}
-
 export function useLinkedNoteReferences(pageId?: string | null) {
   const query = pageId
     ? [

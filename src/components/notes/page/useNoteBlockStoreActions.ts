@@ -16,7 +16,7 @@ import {
 } from "@/lib/notes/block-editor-structure";
 import { getVisibleNoteBlockIds } from "@/lib/notes/notes-tree";
 import { getRankAfterItem, getRankAtParentEnd, getRankBeforeItem } from "@/lib/shared/ranked-order";
-import { getNoteBlockStore, disposeNoteBlockStore, type BlockRow, type JsonValue, type NoteBlockStore } from "@/lib/notes/note-block-store";
+import { getNoteBlockStore, disposeNoteBlockStore, type BlockStoreHydrationRow, type JsonValue, type NoteBlockStore } from "@/lib/notes/note-block-store";
 
 import type { NoteBlockInsert } from "@/lib/notes/notes";
 
@@ -91,7 +91,7 @@ export function useNoteBlockStoreActions({
   useEffect(() => {
     if (hydratedPageIdRef.current !== pageId) {
       // First hydration for this page
-      const rows: BlockRow[] = selectedBlocks.map((b) => ({
+      const rows: BlockStoreHydrationRow[] = selectedBlocks.map((b) => ({
         id: b.id,
         page_id: b.page_id ?? pageId,
         parent_block_id: b.parent_block_id ?? null,

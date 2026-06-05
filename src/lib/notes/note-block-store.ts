@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { Editor } from "@tiptap/core";
 
 import { db } from "@/lib/powersync/db";
+import type { BlockRecord } from "@/lib/powersync/AppSchema";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { EntityStore, type EntityStoreConfig } from "@/lib/shared/entity-store";
 import type { JsonValue } from "@/lib/shared/types";
@@ -30,14 +31,12 @@ export interface BlockNode {
   editorRef: Editor | null;
 }
 
-export interface BlockRow {
-  id: string;
-  page_id: string;
-  parent_block_id: string | null;
-  sort_rank: string;
-  type: string;
-  content: string;
-}
+type BlockStoreHydrationSource = BlockRecord & { id: string };
+
+export type BlockStoreHydrationRow = {
+  [Key in keyof Pick<BlockStoreHydrationSource, "id" | "page_id" | "parent_block_id" | "sort_rank" | "type" | "content">]:
+    Key extends "parent_block_id" ? string | null : NonNullable<BlockStoreHydrationSource[Key]>;
+};
 
 interface BlockSnapshot {
   id: string;
@@ -109,7 +108,7 @@ export class NoteBlockStore extends EntityStore<BlockNode, NoteBlockCommand> {
    * Hydrate from block rows (initial load or full reconcile).
    * Replaces all in-memory state. Preserves editor refs for existing blocks.
    */
-  hydrate(rows: BlockRow[]) {
+  hydrate(rows: BlockStoreHydrationRow[]) {
     const prevEditorRefs = new Map<string, Editor | null>();
     for (const [id, node] of this.nodes) {
       prevEditorRefs.set(id, node.editorRef);
@@ -834,7 +833,7 @@ export class NoteBlockStore extends EntityStore<BlockNode, NoteBlockCommand> {
 
   // ─── Reconcile (PowerSync) ──────────────────────────────────────────────────
 
-  protected reconcileNode(row: BlockRow) {
+  protected reconcileNode(row: BlockStoreHydrationRow) {
     // Skip blocks pending local deletion (undo removed it, but DB hasn't flushed yet)
     if (this.pendingDeletes.has(row.id)) return;
 

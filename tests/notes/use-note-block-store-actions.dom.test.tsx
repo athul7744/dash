@@ -115,10 +115,14 @@ it("does not reapply live editor content when update content matches current edi
 });
 
 it("still reapplies programmatic content when it differs from current editor JSON", async () => {
-  const currentContent = createNoteDocumentFromText("Hello world") as JsonValue;
+  let currentContent = createNoteDocumentFromText("Hello world") as JsonValue;
   const nextContent = createNoteDocumentFromText("Hello blue world") as JsonValue;
-  const setContent = vi.fn();
+  const setContent = vi.fn((content: JsonValue) => {
+    currentContent = content;
+  });
+  const onStoreChange = vi.fn();
   const mounted = await renderHarness([createBlock("block-1", "Hello world")]);
+  const unsubscribe = mounted.handle.store.subscribe(onStoreChange);
 
   mounted.handle.store.setEditorRef("block-1", {
     getJSON: () => currentContent,
@@ -130,5 +134,7 @@ it("still reapplies programmatic content when it differs from current editor JSO
   });
 
   expect(setContent).toHaveBeenCalledWith(nextContent, { emitUpdate: false });
+  expect(onStoreChange).toHaveBeenCalled();
+  unsubscribe();
   await mounted.unmount();
 });

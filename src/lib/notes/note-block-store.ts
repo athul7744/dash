@@ -225,6 +225,17 @@ export class NoteBlockStore extends EntityStore<BlockNode, NoteBlockCommand> {
     this.notify();
   }
 
+  /** Replace content on a mounted editor and notify derived UI (colors, headings). */
+  setEditorContent(blockId: string, content: JsonValue) {
+    const node = this.nodes.get(blockId);
+    if (!node?.editorRef) return;
+
+    node.editorRef.commands.setContent(content as any, { emitUpdate: false });
+    this.markDirty(blockId);
+    this.contentCache.set(blockId, serializeNoteDocument(node.editorRef.getJSON()));
+    this.notify();
+  }
+
   /**
    * Record a content change for undo (e.g. when committing on blur or before structural ops).
    */

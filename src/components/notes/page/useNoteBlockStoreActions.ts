@@ -337,8 +337,7 @@ export function useNoteBlockStoreActions({
         return;
       }
 
-      node.editorRef.commands.setContent(nextContent as any, { emitUpdate: false });
-      store.commitContent(blockId);
+      store.setEditorContent(blockId, nextContent);
     } else {
       // Non-editor blocks (e.g. query): store content directly
       store.setContentDirect(blockId, nextContent);

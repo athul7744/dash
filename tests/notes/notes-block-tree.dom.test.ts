@@ -178,6 +178,11 @@ function dispatchMouseClick(target: HTMLElement) {
   target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
 }
 
+function dispatchPointerMouseClick(target: HTMLElement) {
+  target.dispatchEvent(new Event("pointerdown", { bubbles: true, cancelable: true }));
+  dispatchMouseClick(target);
+}
+
 // ─── TreeHarness (backed by NoteBlockStore) ──────────────────────────────────
 
 type TreeHarnessHandle = {
@@ -603,6 +608,75 @@ it("shows block context menu move actions and routes them through the block move
 
   expect(onMoveSelectedBlockRange).toHaveBeenNthCalledWith(2, ["second"], "down", "second");
   expect(onDelete).not.toHaveBeenCalled();
+
+  await act(async () => {
+    root?.unmount();
+  });
+  container.remove();
+});
+
+it("applies block color from the context menu color palette", async () => {
+  const onUpdateContent = vi.fn();
+  const onCommitContent = vi.fn();
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  let root: Root | null = null;
+
+  await act(async () => {
+    root = createRoot(container);
+    root.render(
+      React.createElement(NotesBlockTree, {
+        blocks: [createBlock("first", null, "0|hzzzzz:", "First")],
+        onCreateFirstBlock: vi.fn(),
+        onFocusBlock: vi.fn(),
+        notePageTitles: [],
+        onCreateSibling: vi.fn(),
+        onCreateEmptySibling: vi.fn(),
+        onCreateSiblings: vi.fn(),
+        onMergeWithPrevious: vi.fn(),
+        onCommitContent,
+        onIndent: vi.fn(),
+        onOutdent: vi.fn(),
+        onMoveSelectedBlockRange: vi.fn(),
+        onDelete: vi.fn(),
+        onDeleteRange: vi.fn(),
+        onUpdateContent,
+      }),
+    );
+  });
+
+  const bulletButton = container.querySelector('button[aria-label="Toggle raw markdown view"]') as HTMLButtonElement | null;
+
+  await act(async () => {
+    bulletButton?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+  });
+
+  const blockColorButton = container.querySelector('button[aria-label="Block color"]') as HTMLButtonElement | null;
+  expect(blockColorButton).not.toBeNull();
+
+  await act(async () => {
+    if (blockColorButton) {
+      dispatchMouseClick(blockColorButton);
+    }
+  });
+
+  const blueButton = container.querySelector('button[aria-label="Blue"]') as HTMLButtonElement | null;
+  expect(blueButton).not.toBeNull();
+
+  await act(async () => {
+    if (blueButton) {
+      dispatchPointerMouseClick(blueButton);
+    }
+  });
+
+  expect(onUpdateContent).toHaveBeenCalledWith("first", {
+    type: "doc",
+    content: [{ type: "paragraph", attrs: { color: "blue" }, content: [{ type: "text", text: "First" }] }],
+  });
+  expect(onCommitContent).toHaveBeenCalledWith("first", {
+    type: "doc",
+    content: [{ type: "paragraph", attrs: { color: "blue" }, content: [{ type: "text", text: "First" }] }],
+  });
 
   await act(async () => {
     root?.unmount();

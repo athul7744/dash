@@ -332,7 +332,8 @@ function BlockNodeView({
     }
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (bulletRef.current?.contains(event.target as Node)) {
+      const target = event.target;
+      if (bulletRef.current?.contains(target as Node) || target instanceof HTMLElement && target.closest('[data-block-context-menu="true"]')) {
         return;
       }
 

@@ -235,19 +235,25 @@ CREATE PUBLICATION powersync FOR TABLE public.tasks, public.tags, public.time_lo
 config:
   edition: 3
 streams:
-  user_data:
+  # Bucket A: Low Churn Metadata (Rarely blocks because data rarely changes)
+  user_metadata:
     auto_subscribe: true
     queries:
-      - SELECT * FROM tasks WHERE tasks.user_id = auth.user_id()
       - SELECT * FROM tags WHERE tags.user_id = auth.user_id()
-      - SELECT * FROM time_logs WHERE time_logs.user_id = auth.user_id()
       - SELECT * FROM activity_types WHERE activity_types.user_id = auth.user_id()
       - SELECT * FROM daily_ratings WHERE daily_ratings.user_id = auth.user_id()
+      - SELECT * FROM property_definitions WHERE property_definitions.user_id = auth.user_id()
+
+  # Bucket B: High Churn Content (Compacts perfectly with CLEAR because operations churn out)
+  user_content:
+    auto_subscribe: true
+    queries:
       - SELECT * FROM pages WHERE pages.user_id = auth.user_id()
       - SELECT * FROM blocks WHERE blocks.user_id = auth.user_id()
       - SELECT * FROM edges WHERE edges.user_id = auth.user_id()
       - SELECT * FROM attachments WHERE attachments.user_id = auth.user_id()
-      - SELECT * FROM property_definitions WHERE property_definitions.user_id = auth.user_id()
+      - SELECT * FROM tasks WHERE tasks.user_id = auth.user_id()
+      - SELECT * FROM time_logs WHERE time_logs.user_id = auth.user_id()
 ```
 
 4. Note your **PowerSync Instance URL**

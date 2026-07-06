@@ -30,10 +30,15 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // Refresh the session - important for keeping auth alive
+  // Single-user personal app: the redirect below is a UX gate, not the security
+  // boundary (Postgres RLS + PowerSync token validation are). getSession() reads
+  // the session from cookies locally instead of doing a Supabase auth round-trip
+  // on every request, which keeps navigations fast on poor mobile networks. It
+  // still refreshes an expired token (writing new cookies via setAll) when needed.
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    data: { session },
+  } = await supabase.auth.getSession()
+  const user = session?.user
 
   const isLoginPage = request.nextUrl.pathname === '/login'
   const isAuthCallback = request.nextUrl.pathname.startsWith('/auth/callback')

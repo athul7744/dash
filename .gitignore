@@ -26,6 +26,9 @@
 /.vscode/
 /.github/
 
+# local agent/editor settings
+.claude/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

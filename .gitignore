@@ -46,5 +46,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Supabase CLI
-/supabase
+# Supabase CLI — ignore local CLI state and migrations, but keep the deployable
+# Edge Function source tracked so anyone cloning the repo can deploy it.
+/supabase/*
+!/supabase/functions/

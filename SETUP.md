@@ -207,8 +207,67 @@ CREATE INDEX idx_attachments_page ON attachments (page_id) WHERE page_id IS NOT 
 CREATE INDEX idx_attachments_block ON attachments (block_id) WHERE block_id IS NOT NULL;
 CREATE INDEX idx_attachments_user_path ON attachments (user_id, file_path);
 
+-- Table privileges for the browser client. RLS still restricts each user to their own rows.
+GRANT SELECT, INSERT, UPDATE, DELETE ON
+  public.tasks, public.tags, public.time_logs, public.activity_types,
+  public.daily_ratings, public.pages, public.blocks, public.edges,
+  public.attachments, public.property_definitions
+TO authenticated;
+
 -- Publication for PowerSync replication
 CREATE PUBLICATION powersync FOR TABLE public.tasks, public.tags, public.time_logs, public.activity_types, public.daily_ratings, public.pages, public.blocks, public.edges, public.attachments, public.property_definitions;
+```
+
+### Push notifications schema (optional)
+
+Only needed for [push notifications](#5-push-notifications). Do not add
+`push_subscriptions` to the `powersync` publication or the PowerSync stream queries.
+
+```sql
+-- Browser push subscriptions (one row per browser/device)
+CREATE TABLE public.push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own subscriptions" ON public.push_subscriptions
+  FOR ALL TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX idx_push_subscriptions_user ON public.push_subscriptions (user_id);
+
+-- Privileges: authenticated (browser client), service_role (Edge Function).
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.push_subscriptions TO authenticated;
+GRANT ALL ON public.push_subscriptions TO service_role;
+
+-- Helper functions the Edge Function calls via supabase.rpc().
+CREATE OR REPLACE FUNCTION public.users_without_recent_logs(hours int DEFAULT 2)
+RETURNS TABLE (user_id uuid)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT u.id FROM auth.users u
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.time_logs tl
+    WHERE tl.user_id = u.id
+      AND tl.created_at::timestamptz >= now() - make_interval(hours => hours)
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.pending_tasks_due_today(tz text DEFAULT 'Asia/Kolkata')
+RETURNS TABLE (user_id uuid, task_count bigint)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT t.user_id, COUNT(*) FROM public.tasks t
+  WHERE t.state = 'pending'
+    AND t.due_date IS NOT NULL AND t.due_date <> ''
+    AND (t.due_date::timestamptz AT TIME ZONE tz)::date = (now() AT TIME ZONE tz)::date
+  GROUP BY t.user_id;
+$$;
 ```
 
 4. Go to **Authentication → Users → Add User** to create your account
@@ -277,6 +336,8 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJ...your-publishable-key
 NEXT_PUBLIC_POWERSYNC_URL=https://your-instance.powersync.journeyapps.com
 NEXT_PUBLIC_ENABLE_LOG_VIEW=false
+# Optional — only if you enable push notifications (see section 5)
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
 ```
 
 ```bash
@@ -334,6 +395,79 @@ If you update Tiptap or KaTeX packages, keep versions aligned. The repo pins Tip
 4. Deploy
 
 > Set your Supabase **Authentication → URL Configuration → Site URL** to your Vercel URL.
+
+---
+
+## 5. Push Notifications
+
+Optional. Two notifications sent by a Supabase Edge Function. Trigger it on a schedule
+with any external scheduler (cron, a hosted automation tool, etc.).
+
+1. **Tracker nudge** — no tracker activity logged in the last 2 hours.
+2. **Daily task summary** — pending tasks due today (anchored to `Asia/Kolkata`).
+
+### Setup
+
+1. Run the [Push notifications schema](#push-notifications-schema-optional) SQL block above.
+
+2. Generate a VAPID key pair:
+
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+
+3. Set the **frontend** key (Vercel + local `.env.local`):
+
+   ```env
+   NEXT_PUBLIC_VAPID_PUBLIC_KEY=B... (the public key)
+   ```
+
+4. Set the **Edge Function** secrets (Supabase project / self-hosted secrets):
+
+   | Secret | Purpose |
+   | --- | --- |
+   | `VAPID_PUBLIC_KEY` | Public key (same value as the frontend one) |
+   | `VAPID_PRIVATE_KEY` | Private key from the generate step |
+   | `VAPID_SUBJECT` | Contact URI, e.g. `mailto:you@example.com` (required by web-push) |
+   | `SB_SECRET_KEY` | Server-side key that bypasses RLS. Use a **secret key** (`sb_secret_…`) from Dashboard → Project Settings → API Keys. |
+   | `PUSH_TRIGGER_SECRET` | Shared bearer secret your scheduler must send |
+
+5. Deploy the function — its source is tracked in the repo at
+   [supabase/functions/send-push-notification/index.ts](supabase/functions/send-push-notification/index.ts).
+   Deploy with **Verify JWT OFF** — the function uses its own shared-secret auth; with
+   JWT verification on, the gateway rejects requests before the function runs.
+
+   ```bash
+   supabase functions deploy send-push-notification --no-verify-jwt
+   ```
+
+   (If already deployed, toggle **Verify JWT** off on the function's dashboard page.)
+
+### Triggering
+
+Schedule POSTs to the function on your chosen cadence:
+
+```
+POST <SUPABASE_URL>/functions/v1/send-push-notification
+X-Trigger-Secret: <PUSH_TRIGGER_SECRET>
+Content-Type: application/json
+
+{ "type": "tracker-reminder" }   # schedule every 2 hours
+{ "type": "daily-tasks" }        # schedule daily at 08:00 Asia/Kolkata
+```
+
+No Supabase `Authorization`/`apikey` header is needed — the `X-Trigger-Secret` header is
+the only auth. Example:
+
+```bash
+curl -L -X POST '<SUPABASE_URL>/functions/v1/send-push-notification' \
+  -H 'X-Trigger-Secret: <PUSH_TRIGGER_SECRET>' \
+  -H 'Content-Type: application/json' \
+  --data '{"type":"daily-tasks"}'
+```
+
+Expired/unsubscribed endpoints (HTTP `404`/`410` from the push service) are deleted from
+`push_subscriptions` automatically on each send.
 
 ---
 

@@ -62,4 +62,67 @@ const serwist = new Serwist({
   ],
 });
 
+// --- Web Push ---
+// These coexist with Serwist: addEventListeners() below wires lifecycle/fetch/message
+// events only, never push/notificationclick, so registering our own is purely additive.
+
+interface PushPayload {
+  title: string;
+  body: string;
+  url: string;
+}
+
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+
+  let payload: PushPayload;
+  try {
+    payload = event.data.json() as PushPayload;
+  } catch {
+    payload = { title: "Dash", body: event.data.text(), url: "/" };
+  }
+
+  const { title = "Dash", body = "", url = "/" } = payload;
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icon-192x192.png",
+      badge: "/icon-192x192.png",
+      data: { url },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const targetUrl = (event.notification.data as { url?: string } | null)?.url ?? "/";
+  const targetHref = new URL(targetUrl, self.location.origin).href;
+
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+
+      for (const client of windows) {
+        // Reuse an already-open window: focus it and navigate if it's elsewhere.
+        await client.focus();
+        if (client.url !== targetHref) {
+          try {
+            await client.navigate(targetHref);
+          } catch {
+            // navigate() can reject (e.g. cross-origin); focus alone is acceptable.
+          }
+        }
+        return;
+      }
+
+      await self.clients.openWindow(targetUrl);
+    })()
+  );
+});
+
 serwist.addEventListeners();

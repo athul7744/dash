@@ -472,10 +472,8 @@ export default function TrackerPage() {
         app={trackerApp}
         mobileMenuItems={
           <DropdownMenuItem onClick={() => setIsManageActivitiesOpen(true)}>
-            <div className="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-0.5 py-0.5 text-sm outline-none transition-colors">
-              <Timer className="h-4 w-4" />
-              Manage Activities
-            </div>
+            <span>Manage Activities</span>
+            <Timer className="ml-auto h-4 w-4 text-muted-foreground" />
           </DropdownMenuItem>
         }
         actions={<ManageActivitiesDialog />}

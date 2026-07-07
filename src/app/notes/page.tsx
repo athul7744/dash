@@ -453,16 +453,12 @@ export default function NotesPage() {
           mobileMenuItems={isDisplayingOverview ? (
             <>
               <DropdownMenuItem onClick={() => setIsManageTagsOpen(true)}>
-                <div className="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-0.5 py-0.5 text-sm outline-none transition-colors">
-                  <TagIcon className="h-4 w-4" />
-                  Manage Tags
-                </div>
+                <span>Manage Tags</span>
+                <TagIcon className="ml-auto h-4 w-4 text-muted-foreground" />
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsManagePropertiesOpen(true)}>
-                <div className="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-0.5 py-0.5 text-sm outline-none transition-colors">
-                  <Columns3 className="h-4 w-4" />
-                  Manage Properties
-                </div>
+                <span>Manage Properties</span>
+                <Columns3 className="ml-auto h-4 w-4 text-muted-foreground" />
               </DropdownMenuItem>
             </>
           ) : undefined}

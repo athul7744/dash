@@ -4,17 +4,14 @@ import { useStatus } from "@powersync/react";
 import { useState, useEffect, useRef } from "react";
 import { useRelativeTimeTick } from "@/hooks/use-relative-time-tick";
 import { cn, formatRelativeTime } from "@/lib/shared/utils";
-import { WifiOff, CloudUpload, CloudDownload, DatabaseZap, RefreshCw } from "lucide-react";
+import { WifiOff, CloudUpload, CloudDownload, RefreshCw } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
-import { ResetLocalDataDialog } from "@/components/ResetLocalDataDialog";
 import { reconnectCloud } from "@/lib/powersync/db";
 
 export function SyncIndicator() {
   const status = useStatus();
   const [showSyncedFlash, setShowSyncedFlash] = useState(false);
   const wasSyncingRef = useRef(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
   useRelativeTimeTick(30000);
 
   const isConnected = status.connected;
@@ -88,22 +85,9 @@ export function SyncIndicator() {
                 </p>
               )}
             </div>
-            <div className="border-t pt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start gap-2 text-xs h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => setShowResetConfirm(true)}
-              >
-                <DatabaseZap className="h-3.5 w-3.5" />
-                Reset Local Data
-              </Button>
-            </div>
           </div>
         </PopoverContent>
       </Popover>
-
-      <ResetLocalDataDialog open={showResetConfirm} onOpenChange={setShowResetConfirm} />
     </>
   );
 }

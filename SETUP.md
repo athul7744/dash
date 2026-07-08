@@ -248,14 +248,18 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.push_subscriptions TO authenticat
 GRANT ALL ON public.push_subscriptions TO service_role;
 
 -- Helper functions the Edge Function calls via supabase.rpc().
-CREATE OR REPLACE FUNCTION public.users_without_recent_logs(hours int DEFAULT 2)
+CREATE OR REPLACE FUNCTION public.users_without_recent_logs(hours int DEFAULT 2, tz text DEFAULT 'Asia/Kolkata')
 RETURNS TABLE (user_id uuid)
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   SELECT u.id FROM auth.users u
   WHERE NOT EXISTS (
     SELECT 1 FROM public.time_logs tl
     WHERE tl.user_id = u.id
-      AND tl.created_at::timestamptz >= now() - make_interval(hours => hours)
+      -- The tracker grid stores each cell's hour as UTC-naive (row H -> H:00Z), so a
+      -- block's wall-clock hour is (start_timestamp AT TIME ZONE 'UTC'). Compare that to
+      -- "now" in the user's local wall clock so the window matches what's on the grid.
+      AND (tl.start_timestamp AT TIME ZONE 'UTC') >= (now() AT TIME ZONE tz) - make_interval(hours => hours)
+      AND (tl.start_timestamp AT TIME ZONE 'UTC') <= (now() AT TIME ZONE tz)
   );
 $$;
 

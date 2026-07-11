@@ -11,6 +11,29 @@ export const PRIORITY_COLORS: Record<string, { bg: string; ring: string }> = {
 export const PRIORITY_LEVELS = Object.keys(PRIORITY_COLORS) as Array<keyof typeof PRIORITY_COLORS>;
 
 /**
+ * Normalize a user-entered link: trim it and prepend `https://` when no scheme
+ * is present. Returns "" for empty input.
+ */
+export function normalizeUrl(raw: string): string {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return "";
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+/**
+ * Parse a link's hostname, normalizing scheme first. Returns null if invalid.
+ */
+export function getLinkHost(raw: string): string | null {
+  const normalized = normalizeUrl(raw);
+  if (!normalized) return null;
+  try {
+    return new URL(normalized).hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Compute due date display info from a Date object.
  */
 export function getDueDateInfo(dueDate: Date | undefined): {

@@ -44,6 +44,7 @@ CREATE TABLE public.tasks (
   due_date TEXT,
   tags TEXT DEFAULT '[]',
   priority TEXT DEFAULT 'medium',
+  link TEXT,
   state TEXT DEFAULT 'pending',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()

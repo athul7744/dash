@@ -105,6 +105,7 @@ export default function Home() {
       id: uuidv4(),
       title: "",
       priority: "medium",
+      link: "",
       state: "pending",
       due_date: "",
       tags: "[]",

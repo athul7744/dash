@@ -7,6 +7,7 @@ export const tasksTable = new Table({
   due_date: column.text,
   tags: column.text, // stored as JSON array string
   priority: column.text,
+  link: column.text,
   state: column.text,
   created_at: column.text,
   updated_at: column.text

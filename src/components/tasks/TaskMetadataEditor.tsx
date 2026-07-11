@@ -78,7 +78,7 @@ export function TaskMetadataEditor({
           <button
             type="button"
             onClick={() => setIsCalendarOpen(true)}
-            className={`text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-sm ${dueDateInfo.bg} ${dueDateInfo.text} whitespace-nowrap shrink-0 cursor-pointer transition-opacity hover:opacity-85`}
+            className={`h-5 inline-flex items-center text-[10px] uppercase tracking-wider font-bold px-1.5 rounded-sm ${dueDateInfo.bg} ${dueDateInfo.text} whitespace-nowrap shrink-0 cursor-pointer transition-opacity hover:opacity-85`}
           >
             {dueDateInfo.label}
           </button>

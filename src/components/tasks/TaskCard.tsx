@@ -15,6 +15,7 @@ import { debouncedUpdate, debouncedExecute, flushUpdate, cancelExecute, cancelUp
 import { autoResizeTextarea, cn } from "@/lib/shared/utils";
 import { PRIORITY_COLORS, PRIORITY_LEVELS } from "@/lib/tasks/tasks";
 import { TaskMetadataEditor } from "@/components/tasks/TaskMetadataEditor";
+import { TaskLink } from "@/components/tasks/TaskLink";
 
 interface TaskCardProps {
   task: Task;
@@ -28,6 +29,7 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
   const persistedTaskState = task.state ?? "pending";
   const [title, setTitle] = React.useState(task.title || "");
   const [priority, setPriority] = React.useState(task.priority || "medium");
+  const [link, setLink] = React.useState(task.link || "");
 
   const [dueDate, setDueDate] = React.useState<Date | undefined>(
     task.due_date ? new Date(task.due_date) : undefined
@@ -50,6 +52,7 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
   React.useEffect(() => { setOptimisticState(persistedTaskState); }, [persistedTaskState]);
   React.useEffect(() => { setTitle(task.title || ""); }, [task.title]);
   React.useEffect(() => { setPriority(task.priority || "medium"); }, [task.priority]);
+  React.useEffect(() => { setLink(task.link || ""); }, [task.link]);
   React.useEffect(() => {
     setDueDate(task.due_date ? new Date(task.due_date) : undefined);
   }, [task.due_date]);
@@ -102,9 +105,9 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
     const userId = await getCurrentUserId();
     const now = new Date().toISOString();
     await db.execute(
-      `INSERT INTO tasks (id, user_id, title, priority, state, due_date, tags, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
-      [task.id, userId, title.trim(), priority, dueDate ? dueDate.toISOString() : null, JSON.stringify(selectedTagIds), now, now]
+      `INSERT INTO tasks (id, user_id, title, priority, link, state, due_date, tags, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
+      [task.id, userId, title.trim(), priority, link.trim() || null, dueDate ? dueDate.toISOString() : null, JSON.stringify(selectedTagIds), now, now]
     );
   };
 
@@ -278,18 +281,30 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
           )}
         </div>
 
-        {/* Actions: Priority + Restore + Trash */}
-        <div className="flex items-center gap-1 ml-auto pl-1 h-6">
+        {/* Actions: Link + Priority + Restore + Trash */}
+        <div className="flex items-center gap-1.5 ml-auto pl-2">
+          {!isTrashed && (
+            <TaskLink
+              link={link}
+              onLinkChange={(value) => {
+                setLink(value);
+                if (!isNew) handleUpdate("link", value.trim() || null);
+              }}
+            />
+          )}
+
           {!isTrashed && (
             <DropdownMenu>
-              <DropdownMenuTrigger className="focus:outline-none rounded-full ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              <DropdownMenuTrigger
+                className="flex h-6 w-6 items-center justify-center focus:outline-none rounded-md ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                title={`Priority: ${priority}`}
+              >
                 <div
                   className={cn(
                     "h-3 w-3 rounded-full shadow-sm ring-2 ring-offset-1 ring-offset-background transition-colors",
                     PRIORITY_COLORS[priority]?.bg || PRIORITY_COLORS.medium.bg,
                     PRIORITY_COLORS[priority]?.ring || PRIORITY_COLORS.medium.ring
                   )}
-                  title={`Priority: ${priority}`}
                 />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-32">
@@ -308,13 +323,13 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
           )}
 
           {isTrashed && !isNew && (
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-emerald-600 -mt-1 shrink-0 transition-colors" onClick={restoreTask} title="Restore task">
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground/50 hover:text-emerald-600 shrink-0 transition-colors" onClick={restoreTask} title="Restore task">
               <Undo2 className="h-4 w-4" />
             </Button>
           )}
 
           {!isNew && (
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-destructive -mt-1 -mr-1 shrink-0 transition-colors" onClick={() => trashTask(task)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground/50 hover:text-destructive shrink-0 transition-colors" onClick={() => trashTask(task)}>
               <Trash2 className="h-4 w-4" />
             </Button>
           )}

@@ -10,7 +10,7 @@ Manage your to-do list with subtasks, tags, due dates, and priorities. Filter by
 
 ### Tracker
 
-Paint your week on a 7-day × 24-hour grid to log how you spend your time. Rate your mood each day. View yearly heatmaps to spot patterns over months. Weekly widgets break down your activity, sleep, and productivity at a glance.
+Paint your week on a 7-day × 24-hour grid to log how you spend your time. Rate your mood each day. View yearly heatmaps to spot patterns over months. Weekly widgets break down your activity, sleep, and productivity at a glance. Each week also has its own journal — a serif writing space below the widgets for reflecting on how the week went.
 
 ### Notes
 
@@ -25,6 +25,8 @@ Navigate between linked pages with a breadcrumb trail that tracks your path. On 
 Everything happens locally first. The app reads and writes to a database in your browser, so interactions are instant even without internet. Changes sync to the cloud in the background when you're online, keeping all your devices up to date.
 
 Install it as a PWA from your browser for a native app experience on desktop or mobile.
+
+In Settings you can switch between light and dark themes and choose the app's display typeface (Fraunces, Hanken Grotesk, Lora, or Bricolage Grotesque).
 
 ## Quick Start
 

@@ -48,6 +48,7 @@ Key runtime behavior:
   - Root HTML shell
   - Mounts `ThemeProvider`, `PowerSyncProvider`, `RouteRestorer`, and Vercel analytics
   - Defines the global full-height app layout
+  - Loads the app's fonts via `next/font`: Inter (body), Lora (serif/journal), Geist Mono (code), plus the display candidates Fraunces / Hanken Grotesk / Bricolage Grotesque. Each exposes a CSS var; the active display face is applied by a small pre-paint inline script that sets `data-display-font` on `<body>` from `localStorage` (see [Typography](#typography-and-display-font))
 
 - `src/components/powersync-provider.tsx`
   - Initializes local SQLite first with `initLocal()`
@@ -77,6 +78,11 @@ Key runtime behavior:
 - `src/components/SyncIndicator.tsx`
   - Displays PowerSync connection/upload/download state
   - Used in the header so sync state is always visible
+
+- `src/components/SettingsDialog.tsx`
+  - Responsive settings surface (centered dialog on desktop, bottom drawer on mobile)
+  - Sections: Account, Appearance (theme), Display font, Notifications (web push), Data (reset local data)
+  - The Display font section uses `useDisplayFont` (see [Typography](#typography-and-display-font))
 
 ### Route-level loading behavior
 
@@ -127,6 +133,7 @@ Important convention:
 - `src/components/tracker/TimeGrid.tsx`
 - `src/components/tracker/WeekNavigator.tsx`
 - `src/components/tracker/WeekViewSkeleton.tsx`
+- `src/components/tracker/WeeklyJournal.tsx`
 - `src/components/tracker/YearActivityGrid.tsx`
 - `src/components/tracker/YearRatingGrid.tsx`
 - `src/components/tracker/ManageActivitiesDialog.tsx`
@@ -154,11 +161,13 @@ Important convention:
 - `src/lib/shared/logger.ts` — runtime logging abstraction
 - `src/lib/shared/ranked-order.ts` — reusable LexoRank ordering helpers that can be shared across app groups
 - `src/lib/shared/utils.ts` — shared UI/class/date/escapeHtml helpers
+- `src/lib/shared/display-font.ts` — display-font options, storage key, and the `isDisplayFont` guard (see [Typography](#typography-and-display-font))
 - `src/lib/tasks/colors.ts` — tag palette and class maps
 - `src/lib/tasks/tasks.ts` — priority and due-date helpers
 - `src/lib/tasks/tags.ts` — tag creation helpers
 - `src/lib/tracker/activities.ts` — tracker activity palette and class maps
-- `src/hooks/use-notes.ts` — local SQLite query hooks for note pages and blocks
+- `src/hooks/use-notes.ts` — local SQLite query hooks for note pages and blocks (excludes `properties.kind`-tagged system pages from Notes lists)
+- `src/hooks/use-display-font.ts` — reads/writes the selected display font via `useSyncExternalStore` + `localStorage`, applying it to `<body data-display-font>`
 - `src/hooks/use-settled-timestamp.ts` — debounced timestamp display that waits for pending writes to settle
 - `src/hooks/use-edge-swipe.ts` — mobile edge swipe gesture detection
 - `src/hooks/use-page-nav-stack.ts` — page navigation stack with sessionStorage persistence (used by breadcrumb)
@@ -168,7 +177,8 @@ Important convention:
 - `src/lib/notes/notes-tree.ts` — tree building and visible block ordering helpers for note blocks
 - `src/lib/notes/note-block-store.ts` — per-page block store with cached persistence, reconcile fast-path, undo/redo, and query block content support
 - `src/lib/notes/query-block-content.ts` — encode/decode codec between the query UI's `QueryBlockConfig` and the stored note document (config lives in a `queryBlock` node's attrs)
-- `src/lib/notes/notes.ts` — note page CRUD, metadata writes, attachment upserts, and edge reconciliation
+- `src/lib/notes/notes.ts` — note page CRUD, metadata writes, attachment upserts, edge reconciliation, and system-page helpers (`ensureSystemPage`, `pruneEmptyJournalPages`)
+- `src/lib/notes/system-pages.ts` — deterministic ids for "system pages": notes pages tagged with `properties.kind` (e.g. `journal`) and located by `uuidv5(kind:userId:key)`, so features can reuse the notes store while staying hidden from `/notes`
 - `src/lib/notes/math-clipboard.ts` — math token protection/restoration for clipboard paste flows
 - `src/lib/notes/block-editor-keyboard.ts` — keyboard decision logic for Enter, Backspace, Tab, and arrow keys in the block editor
 - `src/lib/notes/page-nav-stack.ts` — pure push/pop/popTo logic for the page breadcrumb stack
@@ -386,6 +396,12 @@ Important child components:
 - `src/components/tracker/widgets/*`
   - Weekly analytics and summaries used below the grid
 
+- `src/components/tracker/WeeklyJournal.tsx`
+  - Per-week journal rendered below the widgets in the Week view
+  - Each week maps to one lazily created notes "system page" (`kind: "journal"`, keyed by the Monday date via `systemPageId`), reusing the notes block editor (`useNoteBlocks` + `useNoteBlockStoreActions` + `NotesBlockTree`)
+  - Stays mounted across weeks (user id fetched once); the inner editor is keyed by page id so it re-hydrates per week
+  - Opportunistically calls `pruneEmptyJournalPages(currentPageId)` on week change to clean up untouched empty weeks; never deletes the open week's page (StrictMode-safe)
+
 Tracker loading model:
 
 - Route navigation into `/tracker` uses `src/app/tracker/loading.tsx`
@@ -485,6 +501,24 @@ Important implementation notes:
 - If a new app is added, start there first
 
 The notes app follows that same pattern, so new shell behavior should extend the shared primitives instead of introducing app-only chrome.
+
+## Typography and Display Font
+
+The type system has four roles, all wired through Tailwind v4 tokens in `src/app/globals.css` and loaded via `next/font` in `src/app/layout.tsx`:
+
+- **Body** — Inter (`font-sans`), the global default.
+- **Display / heading** — user-selectable (`font-heading` → `--font-heading`): Fraunces (default), Hanken Grotesk, Lora, or Bricolage Grotesque. Applied to wordmarks, page titles, section headers, dialog titles, tracker tabs, and tasks filter pills.
+- **Soft / reflective** — Lora (`font-serif`): the weekly journal, plus greetings/mottos and a few empty states.
+- **Mono** — Geist Mono (`font-mono`): notes code/query blocks, math inputs, log viewer.
+
+Tracker numerals additionally use `tabular-nums` so digits align in columns.
+
+Display-font switching:
+
+- Each candidate exposes its own next/font CSS var (`--font-fraunces`, `--font-hanken`, `--font-serif` for Lora, `--font-bricolage`), applied to `<body>`.
+- `--font-heading` is defined on `body` (not `:root`) and overridden by `body[data-display-font="…"]` rules. It must be on `body` because custom properties resolve `var()` against the declaring element, and the per-font vars live on `<body>`.
+- `src/hooks/use-display-font.ts` (`useSyncExternalStore` + `localStorage`) writes the choice; a pre-paint inline script in the layout applies it before first paint to avoid a flash. Default (Fraunces) uses no attribute.
+- Config and the `isDisplayFont` guard live in `src/lib/shared/display-font.ts`; the picker UI is the Display font section of `SettingsDialog`.
 
 ## PowerSync
 

@@ -34,6 +34,18 @@ export function getLinkHost(raw: string): string | null {
 }
 
 /**
+ * Find the first URL inside a block of free text — an `http(s)://…` or bare
+ * `www.…` token — trims trailing punctuation, and returns it normalized (so
+ * `www.` gets a scheme). Returns null when no valid URL is found.
+ */
+export function extractFirstUrl(text: string): string | null {
+  const match = (text || "").match(/(?:https?:\/\/|www\.)[^\s]+/i);
+  if (!match) return null;
+  const candidate = match[0].replace(/[.,;:!?)\]}>"']+$/, "");
+  return getLinkHost(candidate) ? normalizeUrl(candidate) : null;
+}
+
+/**
  * Compute due date display info from a Date object.
  */
 export function getDueDateInfo(dueDate: Date | undefined): {

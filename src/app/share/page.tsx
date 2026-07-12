@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import {
   buildSharedTaskTitle,
   readIncomingSharePayload,
+  resolveSharedLink,
 } from "@/lib/shared/share";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { TaskMetadataEditor } from "@/components/tasks/TaskMetadataEditor";
+import { Favicon } from "@/components/tasks/Favicon";
 
 export default function SharePage() {
   const searchParams = useSearchParams();
@@ -23,7 +25,11 @@ export default function SharePage() {
 function ShareReview({ payload }: { payload: ReturnType<typeof readIncomingSharePayload> }) {
   const db = usePowerSync();
   const router = useRouter();
-  const [draftTitle, setDraftTitle] = useState(() => buildSharedTaskTitle(payload));
+  const resolvedLink = useMemo(() => resolveSharedLink(payload), [payload]);
+  const [draftTitle, setDraftTitle] = useState(() =>
+    buildSharedTaskTitle(payload, { excludeUrl: resolvedLink || undefined })
+  );
+  const [link, setLink] = useState(resolvedLink);
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -42,9 +48,9 @@ function ShareReview({ payload }: { payload: ReturnType<typeof readIncomingShare
       const now = new Date().toISOString();
 
       await db.execute(
-        `INSERT INTO tasks (id, user_id, title, priority, state, due_date, tags, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
-        [taskId, userId, trimmedTitle, "medium", dueDate ? dueDate.toISOString() : null, JSON.stringify(selectedTagIds), now, now]
+        `INSERT INTO tasks (id, user_id, title, priority, link, state, due_date, tags, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
+        [taskId, userId, trimmedTitle, "medium", link.trim() || null, dueDate ? dueDate.toISOString() : null, JSON.stringify(selectedTagIds), now, now]
       );
 
       router.push("/tasks");
@@ -80,6 +86,24 @@ function ShareReview({ payload }: { payload: ReturnType<typeof readIncomingShare
             placeholder="Task title"
           />
           <p className="mt-2 text-xs text-muted-foreground">{draftTitle.length}/250 characters</p>
+
+          <label htmlFor="share-draft-link" className="mb-2 mt-4 block text-sm font-medium text-card-foreground">
+            Link
+          </label>
+          <div className="flex items-center gap-2 rounded-xl border border-input bg-background px-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+            <span className="shrink-0 text-muted-foreground">
+              {link.trim() ? <Favicon url={link} /> : <Link2 className="h-3.5 w-3.5" />}
+            </span>
+            <input
+              id="share-draft-link"
+              type="url"
+              inputMode="url"
+              value={link}
+              onChange={(event) => setLink(event.target.value)}
+              className="w-full bg-transparent py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              placeholder="https://example.com"
+            />
+          </div>
 
           <TaskMetadataEditor
             dueDate={dueDate}

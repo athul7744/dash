@@ -33,7 +33,8 @@ export function getPropertyName(propertyId: string, definitions: PropertyDefinit
 
 /** Build SQL WHERE clause fragments from filter conditions */
 export function buildQuerySQL(config: QueryBlockConfig, definitions: PropertyDefinitionRow[]): { sql: string; params: unknown[] } {
-  const whereClauses: string[] = [];
+  // Exclude feature-owned "system pages" (weekly journal, etc.) — see system-pages.ts.
+  const whereClauses: string[] = ["json_extract(properties, '$.kind') IS NULL"];
   const params: unknown[] = [];
 
   for (const filter of config.filters) {
@@ -42,9 +43,7 @@ export function buildQuerySQL(config: QueryBlockConfig, definitions: PropertyDef
   }
 
   let sql = "SELECT id, title, properties, created_at, updated_at FROM pages";
-  if (whereClauses.length > 0) {
-    sql += " WHERE " + whereClauses.join(" AND ");
-  }
+  sql += " WHERE " + whereClauses.join(" AND ");
 
   // Sort
   if (config.sort) {

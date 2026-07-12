@@ -100,6 +100,7 @@ export function useRecentNotePages(limit = 8) {
       "   ORDER BY sort_rank ASC",
       "   LIMIT 1) AS preview_content",
       "FROM pages",
+      "WHERE json_extract(properties, '$.kind') IS NULL",
       "ORDER BY updated_at DESC, created_at DESC",
       "LIMIT ?"
     ].join(" "),
@@ -122,6 +123,7 @@ export function useAllNotePages() {
       "   ORDER BY sort_rank ASC",
       "   LIMIT 1) AS preview_content",
       "FROM pages",
+      "WHERE json_extract(properties, '$.kind') IS NULL",
       "ORDER BY title COLLATE NOCASE ASC, updated_at DESC, created_at DESC"
     ].join(" ")
   );

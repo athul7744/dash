@@ -2,6 +2,7 @@ import { LexoRank } from "lexorank";
 import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
 
 import { extractNoteText, serializeNoteDocument } from "@/lib/notes/notes-content";
+import { systemPageId, type SystemPageKind } from "@/lib/notes/system-pages";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { debouncedExecute, debouncedUpdate, SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
@@ -254,6 +255,32 @@ export async function deleteNotePage(pageId: string) {
   await db.execute(`DELETE FROM pages WHERE id = ?`, [pageId]);
 }
 
+/**
+ * Delete journal "system pages" that were created but left empty (a single
+ * text block with no text), except `exceptPageId` (the week currently open).
+ * Called opportunistically on mount / week change — this is idempotent and
+ * never touches the page whose block store is live, so it is safe under React
+ * StrictMode double-invocation (unlike an unmount-time delete).
+ */
+export async function pruneEmptyJournalPages(exceptPageId?: string | null) {
+  const rows = await db.getAll<{ page_id: string; block_count: number; first_content: string | null }>(
+    `SELECT p.id AS page_id,
+            (SELECT COUNT(*) FROM blocks b WHERE b.page_id = p.id) AS block_count,
+            (SELECT b.content FROM blocks b WHERE b.page_id = p.id ORDER BY b.sort_rank ASC LIMIT 1) AS first_content
+     FROM pages p
+     WHERE json_extract(p.properties, '$.kind') = 'journal'`
+  );
+
+  for (const row of rows) {
+    if (exceptPageId && row.page_id === exceptPageId) continue;
+    const isEmpty =
+      row.block_count <= 1 && (row.block_count === 0 || extractNoteText(row.first_content) === "");
+    if (isEmpty) {
+      await deleteNotePage(row.page_id);
+    }
+  }
+}
+
 async function replaceNoteEdges(input: ReplaceEdgesInput, ctx: DbContext = db) {
   const buildEdgeKey = (targetId: string, type: string) => `${type}:${targetId}`;
   const createDeterministicEdgeId = (sourceBlockId: string, targetId: string, type: string) => (
@@ -334,5 +361,46 @@ export async function createStarterPage(title = "Untitled") {
     type: "text",
     content: { type: "doc", content: [] },
   });
+  return pageId;
+}
+
+/**
+ * Idempotently create a feature-owned "system page" (see system-pages.ts) with a
+ * single empty starter block. Located/created by its deterministic id, so the
+ * title-uniqueness guard in createNotePage is bypassed. Returns the page id.
+ */
+export async function ensureSystemPage(params: {
+  kind: SystemPageKind;
+  key: string;
+  title: string;
+}) {
+  const userId = await getCurrentUserId();
+  const pageId = systemPageId(userId, params.kind, params.key);
+
+  const existing = await db.getAll<{ id: string }>("SELECT id FROM pages WHERE id = ? LIMIT 1", [pageId]);
+  if (existing.length > 0) {
+    return pageId;
+  }
+
+  const now = new Date().toISOString();
+  await db.execute(
+    `INSERT INTO pages (id, user_id, title, properties, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      pageId,
+      userId,
+      normalizeNotePageTitle(params.title) || "Untitled",
+      JSON.stringify({ kind: params.kind, key: params.key }),
+      now,
+      now,
+    ]
+  );
+  await createNoteBlock({
+    pageId,
+    sortRank: LexoRank.middle().format(),
+    type: "text",
+    content: { type: "doc", content: [] },
+  });
+
   return pageId;
 }

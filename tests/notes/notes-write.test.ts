@@ -1,5 +1,7 @@
 /// <reference types="vitest/globals" />
 
+export {}; // module scope so top-level mock consts don't collide with sibling test files
+
 const executeMock = vi.fn(async () => undefined);
 const getAllMock = vi.fn(async () => []);
 const getOptionalMock = vi.fn(async () => null);

@@ -71,6 +71,18 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/notes/use-optimistic-value.dom.test.ts`
   Covers the useOptimisticValue hook: immediate optimistic display, clearing once upstream catches up, surviving reference-only upstream changes (no flicker), and adopting genuine upstream changes.
 
+- `tests/notes/use-note-block-store-actions.dom.test.tsx`
+  Covers the React binding hook between NoteBlockStore and the component tree (block mutation callbacks and store subscription).
+
+- `tests/notes/reconcile-note-edges.test.ts`
+  Covers diff-based, deterministic note edge reconciliation.
+
+- `tests/notes/system-pages.test.ts`
+  Covers `systemPageId`: deterministic ids per `(userId, kind, key)`, matching an explicit uuidv5 over the documented name scheme, and v5 uuid format.
+
+- `tests/notes/prune-journal-pages.test.ts`
+  Covers `pruneEmptyJournalPages`: deleting empty journal pages (single blank block or zero blocks), keeping pages with text or multiple blocks, never deleting the excepted (open) page, and pruning only the empty pages in a mixed set.
+
 ## Current Shared Suites
 
 - `tests/shared/entity-store.test.ts`
@@ -78,6 +90,18 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 
 - `tests/shared/ranked-order.test.ts`
   Covers LexoRank ordering helpers for between-rank insertion, start/end ranks, and edge cases.
+
+- `tests/shared/debounced-update.test.ts`
+  Covers debounced field updates and execute batching, including per-`table:id` keying and flush ordering.
+
+- `tests/shared/share.test.ts`
+  Covers incoming share payload parsing, safe next-path sanitization, and task title generation.
+
+- `tests/shared/display-font.test.ts`
+  Covers the display-font config: the offered faces and order, the default being an offered face, the `isDisplayFont` guard, and each option mapping to a CSS-var font-family.
+
+- `tests/shared/use-display-font.dom.test.ts`
+  Covers the useDisplayFont hook: defaulting to Fraunces, reading a stored font, ignoring invalid stored values, persisting a non-default choice to `<body data-display-font>` + localStorage, and clearing the attribute when the default is re-selected.
 
 ## Usage
 

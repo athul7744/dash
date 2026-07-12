@@ -50,3 +50,4 @@ next-env.d.ts
 # Edge Function source tracked so anyone cloning the repo can deploy it.
 /supabase/*
 !/supabase/functions/
+CLAUDE.md

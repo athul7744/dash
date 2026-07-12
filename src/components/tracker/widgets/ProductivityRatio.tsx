@@ -183,17 +183,17 @@ export function ProductivityRatio({ days, data, colorMap }: WidgetProps) {
             <div className={cn("flex items-center gap-1.5 cursor-pointer", selectedCategory !== null && selectedCategory !== "productive" && "opacity-40")} onClick={() => setSelectedCategory(selectedCategory === "productive" ? null : "productive")}>
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               <span className="text-muted-foreground">Productive</span>
-              <span className="font-medium text-foreground">{stats.productive}h ({stats.ratio}%)</span>
+              <span className="font-medium text-foreground tabular-nums">{stats.productive}h ({stats.ratio}%)</span>
             </div>
             <div className={cn("flex items-center gap-1.5 cursor-pointer", selectedCategory !== null && selectedCategory !== "other" && "opacity-40")} onClick={() => setSelectedCategory(selectedCategory === "other" ? null : "other")}>
               <span className="h-2 w-2 rounded-full bg-slate-500" />
               <span className="text-muted-foreground">Other</span>
-              <span className="font-medium text-foreground">{stats.other}h</span>
+              <span className="font-medium text-foreground tabular-nums">{stats.other}h</span>
             </div>
             <div className={cn("flex items-center gap-1.5 cursor-pointer", selectedCategory !== null && selectedCategory !== "passive" && "opacity-40")} onClick={() => setSelectedCategory(selectedCategory === "passive" ? null : "passive")}>
               <span className="h-2 w-2 rounded-full bg-orange-400" />
               <span className="text-muted-foreground">Passive</span>
-              <span className="font-medium text-foreground">{stats.passive}h</span>
+              <span className="font-medium text-foreground tabular-nums">{stats.passive}h</span>
             </div>
           </div>
 

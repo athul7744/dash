@@ -185,7 +185,7 @@ export function NotesEditorContent({
   }
 
   return (
-    <div className="relative mx-auto max-w-3xl min-h-[200px]">
+    <div className="notes-reading relative mx-auto max-w-3xl min-h-[200px]">
       <div className={showBlocksSettling ? "pointer-events-none opacity-0 transition-opacity duration-100" : "transition-opacity duration-150"}>
         <div className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-1 gap-y-1.5 md:gap-x-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] ${shouldAnimateEditorContent ? "animate-fade-slide-in" : ""}`}>
           <NotesEditorHeader

@@ -240,7 +240,7 @@ export default function Home() {
                 key={pill.id}
                 onClick={pill.onClick}
                 className={cn(
-                  "px-4 py-1.5 text-sm font-medium rounded-full transition-all capitalize shrink-0 flex items-center gap-1.5",
+                  "px-4 py-1.5 font-heading text-sm font-medium rounded-full transition-all capitalize shrink-0 flex items-center gap-1.5",
                   pill.isActive 
                     ? pill.activeClass
                     : "bg-muted text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent"
@@ -256,7 +256,7 @@ export default function Home() {
 
           {/* Tags Add Button */}
           <Popover open={isTagFilterOpen} onOpenChange={setIsTagFilterOpen}>
-            <PopoverTrigger className="inline-flex items-center justify-center whitespace-nowrap font-medium bg-muted text-muted-foreground hover:text-foreground hover:bg-accent h-[32px] rounded-full px-4 text-sm gap-2 transition-colors shrink-0 ml-1 border border-transparent">
+            <PopoverTrigger className="inline-flex items-center justify-center whitespace-nowrap font-heading font-medium bg-muted text-muted-foreground hover:text-foreground hover:bg-accent h-[32px] rounded-full px-4 text-sm gap-2 transition-colors shrink-0 ml-1 border border-transparent">
               <TagIcon className="h-3.5 w-3.5" />
               {filterTags.length > 0 ? `${filterTags.length}/3 Tags` : "Tags"}
             </PopoverTrigger>
@@ -351,7 +351,7 @@ export default function Home() {
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </Button>
-                  <div className="text-sm font-medium text-muted-foreground">
+                  <div className="text-sm font-medium text-muted-foreground tabular-nums">
                     Page {page} of {totalPages}
                   </div>
                   <Button 

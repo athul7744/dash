@@ -55,7 +55,7 @@ export function SleepStats({ days, data }: WidgetProps) {
         {selectedIdx !== null ? (
           <>
             <div>
-              <span className="text-2xl font-bold text-foreground">{stats.dailySleep[selectedIdx].hours}</span>
+              <span className="text-2xl font-bold text-foreground tabular-nums">{stats.dailySleep[selectedIdx].hours}</span>
               <span className="text-xs text-muted-foreground ml-1">h</span>
             </div>
             <div className="text-xs text-muted-foreground">
@@ -65,7 +65,7 @@ export function SleepStats({ days, data }: WidgetProps) {
         ) : (
           <>
             <div>
-              <span className="text-2xl font-bold text-foreground">{stats.avg}</span>
+              <span className="text-2xl font-bold text-foreground tabular-nums">{stats.avg}</span>
               <span className="text-xs text-muted-foreground ml-1">h avg</span>
             </div>
             <div className="text-xs text-muted-foreground">

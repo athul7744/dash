@@ -117,7 +117,7 @@ export function ActivityBreakdown({ days, data, colorMap }: WidgetProps) {
             <circle cx="50" cy="50" r="22" fill="var(--background)" className="cursor-pointer" onClick={() => { setSelectedSlice(null); setShowList(true); }} />
             {selectedSlice ? (
               <>
-                <text x="50" y="47" textAnchor="middle" className="fill-foreground text-[6px] font-bold pointer-events-none">
+                <text x="50" y="47" textAnchor="middle" className="fill-foreground text-[6px] font-bold pointer-events-none tabular-nums">
                   {selectedSlice.hours}h
                 </text>
                 <text x="50" y="56" textAnchor="middle" className="fill-muted-foreground text-[4px] pointer-events-none">
@@ -126,7 +126,7 @@ export function ActivityBreakdown({ days, data, colorMap }: WidgetProps) {
               </>
             ) : (
               <>
-                <text x="50" y="48" textAnchor="middle" className="fill-foreground text-[8px] font-bold pointer-events-none">
+                <text x="50" y="48" textAnchor="middle" className="fill-foreground text-[8px] font-bold pointer-events-none tabular-nums">
                   {displayTotal}h
                 </text>
                 <text x="50" y="57" textAnchor="middle" className="fill-muted-foreground text-[5px] pointer-events-none">

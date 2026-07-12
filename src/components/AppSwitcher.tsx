@@ -54,7 +54,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
         <div className={cn("rounded-lg", current.accent.iconBg, size === "md" ? "p-2" : "p-1.5")}>
           <Icon className={cn(current.accent.iconText, size === "md" ? "h-6 w-6" : "h-5 w-5")} />
         </div>
-        <h1 className={cn("font-bold tracking-tight", size === "md" ? "text-2xl" : "text-xl")}>
+        <h1 className={cn("font-heading font-bold tracking-tight", size === "md" ? "text-2xl" : "text-xl")}>
           {current.name}
           <span className={current.accent.iconText}>.</span>
         </h1>
@@ -125,7 +125,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
                 <div className={cn("rounded-md p-1.5", app.accent.iconBg)}>
                   <AppIcon className={cn("h-4 w-4", app.accent.iconText)} />
                 </div>
-                <span className="flex-1 font-semibold tracking-tight">
+                <span className="flex-1 font-heading font-semibold tracking-tight">
                   {app.name}<span className={app.accent.iconText}>.</span>
                 </span>
                 {isActive && <Check className="h-4 w-4 text-muted-foreground" />}

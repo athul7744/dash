@@ -89,7 +89,7 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate }:
             {HOURS.map((h) => (
               <th
                 key={h}
-                className="px-1 py-2 text-center font-medium text-muted-foreground min-w-[44px] border-l border-border"
+                className="px-1 py-2 text-center font-medium text-muted-foreground min-w-[44px] border-l border-border tabular-nums"
               >
                 {String(h).padStart(2, "0")}
               </th>

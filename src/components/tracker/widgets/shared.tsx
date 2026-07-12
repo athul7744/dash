@@ -58,8 +58,8 @@ export function WidgetHeader({ icon: Icon, title, subtitle, className, children 
     <div className={cn("flex items-center justify-between mb-2", className)}>
       <div className="flex items-center gap-1.5">
         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-        <h3 className="text-xs font-semibold text-foreground">{title}</h3>
-        {subtitle && <span className="text-[10px] text-muted-foreground">· {subtitle}</span>}
+        <h3 className="font-heading text-xs font-semibold text-foreground">{title}</h3>
+        {subtitle && <span className="text-[10px] text-muted-foreground tabular-nums">· {subtitle}</span>}
       </div>
       {children && (
         <div className="flex items-center gap-1.5">{children}</div>
@@ -122,7 +122,7 @@ export function ActivityItem({ name, color, value }: ActivityItemProps) {
         <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
         <span className="text-foreground font-medium">{name}</span>
       </div>
-      <span className="text-muted-foreground">{value}</span>
+      <span className="text-muted-foreground tabular-nums">{value}</span>
     </div>
   );
 }

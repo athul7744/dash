@@ -501,7 +501,7 @@ export default function TrackerPage() {
         <button
           onClick={() => setView("week")}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+            "flex items-center gap-1.5 px-3 py-2 font-heading text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
             view === "week" ? TRACKER_TAB_ACTIVE_CLASS : "border-transparent text-muted-foreground hover:text-foreground"
           )}
         >
@@ -511,7 +511,7 @@ export default function TrackerPage() {
         <button
           onClick={() => setView("activity")}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+            "flex items-center gap-1.5 px-3 py-2 font-heading text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
             view === "activity" ? TRACKER_TAB_ACTIVE_CLASS : "border-transparent text-muted-foreground hover:text-foreground"
           )}
         >
@@ -521,7 +521,7 @@ export default function TrackerPage() {
         <button
           onClick={() => setView("mood")}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+            "flex items-center gap-1.5 px-3 py-2 font-heading text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
             view === "mood" ? TRACKER_TAB_ACTIVE_CLASS : "border-transparent text-muted-foreground hover:text-foreground"
           )}
         >

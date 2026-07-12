@@ -62,7 +62,7 @@ export function NotesOverview({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Star className="h-4 w-4 text-amber-500" />
-              <p className="text-sm font-semibold text-foreground">Favorites</p>
+              <p className="font-heading text-sm font-semibold text-foreground">Favorites</p>
             </div>
           </div>
 
@@ -70,7 +70,7 @@ export function NotesOverview({
             <div className={showOverviewOverlay ? "pointer-events-none opacity-0 transition-opacity duration-100" : "transition-opacity duration-150"}>
               <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${shouldAnimateOverviewContent ? "animate-stagger" : ""}`}>
                 {overviewFavoritePagesToRender.length === 0 ? (
-                  showOverviewLoading ? <NotesOverviewCardSkeletonItems /> : <div className="col-span-2 py-6 text-sm text-muted-foreground">No favorites yet.</div>
+                  showOverviewLoading ? <NotesOverviewCardSkeletonItems /> : <div className="col-span-2 py-6 font-serif text-sm text-muted-foreground">No favorites yet.</div>
                 ) : (
                   overviewFavoritePagesToRender.map((page) => (
                     <OverviewPageCard
@@ -98,14 +98,14 @@ export function NotesOverview({
         <section>
           <div className="flex items-center gap-2">
             <Files className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-semibold text-foreground">Recently accessed</p>
+            <p className="font-heading text-sm font-semibold text-foreground">Recently accessed</p>
           </div>
 
           <div className="relative mt-4 min-h-24">
             <div className={showOverviewOverlay ? "pointer-events-none opacity-0 transition-opacity duration-100" : "transition-opacity duration-150"}>
               <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${shouldAnimateOverviewContent ? "animate-stagger" : ""}`}>
                 {overviewRecentPagesToRender.length === 0 ? (
-                  showOverviewLoading ? <NotesOverviewCardSkeletonItems /> : <div className="col-span-2 py-6 text-sm text-muted-foreground">No recent pages yet.</div>
+                  showOverviewLoading ? <NotesOverviewCardSkeletonItems /> : <div className="col-span-2 py-6 font-serif text-sm text-muted-foreground">No recent pages yet.</div>
                 ) : (
                   overviewRecentPagesToRender.map((page) => (
                     <OverviewPageCard

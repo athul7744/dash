@@ -10,8 +10,8 @@ export default function Home() {
       <div className="p-3 rounded-xl bg-primary/10 mb-4">
         <LayoutDashboard className="h-8 w-8 text-primary" />
       </div>
-      <h1 className="text-2xl font-semibold tracking-tight mb-1">Dash.</h1>
-      <p className="text-sm text-muted-foreground mb-8">Your offline-first productivity dashboard</p>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight mb-1">Dash.</h1>
+      <p className="font-serif text-sm text-muted-foreground mb-8">Your offline-first productivity dashboard</p>
       <div className="grid grid-cols-2 gap-4 w-full max-w-sm">
         {APPS.map((app) => {
           const Icon = app.icon;
@@ -24,7 +24,7 @@ export default function Home() {
               <div className={`p-3 rounded-xl ${app.accent.iconBg}`}>
                 <Icon className={`h-6 w-6 ${app.accent.iconText}`} />
               </div>
-              <span className="text-sm font-bold tracking-tight">
+              <span className="font-heading text-sm font-bold tracking-tight">
                 {app.name}<span className={app.accent.iconText}>.</span>
               </span>
               <span className="text-xs text-muted-foreground text-center">{app.description}</span>

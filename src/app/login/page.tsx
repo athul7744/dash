@@ -43,14 +43,14 @@ export default function LoginPage() {
           <div className="bg-primary/10 p-3 rounded-xl">
             <LayoutDashboard className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="font-heading text-3xl font-bold tracking-tight">
             Dash<span className="text-primary">.</span>
           </h1>
         </div>
 
         {/* Login Card */}
         <div className="w-full bg-card border border-border rounded-2xl p-8 shadow-sm">
-          <h2 className="text-lg font-semibold mb-1 text-card-foreground">Welcome back</h2>
+          <h2 className="font-serif text-xl font-semibold mb-1 text-card-foreground">Welcome back</h2>
           <p className="text-sm text-muted-foreground mb-6">Sign in to your dashboard</p>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
@@ -107,7 +107,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-xs text-muted-foreground mt-6">
+        <p className="font-serif text-sm text-muted-foreground mt-6">
           Your offline-first personal dashboard
         </p>
       </div>

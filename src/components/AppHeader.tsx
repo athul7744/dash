@@ -43,7 +43,7 @@ export function AppHeader({ app, actions, mobileMenuItems, children }: AppHeader
               <div className={cn("rounded-lg p-1.5", app.accent.iconBg)}>
                 <Icon className={cn("h-4.5 w-4.5", app.accent.iconText)} />
               </div>
-              <h1 className="text-lg font-bold tracking-tight text-foreground">
+              <h1 className="font-heading text-lg font-bold tracking-tight text-foreground">
                 {app.name}
                 <span className={app.accent.iconText}>.</span>
               </h1>

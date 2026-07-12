@@ -128,7 +128,7 @@ export function MoodSummary({ days, data, colorMap, ratings }: WidgetProps) {
         {dayDetail ? (
           <>
             <div>
-              <span className="text-2xl font-bold text-foreground">{dayDetail.label}</span>
+              <span className="text-2xl font-bold text-foreground tabular-nums">{dayDetail.label}</span>
             </div>
             <div className="text-xs text-muted-foreground">
               {dayDetail.dayName}
@@ -137,7 +137,7 @@ export function MoodSummary({ days, data, colorMap, ratings }: WidgetProps) {
         ) : (
           <>
             <div>
-              <span className="text-2xl font-bold text-foreground">{insights.avg}</span>
+              <span className="text-2xl font-bold text-foreground tabular-nums">{insights.avg}</span>
               <span className="text-xs text-muted-foreground ml-1">avg</span>
             </div>
             <div className="text-xs text-muted-foreground">

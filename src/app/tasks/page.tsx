@@ -80,7 +80,7 @@ export default function Home() {
     query += ` AND (parent_id IS NOT NULL OR (${parentConditions.join(' AND ')}))`;
   }
 
-  query += ` ORDER BY CASE WHEN parent_id IS NOT NULL THEN created_at END ASC, CASE WHEN due_date IS NULL OR due_date = '' THEN 1 ELSE 0 END, due_date ASC, created_at DESC`;
+  query += ` ORDER BY CASE WHEN due_date IS NULL OR due_date = '' THEN 1 ELSE 0 END, due_date ASC, CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END ASC`;
   
   const { data: allTasks = [], isLoading: loadingTasks } = useQuery(query, args);
 

@@ -100,7 +100,12 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     const batch = await database.getCrudBatch(100);
     if (!batch) return;
 
-    const putOps: { [table: string]: any[] } = {};
+    // Dedupe PUTs per table by id (last write wins). A single upsert() array
+    // must not contain the same primary key twice or Postgres throws
+    // "ON CONFLICT DO UPDATE command cannot affect row a second time" — which
+    // happens when a row is created/deleted/recreated (e.g. deterministic-id
+    // system pages) before the batch uploads.
+    const putOps: { [table: string]: Map<string, any> } = {};
     const deleteOps: { [table: string]: string[] } = {};
     const patchOps: CrudEntry[] = [];
 
@@ -109,8 +114,8 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
       switch (op.op) {
         case UpdateType.PUT:
-          if (!putOps[op.table]) putOps[op.table] = [];
-          putOps[op.table].push({ ...parsedData, id: op.id });
+          if (!putOps[op.table]) putOps[op.table] = new Map();
+          putOps[op.table].set(op.id, { ...parsedData, id: op.id });
           break;
         case UpdateType.PATCH:
           patchOps.push(op);
@@ -125,7 +130,7 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     try {
       // Execute bulk PUTs (upsert) per table
       for (const table of orderTables(Object.keys(putOps), PUT_TABLE_ORDER)) {
-        const records = putOps[table];
+        const records = [...putOps[table].values()];
         log.info(`BATCH PUT ${table}: ${records.length} record(s)`);
         const { error } = await this.client.from(table).upsert(records);
         if (error) throw new Error(`PUT ${table} failed: ${error.message}`);
@@ -149,7 +154,7 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
       await batch.complete();
 
-      const total = Object.values(putOps).reduce((s, r) => s + r.length, 0)
+      const total = Object.values(putOps).reduce((s, r) => s + r.size, 0)
         + Object.values(deleteOps).reduce((s, r) => s + r.length, 0)
         + patchOps.length;
       log.info(`Upload complete — ${total} op(s) batched`);

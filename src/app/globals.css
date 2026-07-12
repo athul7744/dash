@@ -135,6 +135,24 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ── Selectable display / heading font ──
+   Drives the `font-heading` utility. Declared on <body> (not :root) because
+   the per-font vars (--font-fraunces, …) are defined there by next/font, and
+   custom properties resolve var() against the declaring element. Default is
+   Fraunces (no attribute); Settings sets [data-display-font] on <body>. */
+body {
+  --font-heading: var(--font-fraunces), Georgia, serif;
+}
+body[data-display-font="hanken"] {
+  --font-heading: var(--font-hanken), system-ui, sans-serif;
+}
+body[data-display-font="lora"] {
+  --font-heading: var(--font-serif), Georgia, serif;
+}
+body[data-display-font="bricolage"] {
+  --font-heading: var(--font-bricolage), system-ui, sans-serif;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

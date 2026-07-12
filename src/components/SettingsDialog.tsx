@@ -19,17 +19,21 @@ import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Drawer,
   DrawerContent,
+  DrawerDescription,
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { ResetLocalDataDialog } from "@/components/ResetLocalDataDialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useDisplayFont } from "@/hooks/use-display-font";
+import { DISPLAY_FONTS } from "@/lib/shared/display-font";
 import { createClient } from "@/lib/supabase/client";
 import {
   getPushSubscriptionState,
@@ -55,6 +59,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         <DrawerContent className="max-h-[85vh]">
           <DrawerHeader>
             <DrawerTitle>Settings</DrawerTitle>
+            <DrawerDescription className="sr-only">
+              Manage your account, appearance, notifications, and app data.
+            </DrawerDescription>
           </DrawerHeader>
           <div className="overflow-y-auto px-4 pb-8">{body}</div>
         </DrawerContent>
@@ -67,6 +74,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
+          <DialogDescription className="sr-only">
+            Manage your account, appearance, notifications, and app data.
+          </DialogDescription>
         </DialogHeader>
         <div className="flex max-h-[70vh] flex-col gap-6 overflow-y-auto py-1">
           {body}
@@ -81,6 +91,7 @@ function SettingsBody({ open, onClose }: { open: boolean; onClose: () => void })
     <div className="flex flex-col gap-6">
       <AccountSection onClose={onClose} />
       <AppearanceSection />
+      <DisplayFontSection />
       <NotificationsSection open={open} />
       <DataSection />
     </div>
@@ -173,6 +184,42 @@ function AppearanceSection() {
             >
               <Icon className="h-4 w-4" />
               {label}
+            </button>
+          );
+        })}
+      </div>
+    </SettingsSection>
+  );
+}
+
+// ── Display font ───────────────────────────────────────────────────────────────
+
+function DisplayFontSection() {
+  const { font, setFont } = useDisplayFont();
+
+  return (
+    <SettingsSection title="Display font">
+      <div className="grid grid-cols-4 gap-1.5">
+        {DISPLAY_FONTS.map(({ value, label, cssVar }) => {
+          const active = font === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setFont(value)}
+              className={cn(
+                "flex flex-col items-center gap-1.5 rounded-lg border px-1.5 py-3 transition-colors",
+                active
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border text-muted-foreground hover:bg-accent"
+              )}
+              aria-pressed={active}
+              title={label}
+            >
+              <span className="text-2xl leading-none text-foreground" style={{ fontFamily: cssVar }}>
+                Aa
+              </span>
+              <span className="text-center text-[10px] leading-tight">{label}</span>
             </button>
           );
         })}

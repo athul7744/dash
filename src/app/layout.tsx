@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Lora, Fraunces, Geist_Mono } from "next/font/google";
+import { Inter, Lora, Fraunces, Hanken_Grotesk, Bricolage_Grotesque, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PowerSyncProvider } from "@/components/powersync-provider";
@@ -8,11 +8,20 @@ import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const lora = Lora({ subsets: ["latin"], variable: "--font-serif" });
-// Display/heading face — variable font; opsz axis + font-optical-sizing:auto
-// lets larger titles pick up more display character automatically.
-const fraunces = Fraunces({ subsets: ["latin"], axes: ["opsz"], variable: "--font-heading", display: "swap" });
+// Display/heading candidates — each exposes its own CSS var; the active one
+// drives --font-heading via [data-display-font] (see globals.css + Settings).
+// Fraunces is variable: opsz axis + font-optical-sizing:auto lets larger
+// titles pick up more display character automatically.
+const fraunces = Fraunces({ subsets: ["latin"], axes: ["opsz"], variable: "--font-fraunces", display: "swap" });
+const hanken = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-hanken", display: "swap" });
+const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bricolage", display: "swap" });
 // Monospace — fills the previously-dangling --font-geist-mono reference.
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
+
+// Applied before paint so the chosen display font has no flash of the default.
+// Targets <body> (where the --font-* vars live); the inline script is body's
+// first child, so document.body already exists when it runs.
+const DISPLAY_FONT_INIT = `try{var f=localStorage.getItem("display-font");if(f&&f!=="fraunces")document.body.setAttribute("data-display-font",f)}catch(e){}`;
 
 export const metadata: Metadata = {
   title: "Dash.",
@@ -52,7 +61,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${lora.variable} ${fraunces.variable} ${geistMono.variable} font-sans min-h-screen flex flex-col antialiased bg-background text-foreground`}>
+      <body className={`${inter.variable} ${lora.variable} ${fraunces.variable} ${hanken.variable} ${bricolage.variable} ${geistMono.variable} font-sans min-h-screen flex flex-col antialiased bg-background text-foreground`}>
+        <script dangerouslySetInnerHTML={{ __html: DISPLAY_FONT_INIT }} />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

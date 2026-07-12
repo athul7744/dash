@@ -13,6 +13,7 @@ import { TimeGrid, GridData, GridCell } from "@/components/tracker/TimeGrid";
 import { ManageActivitiesDialog } from "@/components/tracker/ManageActivitiesDialog";
 import { WeekNavigator, WeekNavigatorFab } from "@/components/tracker/WeekNavigator";
 import { WeekWidgets } from "@/components/tracker/widgets";
+import { WeeklyJournal } from "@/components/tracker/WeeklyJournal";
 import { WeekViewSkeleton } from "@/components/tracker/WeekViewSkeleton";
 import { YearActivityGrid } from "@/components/tracker/YearActivityGrid";
 import { YearRatingGrid } from "@/components/tracker/YearRatingGrid";
@@ -20,7 +21,8 @@ import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { TimeLog, ActivityType, DailyRating } from "@/lib/powersync/AppSchema";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { getApp } from "@/lib/shared/apps";
-import { cancelExecute, cancelUpdate, debouncedExecute, debouncedUpdate } from "@/lib/shared/debounced-update";
+import { cancelExecute, cancelUpdate, debouncedExecute, debouncedUpdate, flushAllUpdates } from "@/lib/shared/debounced-update";
+import { flushAllNoteBlockStores } from "@/lib/notes/note-block-store";
 import { cn } from "@/lib/shared/utils";
 import { DEFAULT_ACTIVITIES } from "@/lib/tracker/activities";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -79,6 +81,19 @@ export default function TrackerPage() {
 
   useEffect(() => {
     void getCurrentUserId();
+  }, []);
+
+  // Flush pending journal edits (10s block-store debounce) on hard page unload.
+  useEffect(() => {
+    const flush = () => {
+      flushAllUpdates();
+      flushAllNoteBlockStores();
+    };
+    window.addEventListener("beforeunload", flush);
+    return () => {
+      window.removeEventListener("beforeunload", flush);
+      flush();
+    };
   }, []);
 
   // Query activity types from local DB
@@ -537,8 +552,12 @@ export default function TrackerPage() {
                   <TimeGrid days={days} data={mergedGridData} colorMap={activityColorMap} onCellClick={handleCellClick} ratings={mergedRatingsMap} onRate={handleRate} />
                 </section>
 
-                <section className="mt-4 min-w-0 overflow-x-hidden pb-16 sm:pb-0 [touch-action:pan-y]">
+                <section className="mt-4 min-w-0 overflow-x-hidden [touch-action:pan-y]">
                   <WeekWidgets days={widgetProps.current.days} data={widgetProps.current.data} colorMap={activityColorMap} ratings={widgetProps.current.ratings} />
+                </section>
+
+                <section className="mt-8 min-w-0 overflow-x-hidden pb-16 sm:pb-0 [touch-action:pan-y]">
+                  <WeeklyJournal weekStart={days[0]} />
                 </section>
               </div>
             )}

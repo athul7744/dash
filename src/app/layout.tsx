@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Lora } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PowerSyncProvider } from "@/components/powersync-provider";
@@ -7,6 +7,7 @@ import { RouteRestorer } from "@/components/RouteRestorer";
 import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const lora = Lora({ subsets: ["latin"], variable: "--font-serif" });
 
 export const metadata: Metadata = {
   title: "Dash.",
@@ -46,7 +47,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans min-h-screen flex flex-col antialiased bg-background text-foreground`}>
+      <body className={`${inter.variable} ${lora.variable} font-sans min-h-screen flex flex-col antialiased bg-background text-foreground`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

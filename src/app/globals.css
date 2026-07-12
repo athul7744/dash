@@ -9,6 +9,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -334,6 +335,14 @@
 .ProseMirror p {
   color: var(--note-body-ink);
   line-height: 1.6;
+}
+
+/* Weekly journal: warm serif for a distinct "journal" feel, scoped so /notes
+   editor typography is unaffected. */
+.journal-surface .ProseMirror {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.02rem;
+  line-height: 1.7;
 }
 
 .ProseMirror h1,

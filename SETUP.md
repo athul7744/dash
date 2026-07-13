@@ -331,7 +331,7 @@ Attachment ownership is explicit: each attachment belongs to either a page or a 
 ## 3. Local Development
 
 ```bash
-npm install
+bun install
 ```
 
 Copy `.env.example` to `.env.local` and fill in your values:
@@ -346,17 +346,17 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY=
 ```
 
 ```bash
-npm run dev
-npm run build && npm run start
-npm run lint
-npm test
-npm run test:dom
-npx tsc --noEmit
+bun run dev
+bun run build && bun run start
+bun run lint
+bun run test
+bun run test:dom
+bunx tsc --noEmit
 ```
 
 Development notes:
 
-- `npm run dev` and `npm run build` already use the repo's configured Webpack-based Next.js commands.
+- `bun run dev` and `bun run build` already use the repo's configured Webpack-based Next.js commands.
 - The `/share` route is wired as the PWA web share target, so mobile share-sheet flows can be exercised locally after sign-in.
 - Set `NEXT_PUBLIC_ENABLE_LOG_VIEW=true` to expose an in-app viewer for the latest 50 logger entries from the current browser session.
 
@@ -364,8 +364,8 @@ Development notes:
 
 Vitest is split by environment:
 
-- `npm test` runs the default node-based suites for pure logic and write-path behavior.
-- `npm run test:dom` runs the jsdom-backed integration suites used for React hook and DOM-adjacent editor behavior.
+- `bun run test` runs the default node-based suites for pure logic and write-path behavior.
+- `bun run test:dom` runs the jsdom-backed integration suites used for React hook and DOM-adjacent editor behavior.
 
 - `tests/notes/` holds notes-specific tests.
 - `tests/tasks/` holds task-specific tests.
@@ -374,7 +374,7 @@ Vitest is split by environment:
 
 See [tests/README.md](tests/README.md) for the current suite-level breakdown.
 
-Use `npm test` for a one-shot node run, `npm run test:dom` for the jsdom integration layer, and `npm run test:watch` while developing.
+Use `bun run test` for a one-shot node run, `bun run test:dom` for the jsdom integration layer, and `bun run test:watch` while developing.
 
 ### Feature implementation notes
 
@@ -388,7 +388,7 @@ For notes specifically, keep `src/app/notes/page.tsx` as the route orchestrator 
 
 If you change notes editing behavior, clipboard parsing, or block-merge semantics, keep the tests aligned with the intended visible-order editing rules and update the permanent project docs once that behavior is finalized.
 
-If you change route wiring or editor behavior, validate with both `npm run lint` and `npx tsc --noEmit`.
+If you change route wiring or editor behavior, validate with both `bun run lint` and `bunx tsc --noEmit`.
 
 If you update Tiptap or KaTeX packages, keep versions aligned. The repo pins Tiptap packages together so schema extensions resolve consistently. KaTeX CSS is imported in `globals.css`.
 
@@ -418,7 +418,7 @@ with any external scheduler (cron, a hosted automation tool, etc.).
 2. Generate a VAPID key pair:
 
    ```bash
-   npx web-push generate-vapid-keys
+   bunx web-push generate-vapid-keys
    ```
 
 3. Set the **frontend** key (Vercel + local `.env.local`):

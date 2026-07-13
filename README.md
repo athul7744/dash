@@ -35,8 +35,8 @@ In Settings you can switch between light and dark themes and choose the app's di
 ## Quick Start
 
 ```bash
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 See [SETUP.md](SETUP.md) for backend configuration (Supabase + PowerSync).

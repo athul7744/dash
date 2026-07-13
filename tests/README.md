@@ -118,9 +118,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 
 ## Usage
 
-- `npm test` — one-shot node-based Vitest run.
-- `npm run test:dom` — jsdom-backed integration run.
-- `npm run test:watch` — watch mode while developing.
+- `bun run test` — one-shot node-based Vitest run.
+- `bun run test:dom` — jsdom-backed integration run.
+- `bun run test:watch` — watch mode while developing.
 - `node .\\node_modules\\vitest\\vitest.mjs run tests/notes` — focused node-based notes test run when working on notes behavior.
 - `node .\\node_modules\\vitest\\vitest.mjs run --config vitest.dom.config.ts tests/notes/notes-block-tree.dom.test.ts` — focused DOM integration run for block tree behavior.
 

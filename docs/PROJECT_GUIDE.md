@@ -582,12 +582,12 @@ A few repo-specific patterns matter repeatedly:
 ## Common Validation Commands
 
 ```bash
-npm run dev
-npm run build
-npm run lint
-npm test
-npm run test:dom
-npx tsc --noEmit
+bun run dev
+bun run build
+bun run lint
+bun run test
+bun run test:dom
+bunx tsc --noEmit
 ```
 
 ### Testing
@@ -601,8 +601,8 @@ Vitest is split between fast node-based suites and a jsdom integration layer for
 
 Primary commands:
 
-- `npm test` runs the default node-based suites.
-- `npm run test:dom` runs the jsdom-backed integration suites.
+- `bun run test` runs the default node-based suites.
+- `bun run test:dom` runs the jsdom-backed integration suites.
 
 See [tests/README.md](../tests/README.md) for the current suite map.
 

@@ -11,7 +11,8 @@ import { cn } from "@/lib/shared/utils";
 import { LogViewerDialog } from "@/components/LogViewerDialog";
 
 interface AppSwitcherProps {
-  current: AppConfig;
+  /** The active app, or omitted on the dashboard where nothing is active. */
+  current?: AppConfig;
   /** "sm" for mobile (smaller text), "md" for desktop */
   size?: "sm" | "md" | "fab";
 }
@@ -20,15 +21,14 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [logDialogOpen, setLogDialogOpen] = useState(false);
-  const Icon = current.icon;
   const showLogViewer = isLogViewerEnabled();
 
   useEffect(() => {
     APPS.forEach((app) => {
-      if (app.id === current.id) return;
+      if (current && app.id === current.id) return;
       router.prefetch(app.href);
     });
-  }, [current.id, router]);
+  }, [current, router]);
 
   const trigger = useMemo(() => {
     if (size === "fab") {
@@ -43,6 +43,10 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
         </PopoverTrigger>
       );
     }
+
+    // The pill variants always render an active app; only the fab omits it.
+    if (!current) return null;
+    const Icon = current.icon;
 
     return (
       <PopoverTrigger
@@ -65,7 +69,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
         )} />
       </PopoverTrigger>
     );
-  }, [Icon, current.accent.iconBg, current.accent.iconText, current.name, open, size]);
+  }, [current, open, size]);
 
   const popoverClassName = size === "fab" ? "w-56 p-1.5 mb-2" : "w-56 p-1.5";
   const popoverSide = size === "fab" ? "top" : "bottom";
@@ -100,8 +104,8 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
                 href="/"
                 onClick={() => setOpen(false)}
                 className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                aria-label="Open launcher"
-                title="Open launcher"
+                aria-label="Open dashboard"
+                title="Open dashboard"
               >
                 <LayoutDashboard className="h-3.5 w-3.5" />
               </Link>
@@ -109,7 +113,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
           </div>
           {APPS.map((app) => {
             const AppIcon = app.icon;
-            const isActive = app.id === current.id;
+            const isActive = current?.id === app.id;
             return (
               <Link
                 key={app.id}

@@ -3,7 +3,6 @@ import { Inter, Lora, Fraunces, Hanken_Grotesk, Bricolage_Grotesque, Geist_Mono 
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PowerSyncProvider } from "@/components/powersync-provider";
-import { RouteRestorer } from "@/components/RouteRestorer";
 import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -61,7 +60,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${lora.variable} ${fraunces.variable} ${hanken.variable} ${bricolage.variable} ${geistMono.variable} font-sans min-h-screen flex flex-col antialiased bg-background text-foreground`}>
+      <body
+        suppressHydrationWarning
+        className={`${inter.variable} ${lora.variable} ${fraunces.variable} ${hanken.variable} ${bricolage.variable} ${geistMono.variable} font-sans min-h-screen flex flex-col antialiased bg-background text-foreground`}
+      >
         <script dangerouslySetInnerHTML={{ __html: DISPLAY_FONT_INIT }} />
         <ThemeProvider
           attribute="class"
@@ -70,7 +72,6 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <PowerSyncProvider>
-            <RouteRestorer />
             {/* App Shell Layout structure will be placed here or inside individual pages */}
             <div className="flex flex-col md:flex-row h-screen overflow-hidden">
               <main className="flex-1 overflow-y-auto relative">

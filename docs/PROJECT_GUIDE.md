@@ -46,7 +46,8 @@ Key runtime behavior:
 
 - `src/app/layout.tsx`
   - Root HTML shell
-  - Mounts `ThemeProvider`, `PowerSyncProvider`, `RouteRestorer`, and Vercel analytics
+  - Mounts `ThemeProvider`, `PowerSyncProvider`, and Vercel analytics
+  - `<body>` carries `suppressHydrationWarning` because the pre-paint display-font script mutates its attributes before hydration
   - Defines the global full-height app layout
   - Loads the app's fonts via `next/font`: Inter (body), Lora (serif/journal), Geist Mono (code), plus the display candidates Fraunces / Hanken Grotesk / Bricolage Grotesque. Each exposes a CSS var; the active display face is applied by a small pre-paint inline script that sets `data-display-font` on `<body>` from `localStorage` (see [Typography](#typography-and-display-font))
 
@@ -54,10 +55,6 @@ Key runtime behavior:
   - Initializes local SQLite first with `initLocal()`
   - Only after local init succeeds does it render the app tree
   - Starts `connectCloud()` in the background so sync does not block the UI
-
-- `src/components/RouteRestorer.tsx`
-  - Stores the last non-login route in `localStorage`
-  - If the app launches at `/`, it redirects back to the last route
 
 ### Shared shell components
 
@@ -103,7 +100,7 @@ Important convention:
 
 ### Routes
 
-- `src/app/page.tsx` — launcher/start page
+- `src/app/page.tsx` — the welcome dashboard (home/start page; see [Dashboard](#dashboard-structure))
 - `src/app/login/page.tsx` — login page
 - `src/app/share/page.tsx` — PWA share target review and save flow
 - `src/app/tasks/page.tsx` — tasks dashboard
@@ -119,6 +116,19 @@ Important convention:
 - `src/components/LogViewerDialog.tsx`
 - `src/components/ManageNamedColorItemsDialog.tsx`
 - `src/components/tags/*` — shared tag selection and pill-strip primitives used by tasks and notes
+- `src/components/motion/Reveal.tsx` — reusable scroll-triggered reveal (Motion `whileInView`, honors reduced-motion)
+
+### Dashboard components
+
+- `src/components/dashboard/DashboardHero.tsx` — the centered hero (greeting, search bar, contextual action/mood)
+- `src/components/dashboard/DashboardGreeting.tsx` — presentational greeting + date (one line on desktop)
+- `src/components/dashboard/HeroAction.tsx` — the contextual nudge button (opens a task, scrolls to a section, or navigates)
+- `src/components/dashboard/MoodPicker.tsx` — 1–5 mood dots writing to `daily_ratings` (night hero + shared)
+- `src/components/dashboard/GlobalSearch.tsx` — controlled combined tasks+notes search (built on `SearchPopup`)
+- `src/components/dashboard/TaskPopup.tsx` — opens a `TaskCard` in a blurred modal (tasks have no deep-link route)
+- `src/components/dashboard/TodayTasks.tsx` / `TodayTracking.tsx` — borderless reveal widgets
+- `src/components/dashboard/DashboardJournal.tsx` — embeds `WeeklyJournal` for the current week, editable in place
+- `src/components/dashboard/AppsFab.tsx` — bottom horizontal app strip (single-click nav), on a blurred scrim
 
 ### Task-specific components
 
@@ -162,10 +172,14 @@ Important convention:
 - `src/lib/shared/ranked-order.ts` — reusable LexoRank ordering helpers that can be shared across app groups
 - `src/lib/shared/utils.ts` — shared UI/class/date/escapeHtml helpers
 - `src/lib/shared/display-font.ts` — display-font options, storage key, and the `isDisplayFont` guard (see [Typography](#typography-and-display-font))
+- `src/lib/shared/greeting.ts` — pure time-of-day greeting pools + `timeOfDayForHour` (used by the dashboard hero and the next-best-action picker)
+- `src/lib/dashboard/hero-action.ts` — pure rule+weighted-score picker (`chooseHeroAction`) for the hero's contextual nudge
 - `src/lib/tasks/colors.ts` — tag palette and class maps
 - `src/lib/tasks/tasks.ts` — priority and due-date helpers
 - `src/lib/tasks/tags.ts` — tag creation helpers
 - `src/lib/tracker/activities.ts` — tracker activity palette and class maps
+- `src/lib/tracker/ratings.ts` — `setDailyRating` upsert (insert/update/clear) for the mood picker, shared by the dashboard
+- `src/lib/tracker/day-keys.ts` — UTC-naive/local date-key helpers, incl. `recentNaiveWindow` for the "logged in the last 2h" check
 - `src/hooks/use-notes.ts` — local SQLite query hooks for note pages and blocks (excludes `properties.kind`-tagged system pages from Notes lists)
 - `src/hooks/use-display-font.ts` — reads/writes the selected display font via `useSyncExternalStore` + `localStorage`, applying it to `<body data-display-font>`
 - `src/hooks/use-settled-timestamp.ts` — debounced timestamp display that waits for pending writes to settle
@@ -173,6 +187,8 @@ Important convention:
 - `src/hooks/use-page-nav-stack.ts` — page navigation stack with sessionStorage persistence (used by breadcrumb)
 - `src/hooks/use-property-definitions.ts` — reactive query hook for workspace property definitions
 - `src/hooks/use-optimistic-value.ts` — generic optimistic-override hook (keyed on a serialized upstream snapshot) for edits that render before a DB write round-trips
+- `src/hooks/use-greeting.ts` — snapshots the greeting/date once per mount (single seed shared by hero + collapsed top bar)
+- `src/hooks/use-hero-action.ts` — gathers live signals (tasks, recent tracking, mood, journal) and returns the chosen hero action + most-relevant task
 - `src/lib/notes/notes-content.ts` — note document normalization, serialization (including math nodes), and plain-text extraction
 - `src/lib/notes/notes-tree.ts` — tree building and visible block ordering helpers for note blocks
 - `src/lib/notes/note-block-store.ts` — per-page block store with cached persistence, reconcile fast-path, undo/redo, and query block content support
@@ -312,6 +328,20 @@ The notes app supports Notion-style custom properties per page:
 - **UI**: `src/components/notes/page/NotePageProperties.tsx` renders a collapsible properties section below the page title with inline editors per type.
 - **Management**: `src/components/notes/ManagePropertiesDialog.tsx` provides workspace-wide property definition CRUD with emoji picker, type selector, and select-option editing. Available on desktop via the header and on mobile via the 3-dots menu.
 - **Data flow**: `src/lib/notes/properties.ts` handles definition CRUD and value parsing. `src/hooks/use-property-definitions.ts` provides reactive query access.
+
+## Dashboard Structure
+
+The home route (`src/app/page.tsx`) is the welcome dashboard and the app's `start_url`. It is its own scroll container (`absolute inset-0 overflow-y-auto`, positioned so Motion's `useScroll({ container })` can measure it) with `scroll-snap` between the hero and the reveal.
+
+Responsibilities and behavior:
+
+- **Hero collapse (Motion):** `useScroll` + `useTransform` map the container's raw `scrollY` (px) to a fade/scale on the hero and a fade-in of a compact greeting + search icon in the sticky top bar. Driven by raw `scrollY` (not a measured target) to avoid feedback from the hero's own transforms; bidirectional (reverses on scroll up).
+- **Reveal:** each section is wrapped in `motion/Reveal` (`whileInView`, once) with the container as `root`; reduced-motion renders them static.
+- **Contextual hero action:** `useHeroAction` gathers signals — pending/overdue/due-today tasks (and the most-relevant one), whether time was logged in the last 2h (`recentNaiveWindow`), whether mood was rated today, and whether this week's journal system page exists — and feeds the pure `chooseHeroAction` picker (`src/lib/dashboard/hero-action.ts`). At night it shows `MoodPicker`; otherwise a single `HeroAction` nudge (most-relevant task → task modal, plan → scroll to `#today-tasks`, track → `/tracker`, journal → scroll to `#weekly-journal`).
+- **Search:** `GlobalSearch` is controlled (opened by the hero bar, the top-bar icon, or ⌘K), filters tasks by title and notes via `useNotesPageDerivedState`, and reuses `SearchPopup`. Notes deep-link to `/notes?page=`; tasks open in `TaskPopup`.
+- **Journal:** `DashboardJournal` embeds the tracker's `WeeklyJournal` for the current week (same `systemPageId`), editable in place.
+- **Apps:** `AppsFab` is a fixed bottom strip of single-click app links over a blurred scrim (replaces the old floating `AppSwitcher` FAB here).
+- Greeting text comes from `useGreeting` (one seed shared by hero + collapsed bar). There is no route restoration — the app always opens on the dashboard.
 
 ## Tasks App Structure
 

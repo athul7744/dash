@@ -103,6 +103,19 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/shared/use-display-font.dom.test.ts`
   Covers the useDisplayFont hook: defaulting to Fraunces, reading a stored font, ignoring invalid stored values, persisting a non-default choice to `<body data-display-font>` + localStorage, and clearing the attribute when the default is re-selected.
 
+- `tests/shared/greeting.test.ts`
+  Covers the greeting helpers: `timeOfDayForHour` boundaries, deterministic `greetingForHour`/`sublineForIndex` selection, index wrapping, and non-empty variants.
+
+## Current Tracker Suites
+
+- `tests/tracker/day-keys.test.ts`
+  Covers the tracker date-key helpers: `utcDateKey`/`localDateKey`/`utcDayBounds` formats and `recentNaiveWindow` (2-hour UTC-naive span, midnight crossing).
+
+## Current Dashboard Suites
+
+- `tests/dashboard/hero-action.test.ts`
+  Covers `chooseHeroAction`, the hero's next-best-action picker: time-of-day + data-driven selection across task/plan/track/journal/mood, eligibility gates, and the plan fallback.
+
 ## Usage
 
 - `npm test` — one-shot node-based Vitest run.

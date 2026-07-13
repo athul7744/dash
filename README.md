@@ -4,6 +4,10 @@ A personal productivity workspace that works offline and syncs across devices. T
 
 ## What It Does
 
+### Dashboard
+
+The home screen opens calm and centered: a rotating, time-of-day greeting and one search bar that spans both tasks and notes (⌘K anywhere). Beneath it sits a single contextual nudge that changes with the time of day and what you've actually done — the most relevant task in the morning, a reminder to log time if you've tracked nothing in the last couple of hours, your weekly journal in the evening, and a mood check-in at night. Scroll down and the greeting glides up into a slim top bar while the day's essentials fade in — today's tasks with quick-add, hours logged, and this week's journal to write in place. A row of apps sits at the bottom, one tap to each.
+
 ### Tasks
 
 Manage your to-do list with subtasks, tags, due dates, and priorities. Filter by state, tag, or priority. Deleted tasks go to trash where they can be restored. On mobile, save tasks directly from your phone's share sheet — share a link or text from any app and it becomes a task.

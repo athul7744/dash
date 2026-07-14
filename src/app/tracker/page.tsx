@@ -533,7 +533,9 @@ export default function TrackerPage() {
           key={view}
           initial={reduce ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          // Instant exit so mode="wait" mounts the incoming view (and its
+          // skeleton) immediately instead of holding on the old view's fade.
+          exit={{ opacity: 0, transition: { duration: 0 } }}
           transition={{ duration: reduce ? 0 : DURATION.fast }}
           className="space-y-4"
         >

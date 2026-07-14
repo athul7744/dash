@@ -1,9 +1,11 @@
 "use client";
 
 import { useQuery } from "@powersync/react";
+import { motion, useReducedMotion } from "motion/react";
 
 import { RATING_COLORS, RATING_LABELS } from "@/components/tracker/widgets/types";
 import { useOptimisticValue } from "@/hooks/use-optimistic-value";
+import { SPRING_SOFT } from "@/lib/shared/motion";
 import { cn } from "@/lib/shared/utils";
 import { localDateKey } from "@/lib/tracker/day-keys";
 import { setDailyRating } from "@/lib/tracker/ratings";
@@ -35,6 +37,7 @@ export function MoodPicker({
   const persisted = ratingRows[0] ?? null;
 
   const [score, setScore] = useOptimisticValue<number | null>(persisted?.score ?? null);
+  const reduce = useReducedMotion();
 
   const pick = (value: number) => {
     // Toggle-off only for an already-saved row (avoids an insert/delete race
@@ -50,21 +53,25 @@ export function MoodPicker({
       {SCORES.map((n) => {
         const active = score === n;
         return (
-          <button
+          <motion.button
             key={n}
             type="button"
             onClick={() => pick(n)}
             title={RATING_LABELS[n]}
             aria-label={RATING_LABELS[n]}
             aria-pressed={active}
+            animate={{ scale: reduce ? 1 : active ? 1.1 : 1 }}
+            whileHover={reduce ? undefined : { scale: active ? 1.1 : 1.05 }}
+            whileTap={reduce ? undefined : { scale: 0.9 }}
+            transition={reduce ? { duration: 0 } : SPRING_SOFT}
             className={cn(
-              "flex size-9 items-center justify-center rounded-full border transition-all",
-              active ? "scale-110 border-transparent" : "border-border hover:scale-105",
+              "flex size-9 items-center justify-center rounded-full border transition-colors",
+              active ? "border-transparent" : "border-border",
             )}
             style={active ? { backgroundColor: RATING_COLORS[n] } : undefined}
           >
             <span className="size-3 rounded-full" style={{ backgroundColor: active ? "#fff" : RATING_COLORS[n] }} />
-          </button>
+          </motion.button>
         );
       })}
       <span className="ml-1 min-w-14 font-serif text-sm text-muted-foreground">

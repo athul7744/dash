@@ -1,7 +1,9 @@
 import * as React from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Task } from "@/lib/powersync/AppSchema";
 import { usePowerSync } from "@powersync/react";
 import { Check, Trash2, CornerDownRight, Undo2, Plus } from "lucide-react";
+import { DURATION, EASE, SPRING_SOFT } from "@/lib/shared/motion";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -47,7 +49,7 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
   const [optimisticSubtasks, setOptimisticSubtasks] = React.useState<Task[]>([]);
   const [optimisticState, setOptimisticState] = React.useState(persistedTaskState);
   const [optimisticSubtaskStates, setOptimisticSubtaskStates] = React.useState<Record<string, string>>({});
-  const [isDeleting, setIsDeleting] = React.useState(false);
+  const reduce = useReducedMotion();
 
   React.useEffect(() => { setOptimisticState(persistedTaskState); }, [persistedTaskState]);
   React.useEffect(() => { setTitle(task.title || ""); }, [task.title]);
@@ -182,11 +184,10 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
       // Permanently delete — cancel/flush pending writes first, then delete immediately
       cancelExecute(t.id);
       await flushUpdate(t.id, 'tasks');
-      setIsDeleting(true);
-      setTimeout(async () => {
-        await db.execute(`DELETE FROM tasks WHERE id = ?`, [t.id]);
-        await db.execute(`DELETE FROM tasks WHERE parent_id = ?`, [t.id]);
-      }, 250);
+      // Delete immediately; the card animates out via AnimatePresence as it
+      // unmounts (the watched query drops it from the list).
+      await db.execute(`DELETE FROM tasks WHERE id = ?`, [t.id]);
+      await db.execute(`DELETE FROM tasks WHERE parent_id = ?`, [t.id]);
     } else {
       // Move to trash — debounced
       setOptimisticState('trashed');
@@ -216,14 +217,19 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
   const isTrashed = optimisticState === 'trashed';
 
   return (
-    <div className={cn(
-      "group relative flex flex-col rounded-xl border shadow-sm hover:shadow-md mb-4 overflow-hidden break-inside-avoid animate-fade-slide-in",
-      "transition-[opacity,transform,background-color,border-color] duration-500 ease-out",
+    <motion.div
+      layout={false}
+      initial={reduce ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: optimisticState === 'completed' ? 0.6 : 1, y: 0 }}
+      exit={reduce ? { opacity: 0 } : { opacity: 0, y: 4, scale: 0.98 }}
+      transition={{ duration: DURATION.base, ease: EASE.standard }}
+      className={cn(
+      "group relative flex flex-col rounded-xl border shadow-sm hover:shadow-md mb-4 overflow-hidden break-inside-avoid",
+      "transition-[background-color,border-color] duration-500 ease-out",
       optimisticState === 'trashed'
         ? "bg-rose-50/40 dark:bg-rose-950/15 border-rose-200/40 dark:border-rose-800/30"
         : "bg-background border-border",
-      optimisticState === 'completed' ? "opacity-60 bg-muted/50" : "",
-      isDeleting ? "animate-fade-slide-out" : ""
+      optimisticState === 'completed' ? "bg-muted/50" : ""
     )}>
       {/* Main Task Header */}
       <div className="flex items-start gap-3 p-4">
@@ -237,7 +243,19 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
                 : "border-muted-foreground/30 hover:border-emerald-500/50"
             )}
           >
-            {optimisticState === 'completed' && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+            <AnimatePresence>
+              {optimisticState === 'completed' && (
+                <motion.span
+                  initial={reduce ? false : { scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={reduce ? { opacity: 0 } : { scale: 0, opacity: 0 }}
+                  transition={SPRING_SOFT}
+                  className="flex items-center justify-center"
+                >
+                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                </motion.span>
+              )}
+            </AnimatePresence>
           </button>
         )}
 
@@ -339,14 +357,19 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
       {/* Subtasks Section */}
       {!isNew && (
         <div className="bg-black/20 border-t border-border p-3 pl-4 flex flex-col gap-1.5">
+          <AnimatePresence initial={false}>
           {combinedSubtasks.map((st: any) => {
             const currentState = optimisticSubtaskStates[st.id] || st.state;
             return (
-              <div key={st.id} className={cn(
-                "flex items-center gap-2 group/subtask animate-fade-slide-in",
-                "transition-opacity duration-500 ease-out",
-                currentState === 'completed' ? "opacity-60" : ""
-              )}>
+              <motion.div
+                key={st.id}
+                layout={!reduce}
+                initial={reduce ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: currentState === 'completed' ? 0.6 : 1, y: 0 }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, y: 4 }}
+                transition={{ duration: DURATION.base, ease: EASE.standard }}
+                className="flex items-center gap-2 group/subtask"
+              >
                 <CornerDownRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 ml-1 mt-0.5" />
                 {!isTrashed && (
                   <button
@@ -358,7 +381,19 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
                         : "border-muted-foreground/30 hover:border-emerald-500/50"
                     )}
                   >
-                    {currentState === 'completed' && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+                    <AnimatePresence>
+                      {currentState === 'completed' && (
+                        <motion.span
+                          initial={reduce ? false : { scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={reduce ? { opacity: 0 } : { scale: 0, opacity: 0 }}
+                          transition={SPRING_SOFT}
+                          className="flex items-center justify-center"
+                        >
+                          <Check className="h-2.5 w-2.5 stroke-[3]" />
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </button>
                 )}
 
@@ -383,9 +418,10 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 )}
-              </div>
+              </motion.div>
             );
           })}
+          </AnimatePresence>
 
           {/* Add Subtask — hidden for trashed */}
           {!isTrashed && (
@@ -423,6 +459,6 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
           </Button>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

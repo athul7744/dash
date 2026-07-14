@@ -1,6 +1,7 @@
 "use client";
 
 import { usePowerSync, useQuery } from '@powersync/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Plus, CheckCircle2, Filter, Tag as TagIcon, X, ChevronLeft, ChevronRight, ListTodo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useMemo } from 'react';
@@ -9,6 +10,7 @@ import { TaskCard } from '@/components/tasks/TaskCard';
 import { ManageTagsDialog } from '@/components/tasks/ManageTagsDialog';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/shared/utils';
+import { DURATION, EASE } from '@/lib/shared/motion';
 import { getTagColorClasses, getTagDotClass } from '@/lib/tasks/colors';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -23,6 +25,7 @@ const tasksApp = getApp("tasks");
 
 export default function Home() {
   const db = usePowerSync();
+  const reduce = useReducedMotion();
 
   // Warn user and flush pending writes if they try to leave during debounce window
   useEffect(() => {
@@ -301,7 +304,11 @@ export default function Home() {
 
       <ManageTagsDialog open={isManageTagsOpen} onOpenChange={setIsManageTagsOpen} hideTrigger />
 
-      {isInitialLoading ? <TasksContentSkeleton /> : <main className="flex-1 overflow-y-auto overflow-x-hidden px-[var(--app-gutter-x)] py-4 pb-[var(--mobile-bottom-fab-clearance)] sm:pb-4 md:py-8 md:pb-8">
+      {isInitialLoading ? <TasksContentSkeleton /> : <motion.main
+        initial={reduce ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: DURATION.base, ease: EASE.standard }}
+        className="flex-1 overflow-y-auto overflow-x-hidden px-[var(--app-gutter-x)] py-4 pb-[var(--mobile-bottom-fab-clearance)] sm:pb-4 md:py-8 md:pb-8">
         <div className="max-w-7xl mx-auto h-full flex flex-col">
           
           {/* Task List */}
@@ -316,8 +323,9 @@ export default function Home() {
             </div>
           ) : (
             <div className="flex flex-col">
-              <div className="columns-1 md:columns-2 xl:columns-3 gap-6 space-y-6 px-1 pb-24 sm:pb-4 animate-stagger">
+              <div className="columns-1 md:columns-2 xl:columns-3 gap-6 space-y-6 px-1 pb-24 sm:pb-4">
                 {/* Render Combined Tasks to Prevent Layout Jumps */}
+                <AnimatePresence>
                 {(() => {
                   const combinedTasks = [
                     ...newTasks.filter(nt => !paginatedTopLevelTasks.some((t: any) => t.id === nt.id)),
@@ -327,16 +335,17 @@ export default function Home() {
                   return combinedTasks.map((task: any) => {
                     const isDraft = newTasks.some(nt => nt.id === task.id);
                     return (
-                      <TaskCard 
-                        key={task.id} 
-                        task={task} 
-                        subtasks={isDraft ? [] : getSubtasks(task.id)} 
-                        isNew={isDraft} 
-                        onNewCancel={() => handleCancelNewTask(task.id)} 
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        subtasks={isDraft ? [] : getSubtasks(task.id)}
+                        isNew={isDraft}
+                        onNewCancel={() => handleCancelNewTask(task.id)}
                       />
                     );
                   });
                 })()}
+                </AnimatePresence>
               </div>
 
               {/* Pagination Controls */}
@@ -368,7 +377,7 @@ export default function Home() {
             </div>
           )}
         </div>
-      </main>}
+      </motion.main>}
 
       <MobileBottomFabs
         app={tasksApp}

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@powersync/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Plus } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 
@@ -11,6 +12,7 @@ import { db } from "@/lib/powersync/db";
 import { getApp } from "@/lib/shared/apps";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { debouncedUpdate } from "@/lib/shared/debounced-update";
+import { DURATION, EASE } from "@/lib/shared/motion";
 import { cn } from "@/lib/shared/utils";
 import { getDueDateInfo } from "@/lib/tasks/tasks";
 
@@ -20,6 +22,7 @@ const MAX_VISIBLE = 5;
 const TASKS_APP = getApp("tasks");
 
 export function TodayTasks() {
+  const reduce = useReducedMotion();
   // Pending, top-level, dated tasks — bucketed in JS via getDueDateInfo so the
   // labels match the Tasks page exactly (local-midnight comparison avoids the
   // ISO/UTC off-by-one a raw SQL date() filter would introduce).
@@ -91,11 +94,20 @@ export function TodayTasks() {
       {due.length === 0 ? (
         <p className="py-3 font-serif text-sm text-muted-foreground">Nothing due today.</p>
       ) : (
-        <ul className="animate-stagger">
+        <ul>
+          <AnimatePresence initial={false}>
           {visible.map((task) => {
             const info = getDueDateInfo(task.due_date ? new Date(task.due_date) : undefined);
             return (
-              <li key={task.id} className="flex items-center gap-2.5 border-b border-border/50 py-2 last:border-b-0">
+              <motion.li
+                key={task.id}
+                layout={!reduce}
+                initial={reduce ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, x: 8 }}
+                transition={{ duration: DURATION.base, ease: EASE.standard }}
+                className="flex items-center gap-2.5 border-b border-border/50 py-2 last:border-b-0"
+              >
                 <button
                   type="button"
                   onClick={() => complete(task.id)}
@@ -106,10 +118,11 @@ export function TodayTasks() {
                   {task.title || "Untitled task"}
                 </Link>
                 <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px]", info.bg, info.text)}>{info.label}</span>
-              </li>
+              </motion.li>
             );
           })}
           {hidden > 0 ? <li className="py-2 text-xs text-muted-foreground">+{hidden} more due</li> : null}
+          </AnimatePresence>
         </ul>
       )}
 

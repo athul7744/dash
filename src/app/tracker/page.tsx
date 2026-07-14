@@ -1,6 +1,7 @@
 "use client";
 
 import { usePowerSync, useQuery } from "@powersync/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, getYear } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
@@ -24,12 +25,17 @@ import { getApp } from "@/lib/shared/apps";
 import { cancelExecute, cancelUpdate, debouncedExecute, debouncedUpdate, flushAllUpdates } from "@/lib/shared/debounced-update";
 import { flushAllNoteBlockStores } from "@/lib/notes/note-block-store";
 import { cn } from "@/lib/shared/utils";
+import { DURATION, SPRING_SOFT } from "@/lib/shared/motion";
 import { DEFAULT_ACTIVITIES } from "@/lib/tracker/activities";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 const trackerApp = getApp("tracker");
-const TRACKER_TAB_ACTIVE_CLASS = "border-teal-600 text-teal-600 dark:border-teal-400 dark:text-teal-400";
+const TRACKER_TABS = [
+  { id: "week" as const, label: "Week", icon: CalendarDays },
+  { id: "activity" as const, label: "Activity", icon: Activity },
+  { id: "mood" as const, label: "Mood", icon: Smile },
+];
 
 type ViewMode = "week" | "activity" | "mood";
 
@@ -45,6 +51,7 @@ interface OptimisticRatingChange {
 
 export default function TrackerPage() {
   const db = usePowerSync();
+  const reduce = useReducedMotion();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeActivity, setActiveActivity] = useState<string | null>(null);
@@ -498,39 +505,38 @@ export default function TrackerPage() {
 
       {/* View Tabs */}
       <div className="border-b border-border px-[var(--app-gutter-x)] flex items-center gap-1 overflow-x-auto overscroll-y-none [touch-action:pan-x_pan-y]">
-        <button
-          onClick={() => setView("week")}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-2 font-heading text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-            view === "week" ? TRACKER_TAB_ACTIVE_CLASS : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <CalendarDays className="h-3.5 w-3.5" />
-          Week
-        </button>
-        <button
-          onClick={() => setView("activity")}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-2 font-heading text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-            view === "activity" ? TRACKER_TAB_ACTIVE_CLASS : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Activity className="h-3.5 w-3.5" />
-          Activity
-        </button>
-        <button
-          onClick={() => setView("mood")}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-2 font-heading text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-            view === "mood" ? TRACKER_TAB_ACTIVE_CLASS : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Smile className="h-3.5 w-3.5" />
-          Mood
-        </button>
+        {TRACKER_TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setView(id)}
+            className={cn(
+              "relative flex items-center gap-1.5 px-3 py-2 font-heading text-sm font-medium transition-colors whitespace-nowrap",
+              view === id ? "text-teal-600 dark:text-teal-400" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+            {view === id && (
+              <motion.span
+                layoutId="tracker-tab-underline"
+                transition={reduce ? { duration: 0 } : SPRING_SOFT}
+                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-teal-600 dark:bg-teal-400"
+              />
+            )}
+          </button>
+        ))}
       </div>
 
-      <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto px-[var(--app-gutter-x)] py-4 pb-[var(--mobile-bottom-fab-clearance)] space-y-4 sm:pb-4 md:py-8">
+      <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto px-[var(--app-gutter-x)] py-4 pb-[var(--mobile-bottom-fab-clearance)] sm:pb-4 md:py-8">
+        <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={view}
+          initial={reduce ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduce ? 0 : DURATION.fast }}
+          className="space-y-4"
+        >
         {/* Week View */}
         {view === "week" && (
           <>
@@ -612,6 +618,8 @@ export default function TrackerPage() {
             }
           />
         )}
+        </motion.div>
+        </AnimatePresence>
       </div>
 
       <MobileBottomFabs

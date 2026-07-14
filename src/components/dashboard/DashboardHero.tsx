@@ -3,6 +3,7 @@
 import { ChevronDown, Search } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
+import { DURATION, EASE } from "@/lib/shared/motion";
 import { useHeroAction } from "@/hooks/use-hero-action";
 
 import { DashboardGreeting } from "./DashboardGreeting";
@@ -38,7 +39,12 @@ export function DashboardHero({
     );
 
   return (
-    <div className="flex w-full max-w-xl flex-col items-center gap-8 text-center">
+    <motion.div
+      initial={reduce ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: DURATION.slow, ease: EASE.standard }}
+      className="flex w-full max-w-xl flex-col items-center gap-8 text-center"
+    >
       <div className="flex flex-col items-center gap-2">
         <DashboardGreeting greeting={greeting} date={date} />
         <p className="font-serif text-sm text-muted-foreground/80 text-balance sm:text-base">{subline}</p>
@@ -68,6 +74,6 @@ export function DashboardHero({
       </div>
 
       <ChevronDown className="mt-2 h-5 w-5 text-muted-foreground/40" aria-hidden="true" />
-    </div>
+    </motion.div>
   );
 }

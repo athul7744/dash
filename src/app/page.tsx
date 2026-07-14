@@ -19,7 +19,7 @@ import { useGreeting } from "@/hooks/use-greeting";
 export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const { greeting, date } = useGreeting();
+  const { greeting, subline, date } = useGreeting();
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -83,7 +83,7 @@ export default function Home() {
         style={{ opacity: heroOpacity, y: heroY, scale: heroScale, pointerEvents: heroPointer }}
         className="flex min-h-[calc(100svh-3.5rem)] snap-start items-center justify-center px-[var(--app-gutter-x)] pb-8"
       >
-        <DashboardHero greeting={greeting} date={date} onOpenSearch={() => setSearchOpen(true)} />
+        <DashboardHero greeting={greeting} subline={subline} date={date} onOpenSearch={() => setSearchOpen(true)} />
       </motion.div>
 
       {/* Reveal — quiet, borderless, fades in as the hero merges to the top bar */}

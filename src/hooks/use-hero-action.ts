@@ -20,11 +20,11 @@ type TaskRow = Task & { id: string };
  * the hero's chosen next-best-action plus the most-relevant task. `now` is
  * snapshotted at mount so query args stay stable (no per-render re-subscribe).
  */
-export function useHeroAction(): { kind: HeroActionKind; topTask: TaskRow | null } {
+export function useHeroAction(): { kind: HeroActionKind; topTask: TaskRow | null; ready: boolean } {
   const [now] = useState(() => new Date());
 
   // Pending top-level tasks, most-relevant first.
-  const { data: pending = [] } = useQuery<TaskRow>(
+  const { data: pending = [], isLoading: tasksLoading } = useQuery<TaskRow>(
     `SELECT * FROM tasks
      WHERE state = 'pending' AND parent_id IS NULL
      ORDER BY CASE WHEN due_date IS NULL OR due_date = '' THEN 1 ELSE 0 END,
@@ -34,13 +34,13 @@ export function useHeroAction(): { kind: HeroActionKind; topTask: TaskRow | null
 
   // Any tracking in the last 2 hours (UTC-naive window matching the write format).
   const recentArgs = useMemo(() => recentNaiveWindow(now), [now]);
-  const { data: recentLogs = [] } = useQuery<{ n: number }>(
+  const { data: recentLogs = [], isLoading: logsLoading } = useQuery<{ n: number }>(
     `SELECT COUNT(*) AS n FROM time_logs WHERE start_timestamp >= ? AND start_timestamp <= ?`,
     recentArgs,
   );
 
   const localKey = localDateKey(now);
-  const { data: ratingRows = [] } = useQuery<{ id: string }>(
+  const { data: ratingRows = [], isLoading: ratingLoading } = useQuery<{ id: string }>(
     `SELECT id FROM daily_ratings WHERE rating_date = ? LIMIT 1`,
     [localKey],
   );
@@ -56,7 +56,12 @@ export function useHeroAction(): { kind: HeroActionKind; topTask: TaskRow | null
   }, []);
   const weekKey = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
   const journalPageId = userId ? systemPageId(userId, "journal", weekKey) : null;
-  const { page: journalPage } = useNotePage(journalPageId);
+  const { page: journalPage, isLoading: journalLoading } = useNotePage(journalPageId);
+
+  // Only "ready" once every signal has settled, so the hero can stay empty until
+  // the real action is known instead of flashing a default (e.g. mood) first.
+  const ready =
+    !tasksLoading && !logsLoading && !ratingLoading && userId !== null && !journalLoading;
 
   return useMemo(() => {
     let overdueCount = 0;
@@ -79,6 +84,6 @@ export function useHeroAction(): { kind: HeroActionKind; topTask: TaskRow | null
       journalWrittenThisWeek: userId === null ? true : journalPage !== null,
     });
 
-    return { kind, topTask: pending[0] ?? null };
-  }, [now, pending, recentLogs, ratingRows, userId, journalPage]);
+    return { kind, topTask: pending[0] ?? null, ready };
+  }, [now, pending, recentLogs, ratingRows, userId, journalPage, ready]);
 }

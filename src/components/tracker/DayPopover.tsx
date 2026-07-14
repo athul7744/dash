@@ -1,7 +1,9 @@
 "use client";
 
 import { forwardRef } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { format } from "date-fns";
+import { popoverPresence } from "@/lib/shared/motion";
 import { cn } from "@/lib/shared/utils";
 
 interface ActivityEntry {
@@ -25,10 +27,15 @@ interface DayPopoverProps {
 
 export const DayPopover = forwardRef<HTMLDivElement, DayPopoverProps>(
   function DayPopover({ day, position, activities, totalHours, onClose, onEditDay, header, showBars }, ref) {
+    const reduce = useReducedMotion();
     return (
-      <div
+      <motion.div
         ref={ref}
-        className="fixed z-50 w-[240px] rounded-lg border border-border bg-popover shadow-lg animate-in fade-in-0 zoom-in-95 duration-150"
+        variants={reduce ? undefined : popoverPresence}
+        initial={reduce ? false : "initial"}
+        animate={reduce ? {} : "animate"}
+        exit={reduce ? {} : "exit"}
+        className="fixed z-50 w-[240px] rounded-lg border border-border bg-popover shadow-lg"
         style={{ top: position.y, left: position.x }}
       >
         {/* Header */}
@@ -77,7 +84,7 @@ export const DayPopover = forwardRef<HTMLDivElement, DayPopoverProps>(
             </button>
           </div>
         )}
-      </div>
+      </motion.div>
     );
   }
 );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@powersync/react";
+import { AnimatePresence } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   format,
@@ -273,7 +274,8 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, optimisticRatings
       `}</style>
 
       {/* Day popover */}
-      {dayInfo && selectedDay && popoverPos && (
+      <AnimatePresence>
+        {dayInfo && selectedDay && popoverPos && (
         <DayPopover
           ref={popoverRef}
           day={selectedDay}
@@ -298,7 +300,8 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, optimisticRatings
             )
           }
         />
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Month cards */}
       <div className="mood-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">

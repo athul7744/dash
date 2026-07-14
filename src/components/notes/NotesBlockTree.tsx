@@ -1,6 +1,7 @@
 "use client";
 
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import type { Editor } from "@tiptap/core";
 import { Plus } from "lucide-react";
 
@@ -437,7 +438,9 @@ function BlockNodeView({
             >
               <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 transition-colors group-focus-within:bg-foreground" />
             </button>
-            {isBlockMenuOpen ? <BlockContextMenu options={blockContextMenuOptions} onAction={handleBlockMenuAction} onColorSelect={handleColorSelect} /> : null}
+            <AnimatePresence>
+              {isBlockMenuOpen ? <BlockContextMenu options={blockContextMenuOptions} onAction={handleBlockMenuAction} onColorSelect={handleColorSelect} /> : null}
+            </AnimatePresence>
           </div>
           <div className={`min-w-0 flex-1 rounded-sm transition-smooth ${selectedBlockIds.has(node.block.id) ? "bg-accent/45" : ""}`} style={editorSurfaceStyle}>
             {blockType === "query" ? (

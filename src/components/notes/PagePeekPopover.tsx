@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ExternalLink, X } from "lucide-react";
 import { useQuery } from "@powersync/react";
 
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { TagPillStrip } from "@/components/tags/TagPillStrip";
+import { popoverPresence } from "@/lib/shared/motion";
 import { useNoteBlocks } from "@/hooks/use-notes";
 import type { NoteBlockRow } from "@/hooks/use-notes";
 import type { Tag as TagRecord } from "@/lib/powersync/AppSchema";
@@ -127,19 +129,25 @@ export function PagePeekPopover({
     };
   }, [onClose]);
 
+  const reduce = useReducedMotion();
+
   const handleNavigate = useCallback(() => {
     onNavigate(target.pageTitle);
     onClose();
   }, [onNavigate, onClose, target.pageTitle]);
 
-  if (!position) return null;
-
   const isLoading = isLoadingPage || isLoadingBlocks;
 
   return (
-    <div
+    <AnimatePresence>
+    {position && (
+    <motion.div
       ref={popoverRef}
-      className="fixed z-50 w-[min(400px,calc(100vw-2rem))] flex flex-col rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/5 animate-in fade-in-0 zoom-in-95 duration-150"
+      variants={reduce ? undefined : popoverPresence}
+      initial={reduce ? false : "initial"}
+      animate={reduce ? {} : "animate"}
+      exit={reduce ? {} : "exit"}
+      className="fixed z-50 w-[min(400px,calc(100vw-2rem))] flex flex-col rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/5"
       style={{ top: position.top, left: position.left, maxHeight: position.maxHeight }}
       onPointerLeave={(e) => {
         // On desktop (mouse) only, close when pointer leaves the popover
@@ -192,6 +200,8 @@ export function PagePeekPopover({
           <ReadOnlyBlockRenderer blocks={blockTree} />
         )}
       </div>
-    </div>
+    </motion.div>
+    )}
+    </AnimatePresence>
   );
 }

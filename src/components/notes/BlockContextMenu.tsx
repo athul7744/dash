@@ -1,8 +1,15 @@
 import { ArrowDown, ArrowUp, Heading1, Heading2, Heading3, Heading4, Heading5, IndentDecrease, IndentIncrease, Paintbrush, TextCursorInput, Trash2, X } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 
 import type { BlockContextMenuActionId, BlockContextMenuOption } from "@/components/notes/block-context-menu-options";
 import { BLOCK_COLORS, type BlockColorKey } from "@/components/notes/NoteBlockEditorColor";
+import { DURATION, EASE } from "@/lib/shared/motion";
+
+// The menu is centered on its anchor via a constant `y: -50%`; opacity + scale
+// animate around it (so Motion's transform doesn't clobber the centering).
+const MENU_CLASS =
+  "absolute left-full top-1/2 z-20 ml-1.5 flex items-center gap-1 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10";
 
 const ACTION_ICON_BY_ID: Record<BlockContextMenuActionId, typeof ArrowUp> = {
   "move-up": ArrowUp,
@@ -40,13 +47,23 @@ export function BlockContextMenu({
   onColorSelect?: (color: BlockColorKey | null) => void;
 }) {
   const [showColors, setShowColors] = useState(false);
+  const reduce = useReducedMotion();
+
+  const motionProps = {
+    initial: reduce ? false : { opacity: 0, scale: 0.96, y: "-50%" },
+    animate: reduce ? { y: "-50%" } : { opacity: 1, scale: 1, y: "-50%" },
+    exit: reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: "-50%" },
+    transition: reduce ? { duration: 0 } : { duration: DURATION.base, ease: EASE.standard },
+    style: { transformOrigin: "left center" as const },
+  };
 
   if (showColors) {
     return (
-      <div
+      <motion.div
         role="menu"
         data-block-context-menu="true"
-        className="absolute left-full top-1/2 z-20 ml-1.5 flex -translate-y-1/2 items-center gap-1 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+        {...motionProps}
+        className={MENU_CLASS}
       >
         {(Object.keys(BLOCK_COLORS) as BlockColorKey[]).map((colorKey) => (
           <button
@@ -73,15 +90,16 @@ export function BlockContextMenu({
         >
           <X className="h-3.5 w-3.5" />
         </button>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div
+    <motion.div
       role="menu"
       data-block-context-menu="true"
-      className="absolute left-full top-1/2 z-20 ml-1.5 flex -translate-y-1/2 items-center gap-1 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+      {...motionProps}
+      className={MENU_CLASS}
     >
       {options.map((option) => {
         const Icon = ACTION_ICON_BY_ID[option.id];
@@ -115,6 +133,6 @@ export function BlockContextMenu({
           </button>
         );
       })}
-    </div>
+    </motion.div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@powersync/react";
+import { AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { format, startOfYear, endOfYear, eachDayOfInterval, getMonth, isEqual, startOfDay } from "date-fns";
 import { Grid3X3 } from "lucide-react";
@@ -314,20 +315,22 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
       </div>
 
       {/* Day popover */}
-      {daySummary && selectedDay && popoverPos && (
-        <DayPopover
-          ref={popoverRef}
-          day={selectedDay}
-          position={popoverPos}
-          activities={Object.entries(daySummary.activities)
-            .sort(([, a], [, b]) => b.count - a.count)
-            .map(([name, { count, hex }]) => ({ name, count, hex }))}
-          totalHours={daySummary.totalHours}
-          showBars
-          onClose={() => { setSelectedDay(null); setPopoverPos(null); }}
-          onEditDay={() => { onDayClick?.(selectedDay); setSelectedDay(null); setPopoverPos(null); }}
-        />
-      )}
+      <AnimatePresence>
+        {daySummary && selectedDay && popoverPos && (
+          <DayPopover
+            ref={popoverRef}
+            day={selectedDay}
+            position={popoverPos}
+            activities={Object.entries(daySummary.activities)
+              .sort(([, a], [, b]) => b.count - a.count)
+              .map(([name, { count, hex }]) => ({ name, count, hex }))}
+            totalHours={daySummary.totalHours}
+            showBars
+            onClose={() => { setSelectedDay(null); setPopoverPos(null); }}
+            onEditDay={() => { onDayClick?.(selectedDay); setSelectedDay(null); setPopoverPos(null); }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Canvas Grid */}
       <ActivityCanvas

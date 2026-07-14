@@ -1,33 +1,39 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { motion, useReducedMotion } from "motion/react";
 
-export function AnimatedWidget({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
-  const [isVisible, setIsVisible] = useState(false);
-  const hasAnimated = useRef(false);
+import { DURATION, EASE } from "@/lib/shared/motion";
 
-  useEffect(() => {
-    if (hasAnimated.current) return;
-    const timer = setTimeout(() => {
-      setIsVisible(true);
-      hasAnimated.current = true;
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
+/**
+ * Entrance wrapper for the tracker week widgets: fades + slides up once on mount,
+ * `delay`ed for a staggered reveal across the widget grid. Motion-backed so it
+ * honors reduced-motion automatically. API-compatible with the prior CSS-in-JS
+ * version ({ children, className, delay }).
+ */
+export function AnimatedWidget({
+  children,
+  className,
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const reduce = useReducedMotion();
+
+  if (reduce) {
+    return <div className={className} style={{ height: "100%" }}>{children}</div>;
+  }
 
   return (
-    <div
+    <motion.div
       className={className}
-      style={{
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? "translateY(0)" : "translateY(12px)",
-        transition: "opacity 0.4s ease-out, transform 0.4s ease-out",
-        height: "100%",
-      }}
+      style={{ height: "100%" }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: DURATION.slow, ease: EASE.standard, delay: delay / 1000 }}
     >
-      <div className="h-full transition-[opacity,transform] duration-300 ease-in-out">
-        {children}
-      </div>
-    </div>
+      {children}
+    </motion.div>
   );
 }

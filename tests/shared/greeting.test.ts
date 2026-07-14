@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { greetingForHour, sublineForIndex, timeOfDayForHour } from "@/lib/shared/greeting";
+import { greetingForHour, sublineForHour, timeOfDayForHour } from "@/lib/shared/greeting";
 
 describe("timeOfDayForHour", () => {
   it("maps hours to the right time-of-day at the boundaries", () => {
@@ -40,10 +40,24 @@ describe("greetingForHour", () => {
   });
 });
 
-describe("sublineForIndex", () => {
-  it("is deterministic and non-empty, wrapping out-of-range indices", () => {
-    expect(sublineForIndex(2)).toBe(sublineForIndex(2));
-    expect(sublineForIndex(0)).toBe(sublineForIndex(100000));
-    expect(sublineForIndex(0).length).toBeGreaterThan(0);
+describe("sublineForHour", () => {
+  it("is deterministic for a given hour and index", () => {
+    expect(sublineForHour(9, 2)).toBe(sublineForHour(9, 2));
+  });
+
+  it("varies by time of day", () => {
+    expect(sublineForHour(9, 0)).not.toBe(sublineForHour(23, 0));
+  });
+
+  it("wraps out-of-range indices back into the pool", () => {
+    expect(sublineForHour(9, 0)).toBe(sublineForHour(9, 6));
+  });
+
+  it("never returns an empty string", () => {
+    for (let hour = 0; hour < 24; hour += 1) {
+      for (let index = 0; index < 6; index += 1) {
+        expect(sublineForHour(hour, index).length).toBeGreaterThan(0);
+      }
+    }
   });
 });

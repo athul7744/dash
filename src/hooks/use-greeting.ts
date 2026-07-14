@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 
-import { greetingForHour, sublineForIndex } from "@/lib/shared/greeting";
+import { greetingForHour, sublineForHour } from "@/lib/shared/greeting";
 
 /**
  * The dashboard greeting, computed once per mount so a single random seed drives
@@ -16,7 +16,7 @@ export function useGreeting() {
   const now = new Date();
   return {
     greeting: greetingForHour(now.getHours(), seed),
-    subline: sublineForIndex(seed),
+    subline: sublineForHour(now.getHours(), seed),
     date: format(now, "EEEE, MMMM d"),
   };
 }

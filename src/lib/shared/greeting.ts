@@ -16,22 +16,51 @@ export function timeOfDayForHour(hour: number): TimeOfDay {
 }
 
 // Gentle, calm variants — never peppy. Each pool has a plain first entry so
-// index 0 is always a safe, conventional greeting.
+// index 0 is always a safe, conventional greeting. Tone flows from the day's
+// rhythm (afternoon) through easing off (evening) to winding down (night).
 const GREETINGS: Record<TimeOfDay, string[]> = {
   morning: ["Good morning", "A fresh start", "Ease into the day", "Here's to today", "A new page"],
   afternoon: ["Good afternoon", "Hope it's going well", "Afternoon calm", "Keep your rhythm", "Steady as you go"],
-  evening: ["Good evening", "Winding down", "Evening calm", "Ease into the evening", "Time to slow down"],
-  night: ["Still up?", "A quiet night", "Late one tonight", "Rest soon", "The quiet hours"],
+  evening: ["Good evening", "Easing off", "The day's winding down", "Shifting down a gear", "Nearly done"],
+  night: ["Good night", "Winding down", "Time to slow down", "The day is done", "The quiet hours"],
 };
 
-// Small reflective sub-lines (rendered in the serif voice). Kept short.
-const SUBLINES: string[] = [
-  "What matters today?",
-  "One thing at a time.",
-  "Take it easy.",
-  "Ease into it.",
-  "Small steps count.",
-];
+// Small reflective sub-lines (rendered in the serif voice), one pool per time of
+// day. Kept short; index 0 in each pool is a safe, plain default.
+const SUBLINES: Record<TimeOfDay, string[]> = {
+  morning: [
+    "What matters today?",
+    "One thing at a time.",
+    "Ease into it.",
+    "A fresh page awaits.",
+    "Start where you are.",
+    "Small steps count.",
+  ],
+  afternoon: [
+    "Keep your rhythm.",
+    "How's it going?",
+    "Steady as you go.",
+    "Stay with it.",
+    "One thing at a time.",
+    "A calm middle.",
+  ],
+  evening: [
+    "Wrapping up?",
+    "Ease off the pace.",
+    "The day's nearly done.",
+    "Start to wind down.",
+    "One last stretch.",
+    "A calm finish.",
+  ],
+  night: [
+    "How was today?",
+    "Time to slow down.",
+    "Let the day settle.",
+    "Wind it down.",
+    "You did enough.",
+    "Ease off now.",
+  ],
+};
 
 function pick<T>(pool: T[], index: number): T {
   const len = pool.length;
@@ -42,6 +71,6 @@ export function greetingForHour(hour: number, index = 0): string {
   return pick(GREETINGS[timeOfDayForHour(hour)], index);
 }
 
-export function sublineForIndex(index = 0): string {
-  return pick(SUBLINES, index);
+export function sublineForHour(hour: number, index = 0): string {
+  return pick(SUBLINES[timeOfDayForHour(hour)], index);
 }

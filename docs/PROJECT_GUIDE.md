@@ -116,7 +116,7 @@ Important convention:
 - `src/components/LogViewerDialog.tsx`
 - `src/components/ManageNamedColorItemsDialog.tsx`
 - `src/components/tags/*` — shared tag selection and pill-strip primitives used by tasks and notes
-- `src/components/motion/Reveal.tsx` — reusable scroll-triggered reveal (Motion `whileInView`, honors reduced-motion)
+- `src/components/motion/*` — the shared Motion primitives (see **Motion system** below): `Reveal` (scroll reveal), `FadeIn` (entrance wrapper), `AnimatedList` + `MotionListItem` (staggered enter/exit lists), `Presence` (hand-rolled popover enter/exit). All honor reduced-motion.
 
 ### Dashboard components
 
@@ -173,6 +173,7 @@ Important convention:
 - `src/lib/shared/utils.ts` — shared UI/class/date/escapeHtml helpers
 - `src/lib/shared/display-font.ts` — display-font options, storage key, and the `isDisplayFont` guard (see [Typography](#typography-and-display-font))
 - `src/lib/shared/greeting.ts` — pure time-of-day greeting pools + `timeOfDayForHour` (used by the dashboard hero and the next-best-action picker)
+- `src/lib/shared/motion.ts` — the shared Motion vocabulary (durations, easings, spring, variants); the single source of truth for animation feel, mirrored by the CSS `--motion-*` tokens (see [Motion system](#motion-system))
 - `src/lib/dashboard/hero-action.ts` — pure rule+weighted-score picker (`chooseHeroAction`) for the hero's contextual nudge
 - `src/lib/tasks/colors.ts` — tag palette and class maps
 - `src/lib/tasks/tasks.ts` — priority and due-date helpers
@@ -531,6 +532,20 @@ Important implementation notes:
 - If a new app is added, start there first
 
 The notes app follows that same pattern, so new shell behavior should extend the shared primitives instead of introducing app-only chrome.
+
+## Motion System
+
+Animation is standardized on the [Motion](https://motion.dev) library (`motion/react`) with one shared vocabulary so the whole app feels consistent (calm and subtle: short durations, one house easing curve, small offsets).
+
+**Tokens (single source of truth):** `src/lib/shared/motion.ts` exports `DURATION` (`fast` 0.12 / `base` 0.2 / `slow` 0.4s), `EASE` (`standard` = the house curve `[0.2, 0.9, 0.2, 1]`, `exit`), `SPRING_SOFT` (micro-interactions), `STAGGER_STEP`, and reusable variants (`fadeSlideUp`, `staggerContainer`/`staggerItem`, `popoverPresence`). It is pure (no `motion/react` import) so it is unit-tested in the node project. The same values are mirrored as CSS custom properties (`--motion-duration-*`, `--motion-ease-*`, `--motion-stagger-step`) in `globals.css`, which the CSS animation utilities (`.animate-fade-slide-in`, `.animate-stagger`, `.transition-smooth`, …) consume.
+
+**Primitives (`src/components/motion/`):** `Reveal` (scroll-triggered `whileInView`), `FadeIn` (mount entrance — the Motion replacement for `.animate-fade-slide-in`), `AnimatedList` + `MotionListItem` (staggered enter/exit lists, replaces `.animate-stagger`; pass `layout={false}` inside CSS `columns` containers where FLIP is unreliable), and `Presence` (enter/exit for hand-rolled popovers). Prefer these over new bespoke animation code.
+
+**Reduced motion:** every primitive gates on `useReducedMotion()` and renders a static element when reduced motion is preferred. `globals.css` also has a global `@media (prefers-reduced-motion: reduce)` block that neutralizes all CSS animations/transitions, so both mechanisms are covered.
+
+**Where it's applied:** dashboard hero (scroll collapse + reveal), task list add/remove/complete (`AnimatePresence` on the tasks masonry + `TaskCard` exit — the DB delete is immediate and the card animates out as it unmounts), subtask and complete-toggle/mood micro-interactions, custom popover exits (`PagePeekPopover`, `DayPopover`, `BlockContextMenu`), the tracker view tabs (a `layoutId` underline + content crossfade), and skeleton→content fade-in. The Base UI / vaul / cmdk overlays keep their existing CSS `data-open`/`data-closed` enter/exit (converting them would fight the libraries' own mount control), and the notes overview↔editor swap keeps its purpose-built crossfade (an `AnimatePresence` there would remount the Tiptap editor).
+
+**Testing:** DOM tests set `MotionGlobalConfig.skipAnimations = true` and stub `window.matchMedia` in `tests/setup/dom.ts` (wired via `setupFiles` in `vitest.dom.config.ts`) so `AnimatePresence` exits resolve synchronously and `useReducedMotion()` works under jsdom.
 
 ## Typography and Display Font
 

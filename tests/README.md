@@ -106,6 +106,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/shared/greeting.test.ts`
   Covers the greeting helpers: `timeOfDayForHour` boundaries, deterministic `greetingForHour`/`sublineForIndex` selection, index wrapping, and non-empty variants.
 
+- `tests/shared/motion.test.ts`
+  Covers the shared Motion token vocabulary (`src/lib/shared/motion.ts`): duration ordering, easing tuples, the soft spring, stagger step, and the entrance/stagger/popover variants.
+
 ## Current Tracker Suites
 
 - `tests/tracker/day-keys.test.ts`
@@ -119,7 +122,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 ## Usage
 
 - `bun run test` — one-shot node-based Vitest run.
-- `bun run test:dom` — jsdom-backed integration run.
+- `bun run test:dom` — jsdom-backed integration run. Uses `tests/setup/dom.ts` (via `setupFiles`) to stub `window.matchMedia` and set `MotionGlobalConfig.skipAnimations` so Motion components mount and `AnimatePresence` exits resolve synchronously under jsdom.
 - `bun run test:watch` — watch mode while developing.
 - `bunx vitest run tests/notes` — focused node-based notes test run when working on notes behavior.
 - `bunx vitest run --config vitest.dom.config.ts tests/notes/notes-block-tree.dom.test.ts` — focused DOM integration run for block tree behavior.

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@powersync/react";
-import { format, startOfWeek } from "date-fns";
+import { format, startOfWeek, subDays } from "date-fns";
 
 import { useNotePage } from "@/hooks/use-notes";
 import { chooseHeroAction, type HeroActionKind } from "@/lib/dashboard/hero-action";
@@ -20,8 +20,14 @@ type TaskRow = Task & { id: string };
  * the hero's chosen next-best-action plus the most-relevant task. `now` is
  * snapshotted at mount so query args stay stable (no per-render re-subscribe).
  */
-export function useHeroAction(): { kind: HeroActionKind; topTask: TaskRow | null; ready: boolean } {
+export function useHeroAction(): {
+  kind: HeroActionKind;
+  topTask: TaskRow | null;
+  yesterdayKey: string;
+  ready: boolean;
+} {
   const [now] = useState(() => new Date());
+  const yesterdayKey = useMemo(() => localDateKey(subDays(now, 1)), [now]);
 
   // Pending top-level tasks, most-relevant first.
   const { data: pending = [], isLoading: tasksLoading } = useQuery<TaskRow>(
@@ -45,6 +51,11 @@ export function useHeroAction(): { kind: HeroActionKind; topTask: TaskRow | null
     [localKey],
   );
 
+  const { data: yesterdayRatingRows = [], isLoading: yesterdayRatingLoading } = useQuery<{ id: string }>(
+    `SELECT id FROM daily_ratings WHERE rating_date = ? LIMIT 1`,
+    [yesterdayKey],
+  );
+
   // This week's journal system page (exists once the user has started writing).
   const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => {
@@ -61,7 +72,12 @@ export function useHeroAction(): { kind: HeroActionKind; topTask: TaskRow | null
   // Only "ready" once every signal has settled, so the hero can stay empty until
   // the real action is known instead of flashing a default (e.g. mood) first.
   const ready =
-    !tasksLoading && !logsLoading && !ratingLoading && userId !== null && !journalLoading;
+    !tasksLoading &&
+    !logsLoading &&
+    !ratingLoading &&
+    !yesterdayRatingLoading &&
+    userId !== null &&
+    !journalLoading;
 
   return useMemo(() => {
     let overdueCount = 0;
@@ -79,11 +95,12 @@ export function useHeroAction(): { kind: HeroActionKind; topTask: TaskRow | null
       dueTodayCount,
       loggedRecently: (recentLogs[0]?.n ?? 0) > 0,
       moodRatedToday: ratingRows.length > 0,
+      moodRatedYesterday: yesterdayRatingRows.length > 0,
       // Assume written until the user id resolves, so we never wrongly nudge the
       // journal on first paint.
       journalWrittenThisWeek: userId === null ? true : journalPage !== null,
     });
 
-    return { kind, topTask: pending[0] ?? null, ready };
-  }, [now, pending, recentLogs, ratingRows, userId, journalPage, ready]);
+    return { kind, topTask: pending[0] ?? null, yesterdayKey, ready };
+  }, [now, pending, recentLogs, ratingRows, yesterdayRatingRows, yesterdayKey, userId, journalPage, ready]);
 }

@@ -8,7 +8,14 @@ import type { TimeOfDay } from "@/lib/shared/greeting";
  * deterministic so it is unit-testable and easy to tune.
  */
 
-export type HeroActionKind = "task" | "plan" | "track" | "journal" | "mood";
+/** Kinds that go through the weighted-score picker. */
+type ScoredKind = "task" | "plan" | "track" | "journal" | "mood";
+
+/**
+ * All hero outcomes. Beyond the scored kinds: `moodYesterday` (late-night
+ * catch-up on the previous day's mood) and `none` (render nothing).
+ */
+export type HeroActionKind = ScoredKind | "moodYesterday" | "none";
 
 export interface HeroSignals {
   timeOfDay: TimeOfDay;
@@ -18,20 +25,24 @@ export interface HeroSignals {
   /** Any tracker time logged in the last ~2 hours. */
   loggedRecently: boolean;
   moodRatedToday: boolean;
+  /** Whether yesterday's mood was rated (drives the late-night catch-up). */
+  moodRatedYesterday: boolean;
   journalWrittenThisWeek: boolean;
 }
 
-const AFFINITY: Record<TimeOfDay, Record<HeroActionKind, number>> = {
+const AFFINITY: Record<TimeOfDay, Record<ScoredKind, number>> = {
   morning: { task: 8, plan: 5, track: 3, journal: 2, mood: 0 },
   afternoon: { task: 6, plan: 3, track: 8, journal: 3, mood: 0 },
   evening: { task: 4, plan: 2, track: 3, journal: 8, mood: 0 },
   night: { task: 2, plan: 1, track: 1, journal: 6, mood: 8 },
+  // Late night bypasses scoring (see chooseHeroAction); kept for exhaustiveness.
+  lateNight: { task: 0, plan: 0, track: 0, journal: 0, mood: 0 },
 };
 
 // Higher = wins ties. Mood first (night check-in is deliberate), then work.
-const TIE_BREAK: HeroActionKind[] = ["mood", "task", "journal", "track", "plan"];
+const TIE_BREAK: ScoredKind[] = ["mood", "task", "journal", "track", "plan"];
 
-function isEligible(kind: HeroActionKind, s: HeroSignals): boolean {
+function isEligible(kind: ScoredKind, s: HeroSignals): boolean {
   switch (kind) {
     case "task":
       return s.pendingCount > 0;
@@ -46,7 +57,7 @@ function isEligible(kind: HeroActionKind, s: HeroSignals): boolean {
   }
 }
 
-function needBoost(kind: HeroActionKind, s: HeroSignals): number {
+function needBoost(kind: ScoredKind, s: HeroSignals): number {
   switch (kind) {
     case "task":
       return s.overdueCount > 0 ? 6 : s.dueTodayCount > 0 ? 3 : 0;
@@ -62,9 +73,15 @@ function needBoost(kind: HeroActionKind, s: HeroSignals): number {
 }
 
 export function chooseHeroAction(signals: HeroSignals): HeroActionKind {
-  const kinds: HeroActionKind[] = ["task", "plan", "track", "journal", "mood"];
+  // Late night (12am–3am): only nudge to rate yesterday's mood if it's missing,
+  // otherwise stay quiet so the hero doesn't push work at sleep hours.
+  if (signals.timeOfDay === "lateNight") {
+    return signals.moodRatedYesterday ? "none" : "moodYesterday";
+  }
 
-  let best: HeroActionKind = "plan";
+  const kinds: ScoredKind[] = ["task", "plan", "track", "journal", "mood"];
+
+  let best: ScoredKind = "plan";
   let bestScore = -Infinity;
 
   for (const kind of kinds) {

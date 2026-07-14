@@ -4,6 +4,7 @@ import { greetingForHour, sublineForHour, timeOfDayForHour } from "@/lib/shared/
 
 describe("timeOfDayForHour", () => {
   it("maps hours to the right time-of-day at the boundaries", () => {
+    expect(timeOfDayForHour(3)).toBe("night");
     expect(timeOfDayForHour(4)).toBe("night");
     expect(timeOfDayForHour(5)).toBe("morning");
     expect(timeOfDayForHour(11)).toBe("morning");
@@ -12,7 +13,8 @@ describe("timeOfDayForHour", () => {
     expect(timeOfDayForHour(17)).toBe("evening");
     expect(timeOfDayForHour(21)).toBe("evening");
     expect(timeOfDayForHour(22)).toBe("night");
-    expect(timeOfDayForHour(0)).toBe("night");
+    expect(timeOfDayForHour(0)).toBe("lateNight");
+    expect(timeOfDayForHour(2)).toBe("lateNight");
   });
 });
 

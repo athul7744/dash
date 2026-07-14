@@ -11,12 +11,22 @@ import { setDailyRating } from "@/lib/tracker/ratings";
 const SCORES = [1, 2, 3, 4, 5];
 
 /**
- * Today's mood as a row of 1–5 dots. Writes to `daily_ratings` (local date key)
+ * A day's mood as a row of 1–5 dots. Writes to `daily_ratings` (local date key)
  * via the shared upsert; optimistic until the watched query catches up. Shared
- * with the tracker, so setting it here reflects there and vice-versa.
+ * with the tracker, so setting it here reflects there and vice-versa. Defaults
+ * to today; pass `dateKey`/`prompt` to rate another day (e.g. late-night
+ * catch-up on yesterday).
  */
-export function MoodPicker({ className }: { className?: string }) {
-  const localKey = localDateKey(new Date());
+export function MoodPicker({
+  className,
+  dateKey,
+  prompt = "How's today?",
+}: {
+  className?: string;
+  dateKey?: string;
+  prompt?: string;
+}) {
+  const localKey = dateKey ?? localDateKey(new Date());
 
   const { data: ratingRows = [] } = useQuery<{ id: string; score: number }>(
     `SELECT id, score FROM daily_ratings WHERE rating_date = ? LIMIT 1`,
@@ -58,7 +68,7 @@ export function MoodPicker({ className }: { className?: string }) {
         );
       })}
       <span className="ml-1 min-w-14 font-serif text-sm text-muted-foreground">
-        {score ? RATING_LABELS[score] : "How's today?"}
+        {score ? RATING_LABELS[score] : prompt}
       </span>
     </div>
   );

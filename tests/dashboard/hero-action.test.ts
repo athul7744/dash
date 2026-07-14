@@ -12,6 +12,7 @@ function signals(overrides: Partial<HeroSignals> = {}): HeroSignals {
     dueTodayCount: 0,
     loggedRecently: true,
     moodRatedToday: true,
+    moodRatedYesterday: true,
     journalWrittenThisWeek: true,
     ...overrides,
   };
@@ -62,5 +63,19 @@ describe("chooseHeroAction", () => {
 
   it("everything satisfied → plan fallback", () => {
     expect(chooseHeroAction(signals({ timeOfDay: "night" }))).toBe("plan");
+  });
+
+  it("late night, yesterday unrated → mood catch-up, ignoring pending work", () => {
+    expect(
+      chooseHeroAction(
+        signals({ timeOfDay: "lateNight", moodRatedYesterday: false, pendingCount: 3, loggedRecently: false }),
+      ),
+    ).toBe("moodYesterday");
+  });
+
+  it("late night, yesterday rated → nothing", () => {
+    expect(
+      chooseHeroAction(signals({ timeOfDay: "lateNight", moodRatedYesterday: true, pendingCount: 3 })),
+    ).toBe("none");
   });
 });

@@ -25,11 +25,17 @@ export function DashboardHero({
   date: string;
   onOpenSearch: () => void;
 }) {
-  const { kind, topTask, ready } = useHeroAction();
+  const { kind, topTask, yesterdayKey, ready } = useHeroAction();
   const reduce = useReducedMotion();
 
   const action =
-    kind === "mood" ? <MoodPicker className="justify-center" /> : <HeroAction kind={kind} topTask={topTask} />;
+    kind === "none" ? null : kind === "mood" ? (
+      <MoodPicker className="justify-center" />
+    ) : kind === "moodYesterday" ? (
+      <MoodPicker className="justify-center" dateKey={yesterdayKey} prompt="How was yesterday?" />
+    ) : (
+      <HeroAction kind={kind} topTask={topTask} />
+    );
 
   return (
     <div className="flex w-full max-w-xl flex-col items-center gap-8 text-center">
@@ -50,7 +56,7 @@ export function DashboardHero({
       </button>
 
       <div className="flex min-h-11 items-center justify-center">
-        {ready ? (
+        {ready && action ? (
           <motion.div
             initial={reduce ? false : { opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}

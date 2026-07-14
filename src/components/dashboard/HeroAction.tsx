@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, NotebookPen, type LucideIcon } from "lucide-react";
 
-import type { HeroActionKind } from "@/lib/dashboard/hero-action";
 import type { Task } from "@/lib/powersync/AppSchema";
 import { getApp } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
@@ -12,7 +11,8 @@ import { cn } from "@/lib/shared/utils";
 import { TaskPopup } from "./TaskPopup";
 
 type TaskRow = Task & { id: string };
-type ActionKind = Exclude<HeroActionKind, "mood">;
+/** The nudge kinds HeroAction renders (mood variants are handled by the hero). */
+type ActionKind = "task" | "plan" | "track" | "journal";
 
 const TASKS = getApp("tasks");
 const TRACKER = getApp("tracker");

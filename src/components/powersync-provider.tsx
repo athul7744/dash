@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { PowerSyncContext } from '@powersync/react';
 import { db, initLocal, connectCloud } from '@/lib/powersync/db';
 import { logger } from '@/lib/shared/logger';
+import { AppBootSkeleton } from '@/components/AppBootSkeleton';
 
 export function PowerSyncProvider({ children }: { children: React.ReactNode }) {
   const [localReady, setLocalReady] = useState(false);
@@ -21,13 +22,12 @@ export function PowerSyncProvider({ children }: { children: React.ReactNode }) {
       .catch((err) => logger.error("Failed to initialize local DB:", err));
   }, []);
 
-  if (!localReady) {
-    return <div className="flex flex-col items-center justify-center min-h-screen text-muted-foreground animate-pulse">Loading...</div>;
-  }
-
+  // Render inside the context so the boot skeleton's chrome (SyncIndicator via
+  // useStatus, AppHeader) works while the DB opens. Children mount only once
+  // localReady, keeping the client-only subtree SSR-safe (see use-greeting.ts).
   return (
     <PowerSyncContext.Provider value={db}>
-      {children}
+      {localReady ? children : <AppBootSkeleton />}
     </PowerSyncContext.Provider>
   );
 }

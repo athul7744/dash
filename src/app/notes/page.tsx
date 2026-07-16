@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { SEARCH_POPUP_CLOSE_ANIMATION_MS } from "@/components/ui/search-popup";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { useAllNotePages, useNoteCounts, useRecentNotePages } from "@/hooks/use-notes";
+import { useAllNotePages, useFavoriteNotePages, useNoteCounts, useRecentNotePages } from "@/hooks/use-notes";
 import { createStarterPage, normalizeNotePageTitle, updateNotePageProperties } from "@/lib/notes/notes";
 import { flushAllNoteBlockStores } from "@/lib/notes/note-block-store";
 import { getApp } from "@/lib/shared/apps";
@@ -48,6 +48,9 @@ import { PagePeekPopover } from "@/components/notes/PagePeekPopover";
 import type { NormalizedNotePage } from "@/components/notes/page/types";
 
 const notesApp = getApp("notes");
+
+/** How many recently-accessed pages to load per infinite-scroll batch. */
+const RECENT_PAGE_SIZE = 16;
 
 export default function NotesPage() {
   const router = useRouter();
@@ -85,8 +88,9 @@ export default function NotesPage() {
   } = useNotesLayoutState();
   const isMobileViewport = useMediaQuery("(max-width: 639px)");
 
-  // Shell ref for reading page-level state
-  const shellRef = useRef<NotePageShellHandle>(null);
+  // Shell state pushed up from the editor shell via onStateChange, so the parent
+  // reads page-level state from React state (not a ref during render).
+  const [shellHandle, setShellHandle] = useState<NotePageShellHandle | null>(null);
 
   // Undo/redo availability is pushed up from the shell (which owns the store lifecycle),
   // so the parent re-renders the toolbar buttons immediately on any edit.
@@ -115,7 +119,17 @@ export default function NotesPage() {
   // ─── Overview-level data ─────────────────────────────────────────────────
   const { isLoading: isLoadingCounts } = useNoteCounts();
   const { pages: allPages = [] } = useAllNotePages();
-  const { pages: recentPages = [], isLoading: isLoadingRecentPages } = useRecentNotePages(8);
+  // Recently accessed loads incrementally as the user scrolls (infinite scroll).
+  const [recentLimit, setRecentLimit] = useState(RECENT_PAGE_SIZE);
+  const { pages: recentPages = [], isLoading: isLoadingRecentPages } = useRecentNotePages(recentLimit);
+  const { pages: favoritePageRows = [] } = useFavoriteNotePages();
+
+  // Only grow the window once the current page has fully loaded, so a visible
+  // sentinel can't rapidly over-request while a fetch is still in flight.
+  const recentHasMore = recentPages.length >= recentLimit;
+  const loadMoreRecent = useCallback(() => {
+    setRecentLimit((current) => (recentPages.length >= current ? current + RECENT_PAGE_SIZE : current));
+  }, [recentPages.length]);
 
   const {
     canCreatePageFromSearch,
@@ -130,6 +144,7 @@ export default function NotesPage() {
   } = useNotesPageDerivedState({
     allPages,
     recentPages,
+    favoritePageRows,
     pageSearchQuery,
   });
 
@@ -153,12 +168,15 @@ export default function NotesPage() {
 
   const isLoading = isLoadingCounts || isLoadingRecentPages;
 
-  // Force re-render when shell becomes ready so ref-based reads are fresh
-  const [, setShellTick] = useState(0);
-  const handleShellReady = useCallback(() => setShellTick((n) => n + 1), []);
-
   // Local toggle for absolute/relative updated time display in top bar
   const [showAbsoluteUpdatedTime, setShowAbsoluteUpdatedTime] = useState(false);
+  // Reset the toggle when navigating to a different page (adjust-state-during-render
+  // pattern — avoids a setState-in-effect cascade).
+  const [prevTimestampPageId, setPrevTimestampPageId] = useState(selectedPageId);
+  if (selectedPageId !== prevTimestampPageId) {
+    setPrevTimestampPageId(selectedPageId);
+    setShowAbsoluteUpdatedTime(false);
+  }
   const absoluteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revealAbsoluteUpdatedTime = useCallback(() => {
     setShowAbsoluteUpdatedTime((prev) => {
@@ -176,16 +194,12 @@ export default function NotesPage() {
   }, []);
 
   // ─── Surface state (overview vs editor) ──────────────────────────────────
-  const shellHandle = shellRef.current;
-
   const {
     editorUpdatedTimestamp,
     isDisplayingOverview,
     overviewFavoritePagesToRender,
     overviewRecentPagesToRender,
-    shouldAnimateOverviewContent,
     showOverviewLoading,
-    showOverviewOverlay,
     showSelectedPageLoading,
     transitionToEditor,
     transitionToOverview,
@@ -248,11 +262,6 @@ export default function NotesPage() {
     },
     shellPageTitleDraft: shellHandle?.pageTitleDraft,
   });
-
-  // Reset absolute time display on page change
-  useEffect(() => {
-    setShowAbsoluteUpdatedTime(false);
-  }, [selectedPageId]);
 
   const handleCreateStarterPage = async () => {
     setPageSearchQuery("");
@@ -491,9 +500,9 @@ export default function NotesPage() {
               overviewSearchTriggerRef={overviewSearchTriggerRef}
               overviewFavoritePagesToRender={overviewFavoritePagesToRender}
               overviewRecentPagesToRender={overviewRecentPagesToRender}
-              showOverviewOverlay={showOverviewOverlay}
               showOverviewLoading={showOverviewLoading}
-              shouldAnimateOverviewContent={shouldAnimateOverviewContent}
+              recentHasMore={recentHasMore}
+              onLoadMoreRecent={loadMoreRecent}
               onOpenSearch={() => setIsPageSearchOpen(true)}
               onSelectPage={(pageId) => openPageById(pageId)}
               onToggleFavorite={togglePageFavorite}
@@ -614,7 +623,6 @@ export default function NotesPage() {
                   )}
                   {selectedPageId && (
                     <NotePageShell
-                      ref={shellRef}
                       pageId={selectedPageId}
                       notePageTitles={notePageTitles}
                       notePageIdByTitle={notePageIdByTitle}
@@ -627,7 +635,7 @@ export default function NotesPage() {
                         });
                       }}
                       onPeekPageReference={handlePeekPageReference}
-                      onReady={handleShellReady}
+                      onStateChange={setShellHandle}
                       onUndoStateChange={handleUndoStateChange}
                       onSummaryDraftChange={setSummaryDraft}
                     />

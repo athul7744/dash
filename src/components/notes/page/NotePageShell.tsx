@@ -36,7 +36,7 @@ export type NotePageShellProps = {
   onNavigateToPage: (pageId: string, title?: string) => void;
   onDeleteSuccess: () => void;
   onPeekPageReference?: (title: string, rect: DOMRect) => void;
-  onReady?: () => void;
+  onStateChange?: (handle: NotePageShellHandle) => void;
   onUndoStateChange?: (state: { canUndo: boolean; canRedo: boolean }) => void;
   onSummaryDraftChange?: (summary: string) => void;
 };
@@ -50,7 +50,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   onNavigateToPage,
   onDeleteSuccess,
   onPeekPageReference,
-  onReady,
+  onStateChange,
   onUndoStateChange,
   onSummaryDraftChange,
 }, ref) {
@@ -82,7 +82,8 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     [pageProperties.emoji]
   );
   const pageSummary = typeof pageProperties.summary === "string" ? pageProperties.summary : null;
-  const createdTimestamp = formatTimestampLabel(page?.created_at ?? null);
+  // Memoized so the forwarded shell handle keeps a stable identity across renders.
+  const createdTimestamp = useMemo(() => formatTimestampLabel(page?.created_at ?? null), [page?.created_at]);
   const updatedTimestamp = formatTimestampLabel(page?.updated_at ?? null);
 
   // ─── Draft state ───────────────────────────────────────────────────────────
@@ -259,51 +260,95 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     return () => document.removeEventListener("keydown", handler);
   }, [isReady, undo, redo]);
 
-  // Notify parent when shell becomes ready (triggers re-render so ref reads pick up new values)
-  const prevIsReadyRef = useRef(false);
+  // ─── Imperative handle + state forwarding to parent ────────────────────────
+  // The parent renders overview/editor chrome from this handle and reads it from
+  // React state (never a ref during render, which `react-hooks/refs` forbids).
+  //
+  // Several callbacks (from useNotePageActions / useSettledTimestamp) are new
+  // references on every render, so they can't go straight into the memo deps or
+  // the handle would change identity every render and the onStateChange effect
+  // would loop. Instead we keep the latest callbacks in a ref (updated after each
+  // render) and expose STABLE wrapper functions that delegate to them. The
+  // handle then only depends on the (referentially stable) data fields.
+  const latestCallbacksRef = useRef({
+    setSummaryDraft,
+    persistSelectedPageProperties,
+    revealAbsoluteUpdatedTime,
+    handleToggleFavorite,
+    handleCopyDocument,
+    handleDeletePage,
+    setIsDeleteDialogOpen,
+    setFocusTarget,
+    togglePageFavorite,
+    undo,
+    redo,
+  });
   useEffect(() => {
-    if (isReady && !prevIsReadyRef.current) {
-      onReady?.();
-    }
-    prevIsReadyRef.current = isReady;
-  }, [isReady, onReady]);
+    latestCallbacksRef.current = {
+      setSummaryDraft,
+      persistSelectedPageProperties,
+      revealAbsoluteUpdatedTime,
+      handleToggleFavorite,
+      handleCopyDocument,
+      handleDeletePage,
+      setIsDeleteDialogOpen,
+      setFocusTarget,
+      togglePageFavorite,
+      undo,
+      redo,
+    };
+  });
 
-  // ─── Imperative handle for parent access ───────────────────────────────────
-  useImperativeHandle(ref, () => ({
+  const stableCallbacks = useMemo(() => ({
+    setSummaryDraft: (summary: string) => latestCallbacksRef.current.setSummaryDraft(summary),
+    persistSelectedPageProperties: (summary: string, tagIds: string[]) => latestCallbacksRef.current.persistSelectedPageProperties(summary, tagIds),
+    revealAbsoluteUpdatedTime: () => latestCallbacksRef.current.revealAbsoluteUpdatedTime(),
+    handleToggleFavorite: () => latestCallbacksRef.current.handleToggleFavorite(),
+    handleCopyDocument: () => latestCallbacksRef.current.handleCopyDocument(),
+    handleDeletePage: () => latestCallbacksRef.current.handleDeletePage(),
+    setIsDeleteDialogOpen: (open: boolean) => latestCallbacksRef.current.setIsDeleteDialogOpen(open),
+    setFocusTarget: (target: { blockId: string; placement: "start" | "end" }) => latestCallbacksRef.current.setFocusTarget(target),
+    togglePageFavorite: (favoritePage: NormalizedNotePage) => latestCallbacksRef.current.togglePageFavorite(favoritePage),
+    undo: () => latestCallbacksRef.current.undo(),
+    redo: () => latestCallbacksRef.current.redo(),
+  }), []);
+
+  const shellHandle = useMemo<NotePageShellHandle>(() => ({
     linkedReferences,
     pageTagMentions,
     attachments,
     pageOutline,
     summaryDraft,
-    setSummaryDraft,
     selectedTagIdsDraft,
     createdTimestamp,
     isLoadingLinkedReferences,
     isLoadingTagMentions,
     isLoadingAttachments,
-    persistSelectedPageProperties,
     stableUpdatedTimestamp,
     showAbsoluteUpdatedTime,
-    revealAbsoluteUpdatedTime,
-    handleToggleFavorite,
-    handleCopyDocument,
-    handleDeletePage,
     isDeletingPage,
     isDeleteDialogOpen,
-    setIsDeleteDialogOpen,
     pageTitleDraft,
     activePageEmoji,
     selectedPageProperties: pageProperties,
     page: page ?? null,
     displayBlocks,
-    setFocusTarget: (target) => setFocusTarget(target),
-    togglePageFavorite,
     isReady,
-    undo,
-    redo,
     canUndo,
     canRedo,
-  }));
+    ...stableCallbacks,
+  }), [
+    linkedReferences, pageTagMentions, attachments, pageOutline, summaryDraft, selectedTagIdsDraft,
+    createdTimestamp, isLoadingLinkedReferences, isLoadingTagMentions, isLoadingAttachments,
+    stableUpdatedTimestamp, showAbsoluteUpdatedTime, isDeletingPage, isDeleteDialogOpen, pageTitleDraft,
+    activePageEmoji, pageProperties, page, displayBlocks, isReady, canUndo, canRedo, stableCallbacks,
+  ]);
+
+  useImperativeHandle(ref, () => shellHandle, [shellHandle]);
+
+  useEffect(() => {
+    onStateChange?.(shellHandle);
+  }, [shellHandle, onStateChange]);
 
   // ─── Focus callbacks ───────────────────────────────────────────────────────
   const handleFocusApplied = useCallback(() => {

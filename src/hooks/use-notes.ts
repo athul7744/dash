@@ -113,6 +113,28 @@ export function useRecentNotePages(limit = 8) {
   };
 }
 
+export function useFavoriteNotePages() {
+  const { data = [], isLoading } = useQuery<NotePageRow>(
+    [
+      "SELECT id, user_id, title, properties, created_at, updated_at,",
+      "  (SELECT content",
+      "   FROM blocks",
+      "   WHERE page_id = pages.id",
+      "   ORDER BY sort_rank ASC",
+      "   LIMIT 1) AS preview_content",
+      "FROM pages",
+      "WHERE json_extract(properties, '$.kind') IS NULL",
+      "  AND json_extract(properties, '$.favorite') = 1",
+      "ORDER BY updated_at DESC, created_at DESC"
+    ].join(" "),
+  );
+
+  return {
+    pages: data,
+    isLoading
+  };
+}
+
 export function useAllNotePages() {
   const { data = [], isLoading } = useQuery<NotePageRow>(
     [

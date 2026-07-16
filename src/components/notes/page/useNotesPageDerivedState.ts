@@ -13,6 +13,8 @@ import { getPageDescription, normalizePageEmoji, parseProperties, parseStoredTag
 type UseNotesPageDerivedStateParams = {
   allPages: NotePageRow[];
   recentPages: NotePageRow[];
+  /** Full favorites set (see useFavoriteNotePages). Optional for consumers (e.g. search) that don't render favorites. */
+  favoritePageRows?: NotePageRow[];
   pageSearchQuery: string;
 };
 
@@ -33,6 +35,7 @@ function normalizePages(pages: NotePageRow[], availableTags: Tag[]): NormalizedN
 export function useNotesPageDerivedState({
   allPages,
   recentPages,
+  favoritePageRows = [],
   pageSearchQuery,
 }: UseNotesPageDerivedStateParams) {
   const { data: availableTags = [] } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
@@ -103,12 +106,11 @@ export function useNotesPageDerivedState({
     [notePageIdByTitle, normalizedSearchQuery]
   );
 
-  const favoritePages = useMemo(
-    () => normalizedPages.filter((page) => {
-      const properties = parseProperties(page.properties);
-      return properties.favorite === true;
-    }),
-    [normalizedPages]
+  // All favorites, sourced from a dedicated query so they are not capped by the
+  // recent-pages window (see useFavoriteNotePages).
+  const favoritePages = useMemo<NormalizedNotePage[]>(
+    () => normalizePages(favoritePageRows, availableTags),
+    [availableTags, favoritePageRows]
   );
 
   const tagDirectory = useMemo<TagDirectoryEntry[]>(() => {

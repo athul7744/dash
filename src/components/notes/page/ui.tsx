@@ -73,9 +73,9 @@ export function DetailsRailCardSkeleton({ lines = 2 }: { lines?: number }) {
   );
 }
 
-export function PageIcon({ emoji, className, fallbackClassName }: { emoji?: string | null; className?: string; fallbackClassName?: string }) {
+export function PageIcon({ emoji, className, fallbackClassName, size = 16 }: { emoji?: string | null; className?: string; fallbackClassName?: string; size?: number }) {
   if (emoji) {
-    return <SpriteIcon name={emoji} size={16} className={cn("shrink-0", className)} />;
+    return <SpriteIcon name={emoji} size={size} className={cn("shrink-0", className)} />;
   }
 
   return <FileText className={cn(className, fallbackClassName)} aria-hidden="true" />;

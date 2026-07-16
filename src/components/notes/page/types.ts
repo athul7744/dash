@@ -65,6 +65,7 @@ export type NotesEditorRenderableContent = {
 } | null;
 
 export const NOTE_OVERVIEW_ACCENT_CLASSES: Record<string, { icon: string; border: string; glow: string }> = {
+  neutral: { icon: "bg-muted text-muted-foreground", border: "border-border/65", glow: "" },
   amber: { icon: "bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300", border: "border-amber-200/80 dark:border-amber-800/70", glow: "from-amber-500/14 via-amber-500/5 to-transparent" },
   emerald: { icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300", border: "border-emerald-200/80 dark:border-emerald-800/70", glow: "from-emerald-500/14 via-emerald-500/5 to-transparent" },
   teal: { icon: "bg-teal-100 text-teal-700 dark:bg-teal-900/60 dark:text-teal-300", border: "border-teal-200/80 dark:border-teal-800/70", glow: "from-teal-500/14 via-teal-500/5 to-transparent" },

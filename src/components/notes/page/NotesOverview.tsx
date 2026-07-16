@@ -1,21 +1,73 @@
 "use client";
 
-import type { RefObject } from "react";
-import { Files, Search, Star } from "lucide-react";
+import { useState, type RefObject } from "react";
+import { Files, LayoutGrid, Rows3, Search, Star, Waypoints, type LucideIcon } from "lucide-react";
+import { AnimatePresence } from "motion/react";
 
-import { NotesOverviewCardSkeletonItems, NotesOverviewListSkeleton } from "@/components/notes/NotesPageSkeleton";
+import { FadeIn } from "@/components/motion/FadeIn";
+import { useNotesOverviewView } from "@/hooks/use-notes-overview-view";
+import { OVERVIEW_VIEWS, type OverviewView } from "@/lib/notes/overview-view";
+import { cn } from "@/lib/shared/utils";
 
 import type { NormalizedNotePage } from "./types";
-import { OverviewPageCard } from "./items";
+import {
+  EmptyState,
+  FavoritesList,
+  InfiniteSentinel,
+  OverviewSkeleton,
+  RecentList,
+  Section,
+  ShowMoreButton,
+} from "./overview-views";
+
+/** Favorites are capped in the view and revealed 10 at a time via "Show more". */
+const FAVORITES_PAGE_SIZE = 10;
+
+const VIEW_ICONS: Record<OverviewView, LucideIcon> = {
+  rows: Rows3,
+  gallery: LayoutGrid,
+  spine: Waypoints,
+};
+
+function ViewSwitcher({ view, onChange }: { view: OverviewView; onChange: (view: OverviewView) => void }) {
+  return (
+    <div
+      role="group"
+      aria-label="Overview layout"
+      className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border/70 bg-card/95 p-0.5 shadow-[0_10px_30px_-24px_rgba(15,23,42,0.6)]"
+    >
+      {OVERVIEW_VIEWS.map(({ value, label }) => {
+        const Icon = VIEW_ICONS[value];
+        const active = value === view;
+        return (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onChange(value)}
+            aria-pressed={active}
+            title={label}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-smooth",
+              active ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function NotesOverview({
   isPageSearchOpen,
   overviewSearchTriggerRef,
   overviewFavoritePagesToRender,
   overviewRecentPagesToRender,
-  showOverviewOverlay,
   showOverviewLoading,
-  shouldAnimateOverviewContent,
+  recentHasMore,
+  onLoadMoreRecent,
   onOpenSearch,
   onSelectPage,
   onToggleFavorite,
@@ -24,15 +76,29 @@ export function NotesOverview({
   overviewSearchTriggerRef: RefObject<HTMLButtonElement | null>;
   overviewFavoritePagesToRender: NormalizedNotePage[];
   overviewRecentPagesToRender: NormalizedNotePage[];
-  showOverviewOverlay: boolean;
   showOverviewLoading: boolean;
-  shouldAnimateOverviewContent: boolean;
+  recentHasMore: boolean;
+  onLoadMoreRecent: () => void;
   onOpenSearch: () => void;
   onSelectPage: (pageId: string) => void;
   onToggleFavorite: (page: NormalizedNotePage) => void;
 }) {
+  const { view, setView } = useNotesOverviewView();
+  const [favoritesShown, setFavoritesShown] = useState(FAVORITES_PAGE_SIZE);
+  const [collapsed, setCollapsed] = useState({ favorites: false, recent: false });
+
+  const favorites = overviewFavoritePagesToRender;
+  const recent = overviewRecentPagesToRender;
+  const visibleFavorites = favorites.slice(0, favoritesShown);
+  const favoritesHasMore = favorites.length > visibleFavorites.length;
+
+  const toggleCollapsed = (key: "favorites" | "recent") =>
+    setCollapsed((current) => ({ ...current, [key]: !current[key] }));
+
+  const listProps = { onSelectPage, onToggleFavorite };
+
   return (
-    <section className="space-y-6 animate-fade-slide-in pt-0">
+    <section className="space-y-6 pt-0">
       <div className="sticky top-0 z-20 -mx-4 px-4 pt-4 pb-4 md:-mx-6 md:px-6 md:pt-5">
         <div className="pointer-events-none absolute inset-0 border-b border-border/40 bg-background" />
         <div
@@ -57,78 +123,51 @@ export function NotesOverview({
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <section>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Star className="h-4 w-4 text-amber-500" />
-              <p className="font-heading text-sm font-semibold text-foreground">Favorites</p>
-            </div>
-          </div>
+      <div className="space-y-10">
+        <Section
+          icon={Star}
+          iconClass="text-amber-500"
+          label="Favorites"
+          count={favorites.length}
+          collapsed={collapsed.favorites}
+          onToggleCollapse={() => toggleCollapsed("favorites")}
+          accessory={<ViewSwitcher view={view} onChange={setView} />}
+          isEmpty={favorites.length === 0}
+          showLoading={showOverviewLoading}
+          loading={<OverviewSkeleton view={view} section="favorites" />}
+          empty={<EmptyState icon={Star} label="No favorites yet." />}
+        >
+          <AnimatePresence mode="wait">
+            <FadeIn key={view}>
+              <FavoritesList view={view} pages={visibleFavorites} {...listProps} />
+            </FadeIn>
+          </AnimatePresence>
+          {favoritesHasMore ? (
+            <ShowMoreButton
+              label={`Show ${Math.min(FAVORITES_PAGE_SIZE, favorites.length - visibleFavorites.length)} more`}
+              onClick={() => setFavoritesShown((shown) => shown + FAVORITES_PAGE_SIZE)}
+            />
+          ) : null}
+        </Section>
 
-          <div className="relative mt-4 min-h-24">
-            <div className={showOverviewOverlay ? "pointer-events-none opacity-0 transition-opacity duration-100" : "transition-opacity duration-150"}>
-              <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${shouldAnimateOverviewContent ? "animate-stagger" : ""}`}>
-                {overviewFavoritePagesToRender.length === 0 ? (
-                  showOverviewLoading ? <NotesOverviewCardSkeletonItems /> : <div className="col-span-2 py-6 font-serif text-sm text-muted-foreground">No favorites yet.</div>
-                ) : (
-                  overviewFavoritePagesToRender.map((page) => (
-                    <OverviewPageCard
-                      key={page.id}
-                      page={page}
-                      onSelectPage={onSelectPage}
-                      onToggleFavorite={onToggleFavorite}
-                      showTags={true}
-                      showUpdated={true}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-            {showOverviewOverlay ? (
-              <div className="pointer-events-none absolute inset-0 bg-background">
-                <div className="grid grid-cols-2 gap-3 animate-stagger sm:gap-4">
-                  <NotesOverviewCardSkeletonItems />
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </section>
-
-        <section>
-          <div className="flex items-center gap-2">
-            <Files className="h-4 w-4 text-muted-foreground" />
-            <p className="font-heading text-sm font-semibold text-foreground">Recently accessed</p>
-          </div>
-
-          <div className="relative mt-4 min-h-24">
-            <div className={showOverviewOverlay ? "pointer-events-none opacity-0 transition-opacity duration-100" : "transition-opacity duration-150"}>
-              <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${shouldAnimateOverviewContent ? "animate-stagger" : ""}`}>
-                {overviewRecentPagesToRender.length === 0 ? (
-                  showOverviewLoading ? <NotesOverviewCardSkeletonItems /> : <div className="col-span-2 py-6 font-serif text-sm text-muted-foreground">No recent pages yet.</div>
-                ) : (
-                  overviewRecentPagesToRender.map((page) => (
-                    <OverviewPageCard
-                      key={page.id}
-                      page={page}
-                      onSelectPage={onSelectPage}
-                      onToggleFavorite={onToggleFavorite}
-                      showTags={true}
-                      showUpdated={true}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-            {showOverviewOverlay ? (
-              <div className="pointer-events-none absolute inset-0 bg-background">
-                <div className="grid grid-cols-2 gap-3 animate-stagger sm:gap-4">
-                  <NotesOverviewCardSkeletonItems />
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </section>
+        <Section
+          icon={Files}
+          label="Recently accessed"
+          count={recent.length}
+          collapsed={collapsed.recent}
+          onToggleCollapse={() => toggleCollapsed("recent")}
+          isEmpty={recent.length === 0}
+          showLoading={showOverviewLoading}
+          loading={<OverviewSkeleton view={view} section="recent" />}
+          empty={<EmptyState icon={Files} label="No recent pages yet." />}
+        >
+          <AnimatePresence mode="wait">
+            <FadeIn key={view}>
+              <RecentList view={view} pages={recent} {...listProps} />
+            </FadeIn>
+          </AnimatePresence>
+          <InfiniteSentinel enabled={recentHasMore && !collapsed.recent} onVisible={onLoadMoreRecent} />
+        </Section>
       </div>
     </section>
   );

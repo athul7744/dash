@@ -31,54 +31,70 @@ function EditorBlockRowSkeleton({ indent = 0, widthClassName = "w-full" }: { ind
   );
 }
 
-export function NotesOverviewListSkeleton() {
+export function NotesOverviewGallerySkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3 animate-stagger sm:gap-4">
-      <NotesOverviewCardSkeletonItems />
+    <div className="grid gap-4 animate-stagger [grid-template-columns:repeat(auto-fill,minmax(15.5rem,1fr))]">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="flex min-h-[9rem] flex-col rounded-3xl bg-card/70 p-5">
+          <div className="flex items-start justify-between">
+            <Bone className="h-6 w-6 rounded-md" />
+            <Bone className="h-6 w-6 rounded-full" />
+          </div>
+          <Bone className="mt-3 h-5 w-3/4" />
+          <div className="mt-2 space-y-1.5">
+            <Bone className="h-3.5 w-full" />
+            <Bone className="h-3.5 w-5/6" />
+          </div>
+          <div className="mt-auto flex items-center gap-2 pt-4">
+            <Bone className="h-2 w-2 rounded-full" />
+            <Bone className="h-3 w-16" />
+            <Bone className="ml-auto h-3 w-10" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-export function NotesOverviewCardSkeletonItems() {
+export function NotesOverviewRowsSkeleton() {
   return (
-    <>
-      <div className="rounded-2xl border border-border/50 bg-card/80 p-3.5 sm:p-4">
-        <div className="flex min-h-[11.5rem] flex-col gap-2.5 sm:min-h-[12.5rem] sm:gap-3">
-          <div className="flex items-start justify-between gap-2.5">
-            <Bone className="h-9 w-9 rounded-xl sm:h-10 sm:w-10" />
-            <Bone className="h-7 w-7 rounded-full sm:h-8 sm:w-8" />
-          </div>
-          <div className="space-y-1.5">
-            <Bone className="h-5 w-full" />
-            <Bone className="h-5 w-4/5" />
-            <Bone className="h-4 w-full" />
-            <Bone className="h-4 w-5/6" />
-          </div>
-          <div className="mt-auto flex gap-1.5 sm:gap-2">
-            <Bone className="h-5 w-14 rounded-full sm:h-6 sm:w-16" />
-            <Bone className="h-5 w-16 rounded-full sm:h-6 sm:w-20" />
-          </div>
+    <div className="flex flex-col">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="flex items-center gap-3 border-b border-border/60 px-2 py-2.5 last:border-b-0">
+          <Bone className="h-8 w-8 shrink-0 rounded-lg" />
+          <Bone className="h-4 w-40" />
+          <Bone className="hidden h-3.5 w-1/3 sm:block" />
+          <Bone className="ml-auto h-3 w-10" />
         </div>
+      ))}
+    </div>
+  );
+}
+
+export function NotesOverviewSpineSkeleton({ pins = false }: { pins?: boolean }) {
+  if (pins) {
+    return (
+      <>
+        <Bone className="h-9 w-40 rounded-full" />
+        <Bone className="h-9 w-48 rounded-full" />
+      </>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute bottom-3 left-[7px] top-3 w-px bg-muted" aria-hidden="true" />
+      <div className="space-y-5">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="relative pl-7">
+            <span className="absolute left-[2px] top-1.5 h-2.5 w-2.5 rounded-full bg-muted ring-4 ring-background" />
+            <Bone className="h-3 w-12" />
+            <Bone className="mt-1.5 h-4 w-48" />
+            <Bone className="mt-1.5 h-3.5 w-2/3" />
+          </div>
+        ))}
       </div>
-      <div className="rounded-2xl border border-border/50 bg-card/80 p-3.5 sm:p-4">
-        <div className="flex min-h-[11.5rem] flex-col gap-2.5 sm:min-h-[12.5rem] sm:gap-3">
-          <div className="flex items-start justify-between gap-2.5">
-            <Bone className="h-9 w-9 rounded-xl sm:h-10 sm:w-10" />
-            <Bone className="h-7 w-7 rounded-full sm:h-8 sm:w-8" />
-          </div>
-          <div className="space-y-1.5">
-            <Bone className="h-5 w-5/6" />
-            <Bone className="h-5 w-3/5" />
-            <Bone className="h-4 w-full" />
-            <Bone className="h-4 w-4/5" />
-          </div>
-          <div className="mt-auto flex gap-1.5 sm:gap-2">
-            <Bone className="h-5 w-12 rounded-full sm:h-6 sm:w-14" />
-            <Bone className="h-5 w-16 rounded-full sm:h-6 sm:w-18" />
-          </div>
-        </div>
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -190,14 +206,14 @@ export function NotesDetailsRailSkeleton({ showHeader = true }: NotesDetailsRail
 export function NotesPageSkeleton({ mode = "editor", showDesktopHeaderRow = true }: NotesPageSkeletonProps) {
   if (mode === "overview") {
     return (
-      <section className="grid gap-10 sm:grid-cols-2 animate-fade-slide-in">
+      <section className="space-y-10 animate-fade-slide-in">
         {Array.from({ length: 2 }).map((_, index) => (
           <section key={index} className="space-y-4">
             <div className="flex items-center gap-2">
               <Bone className="h-4 w-4 rounded-full" />
               <Bone className="h-4 w-28" />
             </div>
-            <NotesOverviewListSkeleton />
+            <NotesOverviewGallerySkeleton />
           </section>
         ))}
       </section>

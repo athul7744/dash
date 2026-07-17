@@ -84,16 +84,6 @@ function FavoriteStar({
   );
 }
 
-function TagDots({ page }: { page: NormalizedNotePage }) {
-  return (
-    <span className="flex shrink-0 items-center gap-1">
-      {page.tags.map((tag) => (
-        <span key={tag.key} className={cn("h-2 w-2 rounded-full", getTagDotClass(tag.color))} />
-      ))}
-    </span>
-  );
-}
-
 /* ============================ Shared section chrome ============================ */
 
 export function EmptyState({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
@@ -294,14 +284,20 @@ function OverviewGalleryCard({ page, onSelectPage, onToggleFavorite }: ItemProps
 
         <div className="mt-auto flex items-center gap-2 pt-4">
           {page.tags.length ? (
-            <>
-              <TagDots page={page} />
-              <span className="truncate text-xs text-muted-foreground">{page.tags.map((tag) => tag.name).join(" · ")}</span>
-            </>
+            <div className="min-w-0 flex-1 overflow-x-auto scrollbar-none">
+              <div className="flex w-max items-center gap-2">
+                {page.tags.map((tag) => (
+                  <span key={tag.key} className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
+                    <span className={cn("h-2 w-2 rounded-full", getTagDotClass(tag.color))} />
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+            </div>
           ) : (
-            <span className="text-xs text-muted-foreground/60">No tags</span>
+            <span className="flex-1 text-xs text-muted-foreground/60">No tags</span>
           )}
-          {updated ? <span className="ml-auto shrink-0 text-[0.7rem] tabular-nums text-muted-foreground/70">{updated}</span> : null}
+          {updated ? <span className="shrink-0 text-[0.7rem] tabular-nums text-muted-foreground/70">{updated}</span> : null}
         </div>
       </div>
     </article>

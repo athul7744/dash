@@ -33,9 +33,9 @@ function EditorBlockRowSkeleton({ indent = 0, widthClassName = "w-full" }: { ind
 
 export function NotesOverviewGallerySkeleton() {
   return (
-    <div className="grid gap-4 animate-stagger [grid-template-columns:repeat(auto-fill,minmax(15.5rem,1fr))]">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <div key={index} className="flex min-h-[9rem] flex-col rounded-3xl bg-card/70 p-5">
+    <div className="grid grid-cols-2 gap-3 animate-stagger sm:gap-4 sm:[grid-template-columns:repeat(auto-fill,minmax(15.5rem,1fr))]">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="flex min-h-[8rem] flex-col rounded-3xl border border-border/60 bg-muted/40 p-4 shadow-sm sm:min-h-[9rem] sm:p-5 dark:bg-card/80">
           <div className="flex items-start justify-between">
             <Bone className="h-6 w-6 rounded-md" />
             <Bone className="h-6 w-6 rounded-full" />

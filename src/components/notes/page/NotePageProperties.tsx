@@ -528,7 +528,7 @@ function AddPropertyPopover({
                       className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
                     >
                       {config.icon ? (
-                        <span className="h-3.5 w-3.5 flex items-center justify-center text-[14px] leading-none">{config.icon}</span>
+                        <SpriteIcon name={config.icon} size={14} />
                       ) : (
                         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                       )}

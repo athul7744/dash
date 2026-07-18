@@ -24,7 +24,6 @@ import Gapcursor from "@tiptap/extension-gapcursor";
 import HardBreak from "@tiptap/extension-hard-break";
 import Heading from "@tiptap/extension-heading";
 import History from "@tiptap/extension-history";
-import Image from "@tiptap/extension-image";
 import Italic from "@tiptap/extension-italic";
 import Paragraph from "@tiptap/extension-paragraph";
 import Strike from "@tiptap/extension-strike";
@@ -38,11 +37,14 @@ import { common, createLowlight } from "lowlight";
 import { CodeBlockWithToolbar } from "@/components/notes/NoteBlockEditorCode";
 import { BlockColor } from "@/components/notes/NoteBlockEditorColor";
 import {
+  BlockColorShortcut,
   DateAutoFormat,
   MarkdownLink,
   NotesArrowReplacement,
   NotesHorizontalRule,
+  NotesImage,
   ReferenceDecorations,
+  TaskShortcut,
 } from "@/components/notes/NoteBlockEditorExtensions";
 import { MathBlock, MathInline } from "@/components/notes/NoteBlockEditorMath";
 import { QueryBlock } from "@/components/notes/editor/QueryBlockNode";
@@ -79,7 +81,7 @@ export function buildNoteEditorExtensions(): Extensions {
     // they hold no valid children and structural ops (canSplit) throw.
     asBlockContent(Blockquote.extend({ content: `${BLOCK_CONTENT_GROUP}+` })),
     asBlockContent(CodeBlockWithToolbar.configure({ lowlight })),
-    asBlockContent(Image),
+    asBlockContent(NotesImage),
     asBlockContent(NotesHorizontalRule),
     asBlockContent(Table_),
     asBlockContent(MathBlock),
@@ -103,6 +105,8 @@ export function buildNoteEditorExtensions(): Extensions {
     MarkdownLink,
     NotesArrowReplacement,
     DateAutoFormat,
+    TaskShortcut,
+    BlockColorShortcut,
     ReferenceDecorations,
     Dropcursor,
     Gapcursor,

@@ -66,6 +66,8 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `block-commands.dom.test.ts` — native Enter/Backspace/indent/outdent/move across every block type (paragraph, heading, task, quote, code, divider, multi-item), incl. undo.
 - `block-normalize.dom.test.ts` — the one-content-node-per-block invariant (splits accidental "frankenblocks").
 - `slash-single.dom.test.ts` — slash detection + apply (heading/quote/color/query/task conversions).
+- `task-shortcut.dom.test.ts` — the `[]`/`[x]` markdown checkbox input rule converts a paragraph into a task block.
+- `markdown-block-shortcuts.dom.test.ts` — the divider (`---`), image (`![]()`), and block-color (`!blue`/`!none`) input rules, driven through a live editor.
 - `paste.dom.test.ts` — external multi-paragraph paste becomes well-formed blocks; copied blocks get fresh ids.
 - `markdown-paste.test.ts` — `markdownToBlockNodes` maps every markdown construct (headings, paragraphs, bullet/ordered/task lists incl. nesting, blockquotes, fenced code, thematic breaks, GFM tables, inline marks, hard breaks) to the right block/`taskLine` shape; `looksLikeMarkdown` + `clipboardMarkdown` detection/routing (prose left alone, structured HTML deferred to native paste). Includes fixtures ported from the removed markdown-clipboard suite.
 - `markdown-paste.dom.test.ts` — parsed markdown inserts into a live editor as schema-valid nodes with zero frankenblocks, one content node per block, and freshly-stamped ids; the single inline-formatted paragraph merges into the current line.

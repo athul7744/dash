@@ -151,7 +151,7 @@ Important convention:
 
 ### Notes-specific components
 
-- `src/components/notes/editor/*` — the single-document editor: `SingleBlockEditor` mount, the plain-DOM block NodeView (`blockNodeViewDom.ts`), the `taskLine`/`queryBlock` nodes, and the shared React overlays (`BlockMenuLayer`, `SlashMenuLayer`, `TableToolbarLayer`)
+- `src/components/notes/editor/*` — the single-document editor: `SingleBlockEditor` mount, the plain-DOM block NodeView (`blockNodeViewDom.ts`), the `taskLine`/`queryBlock` nodes, and the shared React overlays (`BlockMenuLayer`, `SlashMenuLayer`, `RefMenuLayer`, `TableToolbarLayer`)
 - `src/components/notes/NoteBlockEditorExtensions.ts` / `NoteBlockEditorMath.ts` / `NoteBlockEditorCode.ts` / `NoteBlockEditorColor.ts` / `NoteBlockEditorSlash.ts` — shared Tiptap nodes, marks, and extensions reused by the editor schema
 - `src/components/notes/ReadOnlyBlockRenderer.tsx` — non-editable render of a page's blocks (peek/backlink previews) through the same schema
 - `src/components/notes/BlockContextMenu.tsx`
@@ -240,14 +240,17 @@ Key modules:
 - `src/components/notes/editor/blockNodeViewDom.ts`
   - Plain-DOM NodeView for the `block` wrapper (a hover grip that opens the block menu). Plain DOM instead of a React NodeView per block keeps large pages fast; a single shared React `BlockMenuLayer` renders the actual menu.
 
-- `src/components/notes/editor/BlockMenuLayer.tsx` / `SlashMenuLayer.tsx` / `TableToolbarLayer.tsx`
-  - One shared React overlay each (not per block): the grip's block menu (convert/color/move/delete), the caret-anchored slash-command menu, and the table add/delete row+column controls.
+- `src/components/notes/editor/BlockMenuLayer.tsx` / `SlashMenuLayer.tsx` / `RefMenuLayer.tsx` / `TableToolbarLayer.tsx`
+  - One shared React overlay each (not per block): the grip's block menu (convert/color/move/delete), the caret-anchored slash-command menu, the `[[`-triggered page-link autocomplete (matching pages with their emoji), and the table add/delete row+column controls.
+
+- `src/components/notes/MarkdownCheatsheetDialog.tsx`
+  - Reference popup (opened from the editor's three-dot "Shortcuts" item) listing every markdown/keyboard shortcut, grouped and color-accented.
 
 - `src/components/notes/editor/TaskLineNode.ts` / `QueryBlockNode.tsx`
   - `taskLine` is a single checkbox line — each checklist item is its OWN block (`blockType: "task"`), no `taskList` wrapper. `queryBlock` is an atom NodeView rendering the existing `QueryBlockView`.
 
 - `src/components/notes/NoteBlockEditorExtensions.ts` / `NoteBlockEditorMath.ts` / `NoteBlockEditorSlash.ts` / `NoteBlockEditorCode.ts` / `NoteBlockEditorColor.ts`
-  - Shared Tiptap building blocks reused by the single-document schema: reference decorations / date auto-format / markdown links / horizontal rule / arrow replacement; inline (`$...$`) and block (`$$...$$`) math with KaTeX NodeViews; the slash command catalog (+ filter/group helpers, including `/math` and `/todo`); the code block toolbar; and per-block background colors.
+  - Shared Tiptap building blocks reused by the single-document schema: reference decorations (`[[page refs]]` + `{date}` tokens) / date auto-format / markdown links / arrow replacement; markdown-typing input rules that create blocks — divider (`---`), image (`![alt](url)`), checkbox (`[]`/`[x]`), and block color (`!blue`/`!none`) — alongside the ones each node ships (headings, quote, code, math); inline (`$...$`) and block (`$$...$$`) math with KaTeX NodeViews; the slash command catalog (+ filter/group helpers, including `/math`, `/todo`, `/date`); the code block toolbar; and per-block background colors.
 
 - `src/lib/notes/editor/block-persister.ts`
   - Debounced per-page persister: decomposes the doc to rows, diffs against the last-known set (churn-minimal ranks, net-zero writes, failure retention), reconciles per-block edges, and merges remote row changes back into the open doc with `addToHistory:false`. `flushAllBlockDocumentPersisters()` flushes on `beforeunload`.
@@ -283,7 +286,8 @@ Additional notes editor behavior:
 
 - **Sticky headings** — heading blocks stick to the top of the scroll viewport for orientation in long documents.
 - **Block colors** — blocks can be assigned a background color via the block (grip) menu. Colors persist per-block.
-- **Date tokens** — slash commands (`/today`, `/tomorrow`, `/date`) insert styled inline date tokens.
+- **Markdown shortcuts** — every block type can be created by typing its markdown (`#`, `>`, ` ``` `, `---`, `[]`, `![]()`, `!color`, …); `[[` autocompletes page links and `{date}` renders a date token. The full list is in the editor's "Shortcuts" popup.
+- **Date tokens** — typing `{May 2, 2025}` or the date slash commands (`/today`, `/tomorrow`, `/date`) inserts an inline date chip (low-emphasis slate style).
 - **Hover grip** — a drag/menu handle appears in the left margin on hover; clicking it opens the block menu.
 - **Emoji icons** — pages and property definitions use a Fluent Emoji Flat picker for visual identity.
 

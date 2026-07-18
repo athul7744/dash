@@ -11,17 +11,11 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 
 ## Current Notes Suites
 
-- `tests/notes/markdown-clipboard.test.ts`
-  Verifies mdast-backed markdown clipboard parsing and block conversion for pasted note content, including nested children, task list markers, blockquote and heading routing, and single-block replacement decisions.
-
 - `tests/notes/notes-content.test.ts`
   Covers note document normalization, legacy text fallback, serialization, plain-text extraction, merge edge cases, and markdown serialization (inline/block math, and single-block `taskLine` checkboxes).
 
 - `tests/notes/notes-tree.test.ts`
   Covers nested block tree construction plus visible-order neighbor lookups used by block ordering.
-
-- `tests/notes/math-clipboard.test.ts`
-  Covers LaTeX math token protection and restoration during markdown paste flows, including inline/block detection, HTML escaping, backslash unescaping, and roundtrip correctness.
 
 - `tests/notes/note-page-utils.test.ts`
   Covers note page metadata helpers for stored tag id parsing and shared tag resolution from the shared tags table.
@@ -73,6 +67,8 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `block-normalize.dom.test.ts` — the one-content-node-per-block invariant (splits accidental "frankenblocks").
 - `slash-single.dom.test.ts` — slash detection + apply (heading/quote/color/query/task conversions).
 - `paste.dom.test.ts` — external multi-paragraph paste becomes well-formed blocks; copied blocks get fresh ids.
+- `markdown-paste.test.ts` — `markdownToBlockNodes` maps every markdown construct (headings, paragraphs, bullet/ordered/task lists incl. nesting, blockquotes, fenced code, thematic breaks, GFM tables, inline marks, hard breaks) to the right block/`taskLine` shape; `looksLikeMarkdown` + `clipboardMarkdown` detection/routing (prose left alone, structured HTML deferred to native paste). Includes fixtures ported from the removed markdown-clipboard suite.
+- `markdown-paste.dom.test.ts` — parsed markdown inserts into a live editor as schema-valid nodes with zero frankenblocks, one content node per block, and freshly-stamped ids; the single inline-formatted paragraph merges into the current line.
 - `reference-resolver.dom.test.ts` — `getResolvedPageReferenceAtPosition` resolves the `[[title]]` under the cursor.
 - `read-only-block-renderer.dom.test.tsx` — `ReadOnlyBlockRenderer` renders heading/paragraph/task blocks non-editably through the single-doc schema.
 

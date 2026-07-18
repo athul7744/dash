@@ -29,6 +29,7 @@ import { BlockDocumentPersister } from "@/lib/notes/editor/block-persister";
 import { buildNoteEditorExtensions } from "@/lib/notes/editor/extensions";
 import { STAMP_META } from "@/lib/notes/editor/block-id-plugin";
 import { splitBlock, indentBlock, outdentBlock, mergeBlockBackward } from "@/lib/notes/editor/block-commands";
+import { insertMarkdown, clipboardMarkdown } from "@/lib/notes/editor/markdown-paste";
 import { getResolvedPageReferenceAtPosition } from "@/lib/notes/editor-document-helpers";
 
 export type SingleBlockEditorHandlers = {
@@ -127,6 +128,15 @@ export function useSingleBlockEditor({
         if (event.key === "Tab") return (event.shiftKey ? outdentBlock : indentBlock)(view.state, dispatch);
         if (event.key === "Backspace" && !event.shiftKey) return mergeBlockBackward(view.state, dispatch);
         return false;
+      },
+      // Parse pasted raw markdown text into blocks. Rich HTML and non-markdown
+      // text fall through to native paste (return false).
+      handlePaste(view, event) {
+        const markdown = clipboardMarkdown(event.clipboardData);
+        if (!markdown) return false;
+        const inserted = insertMarkdown(view, markdown);
+        if (inserted) event.preventDefault();
+        return inserted;
       },
       handleDOMEvents: {
         mousedown(view, event) {

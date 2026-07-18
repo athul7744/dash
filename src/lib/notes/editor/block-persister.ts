@@ -23,6 +23,8 @@ import { getCurrentUserId } from "@/lib/shared/auth";
 import { reconcileNoteBlockEdges } from "@/lib/notes/notes";
 import { normalizeNoteDocument, serializeNoteDocument } from "@/lib/notes/notes-content";
 
+import { LexoRank } from "lexorank";
+
 import { assembleDoc, decomposeDoc, type BlockDocumentRow } from "./block-document";
 import { diffBlocks, type PersistedBlock } from "./block-diff";
 
@@ -72,6 +74,33 @@ export class BlockDocumentPersister {
     this.snapshot = snapshotFromRows(rows);
   }
 
+  /**
+   * Seed the snapshot from the editor's OWN serialization of the loaded rows.
+   * The editor's schema may normalize content slightly differently from
+   * `normalizeNoteDocument`, so baselining from the document (not the raw rows)
+   * prevents an unedited block from looking "changed" on first flush.
+   */
+  hydrateFromDoc(doc: JSONContent, rows: BlockDocumentRow[]) {
+    this.snapshot = this.buildSnapshotFromDoc(doc, rows);
+  }
+
+  /** Snapshot keyed by block id: content/type/parent from the doc, ranks from rows. */
+  private buildSnapshotFromDoc(doc: JSONContent, rows: BlockDocumentRow[]): Map<string, PersistedBlock> {
+    const rankById = new Map(rows.map((r) => [r.id, r.sort_rank]));
+    const map = new Map<string, PersistedBlock>();
+    for (const block of decomposeDoc(doc)) {
+      if (!block.blockId) continue; // never baseline an unstamped block
+      map.set(block.blockId, {
+        blockId: block.blockId,
+        parentId: block.parentId,
+        type: block.type,
+        content: block.content,
+        sortRank: rankById.get(block.blockId) ?? LexoRank.middle().format(),
+      });
+    }
+    return map;
+  }
+
   /** Block ids whose current document state differs from what's persisted. */
   private dirtyBlockIds(): Set<string> {
     const dirty = new Set<string>();
@@ -111,7 +140,9 @@ export class BlockDocumentPersister {
     this.timer = null;
     if (this.flushing) return;
 
-    const decomposed = decomposeDoc(this.getDoc());
+    // Ignore any block that still lacks a stable id (a transient empty starter
+    // block before its real rows arrive) — never write "" as a uuid.
+    const decomposed = decomposeDoc(this.getDoc()).filter((b) => b.blockId);
     const { writes, next } = diffBlocks(decomposed, this.snapshot);
     if (writes.length === 0) return;
 
@@ -164,15 +195,17 @@ export class BlockDocumentPersister {
   reconcileRemote(editor: Editor, rows: BlockDocumentRow[]) {
     if (this.hasPendingWrites()) return;
 
-    const assembled = assembleDoc(rows);
-    const current = editor.getJSON();
-    if (JSON.stringify(current) === JSON.stringify(assembled)) {
-      this.snapshot = snapshotFromRows(rows);
+    const { state, view } = editor;
+    // Normalize the incoming rows THROUGH the schema so the comparison is
+    // apples-to-apples with the editor's own JSON — otherwise an unchanged row
+    // set looks different and triggers a needless full-document replace.
+    const newDoc = state.schema.nodeFromJSON(assembleDoc(rows));
+    const normalized = newDoc.toJSON();
+    if (JSON.stringify(normalized) === JSON.stringify(editor.getJSON())) {
+      this.snapshot = this.buildSnapshotFromDoc(normalized, rows);
       return;
     }
 
-    const { state, view } = editor;
-    const newDoc = state.schema.nodeFromJSON(assembled);
     const selectionFrom = state.selection.from;
     const tr = state.tr.replaceWith(0, state.doc.content.size, newDoc.content);
     tr.setMeta("addToHistory", false);
@@ -183,7 +216,7 @@ export class BlockDocumentPersister {
       // Selection restore is best-effort.
     }
     view.dispatch(tr);
-    this.snapshot = snapshotFromRows(rows);
+    this.snapshot = this.buildSnapshotFromDoc(normalized, rows);
   }
 
   dispose() {

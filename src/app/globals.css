@@ -372,13 +372,61 @@ body[data-display-font="bricolage"] {
   color: var(--note-body-ink);
 }
 
-/* Perf: the single-document editor keeps every block in the DOM. Let the
-   browser skip layout/paint for off-screen blocks. `contain-intrinsic-size`
-   reserves an estimated height so scrollbars stay stable; the `auto` keyword
-   lets the browser remember each block's last rendered size. */
-.ProseMirror > .note-block {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 2rem;
+/* Single-document editor: indent each nesting level once. Applied per nested
+   block so depth compounds naturally (each child sits 1.5rem right of its
+   parent's content). Note: `content-visibility` was removed here because its
+   paint containment clipped the margin-positioned block grip; revisit perf via
+   lazy heavy-NodeView rendering instead. */
+.note-block .note-block {
+  margin-left: 1.5rem;
+}
+
+/* Block wrapper + hover-reveal grip (plain-DOM NodeView). */
+.note-block {
+  position: relative;
+}
+.note-block-grip {
+  position: absolute;
+  left: -1.5rem;
+  top: 0.15rem;
+  display: grid;
+  place-items: center;
+  height: 1.25rem;
+  width: 1.25rem;
+  border-radius: 0.3rem;
+  color: color-mix(in oklab, currentColor 45%, transparent);
+  opacity: 0;
+  cursor: pointer;
+  outline: none;
+  transition: opacity 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+.note-block-grip:focus,
+.note-block-grip:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.note-block:hover > .note-block-grip,
+.note-block-grip:focus-visible {
+  opacity: 1;
+}
+.note-block-grip:hover {
+  background: var(--color-accent);
+  color: var(--color-foreground);
+}
+/* Sticky section headings: stick the heading element itself (not the block
+   wrapper, which spans the whole section incl. children) so only the heading
+   line pins while its section scrolls. */
+@media (min-width: 640px) {
+  .note-block-content > h1,
+  .note-block-content > h2,
+  .note-block-content > h3,
+  .note-block-content > h4,
+  .note-block-content > h5 {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--color-background);
+  }
 }
 
 .ProseMirror p {

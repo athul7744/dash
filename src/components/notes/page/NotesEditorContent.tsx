@@ -5,6 +5,7 @@ import type { Editor } from "@tiptap/core";
 import { useQuery } from "@powersync/react";
 
 import { NotesBlockTree } from "@/components/notes/NotesBlockTree";
+import { SingleBlockEditor } from "@/components/notes/editor/SingleBlockEditor";
 import { NotesEditorMainSkeleton } from "@/components/notes/NotesPageSkeleton";
 import type { JsonValue, NoteBlockInsert } from "@/lib/notes/notes";
 import { Tag } from "@/lib/powersync/AppSchema";
@@ -113,6 +114,12 @@ export function NotesEditorContent({
   const emptySettleTimerRef = useRef<number | null>(null);
   const previousPageIdRef = useRef<string | null | undefined>(editorContent?.pageId);
 
+  // Experimental single-document editor, opted in via ?editor=single. This
+  // client-only subtree (under PowerSyncProvider) isn't meaningfully SSR'd, so a
+  // render-time read of the URL is fine for this temporary validation toggle.
+  const useSingleEditor =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("editor") === "single";
+
   // Reset settling state when navigating to a different page
   if (editorContent?.pageId !== previousPageIdRef.current) {
     previousPageIdRef.current = editorContent?.pageId;
@@ -166,7 +173,9 @@ export function NotesEditorContent({
     }
   }, []);
 
-  const showBlocksSettling = !blocksSettled || isLoadingTags;
+  // The single editor manages its own loading, so don't gate it on the
+  // per-block settling overlay (which only clears via NotesBlockTree).
+  const showBlocksSettling = !useSingleEditor && (!blocksSettled || isLoadingTags);
 
   if (showSelectedPageLoading) {
     return (
@@ -218,6 +227,9 @@ export function NotesEditorContent({
             />
           ) : null}
 
+          {useSingleEditor && editorContent.pageId ? (
+            <SingleBlockEditor key={editorContent.pageId} pageId={editorContent.pageId} />
+          ) : (
           <div ref={blockTreeRefCallback} className={`col-span-2 sm:col-start-2 sm:col-span-2 pt-2 ${shouldAnimateEditorContent ? "animate-fade-slide-in" : ""}`}>
             <NotesBlockTree
               blocks={editorContent.blocks}
@@ -245,6 +257,7 @@ export function NotesEditorContent({
               onConvertBlockType={onConvertBlockType}
             />
           </div>
+          )}
         </div>
       </div>
       {showBlocksSettling ? (

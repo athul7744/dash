@@ -44,7 +44,7 @@ export function NotesEditorChromeBar({
   onRedo,
 }: NotesEditorChromeBarProps) {
   return (
-    <div className="hidden h-9 items-center sm:flex">
+    <div data-notes-chrome-bar className="hidden h-9 items-center sm:flex">
       <div className="mx-auto grid w-full max-w-3xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-1 md:gap-x-2">
         <Button
           variant="ghost"

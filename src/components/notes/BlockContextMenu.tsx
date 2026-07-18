@@ -37,34 +37,23 @@ const COLOR_DOT_CLASSES: Record<BlockColorKey, string> = {
   pink: "bg-[oklch(0.65_0.15_345)]",
 };
 
-export function BlockContextMenu({
-  options,
-  onAction,
-  onColorSelect,
-}: {
+type MenuProps = {
   options: BlockContextMenuOption[];
   onAction: (actionId: BlockContextMenuActionId) => void;
   onColorSelect?: (color: BlockColorKey | null) => void;
-}) {
-  const [showColors, setShowColors] = useState(false);
-  const reduce = useReducedMotion();
+};
 
-  const motionProps = {
-    initial: reduce ? false : { opacity: 0, scale: 0.96, y: "-50%" },
-    animate: reduce ? { y: "-50%" } : { opacity: 1, scale: 1, y: "-50%" },
-    exit: reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: "-50%" },
-    transition: reduce ? { duration: 0 } : { duration: DURATION.base, ease: EASE.standard },
-    style: { transformOrigin: "left center" as const },
-  };
+/**
+ * The menu button row WITHOUT any positioning — the caller provides the
+ * container/placement. Used directly by the single-document editor's menu
+ * layer; `BlockContextMenu` wraps this with the legacy floating anchor.
+ */
+export function BlockContextMenuContent({ options, onAction, onColorSelect }: MenuProps) {
+  const [showColors, setShowColors] = useState(false);
 
   if (showColors) {
     return (
-      <motion.div
-        role="menu"
-        data-block-context-menu="true"
-        {...motionProps}
-        className={MENU_CLASS}
-      >
+      <div role="menu" className="flex items-center gap-1">
         {(Object.keys(BLOCK_COLORS) as BlockColorKey[]).map((colorKey) => (
           <button
             key={colorKey}
@@ -90,39 +79,27 @@ export function BlockContextMenu({
         >
           <X className="h-3.5 w-3.5" />
         </button>
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.div
-      role="menu"
-      data-block-context-menu="true"
-      {...motionProps}
-      className={MENU_CLASS}
-    >
+    <div role="menu" className="flex items-center gap-1">
       {options.map((option) => {
         const Icon = ACTION_ICON_BY_ID[option.id];
-
         return (
           <button
             key={option.id}
             type="button"
             role="menuitem"
             disabled={option.disabled}
-            onMouseDown={(event) => {
-              event.preventDefault();
-            }}
+            onMouseDown={(event) => event.preventDefault()}
             onClick={() => {
-              if (option.disabled) {
-                return;
-              }
-
+              if (option.disabled) return;
               if (option.id === "color") {
                 setShowColors(true);
                 return;
               }
-
               onAction(option.id);
             }}
             className={`flex h-8 w-8 items-center justify-center rounded-md outline-none transition-colors ${option.tone === "destructive" ? "text-destructive hover:bg-destructive/10 focus:bg-destructive/10" : "text-muted-foreground hover:bg-accent hover:text-foreground focus:bg-accent focus:text-foreground"}`}
@@ -133,6 +110,25 @@ export function BlockContextMenu({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** Legacy floating menu anchored to the right of a bullet (used by NotesBlockTree). */
+export function BlockContextMenu(props: MenuProps) {
+  const reduce = useReducedMotion();
+  return (
+    <motion.div
+      role="menu"
+      data-block-context-menu="true"
+      initial={reduce ? false : { opacity: 0, scale: 0.96, y: "-50%" }}
+      animate={reduce ? { y: "-50%" } : { opacity: 1, scale: 1, y: "-50%" }}
+      exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: "-50%" }}
+      transition={reduce ? { duration: 0 } : { duration: DURATION.base, ease: EASE.standard }}
+      style={{ transformOrigin: "left center" }}
+      className={MENU_CLASS}
+    >
+      <BlockContextMenuContent {...props} />
     </motion.div>
   );
 }

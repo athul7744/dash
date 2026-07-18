@@ -10,7 +10,7 @@ import History from "@tiptap/extension-history";
 
 import { NotesDocument, BlockNode, asBlockContent } from "@/lib/notes/editor/block-schema";
 import { BlockIdPlugin } from "@/lib/notes/editor/block-id-plugin";
-import { splitBlock, indentBlock, outdentBlock, mergeBlockBackward, type BlockCommand } from "@/lib/notes/editor/block-commands";
+import { splitBlock, indentBlock, outdentBlock, mergeBlockBackward, moveBlockUp, moveBlockDown, type BlockCommand } from "@/lib/notes/editor/block-commands";
 import { assembleDoc, decomposeDoc, type BlockDocumentRow } from "@/lib/notes/editor/block-document";
 import { serializeNoteDocument } from "@/lib/notes/notes-content";
 
@@ -134,6 +134,31 @@ describe("block structural commands", () => {
     const editor = makeEditor([row("b1", "Hello"), row("b2", "World", { sort_rank: RANK_1 })]);
     cursorInBlock(editor, "World", 2); // mid-text
     expect(run(editor, mergeBlockBackward)).toBe(false);
+    editor.destroy();
+  });
+
+  it("moves a block up and down among its siblings", () => {
+    const editor = makeEditor([
+      row("b1", "One"),
+      row("b2", "Two", { sort_rank: RANK_1 }),
+      row("b3", "Three", { sort_rank: LexoRank.middle().genNext().genNext().format() }),
+    ]);
+    cursorInBlock(editor, "Two", 1);
+    expect(run(editor, moveBlockUp)).toBe(true);
+    expect(decomposeDoc(editor.getJSON()).map((b) => b.blockId)).toEqual(["b2", "b1", "b3"]);
+
+    cursorInBlock(editor, "Two", 1);
+    expect(run(editor, moveBlockDown)).toBe(true);
+    expect(decomposeDoc(editor.getJSON()).map((b) => b.blockId)).toEqual(["b1", "b2", "b3"]);
+    editor.destroy();
+  });
+
+  it("does not move the first block up or the last block down", () => {
+    const editor = makeEditor([row("b1", "One"), row("b2", "Two", { sort_rank: RANK_1 })]);
+    cursorInBlock(editor, "One", 1);
+    expect(run(editor, moveBlockUp)).toBe(false);
+    cursorInBlock(editor, "Two", 1);
+    expect(run(editor, moveBlockDown)).toBe(false);
     editor.destroy();
   });
 

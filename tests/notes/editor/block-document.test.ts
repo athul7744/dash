@@ -93,6 +93,18 @@ describe("block-document assemble/decompose", () => {
     expect(doc.content?.[0]?.attrs?.blockId).toBe("orphan");
   });
 
+  it("round-trips a query block (type + queryBlock node content preserved)", () => {
+    const queryContent = serializeNoteDocument({
+      type: "doc",
+      content: [{ type: "queryBlock", attrs: { filters: [], columns: ["status"], sort: null, limit: 20 } }],
+    });
+    const rows: BlockDocumentRow[] = [row({ id: "q1", type: "query", content: queryContent })];
+    const decomposed = decomposeDoc(assembleDoc(rows));
+    expect(decomposed).toHaveLength(1);
+    expect(decomposed[0].type).toBe("query");
+    expect(decomposed[0].content).toBe(queryContent);
+  });
+
   it("emptyBlockNode carries the given id and a paragraph", () => {
     const node = emptyBlockNode("new-1");
     expect(node.attrs?.blockId).toBe("new-1");

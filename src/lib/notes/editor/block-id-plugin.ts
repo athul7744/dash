@@ -38,16 +38,25 @@ export function resolveBlockId(
 }
 
 const blockIdPluginKey = new PluginKey("notesBlockId");
+/** Transaction meta marking the id-stamping pass, so save logic can ignore it. */
+export const STAMP_META = "stampBlockIds";
 
 export const BlockIdPlugin = Extension.create({
   name: "notesBlockId",
+
+  // Initial content is set without a transaction, so stamp any unset ids once
+  // the editor is created (covers the empty-note starter block and any loaded
+  // block missing an id).
+  onCreate() {
+    this.editor.view.dispatch(this.editor.state.tr.setMeta(STAMP_META, true));
+  },
 
   addProseMirrorPlugins() {
     return [
       new Plugin({
         key: blockIdPluginKey,
         appendTransaction: (transactions, _oldState, newState) => {
-          if (!transactions.some((tr) => tr.docChanged)) return null;
+          if (!transactions.some((tr) => tr.docChanged || tr.getMeta(STAMP_META))) return null;
 
           const seen = new Set<string>();
           const fixes: { pos: number; id: string }[] = [];

@@ -108,6 +108,62 @@ export const outdentBlock: BlockCommand = (state, dispatch) => {
   return true;
 };
 
+/** Move the current block above its previous sibling block. */
+export const moveBlockUp: BlockCommand = (state, dispatch) => {
+  const { $from } = state.selection;
+  const blockDepth = blockDepthAt($from);
+  if (blockDepth === null) return false;
+
+  const parentDepth = blockDepth - 1;
+  const parent = $from.node(parentDepth);
+  const index = $from.index(parentDepth);
+  if (index === 0) return false;
+  if (parent.child(index - 1).type.name !== BLOCK_NODE_TYPE) return false;
+
+  const blockStart = $from.before(blockDepth);
+  const blockEnd = $from.after(blockDepth);
+  const blockNode = $from.node(blockDepth);
+  const prevStart = $from.posAtIndex(index - 1, parentDepth);
+
+  if (dispatch) {
+    const cursorOffset = $from.pos - blockStart;
+    const tr = state.tr.delete(blockStart, blockEnd);
+    tr.insert(prevStart, blockNode);
+    tr.setSelection(Selection.near(tr.doc.resolve(prevStart + cursorOffset)));
+    dispatch(tr.scrollIntoView());
+  }
+  return true;
+};
+
+/** Move the current block below its next sibling block. */
+export const moveBlockDown: BlockCommand = (state, dispatch) => {
+  const { $from } = state.selection;
+  const blockDepth = blockDepthAt($from);
+  if (blockDepth === null) return false;
+
+  const parentDepth = blockDepth - 1;
+  const parent = $from.node(parentDepth);
+  const index = $from.index(parentDepth);
+  const next = index + 1 < parent.childCount ? parent.child(index + 1) : null;
+  if (!next || next.type.name !== BLOCK_NODE_TYPE) return false;
+
+  const blockStart = $from.before(blockDepth);
+  const blockEnd = $from.after(blockDepth);
+  const blockNode = $from.node(blockDepth);
+  const nextStart = $from.posAtIndex(index + 1, parentDepth);
+  const nextEnd = nextStart + next.nodeSize;
+
+  if (dispatch) {
+    const cursorOffset = $from.pos - blockStart;
+    const tr = state.tr.delete(blockStart, blockEnd);
+    const insertAt = tr.mapping.map(nextEnd);
+    tr.insert(insertAt, blockNode);
+    tr.setSelection(Selection.near(tr.doc.resolve(insertAt + cursorOffset)));
+    dispatch(tr.scrollIntoView());
+  }
+  return true;
+};
+
 /**
  * Backspace at the very start of a block:
  *  - nested block → outdent it (lift after its parent);

@@ -10,33 +10,75 @@
  * editor is seeded from the already-loaded rows in one shot (no empty-build +
  * reconcile flash). We wait for the first load before mounting the inner editor
  * so it never initializes from an empty document.
+ *
+ * The live editor instance is reported up via `onEditorChange` so the page
+ * chrome (undo/redo buttons) can drive the one native history timeline.
  */
 
+import { useEffect, useRef } from "react";
+import type { Editor } from "@tiptap/core";
 import { EditorContent } from "@tiptap/react";
 
+import { NotesEditorBodySkeleton } from "@/components/notes/NotesPageSkeleton";
 import { useNoteBlocks, type NoteBlockRow } from "@/hooks/use-notes";
 
-import { useSingleBlockEditor } from "./useSingleBlockEditor";
+import { useSingleBlockEditor, type SingleBlockEditorHandlers } from "./useSingleBlockEditor";
 import { BlockMenuLayer } from "./BlockMenuLayer";
+import { TableToolbarLayer } from "./TableToolbarLayer";
+import { SlashMenuLayer } from "./SlashMenuLayer";
 
 const SURFACE_CLASS = "notes-reading col-span-2 pt-2 sm:col-span-2 sm:col-start-2";
 
-export function SingleBlockEditor({ pageId }: { pageId: string }) {
+export function SingleBlockEditor({
+  pageId,
+  handlers,
+  onEditorChange,
+}: {
+  pageId: string;
+  handlers?: SingleBlockEditorHandlers;
+  onEditorChange?: (editor: Editor | null) => void;
+}) {
   const { blocks, isLoading } = useNoteBlocks(pageId);
 
   if (isLoading) {
-    return <div className={`${SURFACE_CLASS} text-sm text-muted-foreground`}>Loading…</div>;
+    return (
+      <div className={SURFACE_CLASS}>
+        <NotesEditorBodySkeleton />
+      </div>
+    );
   }
-  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} />;
+  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} />;
 }
 
-function SingleBlockEditorInner({ pageId, blocks }: { pageId: string; blocks: NoteBlockRow[] }) {
-  const editor = useSingleBlockEditor({ pageId, blocks });
+function SingleBlockEditorInner({
+  pageId,
+  blocks,
+  handlers,
+  onEditorChange,
+}: {
+  pageId: string;
+  blocks: NoteBlockRow[];
+  handlers?: SingleBlockEditorHandlers;
+  onEditorChange?: (editor: Editor | null) => void;
+}) {
+  const editor = useSingleBlockEditor({ pageId, blocks, handlers });
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    onEditorChange?.(editor);
+    return () => onEditorChange?.(null);
+  }, [editor, onEditorChange]);
+
+  // The entrance animation applies a transform; keep it on an inner wrapper so
+  // it never becomes the containing block for the `fixed`-positioned block menu.
   return (
-    <div className={SURFACE_CLASS}>
-      <EditorContent editor={editor} />
+    <div ref={surfaceRef} className={`group/note-editor relative ${SURFACE_CLASS}`}>
+      <div className="animate-fade-slide-in">
+        <EditorContent editor={editor} />
+      </div>
       <BlockMenuLayer editor={editor} />
+      <TableToolbarLayer editor={editor} containerRef={surfaceRef} />
+      <SlashMenuLayer editor={editor} containerRef={surfaceRef} />
     </div>
   );
 }

@@ -158,10 +158,55 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     handleUpdateBlockContent,
   } = useNoteBlockStoreActions({ pageId, selectedBlocks });
 
+  // ─── Single-document editor (?editor=single) ───────────────────────────────
+  // When the single editor is mounted, undo/redo is its ONE native ProseMirror
+  // history — both Ctrl+Z and the toolbar buttons drive it, so they can't
+  // diverge. Falls back to the legacy per-block store when it isn't mounted.
+  const [singleEditor, setSingleEditor] = useState<Editor | null>(null);
+  const [singleUndo, setSingleUndo] = useState({ canUndo: false, canRedo: false });
+  const singleEditorRef = useRef<Editor | null>(null);
+  useEffect(() => {
+    singleEditorRef.current = singleEditor;
+  }, [singleEditor]);
+
+  // Track the single editor's history availability reactively (can().undo() is a
+  // plain query, so recompute on every transaction).
+  useEffect(() => {
+    if (!singleEditor) return;
+    const sync = () => {
+      const next = { canUndo: singleEditor.can().undo(), canRedo: singleEditor.can().redo() };
+      setSingleUndo((prev) => (prev.canUndo === next.canUndo && prev.canRedo === next.canRedo ? prev : next));
+    };
+    singleEditor.on("transaction", sync);
+    return () => {
+      singleEditor.off("transaction", sync);
+    };
+  }, [singleEditor]);
+
+  const effectiveCanUndo = singleEditor ? singleUndo.canUndo : canUndo;
+  const effectiveCanRedo = singleEditor ? singleUndo.canRedo : canRedo;
+
+  const runUndo = useCallback(() => {
+    const editor = singleEditorRef.current;
+    if (editor) {
+      editor.commands.undo();
+      return;
+    }
+    undo();
+  }, [undo]);
+  const runRedo = useCallback(() => {
+    const editor = singleEditorRef.current;
+    if (editor) {
+      editor.commands.redo();
+      return;
+    }
+    redo();
+  }, [redo]);
+
   // Propagate undo/redo availability to the parent (shell owns the store lifecycle).
   useEffect(() => {
-    onUndoStateChange?.({ canUndo, canRedo });
-  }, [canUndo, canRedo, onUndoStateChange]);
+    onUndoStateChange?.({ canUndo: effectiveCanUndo, canRedo: effectiveCanRedo });
+  }, [effectiveCanUndo, effectiveCanRedo, onUndoStateChange]);
 
   // Keep parent-controlled consumers (details rail) in sync with local summary draft edits.
   useEffect(() => {
@@ -250,15 +295,15 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
 
       e.preventDefault();
       if (isUndo) {
-        undo();
+        runUndo();
       } else {
-        redo();
+        runRedo();
       }
     };
 
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isReady, undo, redo]);
+  }, [isReady, runUndo, runRedo]);
 
   // ─── Imperative handle + state forwarding to parent ────────────────────────
   // The parent renders overview/editor chrome from this handle and reads it from
@@ -280,8 +325,8 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     setIsDeleteDialogOpen,
     setFocusTarget,
     togglePageFavorite,
-    undo,
-    redo,
+    undo: runUndo,
+    redo: runRedo,
   });
   useEffect(() => {
     latestCallbacksRef.current = {
@@ -294,8 +339,8 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
       setIsDeleteDialogOpen,
       setFocusTarget,
       togglePageFavorite,
-      undo,
-      redo,
+      undo: runUndo,
+      redo: runRedo,
     };
   });
 
@@ -334,14 +379,14 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     page: page ?? null,
     displayBlocks,
     isReady,
-    canUndo,
-    canRedo,
+    canUndo: effectiveCanUndo,
+    canRedo: effectiveCanRedo,
     ...stableCallbacks,
   }), [
     linkedReferences, pageTagMentions, attachments, pageOutline, summaryDraft, selectedTagIdsDraft,
     createdTimestamp, isLoadingLinkedReferences, isLoadingTagMentions, isLoadingAttachments,
     stableUpdatedTimestamp, showAbsoluteUpdatedTime, isDeletingPage, isDeleteDialogOpen, pageTitleDraft,
-    activePageEmoji, pageProperties, page, displayBlocks, isReady, canUndo, canRedo, stableCallbacks,
+    activePageEmoji, pageProperties, page, displayBlocks, isReady, effectiveCanUndo, effectiveCanRedo, stableCallbacks,
   ]);
 
   useImperativeHandle(ref, () => shellHandle, [shellHandle]);
@@ -433,6 +478,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
       onUpdateContent={handleUpdateBlockContent}
       onEditorRef={handleEditorRef}
       onConvertBlockType={handleConvertBlockType}
+      onSingleEditorChange={setSingleEditor}
     />
   );
 });

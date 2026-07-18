@@ -18,6 +18,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import type { Editor } from "@tiptap/core";
+import type { EditorView } from "@tiptap/pm/view";
 import { useEditor } from "@tiptap/react";
 
 import type { NoteBlockRow } from "@/hooks/use-notes";
@@ -27,6 +28,13 @@ import { assembleDoc, type BlockDocumentRow } from "@/lib/notes/editor/block-doc
 import { BlockDocumentPersister } from "@/lib/notes/editor/block-persister";
 import { buildNoteEditorExtensions } from "@/lib/notes/editor/extensions";
 import { STAMP_META } from "@/lib/notes/editor/block-id-plugin";
+import { getResolvedPageReferenceAtPosition } from "@/lib/notes/editor-document-helpers";
+
+export type SingleBlockEditorHandlers = {
+  notePageTitles: string[];
+  onOpenPageReference?: (title: string) => void;
+  onPeekPageReference?: (title: string, rect: DOMRect) => void;
+};
 
 const SQL_UTC_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 
@@ -40,16 +48,51 @@ function toBlockDocumentRow(block: NoteBlockRow): BlockDocumentRow {
   };
 }
 
-export function useSingleBlockEditor({ pageId, blocks }: { pageId: string; blocks: NoteBlockRow[] }): Editor | null {
+export function useSingleBlockEditor({
+  pageId,
+  blocks,
+  handlers,
+}: {
+  pageId: string;
+  blocks: NoteBlockRow[];
+  handlers?: SingleBlockEditorHandlers;
+}): Editor | null {
   const rows = useMemo(() => blocks.map(toBlockDocumentRow), [blocks]);
 
   const latestRowsRef = useRef(rows);
   const editorRef = useRef<Editor | null>(null);
   const persisterRef = useRef<BlockDocumentPersister | null>(null);
 
+  // Editor is created once per page; page-reference handlers read the latest
+  // titles/callbacks through a ref so they never go stale.
+  const handlersRef = useRef<SingleBlockEditorHandlers | undefined>(handlers);
+  const pointerTypeRef = useRef<"mouse" | "touch">("mouse");
+  const peekTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     latestRowsRef.current = rows;
   });
+  useEffect(() => {
+    handlersRef.current = handlers;
+  });
+  useEffect(() => () => {
+    if (peekTimeoutRef.current) clearTimeout(peekTimeoutRef.current);
+  }, []);
+
+  // Resolve a page reference under a DOM node, but only if it points at a page
+  // that exists (unknown [[titles]] stay inert plain text).
+  const resolveRef = (view: EditorView, el: HTMLElement) => {
+    const refSpan = el.closest?.(".note-ref-token-page") as HTMLElement | null;
+    if (!refSpan) return null;
+    const editor = editorRef.current;
+    if (!editor) return null;
+    const reference = getResolvedPageReferenceAtPosition(editor, view.posAtDOM(refSpan, 0));
+    if (!reference) return null;
+    const titles = handlersRef.current?.notePageTitles ?? [];
+    const canOpen = titles.some((t) => t.localeCompare(reference.title, undefined, { sensitivity: "accent" }) === 0);
+    if (!canOpen) return null;
+    return { title: reference.title, rect: refSpan.getBoundingClientRect() };
+  };
 
   // Initial content is captured once per mount (pageId is stable per mount).
   const initialContent = useMemo(
@@ -68,6 +111,59 @@ export function useSingleBlockEditor({ pageId, blocks }: { pageId: string; block
         // pl-7 keeps root-block grips (positioned in the left margin) within the
         // reading column instead of off the viewport edge.
         class: "outline-none focus:outline-none pl-7",
+      },
+      handleDOMEvents: {
+        mousedown(view, event) {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return false;
+          // Suppress caret placement inside a live [[ref]] so the click opens it.
+          if (resolveRef(view, target)) event.preventDefault();
+          return false;
+        },
+        touchstart(view, event) {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return false;
+          const hit = resolveRef(view, target);
+          if (!hit) return false;
+          event.preventDefault();
+          pointerTypeRef.current = "touch";
+          handlersRef.current?.onPeekPageReference?.(hit.title, hit.rect);
+          return true;
+        },
+        click(view, event) {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return false;
+          const hit = resolveRef(view, target);
+          if (!hit) return false;
+          event.preventDefault();
+          // Touch shows the peek popover; mouse navigates straight through.
+          if (pointerTypeRef.current === "touch" && handlersRef.current?.onPeekPageReference) {
+            handlersRef.current.onPeekPageReference(hit.title, hit.rect);
+          } else {
+            handlersRef.current?.onOpenPageReference?.(hit.title);
+          }
+          return true;
+        },
+        mouseover(view, event) {
+          if (pointerTypeRef.current === "touch") return false;
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return false;
+          const hit = resolveRef(view, target);
+          if (!hit) return false;
+          if (peekTimeoutRef.current) clearTimeout(peekTimeoutRef.current);
+          peekTimeoutRef.current = setTimeout(() => {
+            handlersRef.current?.onPeekPageReference?.(hit.title, hit.rect);
+          }, 350);
+          return false;
+        },
+        mouseout(_view, event) {
+          const target = event.target;
+          if (target instanceof HTMLElement && target.closest?.(".note-ref-token-page") && peekTimeoutRef.current) {
+            clearTimeout(peekTimeoutRef.current);
+            peekTimeoutRef.current = null;
+          }
+          return false;
+        },
       },
     },
   });

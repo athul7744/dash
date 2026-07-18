@@ -57,6 +57,7 @@ export function NotesEditorContent({
   onUpdateContent,
   onEditorRef,
   onConvertBlockType,
+  onSingleEditorChange,
 }: {
   editorContent: NotesEditorRenderableContent;
   showSelectedPageLoading: boolean;
@@ -107,6 +108,7 @@ export function NotesEditorContent({
   onUpdateContent: (blockId: string, nextContent: JsonValue) => void;
   onEditorRef?: (blockId: string, editor: Editor | null) => void;
   onConvertBlockType?: (blockId: string, blockType: string, content: unknown) => void;
+  onSingleEditorChange?: (editor: Editor | null) => void;
 }) {
   const { data: allTags = [], isLoading: isLoadingTags } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
   const [blocksSettled, setBlocksSettled] = useState(false);
@@ -228,7 +230,12 @@ export function NotesEditorContent({
           ) : null}
 
           {useSingleEditor && editorContent.pageId ? (
-            <SingleBlockEditor key={editorContent.pageId} pageId={editorContent.pageId} />
+            <SingleBlockEditor
+              key={editorContent.pageId}
+              pageId={editorContent.pageId}
+              handlers={{ notePageTitles, onOpenPageReference, onPeekPageReference }}
+              onEditorChange={onSingleEditorChange}
+            />
           ) : (
           <div ref={blockTreeRefCallback} className={`col-span-2 sm:col-start-2 sm:col-span-2 pt-2 ${shouldAnimateEditorContent ? "animate-fade-slide-in" : ""}`}>
             <NotesBlockTree

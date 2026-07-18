@@ -182,6 +182,22 @@ export function NotesEditorMainSkeleton() {
   );
 }
 
+/** Just the block-tree portion — used as the single editor's own loading state
+ * (its header/properties are already rendered by the surrounding layout). */
+export function NotesEditorBodySkeleton() {
+  return (
+    <div className="space-y-1.5 rounded-2xl bg-muted/20 py-1 pt-2">
+      <EditorBlockRowSkeleton widthClassName="w-4/5" />
+      <EditorBlockRowSkeleton indent={1} widthClassName="w-3/4" />
+      <EditorBlockRowSkeleton indent={1} widthClassName="w-5/6" />
+      <EditorBlockRowSkeleton widthClassName="w-2/3" />
+      <EditorBlockRowSkeleton indent={2} widthClassName="w-3/5" />
+      <EditorBlockRowSkeleton widthClassName="w-3/4" />
+      <EditorBlockRowSkeleton indent={1} widthClassName="w-2/3" />
+    </div>
+  );
+}
+
 export function NotesDetailsRailSkeleton({ showHeader = true }: NotesDetailsRailSkeletonProps) {
   return (
     <div className="space-y-4 py-1">

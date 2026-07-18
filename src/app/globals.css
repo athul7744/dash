@@ -310,30 +310,25 @@ body[data-display-font="bricolage"] {
   cursor: pointer;
 }
 
-.note-ref-token-tag {
-  background: color-mix(in oklab, var(--color-chart-1) 36%, transparent);
-  color: color-mix(in oklab, var(--color-foreground) 82%, var(--color-chart-1));
-}
-
 .dark .note-ref-token-page {
   background: color-mix(in oklab, var(--color-primary) 24%, transparent);
-}
-
-.dark .note-ref-token-tag {
-  background: color-mix(in oklab, var(--color-chart-1) 22%, transparent);
 }
 
 .note-date-token {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  border-radius: 0.375rem;
-  padding: 0.06rem 0.4rem;
-  font-size: 0.8em;
+  gap: 0.25em;
+  /* Low-emphasis chip (Notion/Linear style): small radius, muted low-chroma
+     slate — legible, calm, and distinct from the vivid indigo [[page refs]]
+     without the loud yellow. */
+  border-radius: 0.35em;
+  padding: 0.02em 0.34em;
+  font-size: 0.9em;
   font-weight: 500;
-  letter-spacing: 0.01em;
-  background: color-mix(in oklab, var(--color-chart-4) 14%, transparent);
-  color: color-mix(in oklab, var(--color-chart-4) 75%, var(--color-foreground));
+  white-space: nowrap;
+  background: color-mix(in oklab, var(--color-slate-500) 12%, transparent);
+  color: color-mix(in oklab, var(--color-slate-500) 48%, var(--color-foreground));
+  border: 1px solid color-mix(in oklab, var(--color-slate-500) 20%, transparent);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
@@ -354,7 +349,14 @@ body[data-display-font="bricolage"] {
 }
 
 .dark .note-date-token {
-  background: color-mix(in oklab, var(--color-chart-4) 22%, transparent);
+  background: color-mix(in oklab, var(--color-slate-400) 14%, transparent);
+  color: color-mix(in oklab, var(--color-slate-300) 72%, var(--color-foreground));
+  border-color: color-mix(in oklab, var(--color-slate-400) 26%, transparent);
+}
+
+/* Hide the `{`/`}` delimiters that mark a date token in the text. */
+.note-date-token-edge {
+  display: none;
 }
 
 .ProseMirror h1,

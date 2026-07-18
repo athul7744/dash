@@ -12,15 +12,39 @@ import type { RefObject } from "react";
 import type { Editor } from "@tiptap/core";
 
 import {
+  createDateDocument,
   getFilteredSlashCommands,
   getGroupedSlashCommands,
   type SlashCommand,
 } from "@/components/notes/NoteBlockEditorSlash";
-import { applySlashCommand, getSlashContext } from "@/lib/notes/editor/slash-single";
+import { applySlashCommand, getSlashContext, type SlashContext } from "@/lib/notes/editor/slash-single";
+import { Calendar } from "@/components/ui/calendar";
 
 // left/top are container-relative (for absolute positioning); viewportBottom is
 // the caret's viewport y, used only to decide whether to flip above.
 type Caret = { left: number; top: number; bottom: number; viewportBottom: number };
+
+// Soft per-section accent for the menu icon (the app is otherwise monochrome).
+const SECTION_ICON_ACCENT: Record<string, string> = {
+  basic: "text-foreground/55",
+  structure: "text-sky-500 dark:text-sky-400",
+  media: "text-teal-500 dark:text-teal-400",
+  dates: "text-slate-500 dark:text-slate-400",
+  advanced: "text-violet-500 dark:text-violet-400",
+};
+
+// Swatch fill per block-color command — the saturated hues from the
+// `.block-color-*` rules in globals.css (readable on both themes).
+const COLOR_SWATCH: Record<string, string> = {
+  gray: "oklch(0.75 0.02 250)",
+  brown: "oklch(0.65 0.08 50)",
+  orange: "oklch(0.78 0.12 55)",
+  yellow: "oklch(0.85 0.12 90)",
+  green: "oklch(0.72 0.12 155)",
+  blue: "oklch(0.68 0.10 240)",
+  purple: "oklch(0.68 0.12 295)",
+  pink: "oklch(0.72 0.12 345)",
+};
 
 export function SlashMenuLayer({
   editor,
@@ -33,6 +57,10 @@ export function SlashMenuLayer({
   const [caret, setCaret] = useState<Caret | null>(null);
   const [index, setIndex] = useState(0);
   const [placement, setPlacement] = useState<"below" | "above">("below");
+  // Open when the user chooses "Pick a date…": a calendar anchored at the caret
+  // that inserts the chosen date into the block the slash was typed in.
+  const [datePicker, setDatePicker] = useState<{ command: SlashCommand; ctx: SlashContext; left: number; top: number } | null>(null);
+  const datePickerRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const indexRef = useRef(0);
@@ -91,11 +119,62 @@ export function SlashMenuLayer({
     (command: SlashCommand | undefined) => {
       if (!editor || !command) return;
       const ctx = getSlashContext(editor);
-      if (ctx) applySlashCommand(editor, command, ctx);
+      if (!ctx) {
+        close();
+        return;
+      }
+      // "Pick a date…" opens a calendar instead of inserting immediately. The
+      // slash text stays in the block (doc unchanged) so `ctx` is still valid
+      // when a date is chosen.
+      if (command.custom === "date-picker") {
+        setDatePicker({ command, ctx, left: caret?.left ?? 0, top: caret?.bottom ?? 0 });
+        close();
+        return;
+      }
+      applySlashCommand(editor, command, ctx);
       close();
     },
-    [editor, close],
+    [editor, close, caret],
   );
+
+  const pickDate = useCallback(
+    (date: Date | undefined) => {
+      if (editor && datePicker && date) {
+        applySlashCommand(
+          editor,
+          { ...datePicker.command, createContent: () => createDateDocument(date) },
+          datePicker.ctx,
+        );
+      }
+      setDatePicker(null);
+      editor?.commands.focus();
+    },
+    [editor, datePicker],
+  );
+
+  // Dismiss the date picker on Escape or an outside click.
+  useEffect(() => {
+    if (!datePicker) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        setDatePicker(null);
+        editor?.commands.focus();
+      }
+    };
+    const onDown = (event: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
+        setDatePicker(null);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("mousedown", onDown, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("mousedown", onDown, true);
+    };
+  }, [datePicker, editor]);
 
   // Intercept nav keys before ProseMirror (capture phase).
   useEffect(() => {
@@ -134,6 +213,19 @@ export function SlashMenuLayer({
     setPlacement(caret.viewportBottom + height + 8 > window.innerHeight ? "above" : "below");
   }, [caret, query]);
 
+  if (datePicker) {
+    return (
+      <div
+        ref={datePickerRef}
+        data-slash-date-picker="true"
+        className="absolute z-50 rounded-xl border border-border/60 bg-popover/95 p-1 text-popover-foreground shadow-lg backdrop-blur-sm"
+        style={{ left: datePicker.left, top: datePicker.top + 6 }}
+      >
+        <Calendar mode="single" autoFocus onSelect={pickDate} />
+      </div>
+    );
+  }
+
   if (query === null || !caret) return null;
 
   const filtered = getFilteredSlashCommands(query);
@@ -168,6 +260,7 @@ export function SlashMenuLayer({
                 <button
                   key={command.id}
                   type="button"
+                  title={command.description}
                   ref={(element) => {
                     itemRefs.current[itemIndex] = element;
                   }}
@@ -178,7 +271,18 @@ export function SlashMenuLayer({
                     active ? "bg-muted/80 text-foreground" : "text-foreground/95 hover:bg-muted/50"
                   }`}
                 >
-                  <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  {command.section === "color" ? (
+                    command.id === "color-none" ? (
+                      <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-dashed border-muted-foreground/60" />
+                    ) : (
+                      <span
+                        className="h-3.5 w-3.5 shrink-0 rounded-full border border-black/10 dark:border-white/20"
+                        style={{ backgroundColor: COLOR_SWATCH[command.id.replace("color-", "")] }}
+                      />
+                    )
+                  ) : (
+                    <Icon className={`h-3.5 w-3.5 shrink-0 ${SECTION_ICON_ACCENT[command.section] ?? "text-muted-foreground"}`} />
+                  )}
                   <span className="min-w-0 flex-1 truncate font-medium">{command.title}</span>
                   <span className="shrink-0 text-[10px] tracking-[0.12em] text-muted-foreground">{command.shortcut}</span>
                 </button>

@@ -1,5 +1,5 @@
 import type { Editor, JSONContent } from "@tiptap/core";
-import { Calendar, Code2, Database, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Paintbrush, Quote, Sigma, Table2, TextCursorInput, type LucideIcon } from "lucide-react";
+import { Calendar, CalendarDays, CalendarPlus, Code2, Database, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Minus, Paintbrush, Quote, Sigma, Table2, TextCursorInput, Type, type LucideIcon } from "lucide-react";
 
 import { formatDateToken, getRelativeDate } from "@/lib/notes/date-tokens";
 import { encodeQueryConfig } from "@/lib/notes/query-block-content";
@@ -18,6 +18,9 @@ export type SlashCommand = {
   execute?: (editor: Editor) => void;
   /** If set, the block should be created with this type instead of "text" */
   blockType?: string;
+  /** Marks a command handled specially by the menu UI (e.g. opening a picker)
+   *  instead of inserting `createContent` directly. */
+  custom?: "date-picker";
 };
 
 function createParagraphNode(text: string): JSONContent {
@@ -137,7 +140,7 @@ export const slashCommands: SlashCommand[] = [
     title: "Text",
     description: "Turn this block into plain text.",
     shortcut: "/text",
-    icon: TextCursorInput,
+    icon: Type,
     keywords: ["paragraph", "text", "normal"],
     createContent: () => emptyDocument(),
   },
@@ -234,10 +237,10 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "horizontal-rule",
     section: "structure",
-    title: "Horizontal Rule",
-    description: "Insert a divider block.",
+    title: "Divider",
+    description: "Insert a divider line.",
     shortcut: "/divider",
-    icon: TextCursorInput,
+    icon: Minus,
     keywords: ["divider", "rule", "horizontal", "separator", "hr"],
     createContent: () => emptyHorizontalRuleDocument(),
   },
@@ -273,7 +276,7 @@ export const slashCommands: SlashCommand[] = [
   },
 ];
 
-function createDateDocument(date: Date): JSONContent {
+export function createDateDocument(date: Date): JSONContent {
   return {
     type: "doc",
     content: [{ type: "paragraph", content: [{ type: "text", text: formatDateToken(date) }] }],
@@ -294,12 +297,25 @@ export const querySlashCommand: SlashCommand = {
 
 export const dateSlashCommands: SlashCommand[] = [
   {
+    id: "date-pick",
+    section: "dates",
+    title: "Pick a date…",
+    description: "Choose any date from a calendar.",
+    shortcut: "/date",
+    icon: CalendarPlus,
+    keywords: ["date", "pick", "choose", "calendar", "custom", "any", "specific"],
+    custom: "date-picker",
+    // Fallback content (today) if inserted without the picker; the menu UI
+    // normally intercepts this command and inserts the chosen date instead.
+    createContent: () => createDateDocument(getRelativeDate("today")),
+  },
+  {
     id: "date-today",
     section: "dates",
     title: "Today",
     description: "Insert today's date.",
     shortcut: "/today",
-    icon: Calendar,
+    icon: CalendarDays,
     keywords: ["date", "today", "now"],
     createContent: () => createDateDocument(getRelativeDate("today")),
   },

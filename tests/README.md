@@ -14,23 +14,14 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/notes/markdown-clipboard.test.ts`
   Verifies mdast-backed markdown clipboard parsing and block conversion for pasted note content, including nested children, task list markers, blockquote and heading routing, and single-block replacement decisions.
 
-- `tests/notes/block-editor-keyboard.test.ts`
-  Covers the notes editor keyboard decision layer for Enter, Shift+Enter, Tab, arrow navigation, and Backspace behavior under the plain-text-first editing model.
-
-- `tests/notes/block-editor-structure.test.ts`
-  Covers structural block outcomes for delete focus, merge planning, child reparenting, and indent/outdent placement.
-
 - `tests/notes/notes-content.test.ts`
-  Covers note document normalization, legacy text fallback, serialization, plain-text extraction, merge edge cases, and math node serialization (inline and block) for note content.
+  Covers note document normalization, legacy text fallback, serialization, plain-text extraction, merge edge cases, and markdown serialization (inline/block math, and single-block `taskLine` checkboxes).
 
 - `tests/notes/notes-tree.test.ts`
-  Covers nested block tree construction plus visible-order neighbor lookups used by block navigation and merge behavior.
+  Covers nested block tree construction plus visible-order neighbor lookups used by block ordering.
 
 - `tests/notes/math-clipboard.test.ts`
   Covers LaTeX math token protection and restoration during markdown paste flows, including inline/block detection, HTML escaping, backslash unescaping, and roundtrip correctness.
-
-- `tests/notes/note-block-store.test.ts`
-  Covers the NoteBlockStore including hydration, block CRUD, move/indent/outdent, split/merge, content commit, undo/redo for all command types, ordered blocks caching, reconcile fast-path, query block setContentDirect, net-zero flush skipping, failed-flush delta retention/retry, and store registry lifecycle.
 
 - `tests/notes/note-page-utils.test.ts`
   Covers note page metadata helpers for stored tag id parsing and shared tag resolution from the shared tags table.
@@ -38,20 +29,11 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/notes/block-context-menu-options.test.ts`
   Covers context menu action generation for block types, including default actions and fallback behavior.
 
-- `tests/notes/block-line-selection.test.ts`
-  Covers block selection ranges, clipboard serialization with preserved nesting, and markdown fallback for multi-block clipboard operations.
-
-- `tests/notes/note-block-editor.dom.test.ts`
-  Runs jsdom-backed integration coverage for NoteBlockEditor DOM interactions including block splitting, navigation, backspace handling, selection, code blocks, and table operations.
-
-- `tests/notes/notes-block-tree.dom.test.ts`
-  Runs jsdom-backed integration coverage for NotesBlockTree component including paste routing, block deletion, Alt+arrow moving, selection handling, and context menu block operations.
-
-- `tests/notes/note-page-shell.dom.test.ts`
-  Runs jsdom-backed integration coverage for NotePageShell component including skeleton rendering, isReady handle state, backlink counts, linked references, and block state reflection.
+- `tests/notes/note-page-shell.dom.test.tsx`
+  Runs jsdom-backed integration coverage for the (store-free) NotePageShell: with mocked data hooks it derives rank+nesting-ordered blocks, builds the heading outline, mounts the editor, and shows the skeleton only while loading.
 
 - `tests/notes/slash-commands.test.ts`
-  Covers slash command filtering, grouping, and query matching logic used by the block editor command palette.
+  Covers slash command filtering, grouping, and query matching logic used by the editor's slash-command palette.
 
 - `tests/notes/date-tokens.test.ts`
   Covers date token formatting and relative date resolution for inline date slash commands.
@@ -71,9 +53,6 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/notes/use-optimistic-value.dom.test.ts`
   Covers the useOptimisticValue hook: immediate optimistic display, clearing once upstream catches up, surviving reference-only upstream changes (no flicker), and adopting genuine upstream changes.
 
-- `tests/notes/use-note-block-store-actions.dom.test.tsx`
-  Covers the React binding hook between NoteBlockStore and the component tree (block mutation callbacks and store subscription).
-
 - `tests/notes/reconcile-note-edges.test.ts`
   Covers diff-based, deterministic note edge reconciliation.
 
@@ -82,6 +61,20 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 
 - `tests/notes/prune-journal-pages.test.ts`
   Covers `pruneEmptyJournalPages`: deleting empty journal pages (single blank block or zero blocks), keeping pages with text or multiple blocks, never deleting the excepted (open) page, and pruning only the empty pages in a mixed set.
+
+## Single-Document Editor Suites (`tests/notes/editor/`)
+
+- `block-document.test.ts` — assemble rows → one doc / decompose doc → rows round-trips (ids, order, nesting), query round-trip, and legacy `taskList` → task-block migration (flat + nested).
+- `block-schema.dom.test.ts` / `extensions.dom.test.ts` — the `block` schema + regrouped content nodes form a valid schema and round-trip content in a live editor.
+- `block-id-plugin.test.ts` — stable block-id assignment + duplicate-id dedup on split/paste.
+- `block-diff.test.ts` — churn-minimal rank/write diff (net-zero when nothing changed).
+- `block-persister.test.ts` / `block-persister.dom.test.ts` — hydrate/flush/decompose + remote reconcile.
+- `block-commands.dom.test.ts` — native Enter/Backspace/indent/outdent/move across every block type (paragraph, heading, task, quote, code, divider, multi-item), incl. undo.
+- `block-normalize.dom.test.ts` — the one-content-node-per-block invariant (splits accidental "frankenblocks").
+- `slash-single.dom.test.ts` — slash detection + apply (heading/quote/color/query/task conversions).
+- `paste.dom.test.ts` — external multi-paragraph paste becomes well-formed blocks; copied blocks get fresh ids.
+- `reference-resolver.dom.test.ts` — `getResolvedPageReferenceAtPosition` resolves the `[[title]]` under the cursor.
+- `read-only-block-renderer.dom.test.tsx` — `ReadOnlyBlockRenderer` renders heading/paragraph/task blocks non-editably through the single-doc schema.
 
 ## Current Shared Suites
 
@@ -125,6 +118,6 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `bun run test:dom` — jsdom-backed integration run. Uses `tests/setup/dom.ts` (via `setupFiles`) to stub `window.matchMedia` and set `MotionGlobalConfig.skipAnimations` so Motion components mount and `AnimatePresence` exits resolve synchronously under jsdom.
 - `bun run test:watch` — watch mode while developing.
 - `bunx vitest run tests/notes` — focused node-based notes test run when working on notes behavior.
-- `bunx vitest run --config vitest.dom.config.ts tests/notes/notes-block-tree.dom.test.ts` — focused DOM integration run for block tree behavior.
+- `bunx vitest run --config vitest.dom.config.ts tests/notes/editor/block-commands.dom.test.ts` — focused DOM integration run for editor block-command behavior.
 
 Keep new tests close to the app area they protect, and move reusable builders or assertions into `tests/shared/` once they are used by more than one suite.

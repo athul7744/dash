@@ -151,10 +151,9 @@ Important convention:
 
 ### Notes-specific components
 
-- `src/components/notes/NoteBlockEditor.tsx`
-- `src/components/notes/NoteBlockEditorSlash.ts`
-- `src/components/notes/NoteBlockEditorMath.ts`
-- `src/components/notes/NotesBlockTree.tsx`
+- `src/components/notes/editor/*` — the single-document editor: `SingleBlockEditor` mount, the plain-DOM block NodeView (`blockNodeViewDom.ts`), the `taskLine`/`queryBlock` nodes, and the shared React overlays (`BlockMenuLayer`, `SlashMenuLayer`, `TableToolbarLayer`)
+- `src/components/notes/NoteBlockEditorExtensions.ts` / `NoteBlockEditorMath.ts` / `NoteBlockEditorCode.ts` / `NoteBlockEditorColor.ts` / `NoteBlockEditorSlash.ts` — shared Tiptap nodes, marks, and extensions reused by the editor schema
+- `src/components/notes/ReadOnlyBlockRenderer.tsx` — non-editable render of a page's blocks (peek/backlink previews) through the same schema
 - `src/components/notes/BlockContextMenu.tsx`
 - `src/components/notes/block-context-menu-options.ts`
 - `src/components/notes/ManagePropertiesDialog.tsx`
@@ -166,7 +165,7 @@ Important convention:
 - `src/lib/shared/apps.ts` — app registry used by header/switcher/FAB shell
 - `src/lib/shared/auth.ts` — current-user lookup with session caching
 - `src/lib/shared/share.ts` — parsing incoming share payloads and title generation
-- `src/lib/shared/entity-store.ts` — generic base class for in-memory stores with dirty tracking, debounced persistence, and undo/redo
+- `src/lib/shared/entity-store.ts` — generic in-memory store base (dirty tracking, debounced persistence, undo/redo). Currently unused — it backed the removed notes block store; a cleanup candidate.
 - `src/lib/shared/debounced-update.ts` — debounced local writes and execute batching
 - `src/lib/shared/logger.ts` — runtime logging abstraction
 - `src/lib/shared/ranked-order.ts` — reusable LexoRank ordering helpers that can be shared across app groups
@@ -192,12 +191,11 @@ Important convention:
 - `src/hooks/use-hero-action.ts` — gathers live signals (tasks, recent tracking, mood, journal) and returns the chosen hero action + most-relevant task
 - `src/lib/notes/notes-content.ts` — note document normalization, serialization (including math nodes), and plain-text extraction
 - `src/lib/notes/notes-tree.ts` — tree building and visible block ordering helpers for note blocks
-- `src/lib/notes/note-block-store.ts` — per-page block store with cached persistence, reconcile fast-path, undo/redo, and query block content support
+- `src/lib/notes/editor/*` — the single-document editor's non-React core: `block-schema` (the `block` wrapper node + `blockContent` grouping), `block-document` (assemble rows → one doc / decompose doc → rows, incl. legacy `taskList` → task-block migration), `block-diff` (churn-minimal rank/write diff), `block-persister` (debounced save + remote reconcile), `block-commands` (native split/merge/indent/outdent), `block-id-plugin` (stable block ids), `block-normalize` (one-content-node-per-block invariant), `slash-single` (slash detect/apply), and `extensions` (the assembled Tiptap extension list)
 - `src/lib/notes/query-block-content.ts` — encode/decode codec between the query UI's `QueryBlockConfig` and the stored note document (config lives in a `queryBlock` node's attrs)
 - `src/lib/notes/notes.ts` — note page CRUD, metadata writes, attachment upserts, edge reconciliation, and system-page helpers (`ensureSystemPage`, `pruneEmptyJournalPages`)
 - `src/lib/notes/system-pages.ts` — deterministic ids for "system pages": notes pages tagged with `properties.kind` (e.g. `journal`) and located by `uuidv5(kind:userId:key)`, so features can reuse the notes store while staying hidden from `/notes`
 - `src/lib/notes/math-clipboard.ts` — math token protection/restoration for clipboard paste flows
-- `src/lib/notes/block-editor-keyboard.ts` — keyboard decision logic for Enter, Backspace, Tab, and arrow keys in the block editor
 - `src/lib/notes/page-nav-stack.ts` — pure push/pop/popTo logic for the page breadcrumb stack
 - `src/lib/notes/properties.ts` — CRUD operations for property definitions and custom property value parsing
 
@@ -230,7 +228,7 @@ Responsibilities:
 - Supports custom page properties stored in `pages.properties.custom`, resolved against workspace-wide `property_definitions`.
 - Uses `ManagePropertiesDialog` for workspace-wide property definition CRUD (create, rename, delete, emoji icons, and select-option editing).
 - Preserves the shared header-first loading model used across the app.
-- Block state is managed by `NoteBlockStore` — an in-memory store with dirty tracking, debounced batched persistence, and undo/redo.
+- The page is edited as ONE ProseMirror/Tiptap document (`SingleBlockEditor`): each `blocks` row is a `block` node, so split/merge/indent/nesting/selection/undo are all native ProseMirror behavior (one undo timeline — Ctrl+Z and the toolbar buttons are identical). The block-row DB model is unchanged; a persister assembles rows → doc on load and decomposes doc → rows on save.
 
 Key modules:
 
@@ -238,51 +236,33 @@ Key modules:
   - Route-local overview, navigation, details, search, and supporting notes hooks.
   - Includes the notes editor header metadata row, which reuses the shared tag selector and tag pill strip.
 
-- `src/components/notes/NoteBlockEditor.tsx`
-  - Per-block Tiptap editor with markdown-style transforms, block key handling, local/external content reconciliation, a table contextual toolbar for focused-cell column and row actions, a code block toolbar with language selector and copy button, and math-aware copy/paste handling.
+- `src/components/notes/editor/SingleBlockEditor.tsx` + `useSingleBlockEditor.ts`
+  - Mounts one Tiptap editor for the whole page from the block rows, owns the persister lifecycle + remote reconcile, and routes the structural keys (Enter/Tab/Backspace) through `editorProps.handleKeyDown` so block-level behavior beats plugin keymaps. Also handles `[[page]]` reference click/hover.
 
-- `src/components/notes/NoteBlockEditorExtensions.ts`
-  - Custom Tiptap extensions: reference decorations, date auto-format, markdown link parsing, notes-specific horizontal rule and arrow replacement.
+- `src/components/notes/editor/blockNodeViewDom.ts`
+  - Plain-DOM NodeView for the `block` wrapper (a hover grip that opens the block menu). Plain DOM instead of a React NodeView per block keeps large pages fast; a single shared React `BlockMenuLayer` renders the actual menu.
 
-- `src/components/notes/NoteBlockEditorSlash.ts`
-  - Slash command definitions plus query, filtering, and grouping helpers used by the block editor. Includes a `/math` command for inserting display math blocks.
+- `src/components/notes/editor/BlockMenuLayer.tsx` / `SlashMenuLayer.tsx` / `TableToolbarLayer.tsx`
+  - One shared React overlay each (not per block): the grip's block menu (convert/color/move/delete), the caret-anchored slash-command menu, and the table add/delete row+column controls.
 
-- `src/components/notes/NoteBlockEditorMath.ts`
-  - Tiptap extensions for inline math (`$...$`) and block math (`$$...$$`). Provides atom nodes with KaTeX rendering, click-to-edit NodeViews, and input rules.
+- `src/components/notes/editor/TaskLineNode.ts` / `QueryBlockNode.tsx`
+  - `taskLine` is a single checkbox line — each checklist item is its OWN block (`blockType: "task"`), no `taskList` wrapper. `queryBlock` is an atom NodeView rendering the existing `QueryBlockView`.
 
-- `src/components/notes/NotesBlockTree.tsx`
-  - Nested visible block tree, block navigation wiring, sibling creation plumbing, block move controls (Alt+arrow), selection handling, and tree-line indentation from block to bullet.
+- `src/components/notes/NoteBlockEditorExtensions.ts` / `NoteBlockEditorMath.ts` / `NoteBlockEditorSlash.ts` / `NoteBlockEditorCode.ts` / `NoteBlockEditorColor.ts`
+  - Shared Tiptap building blocks reused by the single-document schema: reference decorations / date auto-format / markdown links / horizontal rule / arrow replacement; inline (`$...$`) and block (`$$...$$`) math with KaTeX NodeViews; the slash command catalog (+ filter/group helpers, including `/math` and `/todo`); the code block toolbar; and per-block background colors.
 
-- `src/lib/shared/entity-store.ts`
-  - Generic base class for in-memory entity stores with dirty tracking, debounced persistence, and undo/redo stack.
-
-- `src/lib/notes/note-block-store.ts`
-  - Per-page block store built on EntityStore. Manages block nodes, Tiptap editor refs, cached ordered blocks, content cache with reconcile fast-path, batched write transactions, full redo for all commands, and direct content updates for non-editor blocks (query blocks).
-  - All block content shares one shape — a normalized note document. Query blocks store their config inside a `queryBlock` node's attrs (via `src/lib/notes/query-block-content.ts`) rather than as a special opaque payload, so the store never special-cases query content.
-
-- `src/components/notes/page/useNoteBlockStoreActions.ts`
-  - React hook connecting NoteBlockStore to the component tree via `useSyncExternalStore`. Provides all block mutation callbacks (create, delete, split, merge, indent, outdent, move, content update, undo/redo).
-
-- `src/lib/notes/block-styling.ts`
-  - Block spacing metadata, per-heading-level accent color, divider styling, and tree-line color utilities.
-
-- `src/lib/notes/editor-serialization.ts`
-  - Markdown/HTML serialization, clipboard text detection, table/image parsing, and turndown configuration.
+- `src/lib/notes/editor/block-persister.ts`
+  - Debounced per-page persister: decomposes the doc to rows, diffs against the last-known set (churn-minimal ranks, net-zero writes, failure retention), reconciles per-block edges, and merges remote row changes back into the open doc with `addToHistory:false`. `flushAllBlockDocumentPersisters()` flushes on `beforeunload`.
+  - All block content shares one shape — a normalized note document. Query blocks store their config inside a `queryBlock` node's attrs (via `src/lib/notes/query-block-content.ts`), so nothing special-cases query content.
 
 - `src/lib/notes/editor-document-helpers.ts`
-  - Editor document manipulation: splitting, parsing, position resolution, and page reference query.
-
-- `src/lib/notes/editor-token-protection.ts`
-  - Token protection/restoration for note reference tokens during markdown conversion.
+  - `getResolvedPageReferenceAtPosition` — resolves the `[[title]]` under a cursor position (backs reference click/hover), plus related document helpers.
 
 - `src/lib/notes/property-helpers.ts`
   - Property definition config parsing, property resolution, and option badge styling.
 
-- `src/components/notes/NotesBlockTree.tsx`
-  - Nested visible block tree, block navigation wiring, sibling creation plumbing, block move controls (Alt+arrow), selection handling, and tree-line indentation from block to bullet.
-
 - `src/components/notes/BlockContextMenu.tsx`
-  - Block-level right-click context menu with actions for type conversion, move, indent/outdent, delete, and duplication.
+  - `BlockContextMenuContent` — the positioning-free block-menu button row (type conversion, move, indent/outdent, color, delete) rendered by `BlockMenuLayer`.
 
 - `src/components/notes/block-context-menu-options.ts`
   - Context menu option generation logic, providing block-type-aware action lists including block color.
@@ -304,10 +284,9 @@ Key modules:
 Additional notes editor behavior:
 
 - **Sticky headings** — heading blocks stick to the top of the scroll viewport for orientation in long documents.
-- **Block colors** — blocks can be assigned a background color via the context menu. Colors persist per-block.
+- **Block colors** — blocks can be assigned a background color via the block (grip) menu. Colors persist per-block.
 - **Date tokens** — slash commands (`/today`, `/tomorrow`, `/date`) insert styled inline date tokens.
-- **Focused bullet highlight** — the bullet dot highlights when a block's editor is focused.
-- **Tree-line coloring** — vertical indentation lines inherit the nearest heading's accent color.
+- **Hover grip** — a drag/menu handle appears in the left margin on hover; clicking it opens the block menu.
 - **Emoji icons** — pages and property definitions use a Fluent Emoji Flat picker for visual identity.
 
 Conventions:
@@ -316,8 +295,8 @@ Conventions:
 - Move reusable route-local UI and hooks into `src/components/notes/page/` before expanding the route file.
 - Keep editor-owned helpers alongside the editor when they are specific to note block behavior.
 - Attachments are owned by either a page or a block, never both.
-- Blocks are lazy-mounted via `IntersectionObserver` and settle via `onEditorCreate` callback, not MutationObserver.
-- Page navigation triggers an entrance animation; the skeleton/settled state resets on each page switch.
+- The whole page is one editor; there is no per-block mounting. Keep block chrome as plain DOM in the NodeView + one shared React overlay, not a React NodeView per block (that regressed perf at 100+ blocks).
+- Page navigation triggers an entrance animation; the skeleton shows until the editor's blocks load.
 
 ### Custom Page Properties
 
@@ -429,7 +408,7 @@ Important child components:
 
 - `src/components/tracker/WeeklyJournal.tsx`
   - Per-week journal rendered below the widgets in the Week view
-  - Each week maps to one lazily created notes "system page" (`kind: "journal"`, keyed by the Monday date via `systemPageId`), reusing the notes block editor (`useNoteBlocks` + `useNoteBlockStoreActions` + `NotesBlockTree`)
+  - Each week maps to one lazily created notes "system page" (`kind: "journal"`, keyed by the Monday date via `systemPageId`), reusing the single-document editor (`SingleBlockEditor`)
   - Stays mounted across weeks (user id fetched once); the inner editor is keyed by page id so it re-hydrates per week
   - Opportunistically calls `pruneEmptyJournalPages(currentPageId)` on week change to clean up untouched empty weeks; never deletes the open week's page (StrictMode-safe)
 
@@ -502,12 +481,11 @@ There are three common write patterns:
    - Used when rapid repeated edits should merge into one update
   - Important for task editing and notes page metadata updates
 
-3. Entity store persistence
-   - Implemented in `src/lib/shared/entity-store.ts` and `src/lib/notes/note-block-store.ts`
-   - Used for notes block persistence — dirty blocks are batched into a single write transaction after a debounce window
-   - The store owns the content cache and protects in-flight writes from being overwritten by stale reconcile events
-   - Before writing, current block state is compared against the DB so net-zero churn (e.g. edit + undo within the debounce window) writes nothing
-   - Pending create/delete deltas are cleared only after the write transaction commits, so a failed flush leaves them pending for a future retry instead of being dropped
+3. Single-document editor persistence
+   - Implemented in `src/lib/notes/editor/block-persister.ts` (+ `block-diff.ts`)
+   - The editor holds one ProseMirror doc; on each edit a debounced flush decomposes it to block rows and writes them in one transaction
+   - Before writing, the decomposed rows are diffed against the last-known set so net-zero churn (e.g. edit + undo within the debounce window) writes nothing, and sibling ranks are reused where possible to avoid rank churn
+   - A failed flush retains the pending writes for a future retry instead of dropping them; remote row changes for a not-locally-dirty page reconcile back into the open doc with `addToHistory:false`
 
 4. Debounced execute batching
   - Also implemented in `src/lib/shared/debounced-update.ts`
@@ -543,7 +521,7 @@ Animation is standardized on the [Motion](https://motion.dev) library (`motion/r
 
 **Reduced motion:** every primitive gates on `useReducedMotion()` and renders a static element when reduced motion is preferred. `globals.css` also has a global `@media (prefers-reduced-motion: reduce)` block that neutralizes all CSS animations/transitions, so both mechanisms are covered.
 
-**Where it's applied:** dashboard hero (scroll collapse + reveal), task list add/remove/complete (`AnimatePresence` on the tasks masonry + `TaskCard` exit — the DB delete is immediate and the card animates out as it unmounts), subtask and complete-toggle/mood micro-interactions, custom popover exits (`PagePeekPopover`, `DayPopover`, `BlockContextMenu`), the tracker view tabs (a `layoutId` underline + content crossfade), and skeleton→content fade-in. The Base UI / vaul / cmdk overlays keep their existing CSS `data-open`/`data-closed` enter/exit (converting them would fight the libraries' own mount control), and the notes overview↔editor swap keeps its purpose-built crossfade (an `AnimatePresence` there would remount the Tiptap editor).
+**Where it's applied:** dashboard hero (scroll collapse + reveal), task list add/remove/complete (`AnimatePresence` on the tasks masonry + `TaskCard` exit — the DB delete is immediate and the card animates out as it unmounts), subtask and complete-toggle/mood micro-interactions, custom popover exits (`PagePeekPopover`, `DayPopover`), the tracker view tabs (a `layoutId` underline + content crossfade), and skeleton→content fade-in. The Base UI / vaul / cmdk overlays keep their existing CSS `data-open`/`data-closed` enter/exit (converting them would fight the libraries' own mount control), and the notes overview↔editor swap keeps its purpose-built crossfade (an `AnimatePresence` there would remount the Tiptap editor).
 
 **Testing:** DOM tests set `MotionGlobalConfig.skipAnimations = true` and stub `window.matchMedia` in `tests/setup/dom.ts` (wired via `setupFiles` in `vitest.dom.config.ts`) so `AnimatePresence` exits resolve synchronously and `useReducedMotion()` works under jsdom.
 
@@ -588,7 +566,7 @@ If you are debugging behavior in this repo, start from the narrowest owning surf
 
 A few repo-specific patterns matter repeatedly:
 
-- Notes blocks use an in-memory store (`NoteBlockStore`) that owns local state and reconciles against PowerSync reactive queries.
+- Notes edit as one ProseMirror document (`SingleBlockEditor`); a debounced persister writes block rows and reconciles remote PowerSync changes back into the open doc.
 - Other views use optimistic local state on top of PowerSync query data.
 - Route loading uses real header chrome where possible and skeletonizes only the content below it.
 - Mobile dialogs launched from overflow menus are opened outside the dropdown subtree to avoid key input problems.
@@ -633,7 +611,7 @@ Feature entry points:
 
 - `src/app/tasks/page.tsx` + `src/components/tasks/`
 - `src/app/tracker/page.tsx` + `src/components/tracker/`
-- `src/app/notes/page.tsx` + `src/components/notes/page/` + `src/components/notes/NoteBlockEditor.tsx`
+- `src/app/notes/page.tsx` + `src/components/notes/page/` + `src/components/notes/editor/`
 
 ## When To Update This Document
 

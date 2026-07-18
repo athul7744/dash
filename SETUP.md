@@ -382,7 +382,7 @@ Keep feature structure aligned with the existing ownership split:
 
 - Tasks logic lives in `src/app/tasks/page.tsx`, `src/components/tasks/`, and `src/lib/tasks/`.
 - Tracker logic lives in `src/app/tracker/page.tsx`, `src/components/tracker/`, and `src/lib/tracker/`.
-- Notes route-local UI lives in `src/components/notes/page/`, while block editor behavior stays alongside `src/components/notes/NoteBlockEditor.tsx` and `src/components/notes/NoteBlockEditorSlash.ts`.
+- Notes route-local UI lives in `src/components/notes/page/`, while the single-document editor lives in `src/components/notes/editor/` (React) and `src/lib/notes/editor/` (schema, persistence, commands).
 
 For notes specifically, keep `src/app/notes/page.tsx` as the route orchestrator and move reusable route-local sections or hooks into `src/components/notes/page/` before expanding the route file.
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type RefObject } from "react";
-import { Files, LayoutGrid, Rows3, Search, Star, Waypoints, type LucideIcon } from "lucide-react";
+import { Files, LayoutGrid, Network, Rows3, Search, Star, Waypoints, type LucideIcon } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 
 import { FadeIn } from "@/components/motion/FadeIn";
@@ -69,6 +69,7 @@ export function NotesOverview({
   recentHasMore,
   onLoadMoreRecent,
   onOpenSearch,
+  onOpenGraph,
   onSelectPage,
   onToggleFavorite,
 }: {
@@ -80,6 +81,7 @@ export function NotesOverview({
   recentHasMore: boolean;
   onLoadMoreRecent: () => void;
   onOpenSearch: () => void;
+  onOpenGraph: () => void;
   onSelectPage: (pageId: string) => void;
   onToggleFavorite: (page: NormalizedNotePage) => void;
 }) {
@@ -107,7 +109,7 @@ export function NotesOverview({
             background: "linear-gradient(to bottom, var(--background) 0%, color-mix(in oklch, var(--background) 94%, transparent) 38%, transparent 100%)",
           }}
         />
-        <div className="relative flex justify-center">
+        <div className="relative flex items-center justify-center gap-2">
           <button
             ref={overviewSearchTriggerRef}
             type="button"
@@ -119,6 +121,16 @@ export function NotesOverview({
             <Search className="h-4 w-4 shrink-0" />
             <span className="min-w-0 flex-1 truncate">Search or create pages</span>
             <span className="hidden rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground sm:inline-flex">Search</span>
+          </button>
+          {/* Graph shortcut for mobile — desktop reaches it from the app header. */}
+          <button
+            type="button"
+            onClick={onOpenGraph}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card/95 text-muted-foreground shadow-[0_10px_30px_-24px_rgba(15,23,42,0.6)] transition-colors hover:border-border hover:text-violet-600 dark:hover:text-violet-400 sm:hidden"
+            aria-label="Open graph view"
+            title="Graph view"
+          >
+            <Network className="h-4 w-4" />
           </button>
         </div>
       </div>

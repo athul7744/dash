@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Clock, FileText, Files, Link2, Orbit, Paperclip } from "lucide-react";
+import { Clock, FileText, Files, Link2, Network, Orbit, Paperclip } from "lucide-react";
 
 import type { LinkedNoteReferenceRow, NoteAttachmentRow, NotePageRow } from "@/hooks/use-notes";
 
@@ -10,6 +10,7 @@ import { cn } from "@/lib/shared/utils";
 
 import { attachmentLabel, getPageDescription, parseProperties } from "./utils";
 import { DetailsRailCardSkeleton, DetailsSection, PageIcon } from "./ui";
+import { LocalGraphPanel } from "@/components/notes/graph/LocalGraphPanel";
 import type { NoteTag, OutlineEntry } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -222,6 +223,16 @@ export function NotesDetailsRail({
   const connectionsContent = (
     <div className="divide-y divide-border/20">
       <div className="pb-3">
+        <div className="mb-2 flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+          <Network className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+          Local graph
+        </div>
+        {selectedPage ? (
+          <LocalGraphPanel pageId={selectedPage.id} onNavigateToPage={onNavigateToPage} />
+        ) : null}
+      </div>
+
+      <div className="py-3">
         <DetailsSection
           title="Linked references"
           icon={Link2}

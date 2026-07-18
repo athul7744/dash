@@ -51,7 +51,6 @@ import { QueryBlock } from "@/components/notes/editor/QueryBlockNode";
 import { createBlockNodeView } from "@/components/notes/editor/blockNodeViewDom";
 
 import { NotesDocument, BlockNode, asBlockContent, BLOCK_CONTENT_GROUP } from "./block-schema";
-import { BlockKeymap } from "./block-keymap";
 import { BlockIdPlugin } from "./block-id-plugin";
 import { BlockNormalize } from "./block-normalize";
 
@@ -111,8 +110,8 @@ export function buildNoteEditorExtensions(): Extensions {
     Gapcursor,
     History,
 
-    // Single-document structural behavior.
-    BlockKeymap,
+    // Single-document structural behavior. (Enter/Tab/Backspace are handled in
+    // the editor's handleKeyDown so they run before plugin keymaps.)
     BlockIdPlugin,
     BlockNormalize,
   ];

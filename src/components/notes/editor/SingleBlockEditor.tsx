@@ -33,10 +33,12 @@ export function SingleBlockEditor({
   pageId,
   handlers,
   onEditorChange,
+  autoFocus = false,
 }: {
   pageId: string;
   handlers?: SingleBlockEditorHandlers;
   onEditorChange?: (editor: Editor | null) => void;
+  autoFocus?: boolean;
 }) {
   const { blocks, isLoading } = useNoteBlocks(pageId);
 
@@ -47,7 +49,7 @@ export function SingleBlockEditor({
       </div>
     );
   }
-  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} />;
+  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} />;
 }
 
 function SingleBlockEditorInner({
@@ -55,13 +57,15 @@ function SingleBlockEditorInner({
   blocks,
   handlers,
   onEditorChange,
+  autoFocus,
 }: {
   pageId: string;
   blocks: NoteBlockRow[];
   handlers?: SingleBlockEditorHandlers;
   onEditorChange?: (editor: Editor | null) => void;
+  autoFocus?: boolean;
 }) {
-  const editor = useSingleBlockEditor({ pageId, blocks, handlers });
+  const editor = useSingleBlockEditor({ pageId, blocks, handlers, autoFocus });
   const surfaceRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {

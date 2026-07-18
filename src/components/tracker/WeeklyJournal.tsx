@@ -4,9 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { addDays, format } from "date-fns";
 import { NotebookPen } from "lucide-react";
 
-import { NotesBlockTree } from "@/components/notes/NotesBlockTree";
-import { useNoteBlockStoreActions } from "@/components/notes/page/useNoteBlockStoreActions";
-import { useNoteBlocks, useNotePage } from "@/hooks/use-notes";
+import { SingleBlockEditor } from "@/components/notes/editor/SingleBlockEditor";
+import { useNotePage } from "@/hooks/use-notes";
 import { ensureSystemPage, pruneEmptyJournalPages } from "@/lib/notes/notes";
 import { systemPageId } from "@/lib/notes/system-pages";
 import { getCurrentUserId } from "@/lib/shared/auth";
@@ -17,48 +16,6 @@ function formatWeekLabel(weekStart: Date): string {
   const left = format(weekStart, "MMM d");
   const right = sameMonth ? format(weekEnd, "d, yyyy") : format(weekEnd, "MMM d, yyyy");
   return `${left} – ${right}`;
-}
-
-/** Renders the block editor for an existing journal page. */
-function JournalEditor({ pageId, autoFocus }: { pageId: string; autoFocus: boolean }) {
-  const { blocks } = useNoteBlocks(pageId);
-  const actions = useNoteBlockStoreActions({ pageId, selectedBlocks: blocks });
-  const autoFocusedRef = useRef(false);
-
-  // On first mount after lazy creation, drop the cursor into the starter block.
-  useEffect(() => {
-    if (!autoFocus || autoFocusedRef.current) return;
-    const block = actions.displayBlocks[0];
-    if (block) {
-      autoFocusedRef.current = true;
-      actions.setFocusTarget({ blockId: block.id, placement: "end" });
-    }
-  }, [autoFocus, actions]);
-
-  return (
-    <NotesBlockTree
-      blocks={actions.displayBlocks}
-      onCreateFirstBlock={actions.handleCreateRootBlock}
-      focusedBlockId={actions.focusTarget?.blockId ?? null}
-      focusPlacement={actions.focusTarget?.placement ?? "end"}
-      onFocusApplied={() => actions.setFocusTarget(null)}
-      onFocusBlock={(blockId, placement) => actions.setFocusTarget({ blockId, placement })}
-      notePageTitles={[]}
-      onCreateSibling={actions.handleCreateSiblingBlock}
-      onCreateEmptySibling={actions.handleCreateEmptySiblingBlock}
-      onCreateSiblings={actions.handleCreateSiblingBlocks}
-      onMergeWithPrevious={actions.handleMergeWithPreviousBlock}
-      onCommitContent={actions.handleCommitBlockContent}
-      onIndent={actions.handleIndentBlock}
-      onOutdent={actions.handleOutdentBlock}
-      onMoveSelectedBlockRange={actions.handleMoveSelectedBlockRange}
-      onDelete={actions.handleDeleteBlock}
-      onDeleteRange={actions.handleDeleteBlockRange}
-      onUpdateContent={actions.handleUpdateBlockContent}
-      onEditorRef={(blockId, editor) => actions.store.setEditorRef(blockId, editor)}
-      onConvertBlockType={actions.handleConvertBlockType}
-    />
-  );
 }
 
 /**
@@ -124,7 +81,7 @@ export function WeeklyJournal({ weekStart }: { weekStart: Date }) {
       </div>
 
       {page ? (
-        <JournalEditor key={pageId} pageId={pageId!} autoFocus={createdKey === weekKey} />
+        <SingleBlockEditor key={pageId} pageId={pageId!} autoFocus={createdKey === weekKey} />
       ) : (
         <button
           type="button"

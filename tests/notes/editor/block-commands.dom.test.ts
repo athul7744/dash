@@ -369,6 +369,43 @@ describe("block structural commands", () => {
     editor.destroy();
   });
 
+  it("removes an empty item from a multi-item task list on Backspace (no child/lift)", () => {
+    const editor = makeEditor([
+      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
+        content: serializeNoteDocument({ type: "doc", content: [{ type: "taskList", content: [
+          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "One" }] }] },
+          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph" }] },
+        ] }] }) },
+    ]);
+    // cursor into the empty second item
+    let last = -1;
+    editor.state.doc.descendants((node, p) => { if (node.type.name === "paragraph") last = p + 1; });
+    editor.commands.setTextSelection(last);
+    expect(run(editor, mergeBlockBackward)).toBe(true);
+    const blocks = decomposeDoc(editor.getJSON());
+    expect(blocks.length).toBe(1); // still one block, not nested/lifted
+    const list = JSON.parse(blocks[0].content).content[0];
+    expect(list.type).toBe("taskList");
+    expect(list.content.length).toBe(1); // empty item removed
+    editor.destroy();
+  });
+
+  it("merges a non-empty task item into the previous item on Backspace at start", () => {
+    const editor = makeEditor([
+      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
+        content: serializeNoteDocument({ type: "doc", content: [{ type: "taskList", content: [
+          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "One" }] }] },
+          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "Two" }] }] },
+        ] }] }) },
+    ]);
+    cursorInBlock(editor, "Two", 0); // start of the second item
+    expect(run(editor, mergeBlockBackward)).toBe(true);
+    const list = JSON.parse(decomposeDoc(editor.getJSON())[0].content).content[0];
+    expect(list.content.length).toBe(1); // two items merged into one
+    expect(list.content[0].content[0].content.map((n: { text: string }) => n.text).join("")).toBe("OneTwo");
+    editor.destroy();
+  });
+
   it("exits an empty single quote block to a paragraph on Enter", () => {
     const editor = makeEditor([
       { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",

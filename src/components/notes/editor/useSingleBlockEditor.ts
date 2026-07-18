@@ -28,6 +28,7 @@ import { assembleDoc, type BlockDocumentRow } from "@/lib/notes/editor/block-doc
 import { BlockDocumentPersister } from "@/lib/notes/editor/block-persister";
 import { buildNoteEditorExtensions } from "@/lib/notes/editor/extensions";
 import { STAMP_META } from "@/lib/notes/editor/block-id-plugin";
+import { splitBlock, indentBlock, outdentBlock, mergeBlockBackward } from "@/lib/notes/editor/block-commands";
 import { getResolvedPageReferenceAtPosition } from "@/lib/notes/editor-document-helpers";
 
 export type SingleBlockEditorHandlers = {
@@ -52,10 +53,12 @@ export function useSingleBlockEditor({
   pageId,
   blocks,
   handlers,
+  autoFocus = false,
 }: {
   pageId: string;
   blocks: NoteBlockRow[];
   handlers?: SingleBlockEditorHandlers;
+  autoFocus?: boolean;
 }): Editor | null {
   const rows = useMemo(() => blocks.map(toBlockDocumentRow), [blocks]);
 
@@ -103,7 +106,7 @@ export function useSingleBlockEditor({
 
   const editor = useEditor({
     immediatelyRender: false,
-    autofocus: false,
+    autofocus: autoFocus ? "end" : false,
     extensions: buildNoteEditorExtensions(),
     content: initialContent,
     editorProps: {
@@ -111,6 +114,19 @@ export function useSingleBlockEditor({
         // pl-7 keeps root-block grips (positioned in the left margin) within the
         // reading column instead of off the viewport edge.
         class: "outline-none focus:outline-none pl-7",
+      },
+      // Structural keys are handled here, in the view's direct props, which
+      // ProseMirror checks BEFORE any plugin keymap (base keymap, task-list /
+      // blockquote ListKeymap). That ordering is essential: block-level exits
+      // must beat the native list lift/joinBackward. Each command returns false
+      // when it doesn't apply, so the key then falls through to those plugins.
+      handleKeyDown(view, event) {
+        if (event.ctrlKey || event.metaKey || event.altKey) return false;
+        const dispatch = view.dispatch.bind(view);
+        if (event.key === "Enter" && !event.shiftKey) return splitBlock(view.state, dispatch);
+        if (event.key === "Tab") return (event.shiftKey ? outdentBlock : indentBlock)(view.state, dispatch);
+        if (event.key === "Backspace" && !event.shiftKey) return mergeBlockBackward(view.state, dispatch);
+        return false;
       },
       handleDOMEvents: {
         mousedown(view, event) {

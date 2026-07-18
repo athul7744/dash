@@ -119,25 +119,61 @@ function wrapperEnter(state: EditorState, dispatch: Dispatch | undefined, $from:
 }
 
 /**
- * Backspace at the start of a single-line task list / blockquote block: unwrap
- * it into a plain paragraph (keeping any text). Multi-item wrappers fall through
- * to native (merge within the list). This is what converts an empty/one-line
- * checkbox or quote back to normal text.
+ * Backspace at the start of a task list / blockquote line. Handles the cases
+ * the native list keymap gets wrong inside the block wrapper (it lifts the item
+ * into a child of the previous block):
+ *  - single-line wrapper → unwrap the block to a plain paragraph (keep text);
+ *  - empty item, not first → drop it, caret to the end of the previous item;
+ *  - empty first item of many → drop it, caret to the block/line above.
+ * Non-empty multi-item items fall through to native (join within the list).
  */
 function wrapperBackspace(state: EditorState, dispatch: Dispatch | undefined, $from: ResolvedPos, blockDepth: number): boolean {
   if ($from.parentOffset !== 0) return false;
   const info = wrapperInfoAt($from, blockDepth);
-  if (!info || !info.singleLine) return false;
+  if (!info) return false;
 
+  // Single-line task/quote block → unwrap to a paragraph.
+  if (info.singleLine) {
+    if (dispatch) {
+      const paragraph = state.schema.nodes.paragraph;
+      const tr = state.tr.replaceWith(
+        info.wrapperPos,
+        info.wrapperPos + info.wrapper.nodeSize,
+        paragraph.create(null, $from.parent.content),
+      );
+      tr.setSelection(TextSelection.near(tr.doc.resolve(info.wrapperPos + 1)));
+      dispatch(tr.scrollIntoView());
+    }
+    return true;
+  }
+
+  // Multi-item wrapper, cursor at the start of an item. Handle it here (never
+  // fall through) so the native list keymap can't lift the item into a child of
+  // the previous block. Scanning back from the item start lands on the previous
+  // item's line, or — for the first item — the line of the block above.
   if (dispatch) {
-    const paragraph = state.schema.nodes.paragraph;
-    const tr = state.tr.replaceWith(
-      info.wrapperPos,
-      info.wrapperPos + info.wrapper.nodeSize,
-      paragraph.create(null, $from.parent.content),
-    );
-    tr.setSelection(TextSelection.near(tr.doc.resolve(info.wrapperPos + 1)));
-    dispatch(tr.scrollIntoView());
+    const itemStart = $from.before(info.itemDepth);
+    const itemEnd = itemStart + info.item.nodeSize;
+    const $prev = previousLinePos(state.doc, itemStart);
+    // A line strictly above this item that we can merge text into.
+    const hasPrevLine = !!$prev && $prev.pos < itemStart && LINE_TYPES.has($prev.parent.type.name);
+    const empty = $from.parent.content.size === 0;
+
+    if (empty) {
+      // Drop the empty item; step the caret to the line above if there is one.
+      const tr = state.tr.delete(itemStart, itemEnd);
+      if (hasPrevLine) tr.setSelection(TextSelection.near(tr.doc.resolve($prev!.pos)));
+      dispatch(tr.scrollIntoView());
+    } else if (hasPrevLine) {
+      // Merge this item's text into the previous line, then drop the item.
+      const tail = state.doc.slice($from.start(), $from.end()).content;
+      const tr = state.tr.delete(itemStart, itemEnd);
+      tr.insert($prev!.pos, tail);
+      tr.setSelection(TextSelection.create(tr.doc, $prev!.pos));
+      dispatch(tr.scrollIntoView());
+    }
+    // else: non-empty item with nothing above (top of the document) → no-op,
+    // which is correct and avoids the native lift-into-child.
   }
   return true;
 }

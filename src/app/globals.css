@@ -372,6 +372,15 @@ body[data-display-font="bricolage"] {
   color: var(--note-body-ink);
 }
 
+/* Perf: the single-document editor keeps every block in the DOM. Let the
+   browser skip layout/paint for off-screen blocks. `contain-intrinsic-size`
+   reserves an estimated height so scrollbars stay stable; the `auto` keyword
+   lets the browser remember each block's last rendered size. */
+.ProseMirror > .note-block {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 2rem;
+}
+
 .ProseMirror p {
   color: var(--note-body-ink);
   line-height: 1.6;

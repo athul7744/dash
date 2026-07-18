@@ -76,7 +76,7 @@ describe("reconcileNoteBlockEdges", () => {
     expect(params).toEqual([expectedId, "block-1", "page-1", "user-1", "page_ref"]);
   });
 
-  it("removes duplicate/stale edges and only inserts missing desired edges", async () => {
+  it("removes duplicate page refs and legacy tag edges without inserting tags", async () => {
     edgeRows = [
       { id: "edge-keep", target_id: "page-1", type: "page_ref" },
       { id: "edge-dup", target_id: "page-1", type: "page_ref" },
@@ -84,18 +84,15 @@ describe("reconcileNoteBlockEdges", () => {
     ];
 
     const { reconcileNoteBlockEdges } = await import("@/lib/notes/notes");
+    // `#new` is no longer a reference token — inline tags were removed.
     await reconcileNoteBlockEdges("block-1", "[[Ref Page]] #new");
 
     const calls = notesExecuteMock.mock.calls as Array<[string, unknown[]]>;
 
-    expect(calls).toHaveLength(3);
-    expect(calls[0]).toEqual(["DELETE FROM edges WHERE id = ?", ["edge-dup"]]);
-    expect(calls[1]).toEqual(["DELETE FROM edges WHERE id = ?", ["edge-stale"]]);
-
-    const expectedTagId = uuidv5("block-1|tag:new|tag_ref", EDGE_ID_NAMESPACE);
-    expect(calls[2]).toEqual([
-      "INSERT INTO edges (id, source_block_id, target_id, user_id, type) VALUES (?, ?, ?, ?, ?)",
-      [expectedTagId, "block-1", "tag:new", "user-1", "tag_ref"],
-    ]);
+    // Only deletions: the duplicate page ref and the now-unsupported tag edge.
+    expect(calls).toHaveLength(2);
+    expect(calls.every(([sql]) => sql === "DELETE FROM edges WHERE id = ?")).toBe(true);
+    const deletedIds = calls.map(([, params]) => (params as string[])[0]);
+    expect(new Set(deletedIds)).toEqual(new Set(["edge-dup", "edge-stale"]));
   });
 });

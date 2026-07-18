@@ -17,10 +17,6 @@ export type LinkedNoteReferenceRow = {
   source_block_updated_at: string | null;
   source_page_properties: string | null;
 };
-export type NoteTagMentionRow = {
-  tag_name: string;
-  mention_count: number;
-};
 
 const EMPTY_PAGE_QUERY = "SELECT id, user_id, title, properties, created_at, updated_at FROM pages WHERE 1 = 0";
 const EMPTY_BLOCKS_QUERY = "SELECT id, user_id, page_id, parent_block_id, type, content, sort_rank, updated_at FROM blocks WHERE 1 = 0";
@@ -38,7 +34,6 @@ const EMPTY_LINKED_REFS_QUERY = [
   "JOIN pages p ON p.id = b.page_id",
   "WHERE 1 = 0",
 ].join(" ");
-const EMPTY_TAG_MENTIONS_QUERY = "SELECT '' AS tag_name, 0 AS mention_count WHERE 1 = 0";
 
 export function useNotePage(pageId?: string | null) {
   const query = pageId
@@ -191,28 +186,6 @@ export function useLinkedNoteReferences(pageId?: string | null) {
 
   return {
     references: data,
-    isLoading,
-  };
-}
-
-export function usePageTagMentions(pageId?: string | null) {
-  const query = pageId
-    ? [
-        "SELECT",
-        "  substr(e.target_id, 5) AS tag_name,",
-        "  COUNT(*) AS mention_count",
-        "FROM edges e",
-        "JOIN blocks b ON b.id = e.source_block_id",
-        "WHERE e.type = 'tag_ref' AND b.page_id = ?",
-        "GROUP BY e.target_id",
-        "ORDER BY mention_count DESC, tag_name ASC",
-      ].join(" ")
-    : EMPTY_TAG_MENTIONS_QUERY;
-  const args = pageId ? [pageId] : [];
-  const { data = [], isLoading } = useQuery<NoteTagMentionRow>(query, args);
-
-  return {
-    tags: data,
     isLoading,
   };
 }

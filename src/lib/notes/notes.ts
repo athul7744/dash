@@ -130,7 +130,6 @@ async function insertNoteBlocksImmediately(inputs: CreateBlockInput[]) {
 
 function parseReferenceTokens(text: string) {
   const pageTitles = new Set<string>();
-  const tags = new Set<string>();
 
   for (const match of text.matchAll(/\[\[([^\]]+)\]\]/g)) {
     const normalized = normalizeReferenceToken(match[1] ?? "");
@@ -139,16 +138,8 @@ function parseReferenceTokens(text: string) {
     }
   }
 
-  for (const match of text.matchAll(/(^|[\s(])#([a-z0-9][a-z0-9_/-]*)/gi)) {
-    const normalized = normalizeReferenceToken(match[2] ?? "");
-    if (normalized) {
-      tags.add(normalized);
-    }
-  }
-
   return {
     pageTitles: [...pageTitles],
-    tags: [...tags],
   };
 }
 
@@ -169,16 +160,10 @@ export async function reconcileNoteBlockEdges(blockId: string, content: JsonValu
     }
   }
 
-  const edges = [
-    ...references.pageTitles.flatMap((title) => {
-      const targetId = pageIdByTitle.get(title);
-      return targetId ? [{ targetId, type: "page_ref" }] : [];
-    }),
-    ...references.tags.map((tag) => ({
-      targetId: `tag:${tag}`,
-      type: "tag_ref",
-    })),
-  ];
+  const edges = references.pageTitles.flatMap((title) => {
+    const targetId = pageIdByTitle.get(title);
+    return targetId ? [{ targetId, type: "page_ref" }] : [];
+  });
 
   await replaceNoteEdges({
     sourceBlockId: blockId,

@@ -20,7 +20,6 @@ export function useNotesLayoutState() {
     outline: true,
     summary: true,
     references: true,
-    mentions: true,
     attachments: true,
   });
 

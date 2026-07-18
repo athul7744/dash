@@ -6,7 +6,14 @@ import { LexoRank } from "lexorank";
 import { Editor } from "@tiptap/core";
 import Text from "@tiptap/extension-text";
 import Paragraph from "@tiptap/extension-paragraph";
+import Heading from "@tiptap/extension-heading";
+import HorizontalRule from "@tiptap/extension-horizontal-rule";
+import CodeBlock from "@tiptap/extension-code-block";
+import Blockquote from "@tiptap/extension-blockquote";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
 import History from "@tiptap/extension-history";
+import { NodeSelection } from "@tiptap/pm/state";
 
 import { NotesDocument, BlockNode, asBlockContent } from "@/lib/notes/editor/block-schema";
 import { BlockIdPlugin } from "@/lib/notes/editor/block-id-plugin";
@@ -29,7 +36,7 @@ function makeEditor(rows: BlockDocumentRow[]): Editor {
   document.body.appendChild(element);
   return new Editor({
     element,
-    extensions: [NotesDocument, BlockNode, asBlockContent(Paragraph), Text, History, BlockIdPlugin],
+    extensions: [NotesDocument, BlockNode, asBlockContent(Paragraph), asBlockContent(Heading.configure({ levels: [1, 2, 3] })), asBlockContent(HorizontalRule), asBlockContent(CodeBlock), asBlockContent(Blockquote.extend({ content: "blockContent+" })), asBlockContent(TaskList), TaskItem.configure({ nested: true }), Text, History, BlockIdPlugin],
     content: assembleDoc(rows) as never,
   });
 }
@@ -45,6 +52,15 @@ function cursorInBlock(editor: Editor, text: string, offsetFromStart: number) {
     if (pos === -1 && node.isText && node.text === text) pos = p;
   });
   editor.commands.setTextSelection(pos + offsetFromStart);
+}
+
+/** Place the cursor inside the first paragraph in the doc (empty or not). */
+function cursorInFirstParagraph(editor: Editor) {
+  let pos = -1;
+  editor.state.doc.descendants((node, p) => {
+    if (pos === -1 && node.type.name === "paragraph") pos = p + 1;
+  });
+  editor.commands.setTextSelection(pos);
 }
 
 describe("block structural commands", () => {
@@ -159,6 +175,228 @@ describe("block structural commands", () => {
     expect(run(editor, moveBlockUp)).toBe(false);
     cursorInBlock(editor, "Two", 1);
     expect(run(editor, moveBlockDown)).toBe(false);
+    editor.destroy();
+  });
+
+  it("splits into a first-child block when the current block has children", () => {
+    const editor = makeEditor([row("b1", "Parent"), row("b2", "Child", { sort_rank: RANK_1 })]);
+    // Nest b2 under b1, then split at the end of b1's line.
+    cursorInBlock(editor, "Child", 1);
+    run(editor, indentBlock);
+    cursorInBlock(editor, "Parent", 6); // end of "Parent"
+    expect(run(editor, splitBlock)).toBe(true);
+
+    const blocks = decomposeDoc(editor.getJSON());
+    // New empty block is the FIRST child of b1 (right under the parent line).
+    const b1Children = blocks.filter((b) => b.parentId === "b1");
+    expect(b1Children.length).toBe(2);
+    expect(b1Children[0].blockId).not.toBe("b2"); // the fresh block comes first
+    editor.destroy();
+  });
+
+  it("keeps the heading when splitting mid-heading, drops it at end-of-heading", () => {
+    const headingRow = (id: string, text: string, over: Partial<BlockDocumentRow> = {}): BlockDocumentRow => ({
+      id, parent_block_id: null, sort_rank: RANK_0, type: "text",
+      content: serializeNoteDocument({ type: "doc", content: [{ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text }] }] }),
+      ...over,
+    });
+
+    // Mid-heading → both halves stay heading, preserving attrs (level).
+    const mid = makeEditor([headingRow("h1", "TitleTail")]);
+    cursorInBlock(mid, "TitleTail", 5);
+    run(mid, splitBlock);
+    const midBlocks = decomposeDoc(mid.getJSON());
+    expect(JSON.parse(midBlocks[0].content).content[0]).toMatchObject({ type: "heading", attrs: { level: 2 } });
+    expect(JSON.parse(midBlocks[1].content).content[0]).toMatchObject({ type: "heading", attrs: { level: 2 } });
+    mid.destroy();
+
+    // End-of-heading → new block is a paragraph.
+    const end = makeEditor([headingRow("h1", "Title")]);
+    cursorInBlock(end, "Title", 5);
+    run(end, splitBlock);
+    const endBlocks = decomposeDoc(end.getJSON());
+    expect(JSON.parse(endBlocks[0].content).content[0].type).toBe("heading");
+    expect(JSON.parse(endBlocks[1].content).content[0].type).toBe("paragraph");
+    end.destroy();
+  });
+
+  it("lifts children (no orphaning) when merging a parent block backward", () => {
+    // b1, then b2 with a nested child b3; Backspace at start of b2 merges b2's
+    // text into b1 and lifts b3 to b2's old position.
+    const editor = makeEditor([row("b1", "Alpha"), row("b2", "Beta", { sort_rank: RANK_1 }), row("b3", "Gamma", { sort_rank: LexoRank.middle().genNext().genNext().format() })]);
+    cursorInBlock(editor, "Gamma", 1);
+    run(editor, indentBlock); // nest b3 under b2
+    expect(decomposeDoc(editor.getJSON()).find((b) => b.blockId === "b3")!.parentId).toBe("b2");
+
+    cursorInBlock(editor, "Beta", 0);
+    expect(run(editor, mergeBlockBackward)).toBe(true);
+    const blocks = decomposeDoc(editor.getJSON());
+    expect(blocks.map((b) => b.blockId).sort()).toEqual(["b1", "b3"]); // b2 gone
+    expect(editor.getText()).toContain("AlphaBeta");
+    // b3 lifted to the root (not orphaned, not lost).
+    expect(blocks.find((b) => b.blockId === "b3")!.parentId).toBe(null);
+    editor.destroy();
+  });
+
+  it("Enter at the start of a non-empty line pushes an empty block above", () => {
+    const editor = makeEditor([row("b1", "Hello")]);
+    cursorInBlock(editor, "Hello", 0);
+    expect(run(editor, splitBlock)).toBe(true);
+    const blocks = decomposeDoc(editor.getJSON());
+    expect(blocks.length).toBe(2);
+    // b1 (with its text + id) is pushed down; a fresh empty block sits above it.
+    expect(blocks[1].blockId).toBe("b1");
+    expect(JSON.parse(blocks[0].content).content[0].content ?? []).toEqual([]);
+    editor.destroy();
+  });
+
+  it("resets an empty heading to a paragraph on Backspace", () => {
+    const editor = makeEditor([
+      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
+        content: serializeNoteDocument({ type: "doc", content: [{ type: "heading", attrs: { level: 2 }, content: [] }] }) },
+    ]);
+    editor.commands.setTextSelection(2); // inside the empty heading
+    expect(run(editor, mergeBlockBackward)).toBe(true);
+    expect(decomposeDoc(editor.getJSON())[0].content).toContain("paragraph");
+    editor.destroy();
+  });
+
+  it("deletes an empty block and lands the cursor above", () => {
+    const editor = makeEditor([row("b1", "Above"), row("b2", "", { sort_rank: RANK_1 })]);
+    // cursor into the empty b2 (position after b1's block).
+    let pos = -1;
+    editor.state.doc.descendants((node, p) => {
+      if (node.type.name === "block" && pos === -1) pos = p; // first block
+      return true;
+    });
+    // Put cursor in the empty second block explicitly.
+    editor.commands.setTextSelection(editor.state.doc.content.size - 2);
+    expect(run(editor, mergeBlockBackward)).toBe(true);
+    const blocks = decomposeDoc(editor.getJSON());
+    expect(blocks.length).toBe(1);
+    expect(blocks[0].blockId).toBe("b1");
+    editor.destroy();
+  });
+
+  it("Enter on a divider block inserts a new empty block after it", () => {
+    const editor = makeEditor([
+      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
+        content: serializeNoteDocument({ type: "doc", content: [{ type: "horizontalRule" }] }) },
+    ]);
+    // Select the hr node (position 1 is inside the block, at the hr).
+    editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, 1)));
+    expect(run(editor, splitBlock)).toBe(true);
+    const blocks = decomposeDoc(editor.getJSON());
+    expect(blocks.length).toBe(2);
+    expect(JSON.parse(blocks[0].content).content[0].type).toBe("horizontalRule");
+    expect(JSON.parse(blocks[1].content).content[0].type).toBe("paragraph");
+    editor.destroy();
+  });
+
+  it("does not merge a paragraph into a code block above (no frankenblock)", () => {
+    const editor = makeEditor([
+      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
+        content: serializeNoteDocument({ type: "doc", content: [{ type: "codeBlock", content: [{ type: "text", text: "code" }] }] }) },
+      row("b2", "text", { sort_rank: RANK_1 }),
+    ]);
+    cursorInBlock(editor, "text", 0);
+    expect(run(editor, mergeBlockBackward)).toBe(true);
+    const blocks = decomposeDoc(editor.getJSON());
+    expect(blocks.length).toBe(2); // both blocks intact — nothing fused
+    expect(JSON.parse(blocks[0].content).content[0].type).toBe("codeBlock");
+    // b1 still holds exactly one content node (no frankenblock).
+    expect(JSON.parse(blocks[0].content).content.length).toBe(1);
+    editor.destroy();
+  });
+
+  it("deletes a nested empty block whose previous sibling is a paragraph", () => {
+    const editor = makeEditor([
+      row("p", "Parent"),
+      row("a", "Above", { parent_block_id: "p", sort_rank: RANK_0 }),
+      row("b", "", { parent_block_id: "p", sort_rank: RANK_1 }),
+    ]);
+    cursorInBlock(editor, "Above", 0); // ensure "a" exists nested; then move into empty "b"
+    // Put the cursor in the empty nested block b.
+    let bPos = -1;
+    editor.state.doc.descendants((node, p) => {
+      if (node.type.name === "block" && node.attrs.blockId === "b") bPos = p + 2; // into its paragraph
+    });
+    editor.commands.setTextSelection(bPos);
+    expect(run(editor, mergeBlockBackward)).toBe(true);
+    const blocks = decomposeDoc(editor.getJSON());
+    expect(blocks.map((x) => x.blockId).sort()).toEqual(["a", "p"]); // b removed
+    expect(blocks.find((x) => x.blockId === "a")!.parentId).toBe("p"); // a stays nested
+    editor.destroy();
+  });
+
+  it("converts a single empty task block to a paragraph on Backspace", () => {
+    const editor = makeEditor([
+      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
+        content: serializeNoteDocument({ type: "doc", content: [{ type: "taskList", content: [{ type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph" }] }] }] }) },
+    ]);
+    cursorInFirstParagraph(editor);
+    expect(run(editor, mergeBlockBackward)).toBe(true);
+    expect(JSON.parse(decomposeDoc(editor.getJSON())[0].content).content[0].type).toBe("paragraph");
+    editor.destroy();
+  });
+
+  it("unwraps a single non-empty task block to a paragraph on Backspace at start, keeping text", () => {
+    const editor = makeEditor([
+      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
+        content: serializeNoteDocument({ type: "doc", content: [{ type: "taskList", content: [{ type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "Task" }] }] }] }] }) },
+    ]);
+    cursorInFirstParagraph(editor);
+    expect(run(editor, mergeBlockBackward)).toBe(true);
+    const first = JSON.parse(decomposeDoc(editor.getJSON())[0].content).content[0];
+    expect(first.type).toBe("paragraph");
+    expect(first.content[0].text).toBe("Task");
+    editor.destroy();
+  });
+
+  it("splits a non-empty quote line into a new line within the quote (no crash)", () => {
+    const editor = makeEditor([
+      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
+        content: serializeNoteDocument({ type: "doc", content: [{ type: "blockquote", content: [{ type: "paragraph", content: [{ type: "text", text: "QuoteLine" }] }] }] }) },
+    ]);
+    cursorInBlock(editor, "QuoteLine", 5); // mid-text
+    expect(run(editor, splitBlock)).toBe(true);
+    const blocks = decomposeDoc(editor.getJSON());
+    // Still one block; the blockquote now has two paragraph lines.
+    expect(blocks.length).toBe(1);
+    const quote = JSON.parse(blocks[0].content).content[0];
+    expect(quote.type).toBe("blockquote");
+    expect(quote.content.length).toBe(2);
+    editor.destroy();
+  });
+
+  it("exits an empty single quote block to a paragraph on Enter", () => {
+    const editor = makeEditor([
+      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
+        content: serializeNoteDocument({ type: "doc", content: [{ type: "blockquote", content: [{ type: "paragraph" }] }] }) },
+    ]);
+    cursorInFirstParagraph(editor);
+    expect(run(editor, splitBlock)).toBe(true);
+    expect(JSON.parse(decomposeDoc(editor.getJSON())[0].content).content[0].type).toBe("paragraph");
+    editor.destroy();
+  });
+
+  it("exits the empty last item of a multi-item task list into a new block", () => {
+    const editor = makeEditor([
+      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
+        content: serializeNoteDocument({ type: "doc", content: [{ type: "taskList", content: [
+          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "Done" }] }] },
+          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph" }] },
+        ] }] }) },
+    ]);
+    // cursor into the second (empty) task item
+    let last = -1;
+    editor.state.doc.descendants((node, p) => { if (node.type.name === "paragraph") last = p + 1; });
+    editor.commands.setTextSelection(last);
+    expect(run(editor, splitBlock)).toBe(true);
+    const blocks = decomposeDoc(editor.getJSON());
+    expect(blocks.length).toBe(2); // new empty text block after
+    expect(JSON.parse(blocks[0].content).content[0].content.length).toBe(1); // task list now has one item
+    expect(JSON.parse(blocks[1].content).content[0].type).toBe("paragraph");
     editor.destroy();
   });
 

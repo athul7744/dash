@@ -50,9 +50,10 @@ import { MathBlock, MathInline } from "@/components/notes/NoteBlockEditorMath";
 import { QueryBlock } from "@/components/notes/editor/QueryBlockNode";
 import { createBlockNodeView } from "@/components/notes/editor/blockNodeViewDom";
 
-import { NotesDocument, BlockNode, asBlockContent } from "./block-schema";
+import { NotesDocument, BlockNode, asBlockContent, BLOCK_CONTENT_GROUP } from "./block-schema";
 import { BlockKeymap } from "./block-keymap";
 import { BlockIdPlugin } from "./block-id-plugin";
+import { BlockNormalize } from "./block-normalize";
 
 export function buildNoteEditorExtensions(): Extensions {
   const lowlight = createLowlight(common);
@@ -75,7 +76,10 @@ export function buildNoteEditorExtensions(): Extensions {
     // Block-level content nodes — re-grouped so they only live inside a block.
     asBlockContent(Paragraph),
     asBlockContent(Heading.configure({ levels: [1, 2, 3, 4, 5] })),
-    asBlockContent(Blockquote),
+    // Containers whose default content targets the "block" group must instead
+    // hold `blockContent` — the group content nodes were regrouped into — or
+    // they hold no valid children and structural ops (canSplit) throw.
+    asBlockContent(Blockquote.extend({ content: `${BLOCK_CONTENT_GROUP}+` })),
     asBlockContent(CodeBlockWithToolbar.configure({ lowlight })),
     asBlockContent(Image),
     asBlockContent(NotesHorizontalRule),
@@ -93,8 +97,8 @@ export function buildNoteEditorExtensions(): Extensions {
     HardBreak,
     MathInline,
     TableRow,
-    TableHeader,
-    TableCell,
+    TableHeader.extend({ content: `${BLOCK_CONTENT_GROUP}+` }),
+    TableCell.extend({ content: `${BLOCK_CONTENT_GROUP}+` }),
     TaskItem.configure({ nested: true }),
 
     // Cross-cutting behavior.
@@ -110,5 +114,6 @@ export function buildNoteEditorExtensions(): Extensions {
     // Single-document structural behavior.
     BlockKeymap,
     BlockIdPlugin,
+    BlockNormalize,
   ];
 }

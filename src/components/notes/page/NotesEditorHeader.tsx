@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { ArrowLeft, Copy, Ellipsis, Files, Link2, Star, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowLeft, Copy, Ellipsis, Files, Keyboard, Link2, Star, Trash2 } from "lucide-react";
 
 import { TagPillStrip } from "@/components/tags/TagPillStrip";
 import { TagSelector } from "@/components/tags/TagSelector";
@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tag } from "@/lib/powersync/AppSchema";
 import { IconPicker } from "@/components/notes/IconPicker";
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
+import { MarkdownCheatsheetDialog } from "@/components/notes/MarkdownCheatsheetDialog";
 
 import { type NoteTag } from "./types";
 
@@ -65,6 +66,7 @@ export function NotesEditorHeader({
   onCopyDocument: () => void | Promise<void>;
   onOpenDeleteDialog: () => void;
 }) {
+  const [isCheatsheetOpen, setIsCheatsheetOpen] = useState(false);
   const mobileHeaderChromeButtonClass = "inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-[color,background-color,box-shadow] duration-200 hover:bg-accent/60 hover:text-foreground hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)]";
   const visibleTags = useMemo(() => {
     // When draft is empty but editor content has tags, use those (pre-hydration)
@@ -138,6 +140,10 @@ export function NotesEditorHeader({
                 <Copy className="h-4 w-4" />
                 Copy document
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsCheatsheetOpen(true)}>
+                <Keyboard className="h-4 w-4" />
+                Shortcuts
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={onOpenDeleteDialog}>
                 <Trash2 className="h-4 w-4" />
@@ -145,6 +151,7 @@ export function NotesEditorHeader({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <MarkdownCheatsheetDialog open={isCheatsheetOpen} onOpenChange={setIsCheatsheetOpen} />
         </div>
       </div>
 

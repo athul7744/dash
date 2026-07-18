@@ -1,7 +1,11 @@
-import { ArrowLeft, ChevronDown, ChevronUp, Copy, Ellipsis, Redo2, Star, Trash2, Undo2 } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { ArrowLeft, ChevronDown, ChevronUp, Copy, Ellipsis, Keyboard, Redo2, Star, Trash2, Undo2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MarkdownCheatsheetDialog } from "@/components/notes/MarkdownCheatsheetDialog";
 
 type TimestampInfo = { relative: string; absolute: string } | null;
 
@@ -43,6 +47,7 @@ export function NotesEditorChromeBar({
   onUndo,
   onRedo,
 }: NotesEditorChromeBarProps) {
+  const [isCheatsheetOpen, setIsCheatsheetOpen] = useState(false);
   return (
     <div data-notes-chrome-bar className="hidden h-9 items-center sm:flex">
       <div className="mx-auto grid w-full max-w-3xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-1 md:gap-x-2">
@@ -116,6 +121,15 @@ export function NotesEditorChromeBar({
                 <Copy className="h-4 w-4" />
                 Copy document
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  (document.activeElement as HTMLElement)?.blur?.();
+                  setIsCheatsheetOpen(true);
+                }}
+              >
+                <Keyboard className="h-4 w-4" />
+                Shortcuts
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"
@@ -131,6 +145,7 @@ export function NotesEditorChromeBar({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <MarkdownCheatsheetDialog open={isCheatsheetOpen} onOpenChange={setIsCheatsheetOpen} />
         </div>
       </div>
     </div>

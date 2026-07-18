@@ -9,12 +9,10 @@ import {
   useLinkedNoteReferences,
   useNotePageWithBlocks,
   usePageAttachments,
-  usePageTagMentions,
   type LinkedNoteReferenceRow,
   type NoteAttachmentRow,
   type NoteBlockRow,
   type NotePageRow,
-  type NoteTagMentionRow,
 } from "@/hooks/use-notes";
 import { usePropertyDefinitions } from "@/hooks/use-property-definitions";
 import { useSettledTimestamp } from "@/hooks/use-settled-timestamp";
@@ -32,6 +30,7 @@ import type { NormalizedNotePage, OutlineEntry } from "./types";
 export type NotePageShellProps = {
   pageId: string;
   notePageTitles: string[];
+  notePageEmojiByTitle?: Record<string, string | null>;
   notePageIdByTitle: Map<string, string>;
   onNavigateToPage: (pageId: string, title?: string) => void;
   onDeleteSuccess: () => void;
@@ -46,6 +45,7 @@ export type NotePageShellProps = {
 export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>(function NotePageShell({
   pageId,
   notePageTitles,
+  notePageEmojiByTitle = {},
   notePageIdByTitle,
   onNavigateToPage,
   onDeleteSuccess,
@@ -60,9 +60,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   const { references: linkedReferences, isLoading: isLoadingLinkedReferences } = useLinkedNoteReferences(pageId);
   const { isLoading: isLoadingPropertyDefs } = usePropertyDefinitions();
   const { data: availableTags = [] } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
-
-  // Lazy-loaded (not gating)
-  const { tags: pageTagMentions, isLoading: isLoadingTagMentions } = usePageTagMentions(pageId);
 
   // ─── Page-level derived state ──────────────────────────────────────────────
   const pageProperties = useMemo(
@@ -346,14 +343,12 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
 
   const shellHandle = useMemo<NotePageShellHandle>(() => ({
     linkedReferences,
-    pageTagMentions,
     attachments,
     pageOutline,
     summaryDraft,
     selectedTagIdsDraft,
     createdTimestamp,
     isLoadingLinkedReferences,
-    isLoadingTagMentions,
     isLoadingAttachments,
     stableUpdatedTimestamp,
     showAbsoluteUpdatedTime,
@@ -369,8 +364,8 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     canRedo: effectiveCanRedo,
     ...stableCallbacks,
   }), [
-    linkedReferences, pageTagMentions, attachments, pageOutline, summaryDraft, selectedTagIdsDraft,
-    createdTimestamp, isLoadingLinkedReferences, isLoadingTagMentions, isLoadingAttachments,
+    linkedReferences, attachments, pageOutline, summaryDraft, selectedTagIdsDraft,
+    createdTimestamp, isLoadingLinkedReferences, isLoadingAttachments,
     stableUpdatedTimestamp, showAbsoluteUpdatedTime, isDeletingPage, isDeleteDialogOpen, pageTitleDraft,
     activePageEmoji, pageProperties, page, displayBlocks, isReady, effectiveCanUndo, effectiveCanRedo, stableCallbacks,
   ]);
@@ -420,6 +415,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
       activePageEmoji={activePageEmoji}
       selectedTagIdsDraft={selectedTagIdsDraft}
       notePageTitles={notePageTitles}
+      notePageEmojiByTitle={notePageEmojiByTitle}
       selectedPageProperties={pageProperties}
       onBack={() => onNavigateToPage("__back__")}
       onTitleChange={(value) => {
@@ -447,7 +443,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
 
 export type NotePageShellHandle = {
   linkedReferences: LinkedNoteReferenceRow[];
-  pageTagMentions: NoteTagMentionRow[];
   attachments: NoteAttachmentRow[];
   pageOutline: OutlineEntry[];
   summaryDraft: string;
@@ -455,7 +450,6 @@ export type NotePageShellHandle = {
   selectedTagIdsDraft: string[];
   createdTimestamp: { relative: string; absolute: string; dateOnly: string } | null;
   isLoadingLinkedReferences: boolean;
-  isLoadingTagMentions: boolean;
   isLoadingAttachments: boolean;
   persistSelectedPageProperties: (summary: string, tagIds: string[]) => void;
   stableUpdatedTimestamp: { relative: string; absolute: string } | null;

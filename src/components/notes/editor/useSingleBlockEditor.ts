@@ -34,6 +34,7 @@ import { getResolvedPageReferenceAtPosition } from "@/lib/notes/editor-document-
 
 export type SingleBlockEditorHandlers = {
   notePageTitles: string[];
+  notePageEmojiByTitle?: Record<string, string | null>;
   onOpenPageReference?: (title: string) => void;
   onPeekPageReference?: (title: string, rect: DOMRect) => void;
 };

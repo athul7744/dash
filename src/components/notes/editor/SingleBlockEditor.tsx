@@ -25,6 +25,7 @@ import { useSingleBlockEditor, type SingleBlockEditorHandlers } from "./useSingl
 import { BlockMenuLayer } from "./BlockMenuLayer";
 import { TableToolbarLayer } from "./TableToolbarLayer";
 import { SlashMenuLayer } from "./SlashMenuLayer";
+import { RefMenuLayer } from "./RefMenuLayer";
 
 const SURFACE_CLASS = "notes-reading col-span-2 pt-2 sm:col-span-2 sm:col-start-2";
 
@@ -82,6 +83,12 @@ function SingleBlockEditorInner({
       <BlockMenuLayer editor={editor} />
       <TableToolbarLayer editor={editor} containerRef={surfaceRef} />
       <SlashMenuLayer editor={editor} containerRef={surfaceRef} />
+      <RefMenuLayer
+        editor={editor}
+        containerRef={surfaceRef}
+        pageTitles={handlers?.notePageTitles ?? []}
+        emojiByTitle={handlers?.notePageEmojiByTitle}
+      />
     </div>
   );
 }

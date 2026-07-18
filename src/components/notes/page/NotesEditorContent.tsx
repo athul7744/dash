@@ -22,6 +22,7 @@ export function NotesEditorContent({
   activePageEmoji,
   selectedTagIdsDraft,
   notePageTitles,
+  notePageEmojiByTitle,
   selectedPageProperties,
   onBack,
   onTitleChange,
@@ -46,6 +47,7 @@ export function NotesEditorContent({
   activePageEmoji: string | null;
   selectedTagIdsDraft: string[];
   notePageTitles: string[];
+  notePageEmojiByTitle: Record<string, string | null>;
   selectedPageProperties: Record<string, unknown>;
   onBack: () => void;
   onTitleChange: (value: string) => void;
@@ -115,7 +117,7 @@ export function NotesEditorContent({
           <SingleBlockEditor
             key={editorContent.pageId}
             pageId={editorContent.pageId}
-            handlers={{ notePageTitles, onOpenPageReference, onPeekPageReference }}
+            handlers={{ notePageTitles, notePageEmojiByTitle, onOpenPageReference, onPeekPageReference }}
             onEditorChange={onSingleEditorChange}
           />
         ) : null}

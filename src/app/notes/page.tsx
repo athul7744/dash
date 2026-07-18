@@ -139,6 +139,7 @@ export default function NotesPage() {
     normalizedSearchQuery,
     notePageIdByTitle,
     notePageTitles,
+    notePageEmojiByTitle,
     recentAccessPages,
     tagDirectory,
   } = useNotesPageDerivedState({
@@ -230,7 +231,6 @@ export default function NotesPage() {
         current.outline === nextState.outline &&
         current.summary === nextState.summary &&
         current.references === nextState.references &&
-        current.mentions === nextState.mentions &&
         current.attachments === nextState.attachments
       ) {
         return current;
@@ -414,11 +414,9 @@ export default function NotesPage() {
       summaryDraft={summaryDraft}
       selectedTagIdsDraft={shellHandle.selectedTagIdsDraft}
       linkedReferences={shellHandle.linkedReferences}
-      pageTagMentions={shellHandle.pageTagMentions}
       selectedPageAttachments={shellHandle.attachments}
       createdTimestamp={shellHandle.createdTimestamp}
       isLoadingLinkedReferences={shellHandle.isLoadingLinkedReferences}
-      isLoadingTagMentions={shellHandle.isLoadingTagMentions}
       isLoadingAttachments={shellHandle.isLoadingAttachments}
       onToggleDetailsSection={toggleDetailsSection}
       onSetSummaryDraft={(value) => {
@@ -625,6 +623,7 @@ export default function NotesPage() {
                     <NotePageShell
                       pageId={selectedPageId}
                       notePageTitles={notePageTitles}
+                      notePageEmojiByTitle={notePageEmojiByTitle}
                       notePageIdByTitle={notePageIdByTitle}
                       onNavigateToPage={openPageById}
                       onDeleteSuccess={() => {

@@ -66,6 +66,18 @@ export function useNotesPageDerivedState({
     });
   }, [allPages]);
 
+  const notePageEmojiByTitle = useMemo(() => {
+    const map: Record<string, string | null> = {};
+
+    allPages.forEach((page) => {
+      const key = (normalizeNotePageTitle(page.title) || "Untitled").toLocaleLowerCase();
+      if (key in map) return;
+      map[key] = normalizePageEmoji(parseProperties(page.properties).emoji);
+    });
+
+    return map;
+  }, [allPages]);
+
   const notePageIdByTitle = useMemo(() => {
     const titleMap = new Map<string, string>();
 
@@ -162,6 +174,7 @@ export function useNotesPageDerivedState({
     normalizedSearchQuery,
     notePageIdByTitle,
     notePageTitles,
+    notePageEmojiByTitle,
     recentAccessPages,
     tagDirectory,
   };

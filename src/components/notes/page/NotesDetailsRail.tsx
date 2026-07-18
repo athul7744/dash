@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Clock, FileText, Files, Hash, Link2, Orbit, Paperclip } from "lucide-react";
+import { Clock, FileText, Files, Link2, Orbit, Paperclip } from "lucide-react";
 
-import type { LinkedNoteReferenceRow, NoteAttachmentRow, NotePageRow, NoteTagMentionRow } from "@/hooks/use-notes";
+import type { LinkedNoteReferenceRow, NoteAttachmentRow, NotePageRow } from "@/hooks/use-notes";
 
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/shared/utils";
 
 import { attachmentLabel, getPageDescription, parseProperties } from "./utils";
-import { Bone, DetailsRailCardSkeleton, DetailsSection, PageIcon } from "./ui";
+import { DetailsRailCardSkeleton, DetailsSection, PageIcon } from "./ui";
 import type { NoteTag, OutlineEntry } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -85,7 +85,6 @@ type DetailsSectionState = {
   outline: boolean;
   summary: boolean;
   references: boolean;
-  mentions: boolean;
   attachments: boolean;
 };
 
@@ -98,11 +97,9 @@ export function NotesDetailsRail({
   summaryDraft,
   selectedTagIdsDraft,
   linkedReferences,
-  pageTagMentions,
   selectedPageAttachments,
   createdTimestamp,
   isLoadingLinkedReferences,
-  isLoadingTagMentions,
   isLoadingAttachments,
   onToggleDetailsSection,
   onSetSummaryDraft,
@@ -116,11 +113,9 @@ export function NotesDetailsRail({
   summaryDraft: string;
   selectedTagIdsDraft: string[];
   linkedReferences: LinkedNoteReferenceRow[];
-  pageTagMentions: NoteTagMentionRow[];
   selectedPageAttachments: NoteAttachmentRow[];
   createdTimestamp: TimestampLabel;
   isLoadingLinkedReferences: boolean;
-  isLoadingTagMentions: boolean;
   isLoadingAttachments: boolean;
   onToggleDetailsSection: (section: keyof DetailsSectionState) => void;
   onSetSummaryDraft: (value: string) => void;
@@ -260,37 +255,6 @@ export function NotesDetailsRail({
                     <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">{getPageDescription(reference.source_page_properties, reference.source_block_content) || "No description"}</p>
                   </div>
                 </button>
-              ))}
-            </div>
-          )}
-        </DetailsSection>
-      </div>
-
-      <div className="py-3">
-        <DetailsSection
-          title="Tag mentions"
-          icon={Hash}
-          accentClassName="text-violet-600 dark:text-violet-400"
-          isOpen={detailsSectionOpen.mentions}
-          onToggle={() => onToggleDetailsSection("mentions")}
-        >
-          {isLoadingTagMentions ? (
-            <div className="flex flex-wrap gap-2 animate-stagger">
-              <Bone className="h-6 w-20 rounded-full" />
-              <Bone className="h-6 w-16 rounded-full" />
-              <Bone className="h-6 w-24 rounded-full" />
-            </div>
-          ) : pageTagMentions.length === 0 ? (
-            <p className="text-[12px] leading-5 text-muted-foreground">No inline tags.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2 animate-stagger">
-              {pageTagMentions.map((tag) => (
-                <span
-                  key={tag.tag_name}
-                  className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
-                >
-                  #{tag.tag_name} · {tag.mention_count}
-                </span>
               ))}
             </div>
           )}

@@ -78,9 +78,6 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 
 ## Current Shared Suites
 
-- `tests/shared/entity-store.test.ts`
-  Covers the EntityStore base class including dirty tracking, debounced persistence, undo/redo stack overflow, undo/redo availability for subscribers notified during apply, markStructureDirty, onPersisted callbacks, and subscription versioning.
-
 - `tests/shared/ranked-order.test.ts`
   Covers LexoRank ordering helpers for between-rank insertion, start/end ranks, and edge cases.
 

@@ -165,7 +165,6 @@ Important convention:
 - `src/lib/shared/apps.ts` — app registry used by header/switcher/FAB shell
 - `src/lib/shared/auth.ts` — current-user lookup with session caching
 - `src/lib/shared/share.ts` — parsing incoming share payloads and title generation
-- `src/lib/shared/entity-store.ts` — generic in-memory store base (dirty tracking, debounced persistence, undo/redo). Currently unused — it backed the removed notes block store; a cleanup candidate.
 - `src/lib/shared/debounced-update.ts` — debounced local writes and execute batching
 - `src/lib/shared/logger.ts` — runtime logging abstraction
 - `src/lib/shared/ranked-order.ts` — reusable LexoRank ordering helpers that can be shared across app groups

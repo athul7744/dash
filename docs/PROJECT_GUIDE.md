@@ -220,7 +220,7 @@ Primary route:
 Responsibilities:
 
 - Registers the notes app in the shared shell and launcher.
-- Orchestrates overview and editor surfaces via `?page=` route state.
+- Orchestrates overview, editor, and graph surfaces via `?page=` / `?view=graph` route state.
 - Reads pages, blocks, backlinks, attachments, and mentions from local SQLite through `src/hooks/use-notes.ts`.
 - Resolves note page tag ids from `pages.properties.tags` through the shared `tags` table.
 - Supports custom page properties stored in `pages.properties.custom`, resolved against workspace-wide `property_definitions`.
@@ -245,6 +245,9 @@ Key modules:
 
 - `src/components/notes/MarkdownCheatsheetDialog.tsx`
   - Reference popup (opened from the editor's three-dot "Shortcuts" item) listing every markdown/keyboard shortcut, grouped and color-accented.
+
+- `src/components/notes/graph/*` + `src/hooks/use-note-graph.ts` + `src/lib/notes/graph.ts`
+  - Obsidian-style graph view of the vault. `graph.ts` holds pure helpers (`buildGraph` collapses block→page `edges` into an undirected, deduped, weighted page graph; `neighborhood` BFS; `isOrphan`); `use-note-graph.ts` is the reactive model (pages = nodes, resolved `[[links]]` = edges, node color from the page's first tag). `useForceSimulation` wraps `d3-force`; `NotesGraphCanvas` renders SVG with pan/zoom, zoom-to-fit, node drag-to-pin, and hover-neighbourhood highlight; `NotesGraphView` adds the controls (search, hide-orphans, tag filter, neighbour depth). Reached via the overview header's "Graph" button (`?view=graph`); clicking a node opens the page. `LocalGraphPanel` reuses the engine (mini variant) in the details rail's Connections tab to show the open page's neighbourhood. Only resolved links exist as edges, so links to not-yet-created pages don't appear.
 
 - `src/components/notes/editor/TaskLineNode.ts` / `QueryBlockNode.tsx`
   - `taskLine` is a single checkbox line — each checklist item is its OWN block (`blockType: "task"`), no `taskList` wrapper. `queryBlock` is an atom NodeView rendering the existing `QueryBlockView`.

@@ -395,6 +395,18 @@ describe("notes-content", () => {
     };
     expect(serializeNoteDocumentToMarkdown(document)).toBe("> Where $e^{i\\pi} + 1 = 0$");
   });
+
+  it("serializes single-block taskLine nodes as checkbox markdown", () => {
+    const document = {
+      type: "doc",
+      content: [
+        { type: "taskLine", attrs: { checked: true }, content: [{ type: "text", text: "Done" }] },
+        { type: "taskLine", attrs: { checked: false }, content: [{ type: "text", text: "Pending" }] },
+      ],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("- [x] Done\n\n- [ ] Pending");
+    expect(extractNoteText(document)).toBe("Done Pending");
+  });
 });
 
 describe("getNoteDocumentEndSelection", () => {

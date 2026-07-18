@@ -22,10 +22,10 @@ import type { Tag } from "@/lib/powersync/AppSchema";
 
 import { NotesEditorContent } from "./NotesEditorContent";
 import { NotesEditorMainSkeleton } from "@/components/notes/NotesPageSkeleton";
-import { useNoteBlockStoreActions } from "./useNoteBlockStoreActions";
+import { buildNoteBlockTree, flattenNoteBlockTree } from "@/lib/notes/notes-tree";
 import { useNotePageActions } from "./useNotePageActions";
 import { buildOutlineEntries, formatTimestampLabel, normalizePageEmoji, parseProperties, parseStoredTagIds, resolveNoteTags } from "./utils";
-import type { NormalizedNotePage, NoteTag, OutlineEntry } from "./types";
+import type { NormalizedNotePage, OutlineEntry } from "./types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   const { page, blocks: selectedBlocks, isLoading: isLoadingPage } = useNotePageWithBlocks(pageId);
   const { attachments, isLoading: isLoadingAttachments } = usePageAttachments(pageId);
   const { references: linkedReferences, isLoading: isLoadingLinkedReferences } = useLinkedNoteReferences(pageId);
-  const { definitions: propertyDefinitions, isLoading: isLoadingPropertyDefs } = usePropertyDefinitions();
+  const { isLoading: isLoadingPropertyDefs } = usePropertyDefinitions();
   const { data: availableTags = [] } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
 
   // Lazy-loaded (not gating)
@@ -131,37 +131,25 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     }
   }, [pageEmojiDraft, page?.id, pageEmoji]);
 
-  // ─── Block store ───────────────────────────────────────────────────────────
-  const {
-    store,
-    displayBlocks,
-    orderedVisibleBlockIds,
-    blockMap: selectedBlockMap,
-    focusTarget,
-    setFocusTarget,
-    canUndo,
-    canRedo,
-    undo,
-    redo,
-    handleCommitBlockContent,
-    handleConvertBlockType,
-    handleCreateEmptySiblingBlock,
-    handleCreateRootBlock,
-    handleCreateSiblingBlock,
-    handleCreateSiblingBlocks,
-    handleDeleteBlock,
-    handleDeleteBlockRange,
-    handleIndentBlock,
-    handleMergeWithPreviousBlock,
-    handleMoveSelectedBlockRange,
-    handleOutdentBlock,
-    handleUpdateBlockContent,
-  } = useNoteBlockStoreActions({ pageId, selectedBlocks });
+  // ─── Ordered blocks (read-only: outline, copy-document, block count) ─────────
+  // The single editor owns editing + undo; the shell only needs the page's
+  // blocks in document order for the outline and copy actions.
+  const selectedBlockMap = useMemo(
+    () => new Map(selectedBlocks.map((block) => [block.id, block])),
+    [selectedBlocks],
+  );
+  const orderedVisibleBlockIds = useMemo(() => {
+    const byRank = [...selectedBlocks].sort((a, b) => (a.sort_rank ?? "").localeCompare(b.sort_rank ?? ""));
+    return flattenNoteBlockTree(buildNoteBlockTree(byRank));
+  }, [selectedBlocks]);
+  const displayBlocks = useMemo(
+    () => orderedVisibleBlockIds.map((id) => selectedBlockMap.get(id)).filter(Boolean) as NoteBlockRow[],
+    [orderedVisibleBlockIds, selectedBlockMap],
+  );
 
-  // ─── Single-document editor (?editor=single) ───────────────────────────────
-  // When the single editor is mounted, undo/redo is its ONE native ProseMirror
-  // history — both Ctrl+Z and the toolbar buttons drive it, so they can't
-  // diverge. Falls back to the legacy per-block store when it isn't mounted.
+  // ─── Single-document editor undo/redo ───────────────────────────────────────
+  // Undo/redo is the single editor's ONE native ProseMirror history — both
+  // Ctrl+Z and the toolbar buttons drive it, so they can't diverge.
   const [singleEditor, setSingleEditor] = useState<Editor | null>(null);
   const [singleUndo, setSingleUndo] = useState({ canUndo: false, canRedo: false });
   const singleEditorRef = useRef<Editor | null>(null);
@@ -169,8 +157,8 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     singleEditorRef.current = singleEditor;
   }, [singleEditor]);
 
-  // Track the single editor's history availability reactively (can().undo() is a
-  // plain query, so recompute on every transaction).
+  // Track the editor's history availability reactively (can().undo() is a plain
+  // query, so recompute on every transaction).
   useEffect(() => {
     if (!singleEditor) return;
     const sync = () => {
@@ -183,25 +171,31 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     };
   }, [singleEditor]);
 
-  const effectiveCanUndo = singleEditor ? singleUndo.canUndo : canUndo;
-  const effectiveCanRedo = singleEditor ? singleUndo.canRedo : canRedo;
+  const effectiveCanUndo = singleEditor ? singleUndo.canUndo : false;
+  const effectiveCanRedo = singleEditor ? singleUndo.canRedo : false;
 
   const runUndo = useCallback(() => {
-    const editor = singleEditorRef.current;
-    if (editor) {
-      editor.commands.undo();
-      return;
-    }
-    undo();
-  }, [undo]);
+    singleEditorRef.current?.commands.undo();
+  }, []);
   const runRedo = useCallback(() => {
+    singleEditorRef.current?.commands.redo();
+  }, []);
+
+  // Outline click → focus a block by id in the single editor (scroll + cursor).
+  const focusBlockInEditor = useCallback((target: { blockId: string; placement: "start" | "end" }) => {
     const editor = singleEditorRef.current;
-    if (editor) {
-      editor.commands.redo();
-      return;
-    }
-    redo();
-  }, [redo]);
+    if (!editor) return;
+    let pos: number | null = null;
+    editor.state.doc.descendants((node, p) => {
+      if (pos !== null) return false;
+      if (node.type.name === "block" && node.attrs.blockId === target.blockId) {
+        pos = p;
+        return false;
+      }
+      return true;
+    });
+    if (pos !== null) editor.chain().focus().setTextSelection(pos + 2).scrollIntoView().run();
+  }, []);
 
   // Propagate undo/redo availability to the parent (shell owns the store lifecycle).
   useEffect(() => {
@@ -261,14 +255,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     onDeleteSuccess,
   });
 
-  // ─── Editor ref registration ───────────────────────────────────────────────
-  const handleEditorRef = useCallback(
-    (blockId: string, editor: Editor | null) => {
-      store.setEditorRef(blockId, editor);
-    },
-    [store],
-  );
-
   // ─── Outline ───────────────────────────────────────────────────────────────
   const pageOutline = useMemo(
     () => buildOutlineEntries(displayBlocks),
@@ -323,7 +309,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     handleCopyDocument,
     handleDeletePage,
     setIsDeleteDialogOpen,
-    setFocusTarget,
+    focusBlockInEditor,
     togglePageFavorite,
     undo: runUndo,
     redo: runRedo,
@@ -337,7 +323,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
       handleCopyDocument,
       handleDeletePage,
       setIsDeleteDialogOpen,
-      setFocusTarget,
+      focusBlockInEditor,
       togglePageFavorite,
       undo: runUndo,
       redo: runRedo,
@@ -352,7 +338,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     handleCopyDocument: () => latestCallbacksRef.current.handleCopyDocument(),
     handleDeletePage: () => latestCallbacksRef.current.handleDeletePage(),
     setIsDeleteDialogOpen: (open: boolean) => latestCallbacksRef.current.setIsDeleteDialogOpen(open),
-    setFocusTarget: (target: { blockId: string; placement: "start" | "end" }) => latestCallbacksRef.current.setFocusTarget(target),
+    setFocusTarget: (target: { blockId: string; placement: "start" | "end" }) => latestCallbacksRef.current.focusBlockInEditor(target),
     togglePageFavorite: (favoritePage: NormalizedNotePage) => latestCallbacksRef.current.togglePageFavorite(favoritePage),
     undo: () => latestCallbacksRef.current.undo(),
     redo: () => latestCallbacksRef.current.redo(),
@@ -395,15 +381,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     onStateChange?.(shellHandle);
   }, [shellHandle, onStateChange]);
 
-  // ─── Focus callbacks ───────────────────────────────────────────────────────
-  const handleFocusApplied = useCallback(() => {
-    setFocusTarget(null);
-  }, []);
-
-  const handleFocusBlock = useCallback((blockId: string, placement: "start" | "end") => {
-    setFocusTarget({ blockId, placement });
-  }, []);
-
   const handleOpenPageReference = useCallback((title: string) => {
     const targetPageId = notePageIdByTitle.get(title.trim().toLocaleLowerCase());
     if (targetPageId) {
@@ -442,7 +419,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
       isEmojiPickerOpen={isEmojiPickerOpen}
       activePageEmoji={activePageEmoji}
       selectedTagIdsDraft={selectedTagIdsDraft}
-      focusTarget={focusTarget}
       notePageTitles={notePageTitles}
       selectedPageProperties={pageProperties}
       onBack={() => onNavigateToPage("__back__")}
@@ -460,24 +436,8 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
       }}
       onCopyDocument={handleCopyDocument}
       onOpenDeleteDialog={() => setIsDeleteDialogOpen(true)}
-      onCreateFirstBlock={handleCreateRootBlock}
-      onFocusApplied={handleFocusApplied}
-      onFocusBlock={handleFocusBlock}
       onOpenPageReference={handleOpenPageReference}
       onPeekPageReference={onPeekPageReference}
-      onCreateSibling={handleCreateSiblingBlock}
-      onCreateEmptySibling={handleCreateEmptySiblingBlock}
-      onCreateSiblings={handleCreateSiblingBlocks}
-      onMergeWithPrevious={handleMergeWithPreviousBlock}
-      onCommitContent={handleCommitBlockContent}
-      onIndent={handleIndentBlock}
-      onOutdent={handleOutdentBlock}
-      onMoveSelectedBlockRange={handleMoveSelectedBlockRange}
-      onDelete={handleDeleteBlock}
-      onDeleteRange={handleDeleteBlockRange}
-      onUpdateContent={handleUpdateBlockContent}
-      onEditorRef={handleEditorRef}
-      onConvertBlockType={handleConvertBlockType}
       onSingleEditorChange={setSingleEditor}
     />
   );

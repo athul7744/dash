@@ -24,7 +24,7 @@ import { SEARCH_POPUP_CLOSE_ANIMATION_MS } from "@/components/ui/search-popup";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAllNotePages, useFavoriteNotePages, useNoteCounts, useRecentNotePages } from "@/hooks/use-notes";
 import { createStarterPage, normalizeNotePageTitle, updateNotePageProperties } from "@/lib/notes/notes";
-import { flushAllNoteBlockStores } from "@/lib/notes/note-block-store";
+import { flushAllBlockDocumentPersisters } from "@/lib/notes/editor/block-persister";
 import { getApp } from "@/lib/shared/apps";
 import { flushAllUpdates, hasPendingWrites } from "@/lib/shared/debounced-update";
 import { NotesDetailsRail } from "@/components/notes/page/NotesDetailsRail";
@@ -108,7 +108,7 @@ export default function NotesPage() {
       }
 
       flushAllUpdates();
-      flushAllNoteBlockStores();
+      flushAllBlockDocumentPersisters();
       event.preventDefault();
     };
 

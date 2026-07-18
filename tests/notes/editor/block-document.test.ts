@@ -127,6 +127,27 @@ describe("block-document assemble/decompose", () => {
     expect(JSON.parse(blocks[1].content).content[0].attrs.checked).toBe(false);
   });
 
+  it("migrates a nested task list into nested task blocks", () => {
+    const taskListContent = docContent([{
+      type: "taskList",
+      content: [{
+        type: "taskItem", attrs: { checked: false },
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "Parent" }] },
+          { type: "taskList", content: [{ type: "taskItem", attrs: { checked: true }, content: [{ type: "paragraph", content: [{ type: "text", text: "Child" }] }] }] },
+        ],
+      }],
+    }]);
+    const blocks = decomposeDoc(assembleDoc([row({ id: "p", content: taskListContent })]));
+    expect(blocks).toHaveLength(2);
+    const parent = blocks.find((b) => b.blockId === "p")!;
+    const child = blocks.find((b) => b.blockId !== "p")!;
+    expect(parent.parentId).toBe(null);
+    expect(child.parentId).toBe("p"); // nested task became a nested task block
+    expect(child.type).toBe("task");
+    expect(JSON.parse(child.content).content[0].attrs.checked).toBe(true);
+  });
+
   it("round-trips a new task block (type task + taskLine content)", () => {
     const taskContent = docContent([{ type: "taskLine", attrs: { checked: true }, content: [{ type: "text", text: "Done" }] }]);
     const decomposed = decomposeDoc(assembleDoc([row({ id: "t1", type: "task", content: taskContent })]));

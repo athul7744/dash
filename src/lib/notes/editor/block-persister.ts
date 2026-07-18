@@ -51,6 +51,14 @@ function snapshotFromRows(rows: BlockDocumentRow[]): Map<string, PersistedBlock>
   return map;
 }
 
+/** Live persisters, so a page-level beforeunload can flush pending saves. */
+const activePersisters = new Set<BlockDocumentPersister>();
+
+/** Flush every mounted single-editor persister (call on beforeunload). */
+export function flushAllBlockDocumentPersisters(): void {
+  for (const persister of activePersisters) void persister.flush();
+}
+
 export class BlockDocumentPersister {
   readonly pageId: string;
   private getDoc: () => JSONContent;
@@ -67,6 +75,7 @@ export class BlockDocumentPersister {
     this.getDoc = config.getDoc;
     this.debounceMs = config.debounceMs ?? 10_000;
     this.onPersisted = config.onPersisted;
+    activePersisters.add(this);
   }
 
   /** Seed the snapshot from the initial row set (no write). */
@@ -222,5 +231,6 @@ export class BlockDocumentPersister {
   dispose() {
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = null;
+    activePersisters.delete(this);
   }
 }

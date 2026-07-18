@@ -23,7 +23,7 @@ import { TimeLog, ActivityType, DailyRating } from "@/lib/powersync/AppSchema";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { getApp } from "@/lib/shared/apps";
 import { cancelExecute, cancelUpdate, debouncedExecute, debouncedUpdate, flushAllUpdates } from "@/lib/shared/debounced-update";
-import { flushAllNoteBlockStores } from "@/lib/notes/note-block-store";
+import { flushAllBlockDocumentPersisters } from "@/lib/notes/editor/block-persister";
 import { cn } from "@/lib/shared/utils";
 import { DURATION, SPRING_SOFT } from "@/lib/shared/motion";
 import { DEFAULT_ACTIVITIES } from "@/lib/tracker/activities";
@@ -94,7 +94,7 @@ export default function TrackerPage() {
   useEffect(() => {
     const flush = () => {
       flushAllUpdates();
-      flushAllNoteBlockStores();
+      flushAllBlockDocumentPersisters();
     };
     window.addEventListener("beforeunload", flush);
     return () => {

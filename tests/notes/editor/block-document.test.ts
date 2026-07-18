@@ -105,6 +105,36 @@ describe("block-document assemble/decompose", () => {
     expect(decomposed[0].content).toBe(queryContent);
   });
 
+  it("migrates a legacy multi-item taskList row into one task block per item", () => {
+    const taskListContent = docContent([{
+      type: "taskList",
+      content: [
+        { type: "taskItem", attrs: { checked: true }, content: [{ type: "paragraph", content: [{ type: "text", text: "One" }] }] },
+        { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "Two" }] }] },
+      ],
+    }]);
+    const doc = assembleDoc([row({ id: "list1", content: taskListContent })]);
+    const blocks = decomposeDoc(doc);
+
+    expect(blocks).toHaveLength(2); // one block per checkbox
+    expect(blocks[0].blockId).toBe("list1"); // first keeps the row id
+    expect(blocks[1].blockId).not.toBe("list1");
+    for (const block of blocks) {
+      expect(block.type).toBe("task");
+      expect(JSON.parse(block.content).content[0].type).toBe("taskLine");
+    }
+    expect(JSON.parse(blocks[0].content).content[0].attrs.checked).toBe(true);
+    expect(JSON.parse(blocks[1].content).content[0].attrs.checked).toBe(false);
+  });
+
+  it("round-trips a new task block (type task + taskLine content)", () => {
+    const taskContent = docContent([{ type: "taskLine", attrs: { checked: true }, content: [{ type: "text", text: "Done" }] }]);
+    const decomposed = decomposeDoc(assembleDoc([row({ id: "t1", type: "task", content: taskContent })]));
+    expect(decomposed).toHaveLength(1);
+    expect(decomposed[0].type).toBe("task");
+    expect(JSON.parse(decomposed[0].content).content[0]).toMatchObject({ type: "taskLine", attrs: { checked: true } });
+  });
+
   it("emptyBlockNode carries the given id and a paragraph", () => {
     const node = emptyBlockNode("new-1");
     expect(node.attrs?.blockId).toBe("new-1");

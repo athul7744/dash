@@ -413,6 +413,47 @@ body[data-display-font="bricolage"] {
   background: var(--color-accent);
   color: var(--color-foreground);
 }
+/* Read-only previews (PagePeekPopover, backlinks): no interactive grips. */
+.note-readonly .note-block-grip {
+  display: none;
+}
+
+/* Task line (one checkbox per block). Consecutive task blocks read as a list. */
+.note-task-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.note-task-checkbox {
+  flex: none;
+  margin-top: 0.3rem;
+  height: 1.05rem;
+  width: 1.05rem;
+  border-radius: 0.3rem;
+  border: 1.5px solid color-mix(in oklab, currentColor 35%, transparent);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.note-task-checkbox:hover {
+  border-color: color-mix(in oklab, currentColor 55%, transparent);
+}
+.note-task-line.is-checked .note-task-checkbox {
+  background: var(--color-primary, oklch(0.6 0.15 250));
+  border-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  background-size: 0.8rem;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.note-task-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.note-task-line.is-checked .note-task-text {
+  color: var(--color-muted-foreground);
+  text-decoration: line-through;
+}
 /* Sticky section headings: stick the heading element itself (not the block
    wrapper, which spans the whole section incl. children) so only the heading
    line pins while its section scrolls. */

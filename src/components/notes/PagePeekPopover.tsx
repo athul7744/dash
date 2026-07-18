@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ExternalLink, X } from "lucide-react";
 import { useQuery } from "@powersync/react";
@@ -9,10 +9,8 @@ import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { TagPillStrip } from "@/components/tags/TagPillStrip";
 import { popoverPresence } from "@/lib/shared/motion";
 import { useNoteBlocks } from "@/hooks/use-notes";
-import type { NoteBlockRow } from "@/hooks/use-notes";
 import type { Tag as TagRecord } from "@/lib/powersync/AppSchema";
-import { buildNoteBlockTree, type NoteTreeNode } from "@/lib/notes/notes-tree";
-import { ReadOnlyBlockRenderer, type ReadOnlyBlockData } from "./ReadOnlyBlockRenderer";
+import { ReadOnlyBlockRenderer } from "./ReadOnlyBlockRenderer";
 import type { PeekTarget } from "./usePagePeek";
 
 type PagePeekPage = {
@@ -24,15 +22,6 @@ type PagePeekPage = {
 function parseProperties(raw: string | null): Record<string, unknown> {
   if (!raw) return {};
   try { return JSON.parse(raw); } catch { return {}; }
-}
-
-function buildReadOnlyTree(tree: NoteTreeNode<NoteBlockRow>[]): ReadOnlyBlockData[] {
-  return tree.map((node) => ({
-    id: node.block.id,
-    type: node.block.type,
-    content: node.block.content,
-    children: node.children.length > 0 ? buildReadOnlyTree(node.children) : undefined,
-  }));
 }
 
 function usePageByTitle(title: string | null) {
@@ -60,25 +49,19 @@ export function PagePeekPopover({
 
   const properties = useMemo(() => parseProperties(page?.properties ?? null), [page?.properties]);
   const emoji = (properties.emoji as string) ?? null;
-  const tagIds: string[] = Array.isArray(properties.tags) ? properties.tags : [];
-  const resolvedTags = useMemo(
-    () => tagIds
+  const resolvedTags = useMemo(() => {
+    const tagIds: string[] = Array.isArray(properties.tags) ? properties.tags : [];
+    return tagIds
       .map((id) => allTags.find((t) => t.id === id))
-      .filter(Boolean) as (TagRecord & { id: string; name: string; color: string })[],
-    [tagIds, allTags]
-  );
+      .filter(Boolean) as (TagRecord & { id: string; name: string; color: string })[];
+  }, [properties.tags, allTags]);
 
-  const blockTree = useMemo(() => {
-    if (!blocks.length) return [];
-    const tree = buildNoteBlockTree(blocks);
-    return buildReadOnlyTree(tree);
-  }, [blocks]);
 
-  // Position calculation
-  const [position, setPosition] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
-
-  useEffect(() => {
+  // Position is derived from the anchor rect + viewport — compute it during
+  // render (not via an effect that sets state) so it's ready on first paint.
+  const position = useMemo(() => {
     const rect = target.anchorRect;
+    if (typeof window === "undefined" || !rect) return null;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const popoverWidth = Math.min(400, viewportWidth - 32);
@@ -108,7 +91,7 @@ export function PagePeekPopover({
     }
     if (left < margin) left = margin;
 
-    setPosition({ top, left, maxHeight });
+    return { top, left, maxHeight };
   }, [target.anchorRect]);
 
   // Close on click outside
@@ -194,10 +177,10 @@ export function PagePeekPopover({
           </div>
         ) : !page ? (
           <p className="text-center text-muted-foreground py-4">Page not found</p>
-        ) : blockTree.length === 0 ? (
+        ) : blocks.length === 0 ? (
           <p className="text-center text-muted-foreground py-4">Empty page</p>
         ) : (
-          <ReadOnlyBlockRenderer blocks={blockTree} />
+          <ReadOnlyBlockRenderer blocks={blocks} />
         )}
       </div>
     </motion.div>

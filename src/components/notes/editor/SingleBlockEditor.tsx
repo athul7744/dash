@@ -1,10 +1,9 @@
 "use client";
 
 /**
- * Minimal single-document editor mount for a notes page. Independent of the
- * legacy per-block store — reads block rows directly and renders one editor.
- * Used behind the `?editor=single` toggle to validate perf + feel before the
- * full cutover.
+ * Single-document editor mount for a notes page (the default editor). Reads the
+ * block rows directly and renders one editor, independent of the legacy
+ * per-block store. `?editor=legacy` opts back into the old editor during cutover.
  *
  * A single `useNoteBlocks` subscription lives here and is passed down, so the
  * editor is seeded from the already-loaded rows in one shot (no empty-build +

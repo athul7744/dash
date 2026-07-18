@@ -116,11 +116,12 @@ export function NotesEditorContent({
   const emptySettleTimerRef = useRef<number | null>(null);
   const previousPageIdRef = useRef<string | null | undefined>(editorContent?.pageId);
 
-  // Experimental single-document editor, opted in via ?editor=single. This
+  // The single-document editor is the default; `?editor=legacy` opts back into
+  // the legacy per-block editor as a temporary escape hatch during cutover. This
   // client-only subtree (under PowerSyncProvider) isn't meaningfully SSR'd, so a
-  // render-time read of the URL is fine for this temporary validation toggle.
+  // render-time read of the URL is fine.
   const useSingleEditor =
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("editor") === "single";
+    typeof window === "undefined" || new URLSearchParams(window.location.search).get("editor") !== "legacy";
 
   // Reset settling state when navigating to a different page
   if (editorContent?.pageId !== previousPageIdRef.current) {

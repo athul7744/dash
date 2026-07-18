@@ -10,12 +10,11 @@ import Heading from "@tiptap/extension-heading";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import CodeBlock from "@tiptap/extension-code-block";
 import Blockquote from "@tiptap/extension-blockquote";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
 import History from "@tiptap/extension-history";
 import { NodeSelection } from "@tiptap/pm/state";
 
 import { NotesDocument, BlockNode, asBlockContent } from "@/lib/notes/editor/block-schema";
+import { TaskLine } from "@/components/notes/editor/TaskLineNode";
 import { BlockIdPlugin } from "@/lib/notes/editor/block-id-plugin";
 import { splitBlock, indentBlock, outdentBlock, mergeBlockBackward, moveBlockUp, moveBlockDown, type BlockCommand } from "@/lib/notes/editor/block-commands";
 import { assembleDoc, decomposeDoc, type BlockDocumentRow } from "@/lib/notes/editor/block-document";
@@ -36,7 +35,7 @@ function makeEditor(rows: BlockDocumentRow[]): Editor {
   document.body.appendChild(element);
   return new Editor({
     element,
-    extensions: [NotesDocument, BlockNode, asBlockContent(Paragraph), asBlockContent(Heading.configure({ levels: [1, 2, 3] })), asBlockContent(HorizontalRule), asBlockContent(CodeBlock), asBlockContent(Blockquote.extend({ content: "blockContent+" })), asBlockContent(TaskList), TaskItem.configure({ nested: true }), Text, History, BlockIdPlugin],
+    extensions: [NotesDocument, BlockNode, asBlockContent(Paragraph), asBlockContent(Heading.configure({ levels: [1, 2, 3] })), asBlockContent(HorizontalRule), asBlockContent(CodeBlock), asBlockContent(Blockquote.extend({ content: "blockContent+" })), TaskLine, Text, History, BlockIdPlugin],
     content: assembleDoc(rows) as never,
   });
 }
@@ -54,13 +53,21 @@ function cursorInBlock(editor: Editor, text: string, offsetFromStart: number) {
   editor.commands.setTextSelection(pos + offsetFromStart);
 }
 
-/** Place the cursor inside the first paragraph in the doc (empty or not). */
+/** Place the cursor inside the first text line (paragraph/heading/taskLine). */
 function cursorInFirstParagraph(editor: Editor) {
   let pos = -1;
   editor.state.doc.descendants((node, p) => {
-    if (pos === -1 && node.type.name === "paragraph") pos = p + 1;
+    if (pos === -1 && node.isTextblock) pos = p + 1;
   });
   editor.commands.setTextSelection(pos);
+}
+
+function taskRow(id: string, text: string, over: Partial<BlockDocumentRow> = {}): BlockDocumentRow {
+  return {
+    id, parent_block_id: null, sort_rank: RANK_0, type: "task",
+    content: serializeNoteDocument({ type: "doc", content: [{ type: "taskLine", attrs: { checked: false }, content: text ? [{ type: "text", text }] : [] }] }),
+    ...over,
+  };
 }
 
 describe("block structural commands", () => {
@@ -329,27 +336,35 @@ describe("block structural commands", () => {
     editor.destroy();
   });
 
-  it("converts a single empty task block to a paragraph on Backspace", () => {
-    const editor = makeEditor([
-      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
-        content: serializeNoteDocument({ type: "doc", content: [{ type: "taskList", content: [{ type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph" }] }] }] }) },
-    ]);
+  it("converts an empty task block to a paragraph on Backspace", () => {
+    const editor = makeEditor([taskRow("b1", "")]);
     cursorInFirstParagraph(editor);
     expect(run(editor, mergeBlockBackward)).toBe(true);
-    expect(JSON.parse(decomposeDoc(editor.getJSON())[0].content).content[0].type).toBe("paragraph");
+    const block = decomposeDoc(editor.getJSON())[0];
+    expect(JSON.parse(block.content).content[0].type).toBe("paragraph");
+    expect(block.type).toBe("text"); // blockType reset off "task"
     editor.destroy();
   });
 
-  it("unwraps a single non-empty task block to a paragraph on Backspace at start, keeping text", () => {
-    const editor = makeEditor([
-      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
-        content: serializeNoteDocument({ type: "doc", content: [{ type: "taskList", content: [{ type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "Task" }] }] }] }] }) },
-    ]);
+  it("converts an empty task block to a paragraph on Enter (exit checklist)", () => {
+    const editor = makeEditor([taskRow("b1", "")]);
     cursorInFirstParagraph(editor);
-    expect(run(editor, mergeBlockBackward)).toBe(true);
-    const first = JSON.parse(decomposeDoc(editor.getJSON())[0].content).content[0];
-    expect(first.type).toBe("paragraph");
-    expect(first.content[0].text).toBe("Task");
+    expect(run(editor, splitBlock)).toBe(true);
+    const block = decomposeDoc(editor.getJSON())[0];
+    expect(JSON.parse(block.content).content[0].type).toBe("paragraph");
+    expect(block.type).toBe("text");
+    editor.destroy();
+  });
+
+  it("Enter on a non-empty task line makes a new task block below", () => {
+    const editor = makeEditor([taskRow("b1", "Buy")]);
+    cursorInBlock(editor, "Buy", 3); // end
+    expect(run(editor, splitBlock)).toBe(true);
+    const blocks = decomposeDoc(editor.getJSON());
+    expect(blocks.length).toBe(2);
+    expect(blocks[0].type).toBe("task");
+    expect(blocks[1].type).toBe("task"); // new block stays a task
+    expect(JSON.parse(blocks[1].content).content[0].type).toBe("taskLine");
     editor.destroy();
   });
 
@@ -369,40 +384,13 @@ describe("block structural commands", () => {
     editor.destroy();
   });
 
-  it("removes an empty item from a multi-item task list on Backspace (no child/lift)", () => {
-    const editor = makeEditor([
-      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
-        content: serializeNoteDocument({ type: "doc", content: [{ type: "taskList", content: [
-          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "One" }] }] },
-          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph" }] },
-        ] }] }) },
-    ]);
-    // cursor into the empty second item
-    let last = -1;
-    editor.state.doc.descendants((node, p) => { if (node.type.name === "paragraph") last = p + 1; });
-    editor.commands.setTextSelection(last);
+  it("merges a task block into the previous task block on Backspace at start", () => {
+    const editor = makeEditor([taskRow("b1", "One"), taskRow("b2", "Two", { sort_rank: RANK_1 })]);
+    cursorInBlock(editor, "Two", 0); // start of the second task block
     expect(run(editor, mergeBlockBackward)).toBe(true);
     const blocks = decomposeDoc(editor.getJSON());
-    expect(blocks.length).toBe(1); // still one block, not nested/lifted
-    const list = JSON.parse(blocks[0].content).content[0];
-    expect(list.type).toBe("taskList");
-    expect(list.content.length).toBe(1); // empty item removed
-    editor.destroy();
-  });
-
-  it("merges a non-empty task item into the previous item on Backspace at start", () => {
-    const editor = makeEditor([
-      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
-        content: serializeNoteDocument({ type: "doc", content: [{ type: "taskList", content: [
-          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "One" }] }] },
-          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "Two" }] }] },
-        ] }] }) },
-    ]);
-    cursorInBlock(editor, "Two", 0); // start of the second item
-    expect(run(editor, mergeBlockBackward)).toBe(true);
-    const list = JSON.parse(decomposeDoc(editor.getJSON())[0].content).content[0];
-    expect(list.content.length).toBe(1); // two items merged into one
-    expect(list.content[0].content[0].content.map((n: { text: string }) => n.text).join("")).toBe("OneTwo");
+    expect(blocks.length).toBe(1); // merged into the first
+    expect(editor.getText()).toContain("OneTwo");
     editor.destroy();
   });
 
@@ -414,26 +402,6 @@ describe("block structural commands", () => {
     cursorInFirstParagraph(editor);
     expect(run(editor, splitBlock)).toBe(true);
     expect(JSON.parse(decomposeDoc(editor.getJSON())[0].content).content[0].type).toBe("paragraph");
-    editor.destroy();
-  });
-
-  it("exits the empty last item of a multi-item task list into a new block", () => {
-    const editor = makeEditor([
-      { id: "b1", parent_block_id: null, sort_rank: RANK_0, type: "text",
-        content: serializeNoteDocument({ type: "doc", content: [{ type: "taskList", content: [
-          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "Done" }] }] },
-          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph" }] },
-        ] }] }) },
-    ]);
-    // cursor into the second (empty) task item
-    let last = -1;
-    editor.state.doc.descendants((node, p) => { if (node.type.name === "paragraph") last = p + 1; });
-    editor.commands.setTextSelection(last);
-    expect(run(editor, splitBlock)).toBe(true);
-    const blocks = decomposeDoc(editor.getJSON());
-    expect(blocks.length).toBe(2); // new empty text block after
-    expect(JSON.parse(blocks[0].content).content[0].content.length).toBe(1); // task list now has one item
-    expect(JSON.parse(blocks[1].content).content[0].type).toBe("paragraph");
     editor.destroy();
   });
 

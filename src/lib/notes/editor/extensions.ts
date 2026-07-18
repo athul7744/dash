@@ -32,8 +32,6 @@ import { Table } from "@tiptap/extension-table";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import TableRow from "@tiptap/extension-table-row";
-import TaskItem from "@tiptap/extension-task-item";
-import TaskList from "@tiptap/extension-task-list";
 import Text from "@tiptap/extension-text";
 import { common, createLowlight } from "lowlight";
 
@@ -48,6 +46,7 @@ import {
 } from "@/components/notes/NoteBlockEditorExtensions";
 import { MathBlock, MathInline } from "@/components/notes/NoteBlockEditorMath";
 import { QueryBlock } from "@/components/notes/editor/QueryBlockNode";
+import { TaskLine } from "@/components/notes/editor/TaskLineNode";
 import { createBlockNodeView } from "@/components/notes/editor/blockNodeViewDom";
 
 import { NotesDocument, BlockNode, asBlockContent, BLOCK_CONTENT_GROUP } from "./block-schema";
@@ -82,9 +81,9 @@ export function buildNoteEditorExtensions(): Extensions {
     asBlockContent(CodeBlockWithToolbar.configure({ lowlight })),
     asBlockContent(Image),
     asBlockContent(NotesHorizontalRule),
-    asBlockContent(TaskList),
     asBlockContent(Table_),
     asBlockContent(MathBlock),
+    TaskLine,
     QueryBlock,
 
     // Inline nodes / marks / table + task children — unchanged.
@@ -98,7 +97,6 @@ export function buildNoteEditorExtensions(): Extensions {
     TableRow,
     TableHeader.extend({ content: `${BLOCK_CONTENT_GROUP}+` }),
     TableCell.extend({ content: `${BLOCK_CONTENT_GROUP}+` }),
-    TaskItem.configure({ nested: true }),
 
     // Cross-cutting behavior.
     BlockColor,

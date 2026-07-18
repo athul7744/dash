@@ -422,6 +422,13 @@ function serializeMarkdownBlock(node: unknown): string {
       .join("\n");
   }
 
+  // Single-block checkbox (new task model): one taskLine per block.
+  if (node.type === "taskLine") {
+    const checked = getNodeAttrs(node)?.checked === true;
+    const text = getNodeContent(node).map((child) => serializeMarkdownInline(child)).join("").trim();
+    return `- [${checked ? "x" : " "}] ${text}`.trimEnd();
+  }
+
   if (node.type === "table") {
     const rows = getNodeContent(node)
       .filter((child) => isRecord(child) && child.type === "tableRow")

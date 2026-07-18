@@ -72,6 +72,19 @@ export function applySlashCommand(editor: Editor, command: SlashCommand, ctx: Sl
     return true;
   }
 
+  // Task — replace the content node with a single taskLine and mark the block a
+  // task (each checkbox is its own block).
+  if (command.id === "task-list") {
+    const taskLine = schema.nodes.taskLine.create({ checked: false });
+    const tr = editor.state.tr;
+    tr.replaceWith(ctx.contentPos, ctx.contentPos + ctx.contentSize, taskLine);
+    tr.setNodeAttribute(ctx.blockPos, "blockType", "task");
+    tr.setSelection(TextSelection.near(tr.doc.resolve(ctx.contentPos + 1)));
+    view.dispatch(tr.scrollIntoView());
+    view.focus();
+    return true;
+  }
+
   // Query — replace the content node with a queryBlock and mark the block type.
   if (command.blockType === "query") {
     const attrs = encodeQueryConfig({ filters: [], limit: 20 }).content[0].attrs;

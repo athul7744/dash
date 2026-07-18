@@ -24,6 +24,8 @@ import { normalizeNoteDocument, serializeNoteDocument } from "@/lib/notes/notes-
 
 export const BLOCK_NODE_TYPE = "block";
 export const DEFAULT_BLOCK_TYPE = "text";
+export const TASK_BLOCK_TYPE = "task";
+const TASK_LINE_NODE = "taskLine";
 
 /** A row as stored in / read from the `blocks` table (editor-relevant columns). */
 export interface BlockDocumentRow {
@@ -81,23 +83,59 @@ export function assembleDoc(rows: BlockDocumentRow[]): JSONContent {
     bucket.sort((a, b) => a.sort_rank.localeCompare(b.sort_rank));
   }
 
-  const buildBlockNode = (row: BlockDocumentRow): JSONContent => {
-    const childBlocks = (childrenByParent.get(row.id) ?? []).map(buildBlockNode);
-    return {
+  const buildBlockNodes = (row: BlockDocumentRow): JSONContent[] => {
+    const childBlocks = (childrenByParent.get(row.id) ?? []).flatMap(buildBlockNodes);
+    const contentNodes = contentNodesOf(row);
+
+    // Legacy migration: a `taskList` content node (many items in one row) expands
+    // into one task block per item, so each checkbox is its own block. The first
+    // item keeps the row id; the rest get fresh ids (stamped + persisted later).
+    if (contentNodes.length === 1 && contentNodes[0]?.type === "taskList") {
+      const blocks = taskListToBlocks(contentNodes[0], row.id, childBlocks);
+      if (blocks.length > 0) return blocks;
+    }
+
+    return [{
       type: BLOCK_NODE_TYPE,
       attrs: { blockId: row.id, blockType: row.type || DEFAULT_BLOCK_TYPE },
-      content: [...contentNodesOf(row), ...childBlocks],
-    };
+      content: [...contentNodes, ...childBlocks],
+    }];
   };
 
   const rootRows = childrenByParent.get(null) ?? [];
-  const blockNodes = rootRows.map(buildBlockNode);
+  const blockNodes = rootRows.flatMap(buildBlockNodes);
 
   return {
     type: "doc",
     // A document must contain at least one block.
     content: blockNodes.length > 0 ? blockNodes : [emptyBlockNode()],
   };
+}
+
+/**
+ * Convert a legacy `taskList` node into one task block per item (recursively,
+ * so nested task lists become nested task blocks). `firstBlockId` is assigned to
+ * the first top-level item; the rest get null (stamped later). `trailingChildren`
+ * are appended under the last item so any child blocks of the original row are
+ * preserved.
+ */
+function taskListToBlocks(taskList: JSONContent, firstBlockId: string | null, trailingChildren: JSONContent[]): JSONContent[] {
+  const items = (Array.isArray(taskList.content) ? taskList.content : []).filter((n) => n?.type === "taskItem");
+  return items.map((item, index) => {
+    const itemChildren = Array.isArray(item.content) ? item.content : [];
+    const paragraph = itemChildren.find((c) => c?.type === "paragraph");
+    const inline = paragraph && Array.isArray(paragraph.content) ? paragraph.content : [];
+    const nestedBlocks = itemChildren
+      .filter((c) => c?.type === "taskList")
+      .flatMap((nested) => taskListToBlocks(nested, null, []));
+    const isLast = index === items.length - 1;
+    const taskLine: JSONContent = { type: TASK_LINE_NODE, attrs: { checked: item.attrs?.checked === true }, content: inline };
+    return {
+      type: BLOCK_NODE_TYPE,
+      attrs: { blockId: index === 0 ? firstBlockId : null, blockType: TASK_BLOCK_TYPE },
+      content: [taskLine, ...nestedBlocks, ...(isLast ? trailingChildren : [])],
+    };
+  });
 }
 
 /** A fresh empty block node (used for empty documents / new blocks). */
@@ -123,11 +161,15 @@ export function decomposeDoc(doc: JSONContent): DecomposedBlock[] {
   const visit = (blockNode: JSONContent, parentId: string | null, order: number) => {
     const attrs = blockNode.attrs ?? {};
     const blockId = typeof attrs.blockId === "string" ? attrs.blockId : "";
-    const type = typeof attrs.blockType === "string" && attrs.blockType ? attrs.blockType : DEFAULT_BLOCK_TYPE;
 
     const children = Array.isArray(blockNode.content) ? blockNode.content : [];
     const contentNodes = children.filter((child) => !isBlockNode(child));
     const childBlocks = children.filter((child) => isBlockNode(child));
+
+    // Content is the source of truth: a taskLine → row type "task", so the type
+    // can't drift from the block's actual content.
+    const attrType = typeof attrs.blockType === "string" && attrs.blockType ? attrs.blockType : DEFAULT_BLOCK_TYPE;
+    const type = contentNodes[0]?.type === TASK_LINE_NODE ? TASK_BLOCK_TYPE : attrType;
 
     out.push({
       blockId,

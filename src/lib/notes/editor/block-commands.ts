@@ -25,11 +25,12 @@ import { BLOCK_NODE_TYPE } from "./block-document";
 type Dispatch = (tr: Transaction) => void;
 export type BlockCommand = (state: EditorState, dispatch?: Dispatch) => boolean;
 
-const LINE_TYPES = new Set(["paragraph", "heading"]);
-// Content nodes that hold multiple inner lines/items (task list items, quote
-// lines). Their block-level enter/backspace exits need explicit handling because
-// native list/quote lift commands misbehave inside the `block` wrapper.
-const WRAPPER_TYPES = new Set(["taskList", "blockquote"]);
+const LINE_TYPES = new Set(["paragraph", "heading", "taskLine"]);
+// Content nodes that hold multiple inner lines (quote paragraphs). Their
+// block-level enter/backspace exits need explicit handling because native lift
+// commands misbehave inside the `block` wrapper. Task items are their OWN blocks
+// now (taskLine, a plain line), so only blockquote remains a wrapper.
+const WRAPPER_TYPES = new Set(["blockquote"]);
 
 /** Depth of the nearest `block` ancestor enclosing the position, or null. */
 function blockDepthAt($pos: ResolvedPos): number | null {
@@ -236,6 +237,7 @@ export const splitBlock: BlockCommand = (state, dispatch) => {
   const cursor = $from.pos;
   const atStart = cursor === $from.start();
   const atEnd = cursor === lineEnd;
+  const isTask = line.type.name === "taskLine";
   const hasChildren = hasChildBlocks(block);
 
   const contentNodeEnd = $from.before() + line.nodeSize; // just after the line node
@@ -243,6 +245,17 @@ export const splitBlock: BlockCommand = (state, dispatch) => {
 
   if (dispatch) {
     const tr = state.tr;
+
+    // Enter on an empty checkbox → exit the checklist: turn it into a plain
+    // paragraph in place.
+    if (isTask && line.content.size === 0) {
+      const contentPos = $from.before();
+      tr.setNodeMarkup(contentPos, paragraph, {});
+      tr.setNodeAttribute($from.before(blockDepth), "blockType", "text");
+      tr.setSelection(TextSelection.near(tr.doc.resolve(contentPos + 1)));
+      dispatch(tr.scrollIntoView());
+      return true;
+    }
 
     // Enter at the very start of a non-empty line: push an empty block above and
     // keep the current block (id + content) untouched. Selection maps forward.
@@ -252,15 +265,15 @@ export const splitBlock: BlockCommand = (state, dispatch) => {
       return true;
     }
 
-    // The tail line: a heading split at its END becomes plain text (you're done
-    // with the title); split mid-heading keeps the heading. A paragraph keeps
-    // its attrs (e.g. a callout color) on both halves.
+    // The tail line: a task line splits into a new (unchecked) task block; a
+    // heading split at its END becomes plain text (mid-heading stays heading); a
+    // paragraph keeps its attrs (e.g. callout color) on both halves.
     const tail = state.doc.slice(cursor, lineEnd).content;
-    const tailLine =
-      line.type.name === "heading" && atEnd
-        ? paragraph.create(null, tail)
-        : line.type.create(line.attrs, tail);
-    const newBlock = blockType.create({ blockId: null, blockType: "text" }, tailLine);
+    let tailLine;
+    if (isTask) tailLine = line.type.create({ checked: false }, tail);
+    else if (line.type.name === "heading" && atEnd) tailLine = paragraph.create(null, tail);
+    else tailLine = line.type.create(line.attrs, tail);
+    const newBlock = blockType.create({ blockId: null, blockType: isTask ? "task" : "text" }, tailLine);
 
     // Move the tail into a new block — a first child when the block has children
     // (so it lands right under the line), else the next sibling.
@@ -491,10 +504,13 @@ export const mergeBlockBackward: BlockCommand = (state, dispatch) => {
 
   // Empty line.
   if (emptyLine) {
-    if (line.type.name === "heading") {
+    // Empty heading or checkbox → reset to a plain paragraph (task also clears
+    // its block type).
+    if (line.type.name === "heading" || line.type.name === "taskLine") {
       if (dispatch) {
         const pos = $from.before();
         const tr = state.tr.setNodeMarkup(pos, schema.nodes.paragraph, { color: line.attrs.color ?? null });
+        if (line.type.name === "taskLine") tr.setNodeAttribute($from.before(blockDepth), "blockType", "text");
         tr.setSelection(TextSelection.near(tr.doc.resolve(pos + 1)));
         dispatch(tr.scrollIntoView());
       }

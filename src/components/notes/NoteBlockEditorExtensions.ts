@@ -178,6 +178,95 @@ export const MarkdownLink = Link.extend({
 });
 
 // ---------------------------------------------------------------------------
+// Link "open in browser" controls
+// ---------------------------------------------------------------------------
+
+const EXTERNAL_LINK_SVG =
+  '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+
+/** Build the little contentEditable-false button placed after a link. */
+function createLinkOpenButton(href: string): HTMLElement {
+  const button = document.createElement("a");
+  button.className = "note-link-open";
+  button.href = href;
+  button.target = "_blank";
+  button.rel = "noopener noreferrer nofollow";
+  button.contentEditable = "false";
+  button.title = "Open in browser";
+  button.setAttribute("aria-label", "Open link in new tab");
+  button.innerHTML = EXTERNAL_LINK_SVG;
+  // Keep the click from moving the caret / being swallowed by the editor.
+  button.addEventListener("mousedown", (event) => event.preventDefault());
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    window.open(href, "_blank", "noopener,noreferrer");
+  });
+  return button;
+}
+
+const linkOpenControlsKey = new PluginKey("noteLinkOpenControls");
+
+/**
+ * Renders a small "open in browser" button immediately after each link (links
+ * themselves don't open on click — `openOnClick` is false — so this is how you
+ * follow one). One button per contiguous link run.
+ */
+export const LinkOpenControls = Extension.create({
+  name: "linkOpenControls",
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: linkOpenControlsKey,
+        props: {
+          decorations(state) {
+            const linkType = state.schema.marks.link;
+            if (!linkType) return DecorationSet.empty;
+
+            const runs: Array<{ to: number; href: string }> = [];
+            let current: { to: number; href: string } | null = null;
+
+            state.doc.descendants((node, pos) => {
+              if (!node.isText) {
+                current = null;
+                return;
+              }
+              const mark = node.marks.find((m) => m.type === linkType);
+              if (!mark) {
+                current = null;
+                return;
+              }
+              const href = String(mark.attrs.href ?? "");
+              const from = pos;
+              const to = pos + node.nodeSize;
+              if (current && current.to === from && current.href === href) {
+                current.to = to; // extend the contiguous run in place
+              } else {
+                current = { to, href };
+                runs.push(current);
+              }
+            });
+
+            const decorations = runs
+              .filter((run) => run.href)
+              .map((run) =>
+                Decoration.widget(run.to, () => createLinkOpenButton(run.href), {
+                  side: 1,
+                  ignoreSelection: true,
+                  key: `link-open:${run.to}:${run.href}`,
+                }),
+              );
+
+            return DecorationSet.create(state.doc, decorations);
+          },
+        },
+      }),
+    ];
+  },
+});
+
+// ---------------------------------------------------------------------------
 // Block-level atom shortcuts (divider, image)
 // ---------------------------------------------------------------------------
 

@@ -39,6 +39,7 @@ import { BlockColor } from "@/components/notes/NoteBlockEditorColor";
 import {
   BlockColorShortcut,
   DateAutoFormat,
+  LinkOpenControls,
   MarkdownLink,
   NotesArrowReplacement,
   NotesHorizontalRule,
@@ -103,6 +104,7 @@ export function buildNoteEditorExtensions(): Extensions {
     // Cross-cutting behavior.
     BlockColor,
     MarkdownLink,
+    LinkOpenControls,
     NotesArrowReplacement,
     DateAutoFormat,
     TaskShortcut,

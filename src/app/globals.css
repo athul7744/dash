@@ -304,6 +304,39 @@ body[data-display-font="bricolage"] {
   -webkit-box-decoration-break: clone;
 }
 
+/* Links in the editor: look like links (they don't open on click — the little
+   button after them does). */
+.ProseMirror a[href] {
+  color: color-mix(in oklab, var(--color-primary) 80%, var(--color-foreground));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in oklab, var(--color-primary) 45%, transparent);
+  cursor: text;
+}
+
+/* "Open in browser" button rendered right after each link. */
+.note-link-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05em;
+  height: 1.05em;
+  margin-inline: 0.15em 0.05em;
+  border-radius: 0.3rem;
+  vertical-align: -0.15em;
+  color: var(--color-muted-foreground);
+  opacity: 0.7;
+  cursor: pointer;
+  transition: color 0.12s, background-color 0.12s, opacity 0.12s;
+  text-decoration: none;
+}
+
+.note-link-open:hover {
+  opacity: 1;
+  color: color-mix(in oklab, var(--color-primary) 80%, var(--color-foreground));
+  background: var(--color-accent);
+}
+
 .note-ref-token-page {
   background: color-mix(in oklab, var(--color-primary) 14%, transparent);
   color: color-mix(in oklab, var(--color-primary) 80%, var(--color-foreground));

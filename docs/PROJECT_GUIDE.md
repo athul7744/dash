@@ -13,11 +13,15 @@ Next.js 16 · PowerSync · Supabase · Tailwind CSS v4 · Shadcn/UI · Tiptap 3.
 
 ## What Dash Is
 
-Dash is an offline-first Next.js application with three primary apps under one shell:
+Dash is an offline-first Next.js application with five apps under one shell:
 
-- `Tasks` — todo management with subtasks, tags, due dates, priorities, trash/restore, and share-target capture
+- `Tasks` — todo management with subtasks, tags, due dates, priorities, and trash/restore
 - `Tracker` — time-block logging on a 7-day x 24-hour grid, daily mood ratings, yearly heatmaps, and weekly widgets
 - `Notes` — a local-first outline editor built on pages, blocks, graph edges, and explicitly owned attachments
+- `Quotes` — a collection of quotes stored in the notes backend (a hidden `kind: "quote"` system page) with a favorites-weighted daily resurfacing on the dashboard
+- `Bookmarks` — saved links stored in the notes backend (a hidden `kind: "bookmark"` system page) with platform detection, server-fetched titles, tags, read/unread, and an unread-weighted daily "revisit"
+
+Content enters through **universal capture**: the PWA share target (`/share`) and an in-app quick-capture modal both classify shared links/text and triage them into any app (see [Universal Capture](#universal-capture)). Quotes and Bookmarks reuse the notes `pages`/`blocks` store via the system-page mechanism, so they add no new tables.
 
 Testing is organized separately under `tests/`, with app-group suites and shared helpers rather than colocated source tests.
 
@@ -83,13 +87,12 @@ Key runtime behavior:
 
 ### Route-level loading behavior
 
-- `src/app/tasks/loading.tsx`
-  - Route-level fallback for navigation into tasks
-  - Uses the real header shell plus tasks-specific skeleton content
+- `src/app/{tasks,tracker,notes,quotes,bookmarks}/loading.tsx`
+  - Route-level fallback for navigation into each app
+  - Each renders the real header shell plus an app-specific skeleton from `src/components/skeletons/*` (shared with the cold-start boot skeleton)
 
-- `src/app/tracker/loading.tsx`
-  - Route-level fallback for navigation into tracker
-  - Uses the real header shell plus tracker tab/body skeletons
+- `src/components/AppBootSkeleton.tsx`
+  - Cold-start fallback (shown by `powersync-provider` while the local DB opens) that picks the route-shaped skeleton by pathname (and `?view=`/`?page=` for tracker/notes), so a refresh boots into the matching skeleton with no blank gap
 
 Important convention:
 
@@ -102,10 +105,13 @@ Important convention:
 
 - `src/app/page.tsx` — the welcome dashboard (home/start page; see [Dashboard](#dashboard-structure))
 - `src/app/login/page.tsx` — login page
-- `src/app/share/page.tsx` — PWA share target review and save flow
+- `src/app/share/page.tsx` — PWA share target → universal capture triage (see [Universal Capture](#universal-capture))
 - `src/app/tasks/page.tsx` — tasks dashboard
 - `src/app/tracker/page.tsx` — tracker dashboard
 - `src/app/notes/page.tsx` — notes dashboard shell
+- `src/app/quotes/page.tsx` — quotes collection
+- `src/app/bookmarks/page.tsx` — bookmarks collection
+- `src/app/api/bookmark-metadata/route.ts` — auth-gated, SSRF-guarded server proxy that fetches a URL's `<title>`/OG metadata (used by bookmarks + capture to prefill titles)
 
 ### Shared components
 
@@ -121,14 +127,16 @@ Important convention:
 ### Dashboard components
 
 - `src/components/dashboard/DashboardHero.tsx` — the centered hero (greeting, search bar, contextual action/mood)
-- `src/components/dashboard/DashboardGreeting.tsx` — presentational greeting + date (one line on desktop)
+- `src/components/dashboard/DashboardGreeting.tsx` — presentational greeting: the date as a small serif eyebrow above the greeting (centered stack)
 - `src/components/dashboard/HeroAction.tsx` — the contextual nudge button (opens a task, scrolls to a section, or navigates)
 - `src/components/dashboard/MoodPicker.tsx` — 1–5 mood dots writing to `daily_ratings` (night hero + shared)
 - `src/components/dashboard/GlobalSearch.tsx` — controlled combined tasks+notes search (built on `SearchPopup`)
 - `src/components/dashboard/TaskPopup.tsx` — opens a `TaskCard` in a blurred modal (tasks have no deep-link route)
 - `src/components/dashboard/TodayTasks.tsx` / `TodayTracking.tsx` — borderless reveal widgets
+- `src/components/dashboard/DashboardQuote.tsx` / `DashboardBookmarks.tsx` — the daily "quote of the day" / "revisit" resurfacing cards (a `variant` renders either the compact dashboard tile or the larger hero atop `/quotes` and `/bookmarks`); render nothing until there's content
 - `src/components/dashboard/DashboardJournal.tsx` — embeds `WeeklyJournal` for the current week, editable in place
-- `src/components/dashboard/AppsFab.tsx` — bottom horizontal app strip (single-click nav), on a blurred scrim
+- `src/components/dashboard/AppsFab.tsx` — bottom horizontal app strip (single-click nav) over a blurred scrim; a dashboard-specific order (bookmarks, tasks, tracker, notes, quotes) centered on Tracker, with the ends scroll-reachable on narrow screens
+- `src/components/capture/QuickCapture.tsx` — in-app capture modal (opened by the dashboard Capture button / ⌘Ctrl+Shift+K); seeds `CaptureTriage` from the clipboard (see [Universal Capture](#universal-capture))
 
 ### Task-specific components
 
@@ -165,6 +173,9 @@ Important convention:
 - `src/lib/shared/apps.ts` — app registry used by header/switcher/FAB shell
 - `src/lib/shared/auth.ts` — current-user lookup with session caching
 - `src/lib/shared/share.ts` — parsing incoming share payloads and title generation
+- `src/lib/shared/capture.ts` — pure capture classifier (`classifyShare`, `detectPlatform`, `looksLikeQuote`); no DB imports so it stays testable
+- `src/lib/shared/capture-actions.ts` — `saveCapture` dispatcher that writes a capture into the chosen app (bookmark/quote/task/note) + `captureResultHref`
+- `src/lib/shared/daily-pick.ts` — shared deterministic "of the day" primitives (`dayNumber`, `hashInt`, pool/index salts) reused by the quotes + bookmarks daily picks
 - `src/lib/shared/debounced-update.ts` — debounced local writes and execute batching
 - `src/lib/shared/logger.ts` — runtime logging abstraction
 - `src/lib/shared/ranked-order.ts` — reusable LexoRank ordering helpers that can be shared across app groups
@@ -174,12 +185,17 @@ Important convention:
 - `src/lib/shared/motion.ts` — the shared Motion vocabulary (durations, easings, spring, variants); the single source of truth for animation feel, mirrored by the CSS `--motion-*` tokens (see [Motion system](#motion-system))
 - `src/lib/dashboard/hero-action.ts` — pure rule+weighted-score picker (`chooseHeroAction`) for the hero's contextual nudge
 - `src/lib/tasks/colors.ts` — tag palette and class maps
-- `src/lib/tasks/tasks.ts` — priority and due-date helpers
+- `src/lib/tasks/tasks.ts` — priority, due-date, and URL helpers (`normalizeUrl`/`getLinkHost`/`extractFirstUrl`); pure (no DB) so the capture classifier can import it
+- `src/lib/tasks/create-task.ts` — `createTask(...)` (extracted from the inline INSERTs so share/capture share one path)
 - `src/lib/tasks/tags.ts` — tag creation helpers
+- `src/lib/quotes/quotes.ts` / `quotes/daily.ts` — quote CRUD over the `kind:"quote"` system page, and the favorites-weighted `pickDailyQuote`
+- `src/lib/bookmarks/bookmarks.ts` / `bookmarks/daily.ts` / `bookmarks/metadata.ts` / `bookmarks/fetch-metadata.ts` — bookmark CRUD over the `kind:"bookmark"` system page, the unread-weighted `pickDailyBookmark`, the pure `parseMetadataHtml` (used by the metadata route), and the client `refreshBookmarkTitle` wrapper
 - `src/lib/tracker/activities.ts` — tracker activity palette and class maps
 - `src/lib/tracker/ratings.ts` — `setDailyRating` upsert (insert/update/clear) for the mood picker, shared by the dashboard
 - `src/lib/tracker/day-keys.ts` — UTC-naive/local date-key helpers, incl. `recentNaiveWindow` for the "logged in the last 2h" check
 - `src/hooks/use-notes.ts` — local SQLite query hooks for note pages and blocks (excludes `properties.kind`-tagged system pages from Notes lists)
+- `src/hooks/use-quotes.ts` / `src/hooks/use-bookmarks.ts` — live query hooks reading the quote/bookmark blocks off their system page (a "settled" latch keeps the empty state from flashing during the page-id → query swap)
+- `src/hooks/use-autosize-textarea.ts` — grows a textarea to fit its content, recomputing on width/masonry-column changes (quote + bookmark cards)
 - `src/hooks/use-display-font.ts` — reads/writes the selected display font via `useSyncExternalStore` + `localStorage`, applying it to `<body data-display-font>`
 - `src/hooks/use-settled-timestamp.ts` — debounced timestamp display that waits for pending writes to settle
 - `src/hooks/use-edge-swipe.ts` — mobile edge swipe gesture detection
@@ -190,7 +206,7 @@ Important convention:
 - `src/hooks/use-hero-action.ts` — gathers live signals (tasks, recent tracking, mood, journal) and returns the chosen hero action + most-relevant task
 - `src/lib/notes/notes-content.ts` — note document normalization, serialization (including math nodes), and plain-text extraction
 - `src/lib/notes/notes-tree.ts` — tree building and visible block ordering helpers for note blocks
-- `src/lib/notes/editor/*` — the single-document editor's non-React core: `block-schema` (the `block` wrapper node + `blockContent` grouping), `block-document` (assemble rows → one doc / decompose doc → rows, incl. legacy `taskList` → task-block migration), `block-diff` (churn-minimal rank/write diff), `block-persister` (debounced save + remote reconcile), `block-commands` (native split/merge/indent/outdent), `block-id-plugin` (stable block ids), `block-normalize` (one-content-node-per-block invariant), `slash-single` (slash detect/apply), `markdown-paste` (parse pasted raw markdown text → block/`taskLine` nodes; detection + insertion for the editor's `handlePaste`), and `extensions` (the assembled Tiptap extension list)
+- `src/lib/notes/editor/*` — the single-document editor's non-React core: `block-schema` (the `block` wrapper node + `blockContent` grouping), `block-document` (assemble rows → one doc / decompose doc → rows, incl. legacy `taskList` → task-block migration), `block-diff` (churn-minimal rank/write diff), `block-persister` (debounced save + remote reconcile), `block-commands` (native split/merge/indent/outdent), `block-id-plugin` (stable block ids), `block-normalize` (one-content-node-per-block invariant), `slash-single` (slash detect/apply), `markdown-paste` (parse pasted raw markdown text → block/`taskLine` nodes; detection + insertion for the editor's `handlePaste`, incl. `pasteUrlAsLink` which links a pasted bare URL), and `extensions` (the assembled Tiptap extension list)
 - `src/lib/notes/query-block-content.ts` — encode/decode codec between the query UI's `QueryBlockConfig` and the stored note document (config lives in a `queryBlock` node's attrs)
 - `src/lib/notes/notes.ts` — note page CRUD, metadata writes, attachment upserts, edge reconciliation, and system-page helpers (`ensureSystemPage`, `pruneEmptyJournalPages`)
 - `src/lib/notes/system-pages.ts` — deterministic ids for "system pages": notes pages tagged with `properties.kind` (e.g. `journal`) and located by `uuidv5(kind:userId:key)`, so features can reuse the notes store while staying hidden from `/notes`
@@ -208,7 +224,8 @@ Important convention:
 - `tests/notes/*` — notes-specific Vitest suites
 - `tests/tasks/*` — task-specific Vitest suites
 - `tests/tracker/*` — tracker-specific Vitest suites
-- `tests/shared/*` — shared fixtures, builders, and assertions reused across app groups
+- `tests/quotes/*` / `tests/bookmarks/*` — quotes/bookmarks daily-pick + metadata suites
+- `tests/shared/*` — shared fixtures, builders, and assertions reused across app groups (incl. the capture classifier)
 - `tests/README.md` — current suite map and short descriptions of what each test file covers
 
 ### Notes App Structure
@@ -253,7 +270,7 @@ Key modules:
   - `taskLine` is a single checkbox line — each checklist item is its OWN block (`blockType: "task"`), no `taskList` wrapper. `queryBlock` is an atom NodeView rendering the existing `QueryBlockView`.
 
 - `src/components/notes/NoteBlockEditorExtensions.ts` / `NoteBlockEditorMath.ts` / `NoteBlockEditorSlash.ts` / `NoteBlockEditorCode.ts` / `NoteBlockEditorColor.ts`
-  - Shared Tiptap building blocks reused by the single-document schema: reference decorations (`[[page refs]]` + `{date}` tokens) / date auto-format / markdown links / arrow replacement; markdown-typing input rules that create blocks — divider (`---`), image (`![alt](url)`), checkbox (`[]`/`[x]`), and block color (`!blue`/`!none`) — alongside the ones each node ships (headings, quote, code, math); inline (`$...$`) and block (`$$...$$`) math with KaTeX NodeViews; the slash command catalog (+ filter/group helpers, including `/math`, `/todo`, `/date`); the code block toolbar; and per-block background colors.
+  - Shared Tiptap building blocks reused by the single-document schema: reference decorations (`[[page refs]]` + `{date}` tokens) / date auto-format / markdown links / arrow replacement; `LinkOpenControls` (a widget decoration that renders an "open in browser" ↗ button after each link, since links don't open on click); markdown-typing input rules that create blocks — divider (`---`), image (`![alt](url)`), checkbox (`[]`/`[x]`), and block color (`!blue`/`!none`) — alongside the ones each node ships (headings, quote, code, math); inline (`$...$`) and block (`$$...$$`) math with KaTeX NodeViews; the slash command catalog (+ filter/group helpers, including `/math`, `/todo`, `/date`); the code block toolbar; and per-block background colors.
 
 - `src/lib/notes/editor/block-persister.ts`
   - Debounced per-page persister: decomposes the doc to rows, diffs against the last-known set (churn-minimal ranks, net-zero writes, failure retention), reconciles per-block edges, and merges remote row changes back into the open doc with `addToHistory:false`. `flushAllBlockDocumentPersisters()` flushes on `beforeunload`.
@@ -325,7 +342,8 @@ Responsibilities and behavior:
 - **Contextual hero action:** `useHeroAction` gathers signals — pending/overdue/due-today tasks (and the most-relevant one), whether time was logged in the last 2h (`recentNaiveWindow`), whether mood was rated today, and whether this week's journal system page exists — and feeds the pure `chooseHeroAction` picker (`src/lib/dashboard/hero-action.ts`). At night it shows `MoodPicker`; otherwise a single `HeroAction` nudge (most-relevant task → task modal, plan → scroll to `#today-tasks`, track → `/tracker`, journal → scroll to `#weekly-journal`).
 - **Search:** `GlobalSearch` is controlled (opened by the hero bar, the top-bar icon, or ⌘K), filters tasks by title and notes via `useNotesPageDerivedState`, and reuses `SearchPopup`. Notes deep-link to `/notes?page=`; tasks open in `TaskPopup`.
 - **Journal:** `DashboardJournal` embeds the tracker's `WeeklyJournal` for the current week (same `systemPageId`), editable in place.
-- **Apps:** `AppsFab` is a fixed bottom strip of single-click app links over a blurred scrim (replaces the old floating `AppSwitcher` FAB here).
+- **Apps:** `AppsFab` is a fixed bottom strip of single-click app links over a blurred scrim (replaces the old floating `AppSwitcher` FAB here); ordered bookmarks/tasks/tracker/notes/quotes and scroll-centered on Tracker so the middle app is reachable on launch.
+- **Capture:** a Capture button in the top bar (and ⌘/Ctrl+Shift+K) opens `QuickCapture` (see [Universal Capture](#universal-capture)).
 - Greeting text comes from `useGreeting` (one seed shared by hero + collapsed bar). There is no route restoration — the app always opens on the dashboard.
 
 ## Tasks App Structure
@@ -452,18 +470,28 @@ Tasks and notes both resolve against the same `public.tags` rows, so changes to 
 
 If one of these dialogs breaks, start with the shared component first.
 
-## Share Flow
+## Universal Capture
 
-Route:
+Two entry points, one triage component:
 
-- `src/app/share/page.tsx`
+- **PWA share target** — `src/app/share/page.tsx`. The manifest (`public/manifest.json`) declares a GET `share_target` at `/share`; on an installed Android PWA a shared link/text lands here. (iOS Safari doesn't support Web Share Target — deferred.)
+- **In-app quick capture** — `src/components/capture/QuickCapture.tsx`, opened from the dashboard Capture button or ⌘/Ctrl+Shift+K; seeds the triage from the clipboard.
 
-This route is the PWA web share target. It:
+Both render `src/components/capture/CaptureTriage.tsx`, which:
 
-- reads incoming share params with helpers from `src/lib/shared/share.ts`
-- builds an initial task title from the payload
-- reuses `TaskMetadataEditor` for due date and tags
-- inserts a task directly into local SQLite and then routes the user back to `/tasks`
+- classifies the payload with `classifyShare` (`src/lib/shared/capture.ts`) → a smart default target (URL → Bookmark with platform detected, short text → Quote, prose → Note)
+- holds one shared field model (title / text / url), so fetched metadata and edits persist when the user switches the target chip; a URL auto-fetches its title/description via `/api/bookmark-metadata` into the active fields
+- saves through `saveCapture` (`src/lib/shared/capture-actions.ts`) → `createBookmark` / `createQuote` / `createTask` / `createNoteFromText`, then shows an inline "Saved to X" state (no toast system)
+
+All writes are local (offline-safe). The proxy (`src/proxy.ts`) preserves `/share?...` across a login round-trip via `sanitizeNextPath`.
+
+## Quotes App Structure
+
+Route: `src/app/quotes/page.tsx`. Quotes are `type:"quote"` blocks on one hidden system page (`kind:"quote"`, key `"library"`) — no schema change. `src/lib/quotes/quotes.ts` is the CRUD layer, `src/hooks/use-quotes.ts` the live query, `QuoteCard` the editable card (masonry list), and `DashboardQuote` the favorites-weighted daily "quote of the day" (dashboard tile + `variant="hero"` atop `/quotes`).
+
+## Bookmarks App Structure
+
+Route: `src/app/bookmarks/page.tsx`. Bookmarks are `type:"bookmark"` blocks on one hidden system page (`kind:"bookmark"`, key `"library"`). `src/lib/bookmarks/bookmarks.ts` is the CRUD layer (content JSON holds `url/title/note/tags/favorite/unread/addedAt`; tag ids reuse the shared `tags` table), `src/hooks/use-bookmarks.ts` the live query, `BookmarkCard` the editable card (favicon, title, note, tags, read/unread, star, per-card refresh), and `DashboardBookmarks` the unread-weighted daily "revisit". Titles are fetched server-side via `/api/bookmark-metadata` (auth-gated + SSRF-guarded); a single omni-field on the page does both search and paste-to-add.
 
 ## Data And Write Flow
 
@@ -510,9 +538,10 @@ Important implementation notes:
 
 ## App Registry And Visual Identity
 
-- `src/lib/shared/apps.ts` is the central registry for each app's route, name, icon, and accent colors
-- The header, switcher, and mobile FAB shell all rely on this registry
+- `src/lib/shared/apps.ts` is the central registry for each app's route, name, icon, and accent colors (currently tasks/tracker/notes/quotes/bookmarks)
+- The header, switcher, and mobile FAB shell all rely on this registry; adding an entry surfaces the app in `AppSwitcher` and `AppsFab` automatically
 - If a new app is added, start there first
+- **Reusing the notes backend:** Quotes and Bookmarks are feature-owned "system pages" (`src/lib/notes/system-pages.ts` — a `kind` tag + deterministic `uuidv5` id, hidden from `/notes`). This is the pattern for any app that wants storage/sync without a schema change; extend `SystemPageKind` and add a thin CRUD lib + hook (mirror `src/lib/quotes/` or `src/lib/bookmarks/`).
 
 The notes app follows that same pattern, so new shell behavior should extend the shared primitives instead of introducing app-only chrome.
 
@@ -606,9 +635,9 @@ See [tests/README.md](../tests/README.md) for the current suite map.
 
 ### Project Organization
 
-- `src/app/` — App Router routes for launcher, tasks, tracker, notes, login, and share-target flows
-- `src/components/` — shared shell UI plus app-specific task, tracker, and notes components
-- `src/lib/shared/`, `src/lib/tasks/`, `src/lib/tracker/`, `src/lib/notes/` — helpers grouped by responsibility
+- `src/app/` — App Router routes for launcher, tasks, tracker, notes, quotes, bookmarks, login, share-target, and the metadata API route
+- `src/components/` — shared shell UI plus app-specific task, tracker, notes, quotes, bookmarks, and capture components
+- `src/lib/shared/`, `src/lib/tasks/`, `src/lib/tracker/`, `src/lib/notes/`, `src/lib/quotes/`, `src/lib/bookmarks/` — helpers grouped by responsibility
 - `src/lib/powersync/` — local SQLite schema, database bootstrap, and sync connector
 - `tests/` — Vitest suites grouped by app plus shared test helpers
 
@@ -617,6 +646,9 @@ Feature entry points:
 - `src/app/tasks/page.tsx` + `src/components/tasks/`
 - `src/app/tracker/page.tsx` + `src/components/tracker/`
 - `src/app/notes/page.tsx` + `src/components/notes/page/` + `src/components/notes/editor/`
+- `src/app/quotes/page.tsx` + `src/components/quotes/` + `src/lib/quotes/`
+- `src/app/bookmarks/page.tsx` + `src/components/bookmarks/` + `src/lib/bookmarks/`
+- Capture: `src/app/share/page.tsx` + `src/components/capture/` + `src/lib/shared/capture*.ts`
 
 ## When To Update This Document
 

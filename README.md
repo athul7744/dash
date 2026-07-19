@@ -1,6 +1,6 @@
 # Dash.
 
-A personal productivity workspace that works offline and syncs across devices. Tasks, time tracking, and a full notes editor — all in one place.
+A personal productivity workspace that works offline and syncs across devices. Tasks, time tracking, notes, quotes, and bookmarks — all in one place, and capturable from anywhere you can share a link or text.
 
 ## What It Does
 
@@ -10,7 +10,7 @@ The home screen opens calm and centered: a rotating, time-of-day greeting and on
 
 ### Tasks
 
-Manage your to-do list with subtasks, tags, due dates, and priorities. Filter by state, tag, or priority. Deleted tasks go to trash where they can be restored. On mobile, save tasks directly from your phone's share sheet — share a link or text from any app and it becomes a task.
+Manage your to-do list with subtasks, tags, due dates, and priorities. Filter by state, tag, or priority. Deleted tasks go to trash where they can be restored.
 
 ### Tracker
 
@@ -22,7 +22,19 @@ A structured editor for thinking and writing. Create pages, nest blocks into out
 
 Pages can have emoji icons, and headings stick while you scroll for easy orientation in long documents. Blocks can be colored for visual emphasis. Date tokens let you insert formatted dates inline via slash commands. Query blocks let you build filtered, sorted views of your pages — like a lightweight database.
 
-Navigate between linked pages with a breadcrumb trail that tracks your path. On desktop, hover a page link to see a peek preview; on mobile, long-press to preview before opening.
+Navigate between linked pages with a breadcrumb trail that tracks your path. On desktop, hover a page link to see a peek preview; on mobile, long-press to preview before opening. Paste a URL and it becomes a clickable link with a button to open it in your browser.
+
+### Quotes
+
+Collect lines worth remembering — each with an optional author. Star your favorites. One resurfaces on the dashboard each day (favorites show up more often), and "Show another" cycles through the rest.
+
+### Bookmarks
+
+Save links to read or watch later. Titles are fetched automatically, the site's favicon is shown, and the platform (YouTube, Instagram, X, …) is recognized. Tag them (the same tags as Tasks), mark them read/unread, star them, and search or filter. One unread bookmark resurfaces on the dashboard each day to nudge you to revisit it.
+
+### Capture
+
+The fastest way in. On Android, install Dash as a PWA and it shows up in your phone's share sheet — share a link or text from any app and a triage screen lets you save it to Bookmarks, Tasks, Notes, or Quotes (a smart default is preselected — links default to Bookmarks). Anywhere else, the dashboard Capture button (or ⌘/Ctrl+Shift+K) opens the same triage from your clipboard. Everything saves locally, so capture works offline.
 
 ## How It Works
 

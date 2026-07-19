@@ -7,7 +7,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/notes/` — notes-specific logic and write-path tests.
 - `tests/tasks/` — task-specific test entry points and notes about where task suites belong.
 - `tests/tracker/` — tracker-specific test entry points and notes about where tracker suites belong.
-- `tests/shared/` — reusable fixtures, builders, and assertions shared across app groups.
+- `tests/quotes/` — quotes-specific logic tests.
+- `tests/bookmarks/` — bookmarks-specific logic tests.
+- `tests/shared/` — reusable fixtures, builders, and assertions shared across app groups (incl. the universal-capture classifier).
 
 ## Current Notes Suites
 
@@ -72,8 +74,8 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `task-shortcut.dom.test.ts` — the `[]`/`[x]` markdown checkbox input rule converts a paragraph into a task block.
 - `markdown-block-shortcuts.dom.test.ts` — the divider (`---`), image (`![]()`), and block-color (`!blue`/`!none`) input rules, driven through a live editor.
 - `paste.dom.test.ts` — external multi-paragraph paste becomes well-formed blocks; copied blocks get fresh ids.
-- `markdown-paste.test.ts` — `markdownToBlockNodes` maps every markdown construct (headings, paragraphs, bullet/ordered/task lists incl. nesting, blockquotes, fenced code, thematic breaks, GFM tables, inline marks, hard breaks) to the right block/`taskLine` shape; `looksLikeMarkdown` + `clipboardMarkdown` detection/routing (prose left alone, structured HTML deferred to native paste). Includes fixtures ported from the removed markdown-clipboard suite.
-- `markdown-paste.dom.test.ts` — parsed markdown inserts into a live editor as schema-valid nodes with zero frankenblocks, one content node per block, and freshly-stamped ids; the single inline-formatted paragraph merges into the current line.
+- `markdown-paste.test.ts` — `markdownToBlockNodes` maps every markdown construct (headings, paragraphs, bullet/ordered/task lists incl. nesting, blockquotes, fenced code, thematic breaks, GFM tables, inline marks, hard breaks) to the right block/`taskLine` shape; `looksLikeMarkdown` + `clipboardMarkdown` detection/routing (prose left alone, structured HTML deferred to native paste); `isBareUrl` single-URL detection. Includes fixtures ported from the removed markdown-clipboard suite.
+- `markdown-paste.dom.test.ts` — parsed markdown inserts into a live editor as schema-valid nodes with zero frankenblocks, one content node per block, and freshly-stamped ids; the single inline-formatted paragraph merges into the current line; `pasteUrlAsLink` links a pasted bare URL (inserts linked text, normalizes bare domains, wraps a selection, and leaves no stored mark).
 - `reference-resolver.dom.test.ts` — `getResolvedPageReferenceAtPosition` resolves the `[[title]]` under the cursor.
 - `read-only-block-renderer.dom.test.tsx` — `ReadOnlyBlockRenderer` renders heading/paragraph/task blocks non-editably through the single-doc schema.
 
@@ -99,6 +101,22 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 
 - `tests/shared/motion.test.ts`
   Covers the shared Motion token vocabulary (`src/lib/shared/motion.ts`): duration ordering, easing tuples, the soft spring, stagger step, and the entrance/stagger/popover variants.
+
+- `tests/shared/capture.test.ts`
+  Covers the universal-capture classifier (`src/lib/shared/capture.ts`): `detectPlatform` host recognition (YouTube/Instagram/X/Reddit/GitHub, null otherwise), `looksLikeQuote`, and `classifyShare` picking the smart default target (URL → bookmark + platform, short text → quote, prose → note, empty → note; URL-in-text extraction).
+
+## Current Quotes Suites
+
+- `tests/quotes/daily.test.ts`
+  Covers `pickDailyQuote` (`src/lib/quotes/daily.ts`): empty → null, single-quote stability, determinism within a local day, advancing across days, favorites-weighted bias, and the no-favorites fallback.
+
+## Current Bookmarks Suites
+
+- `tests/bookmarks/daily.test.ts`
+  Covers `pickDailyBookmark` (`src/lib/bookmarks/daily.ts`): empty → null, determinism within a day, advancing across days, unread-weighted bias, and the no-unread fallback.
+
+- `tests/bookmarks/metadata.test.ts`
+  Covers `parseMetadataHtml` (`src/lib/bookmarks/metadata.ts`): preferring `og:title` over `<title>`, entity decoding, description/image extraction in either attribute order, the `description` meta fallback, and empty output for missing tags / malformed HTML.
 
 ## Current Tracker Suites
 

@@ -1,7 +1,7 @@
 import { LexoRank } from "lexorank";
 import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
 
-import { extractNoteText, serializeNoteDocument } from "@/lib/notes/notes-content";
+import { createNoteDocumentFromText, extractNoteText, serializeNoteDocument } from "@/lib/notes/notes-content";
 import { systemPageId, type SystemPageKind } from "@/lib/notes/system-pages";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
@@ -345,6 +345,33 @@ export async function createStarterPage(title = "Untitled") {
     sortRank: LexoRank.middle().format(),
     type: "text",
     content: { type: "doc", content: [] },
+  });
+  return pageId;
+}
+
+/**
+ * Create a note page seeded with a single text block containing `body`. Used by
+ * the capture flow. Page titles are unique, so a colliding title gets a numeric
+ * suffix (then a short random one as a last resort). Returns the new page id.
+ */
+export async function createNoteFromText(title: string, body: string): Promise<string> {
+  const base = normalizeNotePageTitle(title) || "Untitled";
+  let pageId: string | null = null;
+  for (let attempt = 1; attempt <= 5 && !pageId; attempt++) {
+    const candidate = attempt === 1 ? base : `${base} (${attempt})`;
+    try {
+      pageId = await createNotePage({ title: candidate });
+    } catch {
+      // Title already exists — try the next suffix.
+    }
+  }
+  pageId ??= await createNotePage({ title: `${base} ${uuidv4().slice(0, 6)}` });
+
+  await createNoteBlock({
+    pageId,
+    sortRank: LexoRank.middle().format(),
+    type: "text",
+    content: createNoteDocumentFromText(body),
   });
   return pageId;
 }

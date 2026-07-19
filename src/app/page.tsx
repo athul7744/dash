@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Search, Settings } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Plus, Search, Settings } from "lucide-react";
 import { motion, useScroll, useTransform } from "motion/react";
 
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { Button } from "@/components/ui/button";
+import { QuickCapture } from "@/components/capture/QuickCapture";
 import { AppsFab } from "@/components/dashboard/AppsFab";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { DashboardBookmarks } from "@/components/dashboard/DashboardBookmarks";
@@ -21,9 +22,22 @@ import { useGreeting } from "@/hooks/use-greeting";
 export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [captureOpen, setCaptureOpen] = useState(false);
   const { greeting, subline, date } = useGreeting();
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // ⌘/Ctrl+Shift+K opens quick capture from anywhere on the dashboard.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCaptureOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Scroll-linked collapse driven by the container's raw scroll offset (px).
   // Tight ranges so the hero snaps into the top bar within a short scroll.
@@ -71,6 +85,15 @@ export default function Home() {
           <Button
             variant="ghost"
             size="icon"
+            onClick={() => setCaptureOpen(true)}
+            className="rounded-full text-muted-foreground hover:text-foreground"
+            title="Capture (⌘/Ctrl+Shift+K)"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setSettingsOpen(true)}
             className="rounded-full text-muted-foreground hover:text-foreground"
             title="Settings"
@@ -109,6 +132,7 @@ export default function Home() {
       <AppsFab />
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      <QuickCapture open={captureOpen} onOpenChange={setCaptureOpen} />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );

@@ -7,6 +7,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { DashboardQuote } from "@/components/dashboard/DashboardQuote";
 import { QuoteCard } from "@/components/quotes/QuoteCard";
+import { QuotesLoadingSkeleton } from "@/components/skeletons/QuotesLoadingSkeleton";
 import { useQuotes } from "@/hooks/use-quotes";
 import { createQuote } from "@/lib/quotes/quotes";
 import { getApp } from "@/lib/shared/apps";
@@ -21,6 +22,10 @@ export default function QuotesPage() {
     const id = await createQuote();
     setJustCreatedId(id);
   };
+
+  // Show the route skeleton until the first real result lands, so there's no
+  // blank gap or empty-state flash between the boot skeleton and content.
+  if (isLoading) return <QuotesLoadingSkeleton />;
 
   return (
     <>
@@ -38,8 +43,8 @@ export default function QuotesPage() {
         }
       />
 
-      <div className="mx-auto max-w-2xl px-[var(--app-gutter-x)] py-8 pb-40">
-        {isLoading ? null : quotes.length === 0 ? (
+      <div className="mx-auto max-w-7xl px-[var(--app-gutter-x)] py-8 pb-40">
+        {quotes.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
             <div className="rounded-2xl bg-rose-500/10 p-3 dark:bg-rose-500/20">
               <QuoteIcon className="h-6 w-6 text-rose-600 dark:text-rose-400" />
@@ -61,10 +66,23 @@ export default function QuotesPage() {
           </div>
         ) : (
           <>
-            <DashboardQuote showAllLink={false} />
-            <div className="flex flex-col gap-4">
+            <DashboardQuote variant="hero" showAllLink={false} />
+
+            {/* Section break: the collection reads as a distinct zone from the daily hero. */}
+            <div className="mt-12 mb-6 flex items-baseline gap-3 sm:mt-16">
+              <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                All quotes
+              </h2>
+              <span className="text-xs tabular-nums text-muted-foreground/50">{quotes.length}</span>
+              <div className="h-px flex-1 bg-gradient-to-r from-border/70 to-transparent" />
+            </div>
+
+            {/* Masonry — variable-height cards pack tightly into columns. */}
+            <div className="columns-1 gap-5 md:columns-2 lg:columns-3">
               {quotes.map((quote) => (
-                <QuoteCard key={quote.id} quote={quote} autoFocus={quote.id === justCreatedId} />
+                <div key={quote.id} className="mb-5 break-inside-avoid">
+                  <QuoteCard quote={quote} autoFocus={quote.id === justCreatedId} />
+                </div>
               ))}
             </div>
           </>

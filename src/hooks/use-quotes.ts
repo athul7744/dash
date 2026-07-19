@@ -33,7 +33,16 @@ export function useQuotes(): { quotes: Quote[]; isLoading: boolean } {
     ? "SELECT id, content, sort_rank FROM blocks WHERE page_id = ? AND type = ? ORDER BY sort_rank ASC"
     : EMPTY_QUERY;
   const args = pageId ? [pageId, QUOTE_BLOCK_TYPE] : [];
-  const { data = [], isLoading } = useQuery<QuoteBlockRow>(query, args);
+  const { data = [], isLoading, isFetching } = useQuery<QuoteBlockRow>(query, args, { reportFetching: true });
+
+  // Latch "settled" the first time the real query returns a non-fetching result.
+  // This bridges the brief EMPTY_QUERY→real-query swap (where useQuery reports
+  // isLoading=false with stale []), so the empty state can't flash before the
+  // rows arrive. Once settled it never flips back, so live updates don't blank.
+  const [settled, setSettled] = useState(false);
+  if (!settled && pageId !== null && !isLoading && !isFetching) {
+    setSettled(true);
+  }
 
   const quotes = useMemo<Quote[]>(
     () =>
@@ -44,6 +53,5 @@ export function useQuotes(): { quotes: Quote[]; isLoading: boolean } {
     [data],
   );
 
-  // Still resolving the user id → treat as loading so callers can wait.
-  return { quotes, isLoading: isLoading || pageId === null };
+  return { quotes, isLoading: !settled };
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Star, Trash2 } from "lucide-react";
 
+import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
 import { deleteQuote, toggleFavorite, updateQuote, type Quote } from "@/lib/quotes/quotes";
 import { cn } from "@/lib/shared/utils";
 
@@ -34,13 +35,8 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
     setAuthor(quote.author);
   }, [quote.text, quote.author]);
 
-  // Auto-grow the quote textarea to fit its content.
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [text]);
+  // Grow the quote field to fit its content (recomputes on width/masonry reflow).
+  useAutosizeTextarea(textareaRef, text);
 
   useEffect(
     () => () => {
@@ -104,12 +100,12 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
       </div>
 
       <div className="absolute right-3 top-3 flex items-center gap-0.5">
-        {/* Delete reveals on hover/focus; the star is a persistent toggle. */}
+        {/* Star + delete stay visible so actions are always one click away. */}
         <button
           type="button"
           onClick={() => void deleteQuote(quote.id)}
           aria-label="Delete quote"
-          className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+          className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -120,7 +116,7 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
           aria-pressed={quote.favorite}
           className={cn(
             "grid h-8 w-8 place-items-center rounded-full transition-colors hover:bg-accent",
-            quote.favorite ? "text-amber-500" : "text-muted-foreground opacity-0 focus-visible:opacity-100 group-hover:opacity-100",
+            quote.favorite ? "text-amber-500" : "text-muted-foreground hover:text-amber-500",
           )}
         >
           <Star className={cn("h-4 w-4", quote.favorite && "fill-current")} />

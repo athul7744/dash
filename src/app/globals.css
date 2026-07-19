@@ -383,6 +383,27 @@ body[data-display-font="bricolage"] {
   margin-left: 1.5rem;
 }
 
+/* Nested blocks read as a list: a bullet in the indent gutter on nested
+   *paragraph* blocks. Headings, tasks (checkbox), quotes (left border),
+   dividers, images, and code keep their own leading affordance and stay
+   un-bulleted. Read-only previews reuse the same DOM, so they inherit this. */
+.note-block .note-block > .note-block-content:has(> p)::before {
+  content: "";
+  position: absolute;
+  left: -0.55rem;
+  top: 0.62em;
+  height: 5px;
+  width: 5px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--color-foreground) 42%, transparent);
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+/* On hover the block grip reveals over the bullet's spot — let it take over. */
+.note-block .note-block:hover > .note-block-content:has(> p)::before {
+  opacity: 0;
+}
+
 /* Block wrapper + hover-reveal grip (plain-DOM NodeView). */
 .note-block {
   position: relative;

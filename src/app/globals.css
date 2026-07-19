@@ -391,7 +391,7 @@ body[data-display-font="bricolage"] {
   content: "";
   position: absolute;
   left: -0.55rem;
-  top: 0.62em;
+  top: calc((var(--note-first-line, 1.734rem) - 5px) / 2);
   height: 5px;
   width: 5px;
   border-radius: 50%;
@@ -407,11 +407,28 @@ body[data-display-font="bricolage"] {
 /* Block wrapper + hover-reveal grip (plain-DOM NodeView). */
 .note-block {
   position: relative;
+  /* First-line height of this block's own leading element, used to vertically
+     center the grip/bullet on the first line. Default = paragraph (1.02rem ×
+     1.7, .notes-reading). Re-declared here (not just inherited) so a heading
+     parent's override below doesn't leak into its nested child blocks. */
+  --note-first-line: 1.734rem;
 }
+/* Per-heading centering height. NOT the full (loose) line-height — serif
+   headings sit high in their line box, so centering on the line box drops the
+   grip below the glyphs (worse as line-height loosens h2→h5). Instead center on
+   a normalized cap region = font-size × ~1.25 (the tight ratio h1 already uses
+   and that reads correctly). Matches the block's own leading element only, so
+   nested child blocks keep the paragraph default. */
+.note-block:has(> .note-block-content > h1) { --note-first-line: 1.875rem; }  /* 1.5rem   × 1.25 */
+.note-block:has(> .note-block-content > h2) { --note-first-line: 1.5625rem; } /* 1.25rem  × 1.25 */
+.note-block:has(> .note-block-content > h3) { --note-first-line: 1.406rem; }  /* 1.125rem × 1.25 */
+.note-block:has(> .note-block-content > h4) { --note-first-line: 1.25rem; }   /* 1rem     × 1.25 */
+.note-block:has(> .note-block-content > h5) { --note-first-line: 1.15rem; }   /* 0.92rem  × 1.25 */
 .note-block-grip {
   position: absolute;
   left: -1.5rem;
-  top: 0.15rem;
+  /* Center the 1.25rem grip box on the block's first line. */
+  top: calc((var(--note-first-line, 1.734rem) - 1.25rem) / 2);
   display: grid;
   place-items: center;
   height: 1.25rem;
@@ -439,6 +456,26 @@ body[data-display-font="bricolage"] {
 /* Read-only previews (PagePeekPopover, backlinks): no interactive grips. */
 .note-readonly .note-block-grip {
   display: none;
+}
+
+/* Blocks whose leading element isn't a single text line: pin the grip to the
+   first row/line/rule instead of centering on a line-box. */
+.note-block:has(> .note-block-content > hr) > .note-block-grip {
+  top: 0.14rem; /* rule sits ~0.75rem down via padding-top */
+}
+.note-block:has(> .note-block-content > table) > .note-block-grip {
+  top: 0.8rem; /* 0.5rem table margin + first-row cell padding */
+}
+.note-block:has(> .note-block-content > .code-block-wrapper) > .note-block-grip {
+  top: 0.6rem; /* 0.5rem wrapper margin + toolbar row */
+}
+.note-block:has(> .note-block-content > .note-query-block) > .note-block-grip {
+  top: 0.5rem; /* no spacing CSS; align near the block's top */
+}
+/* Task line: center the grip on the checkbox (1.05rem tall, 0.3rem down →
+   center ~0.825rem), not the taller text line, so it doesn't hang below it. */
+.note-block:has(> .note-block-content > .note-task-line) > .note-block-grip {
+  top: 0.2rem;
 }
 
 /* Task line (one checkbox per block). Consecutive task blocks read as a list. */

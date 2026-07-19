@@ -1,4 +1,4 @@
-import { ListTodo, Clock, FileText, Quote, type LucideIcon } from "lucide-react";
+import { ListTodo, Clock, FileText, Quote, Bookmark, type LucideIcon } from "lucide-react";
 
 export interface AppAccent {
   /** Icon background: e.g. "bg-indigo-500/10 dark:bg-indigo-500/20" */
@@ -59,6 +59,17 @@ export const APPS: AppConfig[] = [
     accent: {
       iconBg: "bg-rose-500/10 dark:bg-rose-500/20",
       iconText: "text-rose-600 dark:text-rose-400",
+    },
+  },
+  {
+    id: "bookmarks",
+    name: "Bookmarks",
+    description: "Save links and resurface one to revisit",
+    href: "/bookmarks",
+    icon: Bookmark,
+    accent: {
+      iconBg: "bg-sky-500/10 dark:bg-sky-500/20",
+      iconText: "text-sky-600 dark:text-sky-400",
     },
   },
 ];

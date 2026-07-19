@@ -9,6 +9,7 @@ import { SyncIndicator } from "@/components/SyncIndicator";
 import { Button } from "@/components/ui/button";
 import { AppsFab } from "@/components/dashboard/AppsFab";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { DashboardBookmarks } from "@/components/dashboard/DashboardBookmarks";
 import { DashboardJournal } from "@/components/dashboard/DashboardJournal";
 import { DashboardQuote } from "@/components/dashboard/DashboardQuote";
 import { GlobalSearch } from "@/components/dashboard/GlobalSearch";
@@ -90,6 +91,7 @@ export default function Home() {
       {/* Reveal — quiet, borderless, fades in as the hero merges to the top bar */}
       <main className="mx-auto max-w-5xl snap-start px-[var(--app-gutter-x)] pt-8 pb-40">
         <DashboardQuote root={scrollRef} />
+        <DashboardBookmarks root={scrollRef} />
         <div className="grid gap-x-12 gap-y-10 md:grid-cols-2">
           <Reveal root={scrollRef}>
             <TodayTasks />

@@ -81,7 +81,7 @@ export function WeeklyJournal({ weekStart }: { weekStart: Date }) {
       </div>
 
       {page ? (
-        <SingleBlockEditor key={pageId} pageId={pageId!} autoFocus={createdKey === weekKey} />
+        <SingleBlockEditor key={pageId} pageId={pageId!} autoFocus={createdKey === weekKey} enableSlash={false} />
       ) : (
         <button
           type="button"

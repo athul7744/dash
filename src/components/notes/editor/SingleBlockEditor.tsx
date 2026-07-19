@@ -34,11 +34,14 @@ export function SingleBlockEditor({
   handlers,
   onEditorChange,
   autoFocus = false,
+  enableSlash = true,
 }: {
   pageId: string;
   handlers?: SingleBlockEditorHandlers;
   onEditorChange?: (editor: Editor | null) => void;
   autoFocus?: boolean;
+  /** Slash-command menu. Disabled in the journal, which wants plain prose. */
+  enableSlash?: boolean;
 }) {
   const { blocks, isLoading } = useNoteBlocks(pageId);
 
@@ -49,7 +52,7 @@ export function SingleBlockEditor({
       </div>
     );
   }
-  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} />;
+  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} enableSlash={enableSlash} />;
 }
 
 function SingleBlockEditorInner({
@@ -58,12 +61,14 @@ function SingleBlockEditorInner({
   handlers,
   onEditorChange,
   autoFocus,
+  enableSlash,
 }: {
   pageId: string;
   blocks: NoteBlockRow[];
   handlers?: SingleBlockEditorHandlers;
   onEditorChange?: (editor: Editor | null) => void;
   autoFocus?: boolean;
+  enableSlash: boolean;
 }) {
   const editor = useSingleBlockEditor({ pageId, blocks, handlers, autoFocus });
   const surfaceRef = useRef<HTMLDivElement | null>(null);
@@ -82,7 +87,7 @@ function SingleBlockEditorInner({
       </div>
       <BlockMenuLayer editor={editor} />
       <TableToolbarLayer editor={editor} containerRef={surfaceRef} />
-      <SlashMenuLayer editor={editor} containerRef={surfaceRef} />
+      {enableSlash ? <SlashMenuLayer editor={editor} containerRef={surfaceRef} /> : null}
       <RefMenuLayer
         editor={editor}
         containerRef={surfaceRef}

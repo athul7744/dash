@@ -468,7 +468,9 @@ body[data-display-font="bricolage"] {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: var(--color-background);
+    /* Inside a colored block, pin against the block's color (set below), not the
+       page background — otherwise the heading gets a black strip on desktop. */
+    background: var(--note-block-bg, var(--color-background));
   }
 }
 
@@ -971,20 +973,22 @@ body[data-display-font="bricolage"] {
   box-shadow: none !important;
 }
 
-.block-color-gray { background: oklch(0.97 0.005 250); border-color: oklch(0.75 0.02 250); }
-.block-color-brown { background: oklch(0.96 0.02 55); border-color: oklch(0.65 0.08 50); }
-.block-color-orange { background: oklch(0.97 0.03 65); border-color: oklch(0.78 0.12 55); }
-.block-color-yellow { background: oklch(0.98 0.035 95); border-color: oklch(0.85 0.12 90); }
-.block-color-green { background: oklch(0.97 0.03 155); border-color: oklch(0.72 0.12 155); }
-.block-color-blue { background: oklch(0.97 0.025 240); border-color: oklch(0.68 0.10 240); }
-.block-color-purple { background: oklch(0.97 0.025 300); border-color: oklch(0.68 0.12 295); }
-.block-color-pink { background: oklch(0.97 0.03 350); border-color: oklch(0.72 0.12 345); }
+/* Each color exposes `--note-block-bg` so descendants (e.g. sticky headings)
+   can pin against the block's own color instead of the page background. */
+.block-color-gray { --note-block-bg: oklch(0.97 0.005 250); background: var(--note-block-bg); border-color: oklch(0.75 0.02 250); }
+.block-color-brown { --note-block-bg: oklch(0.96 0.02 55); background: var(--note-block-bg); border-color: oklch(0.65 0.08 50); }
+.block-color-orange { --note-block-bg: oklch(0.97 0.03 65); background: var(--note-block-bg); border-color: oklch(0.78 0.12 55); }
+.block-color-yellow { --note-block-bg: oklch(0.98 0.035 95); background: var(--note-block-bg); border-color: oklch(0.85 0.12 90); }
+.block-color-green { --note-block-bg: oklch(0.97 0.03 155); background: var(--note-block-bg); border-color: oklch(0.72 0.12 155); }
+.block-color-blue { --note-block-bg: oklch(0.97 0.025 240); background: var(--note-block-bg); border-color: oklch(0.68 0.10 240); }
+.block-color-purple { --note-block-bg: oklch(0.97 0.025 300); background: var(--note-block-bg); border-color: oklch(0.68 0.12 295); }
+.block-color-pink { --note-block-bg: oklch(0.97 0.03 350); background: var(--note-block-bg); border-color: oklch(0.72 0.12 345); }
 
-.dark .block-color-gray { background: oklch(0.20 0.006 250); border-color: oklch(0.50 0.02 250); }
-.dark .block-color-brown { background: oklch(0.20 0.018 55); border-color: oklch(0.50 0.08 50); }
-.dark .block-color-orange { background: oklch(0.21 0.028 55); border-color: oklch(0.60 0.14 55); }
-.dark .block-color-yellow { background: oklch(0.22 0.028 90); border-color: oklch(0.70 0.14 90); }
-.dark .block-color-green { background: oklch(0.20 0.021 155); border-color: oklch(0.55 0.12 155); }
-.dark .block-color-blue { background: oklch(0.20 0.021 245); border-color: oklch(0.55 0.12 245); }
-.dark .block-color-purple { background: oklch(0.20 0.025 300); border-color: oklch(0.55 0.14 295); }
-.dark .block-color-pink { background: oklch(0.20 0.025 345); border-color: oklch(0.55 0.14 345); }
+.dark .block-color-gray { --note-block-bg: oklch(0.20 0.006 250); background: var(--note-block-bg); border-color: oklch(0.50 0.02 250); }
+.dark .block-color-brown { --note-block-bg: oklch(0.20 0.018 55); background: var(--note-block-bg); border-color: oklch(0.50 0.08 50); }
+.dark .block-color-orange { --note-block-bg: oklch(0.21 0.028 55); background: var(--note-block-bg); border-color: oklch(0.60 0.14 55); }
+.dark .block-color-yellow { --note-block-bg: oklch(0.22 0.028 90); background: var(--note-block-bg); border-color: oklch(0.70 0.14 90); }
+.dark .block-color-green { --note-block-bg: oklch(0.20 0.021 155); background: var(--note-block-bg); border-color: oklch(0.55 0.12 155); }
+.dark .block-color-blue { --note-block-bg: oklch(0.20 0.021 245); background: var(--note-block-bg); border-color: oklch(0.55 0.12 245); }
+.dark .block-color-purple { --note-block-bg: oklch(0.20 0.025 300); background: var(--note-block-bg); border-color: oklch(0.55 0.14 295); }
+.dark .block-color-pink { --note-block-bg: oklch(0.20 0.025 345); background: var(--note-block-bg); border-color: oklch(0.55 0.14 345); }

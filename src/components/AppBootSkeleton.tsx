@@ -3,8 +3,10 @@
 import { Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { BookmarksLoadingSkeleton } from "@/components/skeletons/BookmarksLoadingSkeleton";
 import { DashboardLoadingSkeleton } from "@/components/skeletons/DashboardLoadingSkeleton";
 import { NotesLoadingSkeleton } from "@/components/skeletons/NotesLoadingSkeleton";
+import { QuotesLoadingSkeleton } from "@/components/skeletons/QuotesLoadingSkeleton";
 import { TasksLoadingSkeleton } from "@/components/skeletons/TasksLoadingSkeleton";
 import { TrackerLoadingSkeleton } from "@/components/skeletons/TrackerLoadingSkeleton";
 
@@ -43,6 +45,8 @@ export function AppBootSkeleton() {
     );
   }
   if (path.startsWith("/tasks")) return <TasksLoadingSkeleton />;
+  if (path.startsWith("/quotes")) return <QuotesLoadingSkeleton />;
+  if (path.startsWith("/bookmarks")) return <BookmarksLoadingSkeleton />;
   if (path.startsWith("/notes")) {
     return (
       <Suspense fallback={<NotesLoadingSkeleton />}>

@@ -381,15 +381,15 @@ export default function Home() {
 
       <MobileBottomFabs
         app={tasksApp}
-        centerUseShell={false}
         centerContent={
-          <Button
+          <button
+            type="button"
             onClick={handleAddNewTask}
-            size="icon"
-            className="size-12 rounded-full border border-indigo-200 bg-indigo-100 text-indigo-700 shadow-lg transition-all duration-200 hover:bg-indigo-200 dark:border-indigo-700 dark:bg-indigo-800 dark:text-indigo-200 dark:hover:bg-indigo-700"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground"
           >
-            <Plus className="h-5 w-5" />
-          </Button>
+            <Plus className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            Add task
+          </button>
         }
       />
     </div>

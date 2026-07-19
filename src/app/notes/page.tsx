@@ -687,7 +687,7 @@ export default function NotesPage() {
 
       <MobileBottomFabs
         app={notesApp}
-        centerUseShell={(!isDisplayingOverview && navStack.stack.length > 0) || graphView}
+        centerUseShell={isDisplayingOverview || navStack.stack.length > 0 || graphView}
         centerShellClassName={(!isDisplayingOverview && navStack.stack.length > 0) || graphView ? "max-w-[55vw] px-2.5 py-1.5" : undefined}
         centerContent={graphView ? (
           <Button
@@ -701,15 +701,16 @@ export default function NotesPage() {
             Overview
           </Button>
         ) : isDisplayingOverview ? (
-          <Button
+          <button
+            type="button"
             onClick={handleCreateStarterPage}
-            size="icon"
             disabled={isCreatingPage}
-            className="size-12 rounded-full border border-amber-200 bg-amber-100 text-amber-700 shadow-lg transition-all duration-200 hover:bg-amber-200 dark:border-amber-700 dark:bg-amber-900/80 dark:text-amber-300 dark:hover:bg-amber-800"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground disabled:opacity-60"
             aria-label="Create new page"
           >
-            <Plus className="h-5 w-5" />
-          </Button>
+            <Plus className="h-4 w-4 text-amber-700 dark:text-amber-400" />
+            Add page
+          </button>
         ) : navStack.stack.length > 0 && !isDisplayingOverview ? (
           <NotesPageBreadcrumb
             stack={navStack.stack}

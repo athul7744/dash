@@ -8,7 +8,7 @@
  */
 
 import type { JSONContent } from "@tiptap/core";
-import { markdownToBlockNodes, looksLikeMarkdown, clipboardMarkdown } from "@/lib/notes/editor/markdown-paste";
+import { markdownToBlockNodes, looksLikeMarkdown, clipboardMarkdown, isBareUrl } from "@/lib/notes/editor/markdown-paste";
 
 /** Minimal DataTransfer stub with the given clipboard flavors. */
 function clipboard(flavors: Record<string, string>): DataTransfer {
@@ -332,5 +332,22 @@ describe("clipboardMarkdown routing", () => {
   it("still parses markdown when the HTML is only a bare text wrapper", () => {
     const flavors = { "text/plain": "# Heading", "text/html": "<div>## Heading</div>" };
     expect(clipboardMarkdown(clipboard(flavors))).toBe("# Heading");
+  });
+});
+
+describe("isBareUrl", () => {
+  it("accepts a single URL token", () => {
+    expect(isBareUrl("https://example.com")).toBe(true);
+    expect(isBareUrl("http://example.com/path?q=1#h")).toBe(true);
+    expect(isBareUrl("www.example.com")).toBe(true);
+    expect(isBareUrl("example.com")).toBe(true);
+    expect(isBareUrl("  https://youtu.be/abc  ")).toBe(true);
+  });
+
+  it("rejects prose, plain words, and multi-token text", () => {
+    expect(isBareUrl("just prose")).toBe(false);
+    expect(isBareUrl("check https://example.com out")).toBe(false); // has whitespace
+    expect(isBareUrl("word")).toBe(false); // no scheme / dotted host
+    expect(isBareUrl("")).toBe(false);
   });
 });

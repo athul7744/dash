@@ -32,7 +32,7 @@ import { TaskLine } from "@/components/notes/editor/TaskLineNode";
 import { NotesDocument, BlockNode, asBlockContent, BLOCK_CONTENT_GROUP } from "@/lib/notes/editor/block-schema";
 import { BlockIdPlugin } from "@/lib/notes/editor/block-id-plugin";
 import { BlockNormalize } from "@/lib/notes/editor/block-normalize";
-import { insertMarkdown } from "@/lib/notes/editor/markdown-paste";
+import { insertMarkdown, pasteUrlAsLink } from "@/lib/notes/editor/markdown-paste";
 import { assembleDoc, decomposeDoc, type BlockDocumentRow } from "@/lib/notes/editor/block-document";
 import { serializeNoteDocument } from "@/lib/notes/notes-content";
 
@@ -190,6 +190,82 @@ describe("markdown paste (live schema)", () => {
     expect(bold.marks).toEqual([{ type: "bold" }]);
     expect(editor.getText()).toContain("Hello bold world");
 
+    editor.destroy();
+  });
+});
+
+/** All (text, href) pairs carrying a link mark, in document order. */
+function linkMarks(editor: Editor): Array<{ text: string; href: string }> {
+  const out: Array<{ text: string; href: string }> = [];
+  editor.state.doc.descendants((node) => {
+    if (!node.isText) return;
+    const mark = node.marks.find((m) => m.type.name === "link");
+    if (mark) out.push({ text: node.text ?? "", href: String(mark.attrs.href) });
+  });
+  return out;
+}
+
+function rangeOf(editor: Editor, needle: string): { from: number; to: number } | null {
+  let found: { from: number; to: number } | null = null;
+  editor.state.doc.descendants((node, pos) => {
+    if (found || !node.isText || !node.text) return;
+    const i = node.text.indexOf(needle);
+    if (i >= 0) found = { from: pos + i, to: pos + i + needle.length };
+  });
+  return found;
+}
+
+describe("paste bare URL as link", () => {
+  it("inserts a linked URL at the cursor", () => {
+    const editor = makeEditor([row("b1", "see ")]);
+    editor.commands.setTextSelection(editor.state.doc.content.size);
+    expect(pasteUrlAsLink(editor.view, "https://example.com")).toBe(true);
+
+    const links = linkMarks(editor);
+    expect(links).toHaveLength(1);
+    expect(links[0]).toEqual({ text: "https://example.com", href: "https://example.com" });
+    editor.destroy();
+  });
+
+  it("normalizes a bare domain to https", () => {
+    const editor = makeEditor([row("b1", "")]);
+    editor.commands.setTextSelection(editor.state.doc.content.size);
+    expect(pasteUrlAsLink(editor.view, "example.com")).toBe(true);
+    expect(linkMarks(editor)[0].href).toBe("https://example.com");
+    editor.destroy();
+  });
+
+  it("wraps the current selection instead of inserting the URL text", () => {
+    const editor = makeEditor([row("b1", "click here")]);
+    const range = rangeOf(editor, "here")!;
+    editor.commands.setTextSelection(range);
+    expect(pasteUrlAsLink(editor.view, "https://example.com")).toBe(true);
+
+    const links = linkMarks(editor);
+    expect(links).toHaveLength(1);
+    expect(links[0].text).toBe("here");
+    expect(links[0].href).toBe("https://example.com");
+    expect(editor.getText()).toContain("click here"); // text unchanged
+    editor.destroy();
+  });
+
+  it("ignores non-URL text so native paste can run", () => {
+    const editor = makeEditor([row("b1", "x")]);
+    editor.commands.setTextSelection(editor.state.doc.content.size);
+    expect(pasteUrlAsLink(editor.view, "just some prose")).toBe(false);
+    expect(linkMarks(editor)).toHaveLength(0);
+    editor.destroy();
+  });
+
+  it("does not leave the link mark stored for subsequent typing", () => {
+    const editor = makeEditor([row("b1", "")]);
+    editor.commands.setTextSelection(editor.state.doc.content.size);
+    pasteUrlAsLink(editor.view, "https://example.com");
+    editor.commands.insertContent(" after");
+
+    const links = linkMarks(editor);
+    expect(links).toHaveLength(1);
+    expect(links[0].text).toBe("https://example.com"); // " after" is not linked
     editor.destroy();
   });
 });

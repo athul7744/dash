@@ -29,7 +29,7 @@ import { BlockDocumentPersister } from "@/lib/notes/editor/block-persister";
 import { buildNoteEditorExtensions } from "@/lib/notes/editor/extensions";
 import { STAMP_META } from "@/lib/notes/editor/block-id-plugin";
 import { splitBlock, indentBlock, outdentBlock, mergeBlockBackward } from "@/lib/notes/editor/block-commands";
-import { insertMarkdown, clipboardMarkdown } from "@/lib/notes/editor/markdown-paste";
+import { insertMarkdown, clipboardMarkdown, pasteUrlAsLink } from "@/lib/notes/editor/markdown-paste";
 import { getResolvedPageReferenceAtPosition } from "@/lib/notes/editor-document-helpers";
 
 export type SingleBlockEditorHandlers = {
@@ -134,10 +134,18 @@ export function useSingleBlockEditor({
       // text fall through to native paste (return false).
       handlePaste(view, event) {
         const markdown = clipboardMarkdown(event.clipboardData);
-        if (!markdown) return false;
-        const inserted = insertMarkdown(view, markdown);
-        if (inserted) event.preventDefault();
-        return inserted;
+        if (markdown) {
+          const inserted = insertMarkdown(view, markdown);
+          if (inserted) event.preventDefault();
+          return inserted;
+        }
+        // A pasted bare URL becomes a link (wrapping the selection, if any).
+        const plain = event.clipboardData?.getData("text/plain") ?? "";
+        if (pasteUrlAsLink(view, plain)) {
+          event.preventDefault();
+          return true;
+        }
+        return false;
       },
       handleDOMEvents: {
         mousedown(view, event) {

@@ -20,7 +20,10 @@
 
 import type { JSONContent } from "@tiptap/core";
 import { Fragment, Slice } from "@tiptap/pm/model";
+import { TextSelection } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
+
+import { getLinkHost, normalizeUrl } from "@/lib/tasks/tasks";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { gfmFromMarkdown } from "mdast-util-gfm";
 import { gfm } from "micromark-extension-gfm";
@@ -355,4 +358,45 @@ export function clipboardMarkdown(clipboard: DataTransfer | null): string | null
   const html = clipboard.getData("text/html");
   if (html && isStructuredHtml(html)) return null;
   return looksLikeMarkdown(plain) ? plain : null;
+}
+
+// ── Bare-URL paste → link ───────────────────────────────────────────────────
+
+/** A single bare URL token: no whitespace, and a scheme, `www.`, or dotted host. */
+export function isBareUrl(text: string): boolean {
+  const t = text.trim();
+  if (!t || /\s/.test(t)) return false;
+  if (!getLinkHost(t)) return false;
+  return /^https?:\/\//i.test(t) || /^www\./i.test(t) || /^[^\s]+\.[a-z]{2,}([/?#]|$)/i.test(t);
+}
+
+/**
+ * Turn a pasted bare URL into a link: wrap the selection when there is one,
+ * otherwise insert the URL text linked to itself. The link mark isn't left in
+ * the stored marks, so typing after the paste isn't part of the link. Returns
+ * false when the text isn't a single URL (caller falls through to native paste).
+ */
+export function pasteUrlAsLink(view: EditorView, clipboardText: string): boolean {
+  if (!isBareUrl(clipboardText)) return false;
+  const linkType = view.state.schema.marks.link;
+  if (!linkType) return false;
+
+  const href = normalizeUrl(clipboardText.trim());
+  const mark = linkType.create({ href });
+  const { state } = view;
+  const { from, to, empty } = state.selection;
+  let tr = state.tr;
+
+  if (empty) {
+    const label = clipboardText.trim();
+    tr = tr.insertText(label, from);
+    tr = tr.addMark(from, from + label.length, mark);
+    tr = tr.setSelection(TextSelection.create(tr.doc, from + label.length));
+  } else {
+    tr = tr.addMark(from, to, mark);
+    tr = tr.setSelection(TextSelection.create(tr.doc, to));
+  }
+  tr = tr.removeStoredMark(linkType);
+  view.dispatch(tr.scrollIntoView());
+  return true;
 }

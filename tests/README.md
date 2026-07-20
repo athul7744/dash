@@ -59,9 +59,6 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/notes/graph.test.ts`
   Covers the pure graph helpers (`src/lib/notes/graph.ts`) behind the notes graph view: `buildGraph` collapsing block→page edges into an undirected, deduped, weighted page graph (self-links and edges to unknown pages dropped; degree computed), `neighborhood` BFS to a depth, and `isOrphan`.
 
-- `tests/notes/prune-journal-pages.test.ts`
-  Covers `pruneEmptyJournalPages`: deleting empty journal pages (single blank block or zero blocks), keeping pages with text or multiple blocks, never deleting the excepted (open) page, and pruning only the empty pages in a mixed set.
-
 ## Single-Document Editor Suites (`tests/notes/editor/`)
 
 - `block-document.test.ts` — assemble rows → one doc / decompose doc → rows round-trips (ids, order, nesting), query round-trip, and legacy `taskList` → task-block migration (flat + nested).

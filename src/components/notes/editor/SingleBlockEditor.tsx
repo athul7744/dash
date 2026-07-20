@@ -35,6 +35,8 @@ export function SingleBlockEditor({
   onEditorChange,
   autoFocus = false,
   enableSlash = true,
+  debounceMs,
+  ensurePage,
 }: {
   pageId: string;
   handlers?: SingleBlockEditorHandlers;
@@ -42,6 +44,10 @@ export function SingleBlockEditor({
   autoFocus?: boolean;
   /** Slash-command menu. Disabled in the journal, which wants plain prose. */
   enableSlash?: boolean;
+  /** Save debounce; defaults to the persister's own default when omitted. */
+  debounceMs?: number;
+  /** Lazily create the page on first write (see BlockPersisterConfig.ensurePage). */
+  ensurePage?: () => Promise<void>;
 }) {
   const { blocks, isLoading } = useNoteBlocks(pageId);
 
@@ -52,7 +58,7 @@ export function SingleBlockEditor({
       </div>
     );
   }
-  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} enableSlash={enableSlash} />;
+  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} enableSlash={enableSlash} debounceMs={debounceMs} ensurePage={ensurePage} />;
 }
 
 function SingleBlockEditorInner({
@@ -62,6 +68,8 @@ function SingleBlockEditorInner({
   onEditorChange,
   autoFocus,
   enableSlash,
+  debounceMs,
+  ensurePage,
 }: {
   pageId: string;
   blocks: NoteBlockRow[];
@@ -69,8 +77,10 @@ function SingleBlockEditorInner({
   onEditorChange?: (editor: Editor | null) => void;
   autoFocus?: boolean;
   enableSlash: boolean;
+  debounceMs?: number;
+  ensurePage?: () => Promise<void>;
 }) {
-  const editor = useSingleBlockEditor({ pageId, blocks, handlers, autoFocus });
+  const editor = useSingleBlockEditor({ pageId, blocks, handlers, autoFocus, debounceMs, ensurePage });
   const surfaceRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {

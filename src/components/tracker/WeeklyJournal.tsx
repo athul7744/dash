@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { addDays, format } from "date-fns";
 import { NotebookPen } from "lucide-react";
 
 import { SingleBlockEditor } from "@/components/notes/editor/SingleBlockEditor";
 import { useNotePage } from "@/hooks/use-notes";
-import { ensureSystemPage, pruneEmptyJournalPages } from "@/lib/notes/notes";
+import { ensureSystemPage } from "@/lib/notes/notes";
 import { systemPageId } from "@/lib/notes/system-pages";
 import { getCurrentUserId } from "@/lib/shared/auth";
 
@@ -21,6 +21,10 @@ function formatWeekLabel(weekStart: Date): string {
 /**
  * Weekly journal for the tracker's Week view. Each week maps to one lazily
  * created "system page" (see system-pages.ts) reusing the notes block editor.
+ * The page is materialized only on the first keystroke (via the editor's
+ * `ensurePage`), so opening a week and typing nothing persists nothing — no
+ * empty pages to prune, hence no create/delete churn.
+ *
  * Stays mounted across weeks (user id fetched once); the inner editor is keyed
  * by page id so it re-hydrates as the week changes.
  */
@@ -29,10 +33,8 @@ export function WeeklyJournal({ weekStart }: { weekStart: Date }) {
   const weekLabel = formatWeekLabel(weekStart);
 
   const [userId, setUserId] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const creatingRef = useRef(false);
-  // Weeks whose page was just created in this session — used to auto-focus once.
-  const [createdKey, setCreatedKey] = useState<string | null>(null);
+  // Whether the user has opened the (possibly empty) editor for this week.
+  const [openedKey, setOpenedKey] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -47,30 +49,21 @@ export function WeeklyJournal({ weekStart }: { weekStart: Date }) {
   const pageId = userId ? systemPageId(userId, "journal", weekKey) : null;
   const { page, isLoading } = useNotePage(pageId);
 
-  // Opportunistically clean up empty journal pages from other weeks. Runs on
-  // mount and whenever the viewed week changes; never deletes the current
-  // week's page, so it's safe to run repeatedly (and under StrictMode).
-  useEffect(() => {
-    if (!pageId) return;
-    void pruneEmptyJournalPages(pageId);
-  }, [pageId]);
+  const ensurePage = useCallback(async () => {
+    await ensureSystemPage({
+      kind: "journal",
+      key: weekKey,
+      title: `Journal · ${weekLabel}`,
+      createStarterBlock: false,
+    });
+  }, [weekKey, weekLabel]);
 
-  const handleCreate = async () => {
-    if (creatingRef.current) return;
-    creatingRef.current = true;
-    setIsCreating(true);
-    try {
-      await ensureSystemPage({
-        kind: "journal",
-        key: weekKey,
-        title: `Journal · ${weekLabel}`,
-      });
-      setCreatedKey(weekKey);
-    } finally {
-      creatingRef.current = false;
-      setIsCreating(false);
-    }
-  };
+  // Show the editor once the page exists for THIS week, or once the user opens
+  // it for this week. The `page.id === pageId` check guards the query-transition
+  // window where `page` can still hold the previous week's row — without it the
+  // editor would mount for the new week and lazily create its page on flush.
+  const isOpen = openedKey === weekKey;
+  const showEditor = page?.id === pageId || isOpen;
 
   return (
     <div className="journal-surface mx-auto w-full max-w-3xl rounded-2xl border border-border/65 bg-gradient-to-b from-card/70 to-card/40 p-5 shadow-[0_12px_38px_-28px_rgba(0,0,0,0.45)] transition-smooth sm:p-7">
@@ -80,13 +73,20 @@ export function WeeklyJournal({ weekStart }: { weekStart: Date }) {
         <span className="font-serif text-sm text-muted-foreground">· {weekLabel}</span>
       </div>
 
-      {page ? (
-        <SingleBlockEditor key={pageId} pageId={pageId!} autoFocus={createdKey === weekKey} enableSlash={false} />
+      {showEditor && pageId ? (
+        <SingleBlockEditor
+          key={pageId}
+          pageId={pageId}
+          autoFocus={isOpen}
+          enableSlash={false}
+          debounceMs={1000}
+          ensurePage={ensurePage}
+        />
       ) : (
         <button
           type="button"
-          onClick={handleCreate}
-          disabled={!userId || isLoading || isCreating}
+          onClick={() => setOpenedKey(weekKey)}
+          disabled={!userId || isLoading}
           className="w-full rounded-lg px-1 py-6 text-left font-serif text-base text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-60"
         >
           Write about this week…

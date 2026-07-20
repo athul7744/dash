@@ -14,8 +14,8 @@ import { createTask } from "@/lib/tasks/create-task";
 
 /**
  * Client-side reconciler: turns due reminders into real Tasks. Fired on mount
- * (dashboard + /reminders) like `pruneEmptyJournalPages` — there is no server
- * cron. Idempotent and StrictMode-safe:
+ * (dashboard + /reminders) — there is no server cron. Idempotent and
+ * StrictMode-safe:
  *  - `lastMaterializedKey` stops a task being recreated after the user resolves
  *    it (survives deleting the generated task),
  *  - a deterministic task id (uuidv5 of reminder+occurrence) collapses a

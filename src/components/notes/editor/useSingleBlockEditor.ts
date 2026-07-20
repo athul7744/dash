@@ -56,11 +56,15 @@ export function useSingleBlockEditor({
   blocks,
   handlers,
   autoFocus = false,
+  debounceMs,
+  ensurePage,
 }: {
   pageId: string;
   blocks: NoteBlockRow[];
   handlers?: SingleBlockEditorHandlers;
   autoFocus?: boolean;
+  debounceMs?: number;
+  ensurePage?: () => Promise<void>;
 }): Editor | null {
   const rows = useMemo(() => blocks.map(toBlockDocumentRow), [blocks]);
 
@@ -71,6 +75,7 @@ export function useSingleBlockEditor({
   // Editor is created once per page; page-reference handlers read the latest
   // titles/callbacks through a ref so they never go stale.
   const handlersRef = useRef<SingleBlockEditorHandlers | undefined>(handlers);
+  const ensurePageRef = useRef(ensurePage);
   const pointerTypeRef = useRef<"mouse" | "touch">("mouse");
   const peekTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -79,6 +84,9 @@ export function useSingleBlockEditor({
   });
   useEffect(() => {
     handlersRef.current = handlers;
+  });
+  useEffect(() => {
+    ensurePageRef.current = ensurePage;
   });
   useEffect(() => () => {
     if (peekTimeoutRef.current) clearTimeout(peekTimeoutRef.current);
@@ -211,6 +219,8 @@ export function useSingleBlockEditor({
   useEffect(() => {
     const persister = new BlockDocumentPersister(pageId, {
       getDoc: () => editorRef.current?.getJSON() ?? { type: "doc", content: [] },
+      debounceMs,
+      ensurePage: ensurePageRef.current ? () => ensurePageRef.current!() : undefined,
       onPersisted: async () => {
         await db.execute(`UPDATE pages SET updated_at = ${SQL_UTC_NOW} WHERE id = ?`, [pageId]);
       },
@@ -221,7 +231,7 @@ export function useSingleBlockEditor({
       persister.dispose();
       persisterRef.current = null;
     };
-  }, [pageId]);
+  }, [pageId, debounceMs]);
 
   // Baseline the snapshot from the editor's own serialization once it's ready,
   // so an unedited load never looks "dirty". Must run before the reconcile

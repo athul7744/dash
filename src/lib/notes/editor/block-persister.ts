@@ -21,7 +21,7 @@ import { Selection } from "@tiptap/pm/state";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { reconcileNoteBlockEdges } from "@/lib/notes/notes";
-import { normalizeNoteDocument, serializeNoteDocument } from "@/lib/notes/notes-content";
+import { extractNoteText, normalizeNoteDocument, serializeNoteDocument } from "@/lib/notes/notes-content";
 
 import { LexoRank } from "lexorank";
 
@@ -34,6 +34,20 @@ export interface BlockPersisterConfig {
   getDoc: () => JSONContent;
   debounceMs?: number;
   onPersisted?: () => Promise<void> | void;
+  /**
+   * Called once, immediately before the first real block write, to guarantee
+   * the parent page row exists. Lets a page be created lazily (on first
+   * keystroke) instead of eagerly — so an opened-but-never-typed editor
+   * persists nothing. Must be idempotent.
+   */
+  ensurePage?: () => Promise<void>;
+}
+
+/** A document that is a single block with no text — the untouched starter. */
+function isEmptyDoc(decomposed: { content: string }[]): boolean {
+  if (decomposed.length === 0) return true;
+  if (decomposed.length > 1) return false;
+  return extractNoteText(decomposed[0].content) === "";
 }
 
 /** Normalize a row's stored content to the same canonical form decomposeDoc emits. */
@@ -64,6 +78,8 @@ export class BlockDocumentPersister {
   private getDoc: () => JSONContent;
   private debounceMs: number;
   private onPersisted?: () => Promise<void> | void;
+  private ensurePage?: () => Promise<void>;
+  private pageEnsured = false;
 
   /** Last state we believe is in the DB. Source of truth for the diff. */
   private snapshot = new Map<string, PersistedBlock>();
@@ -75,6 +91,7 @@ export class BlockDocumentPersister {
     this.getDoc = config.getDoc;
     this.debounceMs = config.debounceMs ?? 10_000;
     this.onPersisted = config.onPersisted;
+    this.ensurePage = config.ensurePage;
     activePersisters.add(this);
   }
 
@@ -155,9 +172,21 @@ export class BlockDocumentPersister {
     const { writes, next } = diffBlocks(decomposed, this.snapshot);
     if (writes.length === 0) return;
 
+    // Lazy pages: don't materialize the page (or write its stamped-but-empty
+    // starter block) until there's real content. The block-id plugin stamps the
+    // empty starter with an id on mount, which otherwise looks like a first
+    // write. Once the page exists, subsequent empties (e.g. deleting all text)
+    // still persist normally.
+    if (this.ensurePage && !this.pageEnsured && isEmptyDoc(decomposed)) return;
+
     this.flushing = true;
     let committed = false;
     try {
+      // Materialize the page before its first block write (lazy creation).
+      if (!this.pageEnsured && this.ensurePage) {
+        await this.ensurePage();
+        this.pageEnsured = true;
+      }
       const userId = await getCurrentUserId();
       await db.writeTransaction(async (tx) => {
         for (const write of writes) {

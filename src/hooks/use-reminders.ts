@@ -62,9 +62,9 @@ export function useReminders(): { reminders: Reminder[]; isLoading: boolean } {
 }
 
 /**
- * Fire the reminder reconciler once on mount. Mirrors `pruneEmptyJournalPages`'s
- * fire-and-forget effect — idempotent, so mounting on both the dashboard and the
- * /reminders page (and StrictMode double-invoke) is safe.
+ * Fire the reminder reconciler once on mount as a fire-and-forget effect —
+ * idempotent, so mounting on both the dashboard and the /reminders page (and
+ * StrictMode double-invoke) is safe.
  */
 export function useReminderMaterializer(): void {
   useEffect(() => {

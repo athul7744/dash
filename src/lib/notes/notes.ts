@@ -240,32 +240,6 @@ export async function deleteNotePage(pageId: string) {
   await db.execute(`DELETE FROM pages WHERE id = ?`, [pageId]);
 }
 
-/**
- * Delete journal "system pages" that were created but left empty (a single
- * text block with no text), except `exceptPageId` (the week currently open).
- * Called opportunistically on mount / week change — this is idempotent and
- * never touches the page whose block store is live, so it is safe under React
- * StrictMode double-invocation (unlike an unmount-time delete).
- */
-export async function pruneEmptyJournalPages(exceptPageId?: string | null) {
-  const rows = await db.getAll<{ page_id: string; block_count: number; first_content: string | null }>(
-    `SELECT p.id AS page_id,
-            (SELECT COUNT(*) FROM blocks b WHERE b.page_id = p.id) AS block_count,
-            (SELECT b.content FROM blocks b WHERE b.page_id = p.id ORDER BY b.sort_rank ASC LIMIT 1) AS first_content
-     FROM pages p
-     WHERE json_extract(p.properties, '$.kind') = 'journal'`
-  );
-
-  for (const row of rows) {
-    if (exceptPageId && row.page_id === exceptPageId) continue;
-    const isEmpty =
-      row.block_count <= 1 && (row.block_count === 0 || extractNoteText(row.first_content) === "");
-    if (isEmpty) {
-      await deleteNotePage(row.page_id);
-    }
-  }
-}
-
 async function replaceNoteEdges(input: ReplaceEdgesInput, ctx: DbContext = db) {
   const buildEdgeKey = (targetId: string, type: string) => `${type}:${targetId}`;
   const createDeterministicEdgeId = (sourceBlockId: string, targetId: string, type: string) => (
@@ -385,6 +359,12 @@ export async function ensureSystemPage(params: {
   kind: SystemPageKind;
   key: string;
   title: string;
+  /**
+   * Seed an empty starter block. Set false for surfaces that create the page
+   * lazily and let the editor persist the first block itself (the journal), so
+   * an opened-but-never-typed page leaves no empty block to orphan.
+   */
+  createStarterBlock?: boolean;
 }) {
   const userId = await getCurrentUserId();
   const pageId = systemPageId(userId, params.kind, params.key);
@@ -407,12 +387,14 @@ export async function ensureSystemPage(params: {
       now,
     ]
   );
-  await createNoteBlock({
-    pageId,
-    sortRank: LexoRank.middle().format(),
-    type: "text",
-    content: { type: "doc", content: [] },
-  });
+  if (params.createStarterBlock !== false) {
+    await createNoteBlock({
+      pageId,
+      sortRank: LexoRank.middle().format(),
+      type: "text",
+      content: { type: "doc", content: [] },
+    });
+  }
 
   return pageId;
 }

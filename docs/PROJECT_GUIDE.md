@@ -212,7 +212,7 @@ Important convention:
 - `src/lib/notes/notes-tree.ts` — tree building and visible block ordering helpers for note blocks
 - `src/lib/notes/editor/*` — the single-document editor's non-React core: `block-schema` (the `block` wrapper node + `blockContent` grouping), `block-document` (assemble rows → one doc / decompose doc → rows, incl. legacy `taskList` → task-block migration), `block-diff` (churn-minimal rank/write diff), `block-persister` (debounced save + remote reconcile), `block-commands` (native split/merge/indent/outdent), `block-id-plugin` (stable block ids), `block-normalize` (one-content-node-per-block invariant), `slash-single` (slash detect/apply), `markdown-paste` (parse pasted raw markdown text → block/`taskLine` nodes; detection + insertion for the editor's `handlePaste`, incl. `pasteUrlAsLink` which links a pasted bare URL), and `extensions` (the assembled Tiptap extension list)
 - `src/lib/notes/query-block-content.ts` — encode/decode codec between the query UI's `QueryBlockConfig` and the stored note document (config lives in a `queryBlock` node's attrs)
-- `src/lib/notes/notes.ts` — note page CRUD, metadata writes, attachment upserts, edge reconciliation, and system-page helpers (`ensureSystemPage`, `pruneEmptyJournalPages`)
+- `src/lib/notes/notes.ts` — note page CRUD, metadata writes, attachment upserts, edge reconciliation, and the `ensureSystemPage` helper (feature-owned pages; `createStarterBlock: false` for lazy-created surfaces like the journal)
 - `src/lib/notes/system-pages.ts` — deterministic ids for "system pages": notes pages tagged with `properties.kind` (e.g. `journal`) and located by `uuidv5(kind:userId:key)`, so features can reuse the notes store while staying hidden from `/notes`
 - `src/lib/notes/page-nav-stack.ts` — pure push/pop/popTo logic for the page breadcrumb stack
 - `src/lib/notes/properties.ts` — CRUD operations for property definitions and custom property value parsing
@@ -438,9 +438,9 @@ Important child components:
 
 - `src/components/tracker/WeeklyJournal.tsx`
   - Per-week journal rendered below the widgets in the Week view
-  - Each week maps to one lazily created notes "system page" (`kind: "journal"`, keyed by the Monday date via `systemPageId`), reusing the single-document editor (`SingleBlockEditor`)
+  - Each week maps to one notes "system page" (`kind: "journal"`, keyed by the Monday date via `systemPageId`), reusing the single-document editor (`SingleBlockEditor`)
+  - The page is created **lazily** — the editor's `ensurePage` materializes it on the first keystroke, so opening a week and typing nothing persists no page or block (no empty pages to prune, hence no create/delete churn against the sync queue). Journal pages are already hidden from the notes list/graph (the `kind IS NULL` filter)
   - Stays mounted across weeks (user id fetched once); the inner editor is keyed by page id so it re-hydrates per week
-  - Opportunistically calls `pruneEmptyJournalPages(currentPageId)` on week change to clean up untouched empty weeks; never deletes the open week's page (StrictMode-safe)
 
 Tracker loading model:
 
@@ -509,7 +509,7 @@ Route: `src/app/reminders/page.tsx`. Reminders are `type:"reminder"` blocks on o
 
 - `src/lib/reminders/schedule.ts` — the pure, DB-free recurrence engine (like `capture.ts`, so tests don't load PowerSync): the `ReminderSchedule` union (`once`/`weekly`/`monthly`/`yearly`), `nextOccurrenceOnOrAfter` (local-day, month-length clamping), `formatSchedule`, and the `dueOccurrence` lead-window decision.
 - `src/lib/reminders/reminders.ts` — CRUD over the system page (mirrors `bookmarks.ts`), plus `markMaterialized` (deactivates a fired `once`).
-- `src/lib/reminders/materialize.ts` — `materializeDueReminders()`, the client-side reconciler. There is no server cron: it's fired fire-and-forget from a mount effect (`useReminderMaterializer` on the dashboard + `/reminders`), like `pruneEmptyJournalPages`. For each due occurrence it creates a Task via `createTask` using a **deterministic id** (`uuidv5(reminderId:occurrenceKey)`) so cross-device double-fires collapse to one row; `lastMaterializedKey` stops recreation after a task is resolved; a **pending-gate** (skip while the previous task is still `pending`) stops pile-up.
+- `src/lib/reminders/materialize.ts` — `materializeDueReminders()`, the client-side reconciler. There is no server cron: it's fired fire-and-forget from a mount effect (`useReminderMaterializer` on the dashboard + `/reminders`). For each due occurrence it creates a Task via `createTask` using a **deterministic id** (`uuidv5(reminderId:occurrenceKey)`) so cross-device double-fires collapse to one row; `lastMaterializedKey` stops recreation after a task is resolved; a **pending-gate** (skip while the previous task is still `pending`) stops pile-up.
 - `src/hooks/use-reminders.ts` — the settle-latched live query + `useReminderMaterializer`. `src/components/reminders/ReminderCard.tsx` is the always-editable inline card (title + inline schedule builder + lead time + priority + tags, autosaving like `QuoteCard`) — no modal; "New reminder" creates a blank card that autofocuses.
 
 `createTask` (`src/lib/tasks/create-task.ts`) takes an optional deterministic `id` for this.

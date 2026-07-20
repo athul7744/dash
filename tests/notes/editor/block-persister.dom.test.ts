@@ -31,7 +31,7 @@ function row(id: string, text: string): BlockDocumentRow {
   return { id, parent_block_id: null, sort_rank: RANK_0, type: "text", content: docContent(text) };
 }
 
-function setup(rows: BlockDocumentRow[]) {
+function setup(rows: BlockDocumentRow[], ensurePage?: () => Promise<void>) {
   const element = document.createElement("div");
   document.body.appendChild(element);
   const editor = new Editor({
@@ -39,7 +39,7 @@ function setup(rows: BlockDocumentRow[]) {
     extensions: [NotesDocument, BlockNode, asBlockContent(Paragraph), Text, History, BlockIdPlugin],
     content: assembleDoc(rows) as never,
   });
-  const persister = new BlockDocumentPersister("page-1", { getDoc: () => editor.getJSON(), debounceMs: 5 });
+  const persister = new BlockDocumentPersister("page-1", { getDoc: () => editor.getJSON(), debounceMs: 5, ensurePage });
   persister.hydrate(rows);
   return { editor, persister };
 }
@@ -70,6 +70,26 @@ describe("BlockDocumentPersister.reconcileRemote", () => {
     persister.reconcileRemote(editor, [row("b1", "world")]);
     // Local edit is preserved; remote is not applied yet.
     expect(editor.getText()).not.toContain("world");
+    editor.destroy();
+  });
+});
+
+describe("BlockDocumentPersister lazy page creation", () => {
+  it("does not create the page while the doc is an empty starter", async () => {
+    const ensurePage = vi.fn(async () => {});
+    // Start from no rows → the editor mounts an empty stamped starter block.
+    const { editor, persister } = setup([], ensurePage);
+    await persister.flush();
+    expect(ensurePage).not.toHaveBeenCalled();
+    editor.destroy();
+  });
+
+  it("creates the page on the first real content write", async () => {
+    const ensurePage = vi.fn(async () => {});
+    const { editor, persister } = setup([], ensurePage);
+    editor.commands.insertContent("hello");
+    await persister.flush();
+    expect(ensurePage).toHaveBeenCalledTimes(1);
     editor.destroy();
   });
 });

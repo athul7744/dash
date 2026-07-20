@@ -261,13 +261,13 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
           </button>
         )}
 
-        <div className="flex flex-col flex-1 gap-2 min-w-0">
+        <div className="flex flex-col flex-1 gap-1 min-w-0">
           {/* Title */}
           <textarea
             ref={autoResizeTextarea}
             maxLength={250}
             rows={1}
-            className={`bg-transparent text-[15px] font-semibold focus:outline-none placeholder:text-muted-foreground/50 w-full resize-none overflow-hidden block min-h-[24px] ${task.state === 'completed' || isTrashed ? 'line-through text-muted-foreground' : 'text-card-foreground'}`}
+            className={`bg-transparent text-[15px] font-semibold focus:outline-none placeholder:text-muted-foreground/50 w-full resize-none overflow-hidden block leading-snug ${task.state === 'completed' || isTrashed ? 'line-through text-muted-foreground' : 'text-card-foreground'}`}
             placeholder="Task Title..."
             value={title}
             readOnly={isTrashed}
@@ -283,23 +283,27 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
             autoFocus={isNew}
           />
 
-          {/* Metadata Row — hidden for trashed tasks. Tags live in the top action
-              bar (add) + a pill row below (display), mirroring the bookmark card. */}
+          {/* Meta line — due date, due badge, and tag pills share one wrapping row
+              so short tasks stay on a single line (tags add-button is in the action
+              bar). Hidden for trashed tasks. */}
           {!isTrashed && (
-            <TaskMetadataEditor
-              dueDate={dueDate}
-              onDueDateChange={(date) => {
-                setDueDate(date);
-                if (!isNew) handleUpdate("due_date", date ? date.toISOString() : null);
-              }}
-              selectedTagIds={selectedTagIds}
-              onSelectedTagIdsChange={setSelectedTagIds}
-              density="compact"
-              showTags={false}
-            />
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <TaskMetadataEditor
+                dueDate={dueDate}
+                onDueDateChange={(date) => {
+                  setDueDate(date);
+                  if (!isNew) handleUpdate("due_date", date ? date.toISOString() : null);
+                }}
+                selectedTagIds={selectedTagIds}
+                onSelectedTagIdsChange={setSelectedTagIds}
+                density="compact"
+                dueDateFormat="MMM d, yyyy"
+                showTags={false}
+                className="mt-0 pb-0"
+              />
+              <SelectedTagPills tagIds={selectedTagIds} />
+            </div>
           )}
-
-          {!isTrashed && <SelectedTagPills tagIds={selectedTagIds} className="mt-0.5" />}
         </div>
 
         {/* Actions: Link + Tag + Priority + Restore + Trash */}

@@ -15,6 +15,7 @@ import { v4 as uuidv4 } from "uuid";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { debouncedUpdate, debouncedExecute, flushUpdate, cancelExecute, cancelUpdate } from "@/lib/shared/debounced-update";
 import { autoResizeTextarea, cn } from "@/lib/shared/utils";
+import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
 import { PRIORITY_COLORS, PRIORITY_LEVELS } from "@/lib/tasks/tasks";
 import { TaskMetadataEditor } from "@/components/tasks/TaskMetadataEditor";
 import { TaskLink } from "@/components/tasks/TaskLink";
@@ -32,6 +33,7 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
   const db = usePowerSync();
   const persistedTaskState = task.state ?? "pending";
   const [title, setTitle] = React.useState(task.title || "");
+  const titleRef = React.useRef<HTMLTextAreaElement | null>(null);
   const [priority, setPriority] = React.useState(task.priority || "medium");
   const [link, setLink] = React.useState(task.link || "");
 
@@ -52,6 +54,11 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
   const [optimisticState, setOptimisticState] = React.useState(persistedTaskState);
   const [optimisticSubtaskStates, setOptimisticSubtaskStates] = React.useState<Record<string, string>>({});
   const reduce = useReducedMotion();
+
+  // Keep the title's height tracking its wrapped content, including when the
+  // masonry column width changes (otherwise a wrapped 2nd line gets clipped by
+  // the card's overflow-hidden).
+  useAutosizeTextarea(titleRef, title);
 
   React.useEffect(() => { setOptimisticState(persistedTaskState); }, [persistedTaskState]);
   React.useEffect(() => { setTitle(task.title || ""); }, [task.title]);
@@ -264,14 +271,14 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
         <div className="flex flex-col flex-1 gap-1 min-w-0">
           {/* Title */}
           <textarea
-            ref={autoResizeTextarea}
+            ref={titleRef}
             maxLength={250}
             rows={1}
             className={`bg-transparent text-[15px] font-semibold focus:outline-none placeholder:text-muted-foreground/50 w-full resize-none overflow-hidden block leading-snug ${task.state === 'completed' || isTrashed ? 'line-through text-muted-foreground' : 'text-card-foreground'}`}
             placeholder="Task Title..."
             value={title}
             readOnly={isTrashed}
-            onChange={(e) => { if (!isTrashed) { autoResizeTextarea(e.target); setTitle(e.target.value); } }}
+            onChange={(e) => { if (!isTrashed) setTitle(e.target.value); }}
             onBlur={() => { if (!isNew && !isTrashed) handleUpdate("title", title); }}
             onKeyDown={(e) => {
               if (isTrashed) return;

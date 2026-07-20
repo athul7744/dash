@@ -504,7 +504,7 @@ Route: `src/app/reminders/page.tsx`. Reminders are `type:"reminder"` blocks on o
 - `src/lib/reminders/schedule.ts` — the pure, DB-free recurrence engine (like `capture.ts`, so tests don't load PowerSync): the `ReminderSchedule` union (`once`/`weekly`/`monthly`/`yearly`), `nextOccurrenceOnOrAfter` (local-day, month-length clamping), `formatSchedule`, and the `dueOccurrence` lead-window decision.
 - `src/lib/reminders/reminders.ts` — CRUD over the system page (mirrors `bookmarks.ts`), plus `markMaterialized` (deactivates a fired `once`).
 - `src/lib/reminders/materialize.ts` — `materializeDueReminders()`, the client-side reconciler. There is no server cron: it's fired fire-and-forget from a mount effect (`useReminderMaterializer` on the dashboard + `/reminders`), like `pruneEmptyJournalPages`. For each due occurrence it creates a Task via `createTask` using a **deterministic id** (`uuidv5(reminderId:occurrenceKey)`) so cross-device double-fires collapse to one row; `lastMaterializedKey` stops recreation after a task is resolved; a **pending-gate** (skip while the previous task is still `pending`) stops pile-up.
-- `src/hooks/use-reminders.ts` — the settle-latched live query + `useReminderMaterializer`. `src/components/reminders/` holds `ReminderCard` and the schedule-builder `ReminderForm`.
+- `src/hooks/use-reminders.ts` — the settle-latched live query + `useReminderMaterializer`. `src/components/reminders/ReminderCard.tsx` is the always-editable inline card (title + inline schedule builder + lead time + priority + tags, autosaving like `QuoteCard`) — no modal; "New reminder" creates a blank card that autofocuses.
 
 `createTask` (`src/lib/tasks/create-task.ts`) takes an optional deterministic `id` for this.
 

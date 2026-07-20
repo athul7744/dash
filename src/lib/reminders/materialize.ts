@@ -40,7 +40,7 @@ export async function materializeDueReminders(): Promise<number> {
 
   for (const row of rows) {
     const reminder = parseReminderContent(row.content);
-    if (!reminder.active) continue;
+    if (!reminder.active || !reminder.title.trim()) continue;
 
     const due = dueOccurrence(reminder, now);
     if (!due) continue;

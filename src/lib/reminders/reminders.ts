@@ -47,6 +47,11 @@ const SQL_UTC_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 const PRIORITIES: ReminderPriority[] = ["low", "medium", "high", "urgent"];
 const DEFAULT_SCHEDULE: ReminderSchedule = { freq: "monthly", day: 1 };
 
+/** A sensible starting schedule for a brand-new reminder: monthly on today's date. */
+function defaultNewSchedule(): ReminderSchedule {
+  return { freq: "monthly", day: new Date().getDate() };
+}
+
 /** Deterministic id of the current user's reminders page (no lookup needed). */
 export async function remindersPageId(): Promise<string> {
   const userId = await getCurrentUserId();
@@ -111,28 +116,32 @@ export function parseReminderContent(raw: string | null | undefined): ReminderCo
 }
 
 export interface CreateReminderInput {
-  title: string;
+  title?: string;
   link?: string;
   tags?: string[];
   priority?: ReminderPriority;
-  schedule: ReminderSchedule;
-  daysBefore: number;
+  schedule?: ReminderSchedule;
+  daysBefore?: number;
 }
 
-/** Append a new reminder to the collection. Returns the new block id. */
-export async function createReminder(input: CreateReminderInput): Promise<string> {
+/**
+ * Append a new reminder to the collection. Returns the new block id. All fields
+ * default, so `createReminder()` makes a blank reminder to edit inline (the
+ * reconciler skips it until it has a title).
+ */
+export async function createReminder(input: CreateReminderInput = {}): Promise<string> {
   const pageId = await ensureRemindersPage();
   const userId = await getCurrentUserId();
   const id = uuidv4();
   const now = new Date().toISOString();
   const sortRank = await nextSortRank(pageId);
   const content: ReminderContent = {
-    title: input.title.trim(),
+    title: input.title?.trim() ?? "",
     link: input.link?.trim() ?? "",
     tags: input.tags ?? [],
     priority: input.priority ?? "medium",
-    schedule: input.schedule,
-    daysBefore: Math.max(0, Math.floor(input.daysBefore)),
+    schedule: input.schedule ?? defaultNewSchedule(),
+    daysBefore: input.daysBefore != null ? Math.max(0, Math.floor(input.daysBefore)) : 3,
     active: true,
     lastMaterializedKey: null,
     lastTaskId: null,

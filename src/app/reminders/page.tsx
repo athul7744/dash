@@ -1,31 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@powersync/react";
 import { BellRing, Plus } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
-import { ReminderForm } from "@/components/reminders/ReminderForm";
 import { RemindersLoadingSkeleton } from "@/components/skeletons/RemindersLoadingSkeleton";
 import { useReminderMaterializer, useReminders } from "@/hooks/use-reminders";
-import type { Reminder } from "@/lib/reminders/reminders";
-import { Tag } from "@/lib/powersync/AppSchema";
+import { createReminder } from "@/lib/reminders/reminders";
 import { getApp } from "@/lib/shared/apps";
 
 const remindersApp = getApp("reminders");
 
 export default function RemindersPage() {
   const { reminders, isLoading } = useReminders();
-  const { data: allTags = [] } = useQuery<Tag>("SELECT id, name, color FROM tags");
   // Materialize any due reminders when this screen opens, too.
   useReminderMaterializer();
 
-  // The form dialog: null = closed; a reminder = editing; "new" = creating.
-  const [editing, setEditing] = useState<Reminder | "new" | null>(null);
+  const [justCreatedId, setJustCreatedId] = useState<string | null>(null);
 
-  const openNew = () => setEditing("new");
+  const addReminder = async () => {
+    const id = await createReminder();
+    setJustCreatedId(id);
+  };
 
   if (isLoading) return <RemindersLoadingSkeleton />;
 
@@ -36,7 +34,7 @@ export default function RemindersPage() {
         actions={
           <button
             type="button"
-            onClick={openNew}
+            onClick={addReminder}
             className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-violet-600 dark:hover:text-violet-400"
           >
             <Plus className="h-4 w-4" />
@@ -60,7 +58,7 @@ export default function RemindersPage() {
             </div>
             <button
               type="button"
-              onClick={openNew}
+              onClick={addReminder}
               className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-violet-500"
             >
               <Plus className="h-4 w-4" />
@@ -89,7 +87,7 @@ export default function RemindersPage() {
             <div className="columns-1 gap-5 md:columns-2 lg:columns-3">
               {reminders.map((reminder) => (
                 <div key={reminder.id} className="mb-5 break-inside-avoid">
-                  <ReminderCard reminder={reminder} allTags={allTags} onEdit={setEditing} />
+                  <ReminderCard reminder={reminder} autoFocus={reminder.id === justCreatedId} />
                 </div>
               ))}
             </div>
@@ -97,20 +95,12 @@ export default function RemindersPage() {
         )}
       </div>
 
-      <ReminderForm
-        open={editing !== null}
-        onOpenChange={(open) => {
-          if (!open) setEditing(null);
-        }}
-        reminder={editing === "new" ? null : editing}
-      />
-
       <MobileBottomFabs
         app={remindersApp}
         centerContent={
           <button
             type="button"
-            onClick={openNew}
+            onClick={addReminder}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground"
           >
             <Plus className="h-4 w-4 text-violet-600 dark:text-violet-400" />

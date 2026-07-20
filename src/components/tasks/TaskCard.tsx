@@ -240,8 +240,8 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
         : "bg-background border-border",
       optimisticState === 'completed' ? "bg-muted/50" : ""
     )}>
-      {/* Main Task Header */}
-      <div className="flex items-start gap-3 p-4">
+      {/* Main Task Header — roomy vertical padding, tighter side padding on mobile */}
+      <div className="flex items-start gap-3 px-3 py-4 sm:p-4">
         {!isNew && !isTrashed && (
           <button
             onClick={() => toggleTaskState(task)}
@@ -383,7 +383,7 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
 
       {/* Subtasks Section */}
       {!isNew && (
-        <div className="bg-black/20 border-t border-border p-3 pl-4 flex flex-col gap-1.5">
+        <div className="bg-black/20 border-t border-border px-2.5 py-3 pl-3 sm:p-3 sm:pl-4 flex flex-col gap-1.5">
           <AnimatePresence initial={false}>
           {combinedSubtasks.map((st: any) => {
             const currentState = optimisticSubtaskStates[st.id] || st.state;

@@ -31,14 +31,14 @@ export function TaskLink({ link, onLinkChange }: TaskLinkProps) {
         className={cn(
           "flex h-6 items-center rounded-md shrink-0 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           host
-            ? "gap-1 px-1 max-w-[9rem] text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+            ? "justify-center gap-1 px-1 max-w-[9rem] text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
             : "w-6 justify-center text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
         )}
       >
         {host ? (
           <>
             <Favicon url={link} className="shrink-0" />
-            <span className="truncate">{domain}</span>
+            <span className="hidden truncate sm:inline">{domain}</span>
           </>
         ) : (
           <Link2 className="h-3.5 w-3.5" />

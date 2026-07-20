@@ -19,6 +19,8 @@ interface TaskMetadataEditorProps {
   dueDateFormat?: string;
   className?: string;
   selectedTagsClassName?: string;
+  /** When false, the tag control is omitted (the card renders it elsewhere). */
+  showTags?: boolean;
 }
 
 const VARIANTS = {
@@ -41,6 +43,7 @@ export function TaskMetadataEditor({
   dueDateFormat = "PPP",
   className,
   selectedTagsClassName,
+  showTags = true,
 }: TaskMetadataEditorProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -84,12 +87,14 @@ export function TaskMetadataEditor({
           </button>
         )}
 
-        <TagSelector
-          selectedTagIds={selectedTagIds}
-          onSelectedTagIdsChange={onSelectedTagIdsChange}
-          density={density}
-          triggerLabel="Tag"
-        />
+        {showTags && (
+          <TagSelector
+            selectedTagIds={selectedTagIds}
+            onSelectedTagIdsChange={onSelectedTagIdsChange}
+            density={density}
+            triggerLabel="Tag"
+          />
+        )}
       </div>
     </>
   );

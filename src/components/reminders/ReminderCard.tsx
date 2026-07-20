@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Pause, Play, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, Pause, Play, Tag as TagIcon, Trash2 } from "lucide-react";
 
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
 import { TagSelector } from "@/components/tags/TagSelector";
 import {
   deleteReminder,
@@ -114,6 +115,13 @@ export function ReminderCard({
       )}
     >
       <div className="absolute right-3 top-3 flex items-center gap-0.5">
+        <TagSelector
+          selectedTagIds={reminder.tags}
+          onSelectedTagIdsChange={(ids) => void updateReminder(reminder.id, { tags: ids })}
+          showSelectedTags={false}
+          triggerContent={<TagIcon className="h-4 w-4" />}
+          triggerClassName="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        />
         <IconButton
           label={reminder.active ? "Pause" : "Resume"}
           onClick={() => void toggleActive(reminder.id)}
@@ -282,12 +290,7 @@ export function ReminderCard({
             <span>day{clampDays(daysBefore) === 1 ? "" : "s"} before</span>
           </div>
 
-          <div className="mt-3">
-            <TagSelector
-              selectedTagIds={reminder.tags}
-              onSelectedTagIdsChange={(ids) => void updateReminder(reminder.id, { tags: ids })}
-            />
-          </div>
+          <SelectedTagPills tagIds={reminder.tags} className="mt-3" />
 
           <p className="mt-3 text-xs text-muted-foreground/70">
             {reminder.active ? (next ? `Next task on ${format(next, "PP")}` : "No upcoming occurrence") : "Paused"}

@@ -2,7 +2,7 @@ import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Task } from "@/lib/powersync/AppSchema";
 import { usePowerSync } from "@powersync/react";
-import { Check, Trash2, CornerDownRight, Undo2, Plus } from "lucide-react";
+import { Check, Trash2, CornerDownRight, Undo2, Plus, Tag as TagIcon } from "lucide-react";
 import { DURATION, EASE, SPRING_SOFT } from "@/lib/shared/motion";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,8 @@ import { autoResizeTextarea, cn } from "@/lib/shared/utils";
 import { PRIORITY_COLORS, PRIORITY_LEVELS } from "@/lib/tasks/tasks";
 import { TaskMetadataEditor } from "@/components/tasks/TaskMetadataEditor";
 import { TaskLink } from "@/components/tasks/TaskLink";
+import { TagSelector } from "@/components/tags/TagSelector";
+import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
 
 interface TaskCardProps {
   task: Task;
@@ -281,7 +283,8 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
             autoFocus={isNew}
           />
 
-          {/* Metadata Row — hidden for trashed tasks */}
+          {/* Metadata Row — hidden for trashed tasks. Tags live in the top action
+              bar (add) + a pill row below (display), mirroring the bookmark card. */}
           {!isTrashed && (
             <TaskMetadataEditor
               dueDate={dueDate}
@@ -290,16 +293,16 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
                 if (!isNew) handleUpdate("due_date", date ? date.toISOString() : null);
               }}
               selectedTagIds={selectedTagIds}
-              onSelectedTagIdsChange={(tagIds) => {
-                setSelectedTagIds(tagIds);
-                if (!isNew) handleUpdate("tags", JSON.stringify(tagIds));
-              }}
+              onSelectedTagIdsChange={setSelectedTagIds}
               density="compact"
+              showTags={false}
             />
           )}
+
+          {!isTrashed && <SelectedTagPills tagIds={selectedTagIds} className="mt-0.5" />}
         </div>
 
-        {/* Actions: Link + Priority + Restore + Trash */}
+        {/* Actions: Link + Tag + Priority + Restore + Trash */}
         <div className="flex items-center gap-1.5 ml-auto pl-2">
           {!isTrashed && (
             <TaskLink
@@ -308,6 +311,19 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
                 setLink(value);
                 if (!isNew) handleUpdate("link", value.trim() || null);
               }}
+            />
+          )}
+
+          {!isTrashed && (
+            <TagSelector
+              selectedTagIds={selectedTagIds}
+              onSelectedTagIdsChange={(tagIds) => {
+                setSelectedTagIds(tagIds);
+                if (!isNew) handleUpdate("tags", JSON.stringify(tagIds));
+              }}
+              showSelectedTags={false}
+              triggerContent={<TagIcon className="h-4 w-4" />}
+              triggerClassName="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/70 hover:bg-accent hover:text-foreground transition-colors"
             />
           )}
 

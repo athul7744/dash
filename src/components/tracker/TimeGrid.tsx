@@ -3,24 +3,16 @@
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/shared/utils";
 import { ACTIVITY_CELL_CLASSES } from "@/lib/tracker/activities";
+import { moodByValue, moodDotClass, type Mood } from "@/lib/tracker/moods";
 import { format } from "date-fns";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-
-const RATINGS = [
-  { score: 1, label: "Sad/Bad", bg: "bg-orange-400", text: "text-orange-500" },
-  { score: 2, label: "Meh", bg: "bg-yellow-400", text: "text-yellow-500" },
-  { score: 3, label: "Okay", bg: "bg-lime-400", text: "text-lime-500" },
-  { score: 4, label: "Awesome", bg: "bg-emerald-400", text: "text-emerald-500" },
-  { score: 5, label: "LifeMax", bg: "bg-blue-500", text: "text-blue-500" },
-] as const;
 
 export interface GridCell {
   /** PowerSync row id, if a log exists for this cell */
@@ -38,12 +30,14 @@ interface TimeGridProps {
   /** Map from activity name → color key */
   colorMap: Record<string, string>;
   onCellClick: (day: Date, hour: number, existing: GridCell | undefined) => void;
-  /** Map from "YYYY-MM-DD" → score (1-5) */
+  /** Map from "YYYY-MM-DD" → mood value */
   ratings?: Map<string, number>;
   onRate?: (dateStr: string, score: number) => void;
+  /** The user's configured mood scale (worst→best). */
+  moods: Mood[];
 }
 
-export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate }: TimeGridProps) {
+export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, moods }: TimeGridProps) {
   // Key for animation reset when week changes
   const weekKey = days.length > 0 ? format(days[0], "yyyy-MM-dd") : "";
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -103,7 +97,7 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate }:
             const todayKey = format(now, "yyyy-MM-dd");
             const currentHour = now.getHours();
             const currentScore = ratings?.get(dateKey) ?? null;
-            const currentRating = RATINGS.find((r) => r.score === currentScore);
+            const currentRating = moodByValue(moods, currentScore);
             return (
               <tr
                 key={dateKey}
@@ -114,20 +108,20 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate }:
                   <td className="sticky left-0 z-10 bg-muted px-1 py-1 border-r border-border w-[52px] box-border">
                     <Select
                       value={currentScore != null ? currentScore : null}
-                      onValueChange={(v: any) => onRate?.(dateKey, Number(v))}
+                      onValueChange={(v: number | null) => v != null && onRate?.(dateKey, Number(v))}
                     >
                       <SelectTrigger size="sm" className="w-7 h-7 px-0 justify-center border-none bg-transparent [&_svg]:hidden mx-auto">
                         <span className={cn(
                           "inline-block h-4 w-4 rounded-full border-2",
-                          currentRating ? cn(currentRating.bg, "border-transparent") : "border-muted-foreground/40"
+                          currentRating ? cn(moodDotClass(currentRating), "border-transparent") : "border-muted-foreground/40"
                         )} />
                       </SelectTrigger>
                       <SelectContent>
-                        {RATINGS.map((r) => (
-                          <SelectItem key={r.score} value={r.score}>
+                        {moods.map((m) => (
+                          <SelectItem key={m.id} value={m.value}>
                             <span className="flex items-center gap-2">
-                              <span className={cn("inline-block h-3 w-3 rounded-full", r.bg)} />
-                              {r.label}
+                              <span className={cn("inline-block h-3 w-3 rounded-full", moodDotClass(m))} />
+                              {m.label}
                             </span>
                           </SelectItem>
                         ))}

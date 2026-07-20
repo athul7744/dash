@@ -4,12 +4,14 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { Lightbulb, Smile } from "lucide-react";
 import { cn } from "@/lib/shared/utils";
-import { WidgetProps, RATING_COLORS, RATING_LABELS, COLOR_HEX } from "./types";
+import { WidgetProps, COLOR_HEX } from "./types";
+import { moodByValue, moodHex, moodRange, moodTier } from "@/lib/tracker/moods";
 import { WidgetHeader, ToggleButton, DismissButton, HatchedEmpty, ActivityItem } from "./shared";
 
-export function MoodSummary({ days, data, colorMap, ratings }: WidgetProps) {
+export function MoodSummary({ days, data, colorMap, ratings, moods }: WidgetProps) {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [showInsights, setShowInsights] = useState(false);
+  const range = moodRange(moods);
   const insights = useMemo(() => {
     if (!ratings || ratings.size === 0) return null;
     const scores = Array.from(ratings.values());
@@ -38,15 +40,15 @@ export function MoodSummary({ days, data, colorMap, ratings }: WidgetProps) {
       }
     }
 
-    // Streak: consecutive days rated 3+
+    // Streak: consecutive good-or-better days (>= scale midpoint)
     let streak = 0, maxStreak = 0;
     for (const day of days) {
       const score = ratings.get(format(day, "yyyy-MM-dd"));
-      if (score && score >= 3) { streak++; maxStreak = Math.max(maxStreak, streak); }
+      if (score && score >= range.mid) { streak++; maxStreak = Math.max(maxStreak, streak); }
       else { streak = 0; }
     }
 
-    // Sleep on good vs bad days
+    // Sleep on good vs bad days (tier relative to the configured scale)
     let goodSleep = 0, goodCount = 0, badSleep = 0, badCount = 0;
     for (const [dateStr, score] of ratings) {
       let sleep = 0;
@@ -55,8 +57,9 @@ export function MoodSummary({ days, data, colorMap, ratings }: WidgetProps) {
         if (data.get(key)?.activityName?.toLowerCase() === "sleep") sleep++;
       }
       if (sleep > 0) {
-        if (score >= 4) { goodSleep += sleep; goodCount++; }
-        else if (score <= 2) { badSleep += sleep; badCount++; }
+        const tier = moodTier(score, range);
+        if (tier === "good") { goodSleep += sleep; goodCount++; }
+        else if (tier === "bad") { badSleep += sleep; badCount++; }
       }
     }
 
@@ -69,7 +72,7 @@ export function MoodSummary({ days, data, colorMap, ratings }: WidgetProps) {
       sleepGood: goodCount > 0 ? Math.round((goodSleep / goodCount) * 10) / 10 : null,
       sleepBad: badCount > 0 ? Math.round((badSleep / badCount) * 10) / 10 : null,
     };
-  }, [ratings, data, days, colorMap]);
+  }, [ratings, data, days, colorMap, range]);
 
   // Per-day detail for selected dot
   const dayDetail = useMemo(() => {
@@ -98,8 +101,8 @@ export function MoodSummary({ days, data, colorMap, ratings }: WidgetProps) {
     const day = days.find((d) => format(d, "yyyy-MM-dd") === selectedDay);
     const dayName = day ? format(day, "EEEE") : selectedDay;
 
-    return { score, label: RATING_LABELS[score], dayName, activities, sleepHours };
-  }, [selectedDay, ratings, data, days, colorMap]);
+    return { score, label: moodByValue(moods, score)?.label ?? "—", dayName, activities, sleepHours };
+  }, [selectedDay, ratings, data, days, colorMap, moods]);
 
   if (!insights || !ratings) {
     return (
@@ -165,8 +168,8 @@ export function MoodSummary({ days, data, colorMap, ratings }: WidgetProps) {
                   isSelected && "ring-2 ring-foreground ring-offset-1 ring-offset-background",
                   selectedDay !== null && !isSelected && "opacity-40"
                 )}
-                style={{ backgroundColor: score ? RATING_COLORS[score] : "var(--muted)" }}
-                title={score ? `${format(day, "EEE")}: ${RATING_LABELS[score]}` : format(day, "EEE")}
+                style={{ backgroundColor: score ? moodHex(moodByValue(moods, score)) : "var(--muted)" }}
+                title={score ? `${format(day, "EEE")}: ${moodByValue(moods, score)?.label ?? "—"}` : format(day, "EEE")}
               />
               <span className={cn("text-[8px] transition-all duration-300 ease-in-out", isSelected ? "text-foreground font-medium" : "text-muted-foreground")}>{format(day, "EEEEE")}</span>
             </div>
@@ -201,7 +204,7 @@ export function MoodSummary({ days, data, colorMap, ratings }: WidgetProps) {
                   <ActivityItem name={insights.bestDayActivity.name} color={insights.bestDayActivity.color} value={`${insights.bestDayActivity.hours}h (best day)`} />
                 )}
                 {insights.streak > 0 && (
-                  <div className="text-[11px] text-muted-foreground">🔥 {insights.streak}d streak (3+)</div>
+                  <div className="text-[11px] text-muted-foreground">🔥 {insights.streak}d good-mood streak</div>
                 )}
                 {insights.sleepGood !== null && insights.sleepBad !== null && (
                   <div className="text-[11px] text-muted-foreground">😴 Good days {insights.sleepGood}h vs bad {insights.sleepBad}h sleep</div>

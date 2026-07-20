@@ -16,7 +16,7 @@ Next.js 16 · PowerSync · Supabase · Tailwind CSS v4 · Shadcn/UI · Tiptap 3.
 Dash is an offline-first Next.js application with six apps under one shell:
 
 - `Tasks` — todo management with subtasks, tags, due dates, priorities, and trash/restore
-- `Tracker` — time-block logging on a 7-day x 24-hour grid, daily mood ratings, yearly heatmaps, and weekly widgets
+- `Tracker` — time-block logging on a 7-day x 24-hour grid, a user-configurable mood scale (the `moods` table), yearly heatmaps, and weekly widgets
 - `Notes` — a local-first outline editor built on pages, blocks, graph edges, and explicitly owned attachments
 - `Quotes` — a collection of quotes stored in the notes backend (a hidden `kind: "quote"` system page) with a favorites-weighted daily resurfacing on the dashboard
 - `Bookmarks` — saved links stored in the notes backend (a hidden `kind: "bookmark"` system page) with platform detection, server-fetched titles, tags, read/unread, and an unread-weighted daily "revisit"
@@ -131,7 +131,7 @@ Important convention:
 - `src/components/dashboard/DashboardHero.tsx` — the centered hero (greeting, search bar, contextual action/mood)
 - `src/components/dashboard/DashboardGreeting.tsx` — presentational greeting: the date as a small serif eyebrow above the greeting (centered stack)
 - `src/components/dashboard/HeroAction.tsx` — the contextual nudge button (opens a task, scrolls to a section, or navigates)
-- `src/components/dashboard/MoodPicker.tsx` — 1–5 mood dots writing to `daily_ratings` (night hero + shared)
+- `src/components/dashboard/MoodPicker.tsx` — a dot per configured mood (from the `moods` table) writing to `daily_ratings` (night hero + shared)
 - `src/components/dashboard/GlobalSearch.tsx` — controlled combined tasks+notes search (built on `SearchPopup`)
 - `src/components/dashboard/TaskPopup.tsx` — opens a `TaskCard` in a blurred modal (tasks have no deep-link route)
 - `src/components/dashboard/TodayTasks.tsx` / `TodayTracking.tsx` — borderless reveal widgets
@@ -195,6 +195,7 @@ Important convention:
 - `src/lib/reminders/reminders.ts` / `reminders/schedule.ts` / `reminders/materialize.ts` — reminder CRUD over the `kind:"reminder"` system page, the pure recurrence engine, and the on-mount reconciler that materializes due reminders into Tasks (see [Reminders App Structure](#reminders-app-structure))
 - `src/lib/tracker/activities.ts` — tracker activity palette and class maps
 - `src/lib/tracker/ratings.ts` — `setDailyRating` upsert (insert/update/clear) for the mood picker, shared by the dashboard
+- `src/lib/tracker/moods.ts` / `src/hooks/use-moods.ts` — the user-configurable, ordered mood scale (`moods` table): `DEFAULT_MOODS` seed, `moodByValue`/`moodHex`/`moodDotClass`, and `moodRange`/`moodTier` (good/bad-day classification computed from the scale's range). `daily_ratings.score` stores a mood's `value`.
 - `src/lib/tracker/day-keys.ts` — UTC-naive/local date-key helpers, incl. `recentNaiveWindow` for the "logged in the last 2h" check
 - `src/hooks/use-notes.ts` — local SQLite query hooks for note pages and blocks (excludes `properties.kind`-tagged system pages from Notes lists)
 - `src/hooks/use-quotes.ts` / `src/hooks/use-bookmarks.ts` / `src/hooks/use-reminders.ts` — live query hooks reading the quote/bookmark/reminder blocks off their system page (a "settled" latch keeps the empty state from flashing during the page-id → query swap); `use-reminders.ts` also exports `useReminderMaterializer`
@@ -447,7 +448,7 @@ Tracker loading model:
 
 ## Shared Named-Color CRUD Pattern
 
-The tag and activity management dialogs now share one reusable primitive:
+The tag, activity, and mood management dialogs share one reusable primitive:
 
 - `src/components/ManageNamedColorItemsDialog.tsx`
 
@@ -457,6 +458,7 @@ This component owns:
 - create input and color picker UI
 - optimistic create overlays
 - optimistic color updates
+- optional inline rename (opt-in via `onRename` — used by moods; tags/activities omit it)
 - delete confirmation dialog before removing items
 - reconciliation between optimistic and persisted rows
 
@@ -464,6 +466,7 @@ It is wrapped by:
 
 - `src/components/tasks/ManageTagsDialog.tsx`
 - `src/components/tracker/ManageActivitiesDialog.tsx`
+- `src/components/tracker/ManageMoodsDialog.tsx`
 
 The shared tag selection UI lives separately in:
 

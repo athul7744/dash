@@ -16,20 +16,11 @@ import {
 import { cn } from "@/lib/shared/utils";
 import { Star } from "lucide-react";
 import { DailyRating, TimeLog, ActivityType } from "@/lib/powersync/AppSchema";
+import { ACTIVITY_CELL_CLASSES } from "@/lib/tracker/activities";
+import { moodByValue, moodDotClass, moodHex, moodRange, type Mood } from "@/lib/tracker/moods";
 import { COLOR_HEX } from "./widgets/types";
 import { FilterPill } from "./FilterPill";
 import { DayPopover } from "./DayPopover";
-
-// Softer oklch-based colors for dark mode harmony
-const RATING_COLORS: Record<number, { bg: string; dot: string; hex: string }> = {
-  1: { bg: "bg-orange-400/80 dark:bg-orange-500/70", dot: "bg-orange-400", hex: "#fb923c" },
-  2: { bg: "bg-amber-400/80 dark:bg-amber-400/70", dot: "bg-amber-400", hex: "#fbbf24" },
-  3: { bg: "bg-lime-400/80 dark:bg-lime-400/70", dot: "bg-lime-400", hex: "#a3e635" },
-  4: { bg: "bg-emerald-400/80 dark:bg-emerald-500/70", dot: "bg-emerald-400", hex: "#34d399" },
-  5: { bg: "bg-sky-400/80 dark:bg-sky-500/70", dot: "bg-sky-400", hex: "#38bdf8" },
-};
-
-const RATING_LABELS = ["Sad/Bad", "Meh", "Okay", "Awesome", "LifeMax"];
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -39,11 +30,17 @@ interface YearRatingGridProps {
   year: number;
   onDayClick?: (date: Date) => void;
   headerLeft?: React.ReactNode;
+  moods: Mood[];
   optimisticRatings?: Map<string, { score: number | null }>;
   optimisticTimeLogs?: Map<string, { activityName: string | null }>;
 }
 
-export function YearRatingGrid({ year, onDayClick, headerLeft, optimisticRatings, optimisticTimeLogs }: YearRatingGridProps) {
+export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimisticRatings, optimisticTimeLogs }: YearRatingGridProps) {
+  const range = moodRange(moods);
+  const cellBgClass = (score: number | null | undefined): string | null => {
+    const mood = moodByValue(moods, score);
+    return mood ? ACTIVITY_CELL_CLASSES[mood.color] ?? null : null;
+  };
   const [activeFilter, setActiveFilter] = useState<number | null>(null);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
@@ -238,14 +235,14 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, optimisticRatings
       <div className="flex items-center gap-3 md:gap-4 [touch-action:pan-y]">
         {headerLeft}
         <div className="min-w-0 flex flex-1 items-center gap-1.5 overflow-x-auto overscroll-y-none [touch-action:pan-x_pan-y]">
-          {[1, 2, 3, 4, 5].map((score) => (
+          {moods.map((mood) => (
             <FilterPill
-              key={score}
-              label={RATING_LABELS[score - 1]}
-              dotClass={RATING_COLORS[score].dot}
-              activeHex={RATING_COLORS[score].hex}
-              active={activeFilter === score}
-              onClick={() => setActiveFilter(activeFilter === score ? null : score)}
+              key={mood.id}
+              label={mood.label}
+              dotClass={moodDotClass(mood)}
+              activeHex={moodHex(mood)}
+              active={activeFilter === mood.value}
+              onClick={() => setActiveFilter(activeFilter === mood.value ? null : mood.value)}
             />
           ))}
         </div>
@@ -289,11 +286,11 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, optimisticRatings
           header={
             dayInfo.score ? (
               <div className="flex items-center gap-2">
-                <span className={cn("h-3 w-3 rounded-full", RATING_COLORS[dayInfo.score].dot)} />
+                <span className={cn("h-3 w-3 rounded-full", moodDotClass(moodByValue(moods, dayInfo.score)))} />
                 <span className="text-xs text-foreground font-medium">
-                  {RATING_LABELS[dayInfo.score - 1]}
+                  {moodByValue(moods, dayInfo.score)?.label ?? "—"}
                 </span>
-                <span className="text-xs text-muted-foreground">({dayInfo.score}/5)</span>
+                <span className="text-xs text-muted-foreground">({dayInfo.score}/{range.max})</span>
               </div>
             ) : (
               <span className="text-xs text-muted-foreground">No rating</span>
@@ -340,7 +337,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, optimisticRatings
               {days.map((day) => {
                 const dateStr = format(day, "yyyy-MM-dd");
                 const score = ratingMap.get(dateStr);
-                const colors = score ? RATING_COLORS[score] : null;
+                const bgClass = cellBgClass(score);
                 const today = isToday(day);
                 const isSelected = selectedDay && format(selectedDay, "yyyy-MM-dd") === dateStr;
 
@@ -361,11 +358,11 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, optimisticRatings
                     }}
                     className={cn(
                       "mood-cell relative h-4 w-4 rounded-full mx-auto",
-                      colors?.bg || "bg-muted/30",
+                      bgClass || "bg-muted/30",
                       today && "ring-[1.5px] ring-foreground ring-offset-1 ring-offset-background",
                       isSelected && "ring-2 ring-foreground"
                     )}
-                    title={score ? `${format(day, "MMM d")}: ${score}/5 (${RATING_LABELS[score - 1]})` : format(day, "MMM d")}
+                    title={score ? `${format(day, "MMM d")}: ${score}/${range.max} (${moodByValue(moods, score)?.label ?? "—"})` : format(day, "MMM d")}
                   />
                 );
               })}

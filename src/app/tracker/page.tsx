@@ -12,6 +12,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { ActivityToolbar } from "@/components/tracker/ActivityToolbar";
 import { TimeGrid, GridData, GridCell } from "@/components/tracker/TimeGrid";
 import { ManageActivitiesDialog } from "@/components/tracker/ManageActivitiesDialog";
+import { ManageMoodsDialog } from "@/components/tracker/ManageMoodsDialog";
 import { WeekNavigator, WeekNavigatorFab } from "@/components/tracker/WeekNavigator";
 import { WeekWidgets } from "@/components/tracker/widgets";
 import { WeeklyJournal } from "@/components/tracker/WeeklyJournal";
@@ -27,6 +28,8 @@ import { flushAllBlockDocumentPersisters } from "@/lib/notes/editor/block-persis
 import { cn } from "@/lib/shared/utils";
 import { DURATION, SPRING_SOFT } from "@/lib/shared/motion";
 import { DEFAULT_ACTIVITIES } from "@/lib/tracker/activities";
+import { DEFAULT_MOODS } from "@/lib/tracker/moods";
+import { useMoods } from "@/hooks/use-moods";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
@@ -66,17 +69,18 @@ export default function TrackerPage() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedYear, setSelectedYear] = useState(() => getYear(new Date()));
   const [isManageActivitiesOpen, setIsManageActivitiesOpen] = useState(false);
+  const [isManageMoodsOpen, setIsManageMoodsOpen] = useState(false);
   const [optimisticTimeLogs, setOptimisticTimeLogs] = useState<Map<string, OptimisticTimeLogChange>>(new Map());
   const [optimisticRatings, setOptimisticRatings] = useState<Map<string, OptimisticRatingChange>>(new Map());
   const optimisticTimeLogsRef = useRef(optimisticTimeLogs);
   const optimisticRatingsRef = useRef(optimisticRatings);
   const seededRef = useRef(false);
 
-  useEffect(() => {
-    if (pendingView === routeView) {
-      setPendingView(null);
-    }
-  }, [pendingView, routeView]);
+  // Clear the pending view once navigation lands on it (render-time guard, not
+  // an effect, to avoid a cascading-render pass).
+  if (pendingView !== null && pendingView === routeView) {
+    setPendingView(null);
+  }
 
   useEffect(() => {
     optimisticTimeLogsRef.current = optimisticTimeLogs;
@@ -108,21 +112,35 @@ export default function TrackerPage() {
     "SELECT * FROM activity_types ORDER BY created_at ASC"
   );
 
-  // Seed defaults on first load if the user has no activity types
+  // The user's configurable mood scale (worst→best).
+  const moods = useMoods();
+
+  // Seed defaults on first load if the user has no activity types / moods yet
   useEffect(() => {
     if (seededRef.current) return;
     seededRef.current = true;
 
     (async () => {
-      const existing = await db.getAll("SELECT id FROM activity_types LIMIT 1");
-      if (existing.length > 0) return;
-
       const userId = await getCurrentUserId();
-      for (const a of DEFAULT_ACTIVITIES) {
-        await db.execute(
-          `INSERT INTO activity_types (id, user_id, name, color, created_at) VALUES (?, ?, ?, ?, datetime('now'))`,
-          [uuidv4(), userId, a.name, a.color]
-        );
+
+      const existingActivities = await db.getAll("SELECT id FROM activity_types LIMIT 1");
+      if (existingActivities.length === 0) {
+        for (const a of DEFAULT_ACTIVITIES) {
+          await db.execute(
+            `INSERT INTO activity_types (id, user_id, name, color, created_at) VALUES (?, ?, ?, ?, datetime('now'))`,
+            [uuidv4(), userId, a.name, a.color]
+          );
+        }
+      }
+
+      const existingMoods = await db.getAll("SELECT id FROM moods LIMIT 1");
+      if (existingMoods.length === 0) {
+        for (const m of DEFAULT_MOODS) {
+          await db.execute(
+            `INSERT INTO moods (id, user_id, label, color, value, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+            [uuidv4(), userId, m.label, m.color, m.value]
+          );
+        }
       }
     })();
   }, [db]);
@@ -247,7 +265,15 @@ export default function TrackerPage() {
     [weekRatings]
   );
 
-  useEffect(() => {
+  // Drop optimistic entries once the persisted data catches up. Done as
+  // render-time reconciliation (guarded on the source data's identity) rather
+  // than an effect, so there's no extra cascading-render pass.
+  const [tlReconcileKey, setTlReconcileKey] = useState<{ keys: typeof currentDayKeys; grid: typeof gridData }>({
+    keys: currentDayKeys,
+    grid: gridData,
+  });
+  if (tlReconcileKey.keys !== currentDayKeys || tlReconcileKey.grid !== gridData) {
+    setTlReconcileKey({ keys: currentDayKeys, grid: gridData });
     setOptimisticTimeLogs((prev) => {
       let didChange = false;
       const next = new Map(prev);
@@ -269,9 +295,19 @@ export default function TrackerPage() {
 
       return didChange ? next : prev;
     });
-  }, [currentDayKeys, gridData]);
+  }
 
-  useEffect(() => {
+  const [ratingReconcileKey, setRatingReconcileKey] = useState<{
+    keys: typeof currentDayKeys;
+    ids: typeof ratingsIdMap;
+    scores: typeof ratingsMap;
+  }>({ keys: currentDayKeys, ids: ratingsIdMap, scores: ratingsMap });
+  if (
+    ratingReconcileKey.keys !== currentDayKeys ||
+    ratingReconcileKey.ids !== ratingsIdMap ||
+    ratingReconcileKey.scores !== ratingsMap
+  ) {
+    setRatingReconcileKey({ keys: currentDayKeys, ids: ratingsIdMap, scores: ratingsMap });
     setOptimisticRatings((prev) => {
       let didChange = false;
       const next = new Map(prev);
@@ -293,12 +329,13 @@ export default function TrackerPage() {
 
       return didChange ? next : prev;
     });
-  }, [currentDayKeys, ratingsIdMap, ratingsMap]);
+  }
 
   // Keep widget props consistent: only update when gridData belongs to current days.
   // useQuery resolves a frame late on week change, so widgets would briefly see
-  // new days + stale data, causing an empty-state flash.
-  const widgetProps = useRef({ days, data: mergedGridData, ratings: mergedRatingsMap });
+  // new days + stale data, causing an empty-state flash. Held as derived state
+  // (updated at render time when fresh) so the last consistent set survives the
+  // stale frame — no ref access during render.
   const isDataStale = useMemo(() => {
     if (mergedGridData.size === 0) return false; // genuinely empty week — not stale
     const firstKey = mergedGridData.keys().next().value as string | undefined;
@@ -309,8 +346,12 @@ export default function TrackerPage() {
     return keyDate < startDate || keyDate > endDate;
   }, [days, mergedGridData]);
 
-  if (!isDataStale) {
-    widgetProps.current = { days, data: mergedGridData, ratings: mergedRatingsMap };
+  const [widgetData, setWidgetData] = useState({ days, data: mergedGridData, ratings: mergedRatingsMap });
+  if (
+    !isDataStale &&
+    (widgetData.days !== days || widgetData.data !== mergedGridData || widgetData.ratings !== mergedRatingsMap)
+  ) {
+    setWidgetData({ days, data: mergedGridData, ratings: mergedRatingsMap });
   }
 
   // Rating upsert handler
@@ -493,15 +534,27 @@ export default function TrackerPage() {
       <AppHeader
         app={trackerApp}
         mobileMenuItems={
-          <DropdownMenuItem onClick={() => setIsManageActivitiesOpen(true)}>
-            <span>Manage Activities</span>
-            <Timer className="ml-auto h-4 w-4 text-muted-foreground" />
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem onClick={() => setIsManageActivitiesOpen(true)}>
+              <span>Manage Activities</span>
+              <Timer className="ml-auto h-4 w-4 text-muted-foreground" />
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setIsManageMoodsOpen(true)}>
+              <span>Manage Moods</span>
+              <Smile className="ml-auto h-4 w-4 text-muted-foreground" />
+            </DropdownMenuItem>
+          </>
         }
-        actions={<ManageActivitiesDialog />}
+        actions={
+          <>
+            <ManageActivitiesDialog />
+            <ManageMoodsDialog />
+          </>
+        }
       />
 
       <ManageActivitiesDialog open={isManageActivitiesOpen} onOpenChange={setIsManageActivitiesOpen} hideTrigger />
+      <ManageMoodsDialog open={isManageMoodsOpen} onOpenChange={setIsManageMoodsOpen} hideTrigger />
 
       {/* View Tabs */}
       <div className="border-b border-border px-[var(--app-gutter-x)] flex items-center gap-1 overflow-x-auto overscroll-y-none [touch-action:pan-x_pan-y]">
@@ -557,11 +610,11 @@ export default function TrackerPage() {
                 </section>
 
                 <section className="min-w-0 overflow-x-hidden">
-                  <TimeGrid days={days} data={mergedGridData} colorMap={activityColorMap} onCellClick={handleCellClick} ratings={mergedRatingsMap} onRate={handleRate} />
+                  <TimeGrid days={days} data={mergedGridData} colorMap={activityColorMap} onCellClick={handleCellClick} ratings={mergedRatingsMap} onRate={handleRate} moods={moods} />
                 </section>
 
                 <section className="mt-4 min-w-0 overflow-x-hidden [touch-action:pan-y]">
-                  <WeekWidgets days={widgetProps.current.days} data={widgetProps.current.data} colorMap={activityColorMap} ratings={widgetProps.current.ratings} />
+                  <WeekWidgets days={widgetData.days} data={widgetData.data} colorMap={activityColorMap} ratings={widgetData.ratings} moods={moods} />
                 </section>
 
                 <section className="mt-8 min-w-0 overflow-x-hidden pb-16 sm:pb-0 [touch-action:pan-y]">
@@ -581,7 +634,7 @@ export default function TrackerPage() {
             headerLeft={
               <div className="flex items-center gap-2 shrink-0 pt-1 [touch-action:pan-y]">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedYear} onValueChange={(v: any) => setSelectedYear(parseInt(String(v), 10))}>
+                <Select value={selectedYear} onValueChange={(v: number | null) => v != null && setSelectedYear(parseInt(String(v), 10))}>
                   <SelectTrigger size="sm">
                     <SelectValue />
                   </SelectTrigger>
@@ -601,12 +654,13 @@ export default function TrackerPage() {
           <YearRatingGrid
             year={selectedYear}
             onDayClick={handleDayClick}
+            moods={moods}
             optimisticRatings={currentWeekOptimisticRatings}
             optimisticTimeLogs={currentWeekOptimisticTimeLogs}
             headerLeft={
               <div className="flex items-center gap-2 shrink-0 [touch-action:pan-y]">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedYear} onValueChange={(v: any) => setSelectedYear(parseInt(String(v), 10))}>
+                <Select value={selectedYear} onValueChange={(v: number | null) => v != null && setSelectedYear(parseInt(String(v), 10))}>
                   <SelectTrigger size="sm">
                     <SelectValue />
                   </SelectTrigger>

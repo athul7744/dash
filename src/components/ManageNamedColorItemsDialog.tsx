@@ -70,6 +70,8 @@ type ManageNamedColorItemsDialogProps<TItem extends ManagedColorItem> = {
   onCreate: (item: ManagedColorDraft) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onUpdateColor: (id: string, color: string) => void | Promise<void>;
+  /** When provided, item names become inline-editable (rename on Enter/blur). */
+  onRename?: (id: string, name: string) => void | Promise<void>;
 };
 
 function ItemRow<TItem extends ManagedColorItem>({
@@ -79,6 +81,7 @@ function ItemRow<TItem extends ManagedColorItem>({
   getItemClass,
   onDelete,
   onUpdateColor,
+  onRename,
 }: {
   item: TItem | ManagedColorDraft;
   colors: readonly string[];
@@ -86,11 +89,26 @@ function ItemRow<TItem extends ManagedColorItem>({
   getItemClass: (color: string) => string;
   onDelete: (id: string) => Promise<void>;
   onUpdateColor: (id: string, color: string) => void | Promise<void>;
+  onRename?: (id: string, name: string) => void | Promise<void>;
 }) {
   const [isColorPickerOpen, setIsColorPickerOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
+  const [nameDraft, setNameDraft] = React.useState(item.name ?? "");
+  const nameFocusedRef = React.useRef(false);
   const resolvedColor = item.color ?? null;
   const fallbackColor = colors[0];
+
+  // Keep the input in sync with synced/optimistic name changes while unfocused.
+  React.useEffect(() => {
+    if (!nameFocusedRef.current) setNameDraft(item.name ?? "");
+  }, [item.name]);
+
+  const commitName = () => {
+    nameFocusedRef.current = false;
+    const trimmed = nameDraft.trim();
+    if (onRename && trimmed && trimmed !== (item.name ?? "")) onRename(item.id, trimmed);
+    else setNameDraft(item.name ?? "");
+  };
 
   return (
     <div className="group flex items-center justify-between rounded-md border px-3 py-2">
@@ -123,9 +141,34 @@ function ItemRow<TItem extends ManagedColorItem>({
             </div>
           </PopoverContent>
         </Popover>
-        <span className={cn("rounded-sm px-2 py-0.5 text-xs font-medium", getItemClass(resolvedColor || fallbackColor))}>
-          {item.name ?? ""}
-        </span>
+        {onRename ? (
+          <input
+            value={nameDraft}
+            maxLength={30}
+            onFocus={() => {
+              nameFocusedRef.current = true;
+            }}
+            onChange={(event) => setNameDraft(event.target.value)}
+            onBlur={commitName}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+              } else if (event.key === "Escape") {
+                setNameDraft(item.name ?? "");
+                event.currentTarget.blur();
+              }
+            }}
+            className={cn(
+              "min-w-0 flex-1 rounded-sm px-2 py-0.5 text-xs font-medium outline-none focus:ring-1 focus:ring-ring",
+              getItemClass(resolvedColor || fallbackColor),
+            )}
+          />
+        ) : (
+          <span className={cn("rounded-sm px-2 py-0.5 text-xs font-medium", getItemClass(resolvedColor || fallbackColor))}>
+            {item.name ?? ""}
+          </span>
+        )}
       </div>
       <Button
         variant="ghost"
@@ -178,6 +221,7 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
   onCreate,
   onDelete,
   onUpdateColor,
+  onRename,
 }: ManageNamedColorItemsDialogProps<TItem>) {
   const [newName, setNewName] = React.useState("");
   const [newColor, setNewColor] = React.useState(defaultColor);
@@ -191,16 +235,25 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
     onOpenChange?.(nextOpen);
   }, [onOpenChange]);
 
-  React.useEffect(() => {
+  // Reset the create form's color when the default changes, and its name each
+  // time the dialog opens — done at render time (guarded) rather than in an
+  // effect, so there's no cascading-render pass.
+  const [prevDefaultColor, setPrevDefaultColor] = React.useState(defaultColor);
+  if (prevDefaultColor !== defaultColor) {
+    setPrevDefaultColor(defaultColor);
     setNewColor(defaultColor);
-  }, [defaultColor]);
+  }
+  const [prevOpen, setPrevOpen] = React.useState(resolvedOpen);
+  if (prevOpen !== resolvedOpen) {
+    setPrevOpen(resolvedOpen);
+    if (resolvedOpen) setNewName("");
+  }
 
-  React.useEffect(() => {
-    if (!resolvedOpen) return;
-    setNewName("");
-  }, [resolvedOpen]);
-
-  React.useEffect(() => {
+  // Reconcile optimistic overlays against freshly-persisted items when the
+  // items array identity changes (again at render time, not via an effect).
+  const [reconciledItems, setReconciledItems] = React.useState(items);
+  if (reconciledItems !== items) {
+    setReconciledItems(items);
     setOverlays((prev) => {
       let didChange = false;
       const next = new Map(prev);
@@ -243,7 +296,7 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
 
       return didChange ? next : prev;
     });
-  }, [items]);
+  }
 
   const visibleItems = React.useMemo(
     () => {
@@ -335,6 +388,17 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
     void onUpdateColor(id, color);
   };
 
+  const handleRename = (id: string, name: string) => {
+    setOverlays((prev) => {
+      const next = new Map(prev);
+      const existingOverlay = next.get(id) ?? {};
+      next.set(id, { ...existingOverlay, name });
+      return next;
+    });
+
+    void onRename?.(id, name);
+  };
+
   return (
     <Dialog open={resolvedOpen} onOpenChange={handleOpenChange}>
       {!hideTrigger && (children ? (
@@ -405,6 +469,7 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
                     getItemClass={getItemClass}
                     onDelete={handleDelete}
                     onUpdateColor={handleUpdateColor}
+                    onRename={onRename ? handleRename : undefined}
                   />
                 ))
               )}

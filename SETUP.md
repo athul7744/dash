@@ -80,14 +80,26 @@ CREATE TABLE public.activity_types (
   UNIQUE (user_id, name)
 );
 
--- Daily ratings table (1-5 mood score per day)
+-- Daily ratings table (one mood per day, stored as the chosen mood's value; see the `moods` table below)
 CREATE TABLE public.daily_ratings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   rating_date DATE NOT NULL,
-  score SMALLINT NOT NULL CHECK (score >= 1 AND score <= 5),
+  score SMALLINT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, rating_date)
+);
+
+-- Moods table (the user-configurable, ordered mood scale). `value` is the
+-- ordinal (worst→best) stored in daily_ratings.score.
+CREATE TABLE public.moods (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  color TEXT NOT NULL,
+  value INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, value)
 );
 
 -- Notes pages table
@@ -152,6 +164,7 @@ ALTER TABLE public.tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.time_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_ratings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.moods ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.edges ENABLE ROW LEVEL SECURITY;
@@ -175,6 +188,10 @@ CREATE POLICY "Users can CRUD own activity_types" ON public.activity_types
   WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can CRUD own daily_ratings" ON public.daily_ratings
+  FOR ALL USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can CRUD own moods" ON public.moods
   FOR ALL USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
@@ -211,12 +228,12 @@ CREATE INDEX idx_attachments_user_path ON attachments (user_id, file_path);
 -- Table privileges for the browser client. RLS still restricts each user to their own rows.
 GRANT SELECT, INSERT, UPDATE, DELETE ON
   public.tasks, public.tags, public.time_logs, public.activity_types,
-  public.daily_ratings, public.pages, public.blocks, public.edges,
+  public.daily_ratings, public.moods, public.pages, public.blocks, public.edges,
   public.attachments, public.property_definitions
 TO authenticated;
 
 -- Publication for PowerSync replication
-CREATE PUBLICATION powersync FOR TABLE public.tasks, public.tags, public.time_logs, public.activity_types, public.daily_ratings, public.pages, public.blocks, public.edges, public.attachments, public.property_definitions;
+CREATE PUBLICATION powersync FOR TABLE public.tasks, public.tags, public.time_logs, public.activity_types, public.daily_ratings, public.moods, public.pages, public.blocks, public.edges, public.attachments, public.property_definitions;
 ```
 
 ### Push notifications schema (optional)
@@ -306,6 +323,7 @@ streams:
       - SELECT * FROM tags WHERE tags.user_id = auth.user_id()
       - SELECT * FROM activity_types WHERE activity_types.user_id = auth.user_id()
       - SELECT * FROM daily_ratings WHERE daily_ratings.user_id = auth.user_id()
+      - SELECT * FROM moods WHERE moods.user_id = auth.user_id()
       - SELECT * FROM property_definitions WHERE property_definitions.user_id = auth.user_id()
 
   # Bucket B: High Churn Content (Compacts perfectly with CLEAR because operations churn out)

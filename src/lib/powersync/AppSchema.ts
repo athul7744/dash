@@ -42,6 +42,14 @@ export const dailyRatingsTable = new Table({
   created_at: column.text
 });
 
+export const moodsTable = new Table({
+  user_id: column.text,
+  label: column.text,
+  color: column.text, // a color name from ACTIVITY_COLORS
+  value: column.integer, // ordinal (worst→best); this is the number stored in daily_ratings.score
+  created_at: column.text
+});
+
 export const pagesTable = new Table({
   user_id: column.text,
   title: column.text,
@@ -89,6 +97,7 @@ export const AppSchema = new Schema({
   time_logs: timeLogsTable,
   activity_types: activityTypesTable,
   daily_ratings: dailyRatingsTable,
+  moods: moodsTable,
   pages: pagesTable,
   blocks: blocksTable,
   edges: edgesTable,
@@ -102,6 +111,7 @@ export type Tag = Database['tags'];
 export type TimeLog = Database['time_logs'];
 export type ActivityType = Database['activity_types'];
 export type DailyRating = Database['daily_ratings'];
+export type MoodRecord = Database['moods'];
 export type PageRecord = Database['pages'];
 export type BlockRecord = Database['blocks'];
 export type EdgeRecord = Database['edges'];

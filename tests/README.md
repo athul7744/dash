@@ -129,6 +129,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/tracker/day-keys.test.ts`
   Covers the tracker date-key helpers: `utcDateKey`/`localDateKey`/`utcDayBounds` formats and `recentNaiveWindow` (2-hour UTC-naive span, midnight crossing).
 
+- `tests/tracker/moods.test.ts`
+  Covers the configurable mood-scale helpers (`src/lib/tracker/moods.ts`): `moodRange` (bounds + midpoint, empty fallback), `moodTier` (good/bad/neutral classified relative to the scale's range, for any scale length), and `moodByValue`.
+
 ## Current Dashboard Suites
 
 - `tests/dashboard/hero-action.test.ts`

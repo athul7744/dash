@@ -9,9 +9,17 @@ import { cancelExecute, debouncedExecute } from "@/lib/shared/debounced-update";
 import {
   ACTIVITY_COLORS,
   ACTIVITY_CELL_CLASSES,
+  ACTIVITY_CATEGORIES,
+  ACTIVITY_CATEGORY_LABELS,
+  DEFAULT_ACTIVITY_CATEGORY,
   getActivityDotClass,
 } from "@/lib/tracker/activities";
 import { ActivityType } from "@/lib/powersync/AppSchema";
+
+const CATEGORY_OPTIONS = ACTIVITY_CATEGORIES.map((value) => ({
+  value,
+  label: ACTIVITY_CATEGORY_LABELS[value],
+}));
 
 interface ManageActivitiesDialogProps {
   children?: React.ReactNode;
@@ -26,11 +34,11 @@ export function ManageActivitiesDialog({ children, open, onOpenChange, hideTrigg
     "SELECT * FROM activity_types ORDER BY created_at ASC"
   );
 
-  const handleAdd = async ({ id, name, color }: ManagedColorDraft) => {
+  const handleAdd = async ({ id, name, color, category }: ManagedColorDraft) => {
     const userId = await getCurrentUserId();
     debouncedExecute(
-      `INSERT INTO activity_types (id, user_id, name, color, created_at) VALUES (?, ?, ?, ?, datetime('now'))`,
-      [id, userId, name, color],
+      `INSERT INTO activity_types (id, user_id, name, color, category, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+      [id, userId, name, color, category ?? DEFAULT_ACTIVITY_CATEGORY],
       id
     );
   };
@@ -38,6 +46,8 @@ export function ManageActivitiesDialog({ children, open, onOpenChange, hideTrigg
   const handleDelete = async (id: string) => {
     cancelExecute(id);
     cancelExecute(`activity-color:${id}`);
+    cancelExecute(`activity-category:${id}`);
+    cancelExecute(`activity-name:${id}`);
     await db.execute(`DELETE FROM activity_types WHERE id = ?`, [id]);
   };
 
@@ -46,6 +56,22 @@ export function ManageActivitiesDialog({ children, open, onOpenChange, hideTrigg
       `UPDATE activity_types SET color = ? WHERE id = ?`,
       [color, id],
       `activity-color:${id}`
+    );
+  };
+
+  const handleUpdateCategory = (id: string, category: string) => {
+    debouncedExecute(
+      `UPDATE activity_types SET category = ? WHERE id = ?`,
+      [category, id],
+      `activity-category:${id}`
+    );
+  };
+
+  const handleRename = (id: string, name: string) => {
+    debouncedExecute(
+      `UPDATE activity_types SET name = ? WHERE id = ?`,
+      [name, id],
+      `activity-name:${id}`
     );
   };
 
@@ -65,7 +91,6 @@ export function ManageActivitiesDialog({ children, open, onOpenChange, hideTrigg
         label: "Activities",
         hoverClassName: "hover:text-teal-600 dark:hover:text-teal-400",
       }}
-      children={children}
       open={open}
       onOpenChange={onOpenChange}
       hideTrigger={hideTrigger}
@@ -74,6 +99,12 @@ export function ManageActivitiesDialog({ children, open, onOpenChange, hideTrigg
       onCreate={handleAdd}
       onDelete={handleDelete}
       onUpdateColor={handleUpdateColor}
-    />
+      onRename={handleRename}
+      categoryOptions={CATEGORY_OPTIONS}
+      defaultCategory={DEFAULT_ACTIVITY_CATEGORY}
+      onUpdateCategory={handleUpdateCategory}
+    >
+      {children}
+    </ManageNamedColorItemsDialog>
   );
 }

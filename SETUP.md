@@ -70,12 +70,13 @@ CREATE TABLE public.time_logs (
   UNIQUE (user_id, start_timestamp)
 );
 
--- Activity types table (user-defined activity categories)
+-- Activity types table (user-defined activities the tracker logs against)
 CREATE TABLE public.activity_types (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   color TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'neutral', -- productive | neutral | rest | sleep; drives tracker widget semantics
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, name)
 );

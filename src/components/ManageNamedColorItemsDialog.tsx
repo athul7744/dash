@@ -24,23 +24,32 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { cn } from "@/lib/shared/utils";
 
 type ManagedColorItem = {
   id: string;
   name: string | null;
   color?: string | null;
+  category?: string | null;
 };
 
 export type ManagedColorDraft = {
   id: string;
   name: string;
   color: string;
+  category?: string;
 };
 
 type ManagedColorOverlay = {
   name?: string | null;
   color?: string | null;
+  category?: string | null;
   pendingCreate?: boolean;
 };
 
@@ -49,6 +58,8 @@ type TriggerConfig = {
   label: string;
   hoverClassName: string;
 };
+
+export type CategoryOption = { value: string; label: string };
 
 type ManageNamedColorItemsDialogProps<TItem extends ManagedColorItem> = {
   title: string;
@@ -72,6 +83,10 @@ type ManageNamedColorItemsDialogProps<TItem extends ManagedColorItem> = {
   onUpdateColor: (id: string, color: string) => void | Promise<void>;
   /** When provided, item names become inline-editable (rename on Enter/blur). */
   onRename?: (id: string, name: string) => void | Promise<void>;
+  /** When provided, each row gets a category dropdown and the create form a picker. */
+  categoryOptions?: readonly CategoryOption[];
+  defaultCategory?: string;
+  onUpdateCategory?: (id: string, category: string) => void | Promise<void>;
 };
 
 function ItemRow<TItem extends ManagedColorItem>({
@@ -82,6 +97,8 @@ function ItemRow<TItem extends ManagedColorItem>({
   onDelete,
   onUpdateColor,
   onRename,
+  categoryOptions,
+  onUpdateCategory,
 }: {
   item: TItem | ManagedColorDraft;
   colors: readonly string[];
@@ -90,6 +107,8 @@ function ItemRow<TItem extends ManagedColorItem>({
   onDelete: (id: string) => Promise<void>;
   onUpdateColor: (id: string, color: string) => void | Promise<void>;
   onRename?: (id: string, name: string) => void | Promise<void>;
+  categoryOptions?: readonly CategoryOption[];
+  onUpdateCategory?: (id: string, category: string) => void | Promise<void>;
 }) {
   const [isColorPickerOpen, setIsColorPickerOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
@@ -170,14 +189,36 @@ function ItemRow<TItem extends ManagedColorItem>({
           </span>
         )}
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-        onClick={() => setIsDeleteOpen(true)}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      <div className="flex shrink-0 items-center gap-1">
+        {categoryOptions && onUpdateCategory && (
+          <Select
+            value={item.category ?? categoryOptions[0]?.value ?? ""}
+            onValueChange={(v: string | null) => v && onUpdateCategory(item.id, v)}
+          >
+            <SelectTrigger size="sm" className="h-7 w-auto gap-1 text-xs text-muted-foreground">
+              <span>
+                {categoryOptions.find((o) => o.value === (item.category ?? categoryOptions[0]?.value))?.label ??
+                  (item.category ?? "")}
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              {categoryOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
+          onClick={() => setIsDeleteOpen(true)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -222,9 +263,13 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
   onDelete,
   onUpdateColor,
   onRename,
+  categoryOptions,
+  defaultCategory,
+  onUpdateCategory,
 }: ManageNamedColorItemsDialogProps<TItem>) {
   const [newName, setNewName] = React.useState("");
   const [newColor, setNewColor] = React.useState(defaultColor);
+  const [newCategory, setNewCategory] = React.useState(defaultCategory ?? categoryOptions?.[0]?.value ?? "");
   const [internalOpen, setInternalOpen] = React.useState(false);
   const [overlays, setOverlays] = React.useState<Map<string, ManagedColorOverlay>>(new Map());
   const TriggerIcon = trigger.icon;
@@ -264,6 +309,7 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
 
         const persistedName = item.name ?? null;
         const persistedColor = item.color ?? null;
+        const persistedCategory = item.category ?? null;
         const updatedOverlay = { ...existingOverlay };
 
         if (updatedOverlay.name === persistedName) {
@@ -274,11 +320,25 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
           delete updatedOverlay.color;
         }
 
-        if (updatedOverlay.pendingCreate && updatedOverlay.name === undefined && updatedOverlay.color === undefined) {
+        if (updatedOverlay.category === persistedCategory) {
+          delete updatedOverlay.category;
+        }
+
+        if (
+          updatedOverlay.pendingCreate &&
+          updatedOverlay.name === undefined &&
+          updatedOverlay.color === undefined &&
+          updatedOverlay.category === undefined
+        ) {
           delete updatedOverlay.pendingCreate;
         }
 
-        if (updatedOverlay.name === undefined && updatedOverlay.color === undefined && !updatedOverlay.pendingCreate) {
+        if (
+          updatedOverlay.name === undefined &&
+          updatedOverlay.color === undefined &&
+          updatedOverlay.category === undefined &&
+          !updatedOverlay.pendingCreate
+        ) {
           next.delete(item.id);
           didChange = true;
           return;
@@ -287,6 +347,7 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
         if (
           updatedOverlay.name !== existingOverlay.name ||
           updatedOverlay.color !== existingOverlay.color ||
+          updatedOverlay.category !== existingOverlay.category ||
           updatedOverlay.pendingCreate !== existingOverlay.pendingCreate
         ) {
           next.set(item.id, updatedOverlay);
@@ -307,6 +368,7 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
           id,
           name: overlay.name ?? "",
           color: overlay.color ?? defaultColor,
+          category: overlay.category ?? defaultCategory ?? null,
         }));
 
       const mergedItems = [
@@ -318,6 +380,7 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
             ...item,
             name: overlay?.name ?? item.name ?? null,
             color: overlay?.color ?? item.color ?? null,
+            category: overlay?.category ?? item.category ?? null,
           };
         }),
       ];
@@ -331,7 +394,7 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
 
       return Array.from(uniqueItems.values());
     },
-    [defaultColor, items, overlays]
+    [defaultColor, defaultCategory, items, overlays]
   );
 
   const handleAdd = async (event: React.FormEvent) => {
@@ -340,6 +403,7 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
     if (!trimmedName) return;
 
     const selectedColor = newColor;
+    const selectedCategory = categoryOptions ? newCategory : undefined;
     const id = uuidv4();
     setNewName("");
     setNewColor(colors[Math.floor(Math.random() * colors.length)] ?? defaultColor);
@@ -349,12 +413,13 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
       next.set(id, {
         name: trimmedName,
         color: selectedColor,
+        category: selectedCategory ?? null,
         pendingCreate: true,
       });
       return next;
     });
 
-    void onCreate({ id, name: trimmedName, color: selectedColor }).catch(() => {
+    void onCreate({ id, name: trimmedName, color: selectedColor, category: selectedCategory }).catch(() => {
       setOverlays((prev) => {
         const next = new Map(prev);
         next.delete(id);
@@ -386,6 +451,17 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
     });
 
     void onUpdateColor(id, color);
+  };
+
+  const handleUpdateCategory = (id: string, category: string) => {
+    setOverlays((prev) => {
+      const next = new Map(prev);
+      const existingOverlay = next.get(id) ?? {};
+      next.set(id, { ...existingOverlay, category });
+      return next;
+    });
+
+    void onUpdateCategory?.(id, category);
   };
 
   const handleRename = (id: string, name: string) => {
@@ -452,6 +528,24 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
                 />
               ))}
             </div>
+
+            {categoryOptions && (
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Category</Label>
+                <Select value={newCategory} onValueChange={(v: string | null) => v && setNewCategory(v)}>
+                  <SelectTrigger size="sm" className="h-7 w-auto gap-1 text-xs">
+                    <span>{categoryOptions.find((o) => o.value === newCategory)?.label ?? newCategory}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </form>
 
           <div className="border-t pt-4">
@@ -470,6 +564,8 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
                     onDelete={handleDelete}
                     onUpdateColor={handleUpdateColor}
                     onRename={onRename ? handleRename : undefined}
+                    categoryOptions={categoryOptions}
+                    onUpdateCategory={onUpdateCategory ? handleUpdateCategory : undefined}
                   />
                 ))
               )}

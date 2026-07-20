@@ -430,9 +430,11 @@ Important child components:
 
 - `src/components/tracker/ManageActivitiesDialog.tsx`
   - Thin wrapper around the shared named-color CRUD dialog
+  - Each activity carries a `category` (`productive | neutral | rest | sleep`), editable per row, plus inline rename
 
 - `src/components/tracker/widgets/*`
   - Weekly analytics and summaries used below the grid
+  - Widget semantics (productive/passive split, sleep stats) are driven by each activity's `category`, threaded from the page as a name→category map — never inferred from the activity name
 
 - `src/components/tracker/WeeklyJournal.tsx`
   - Per-week journal rendered below the widgets in the Week view
@@ -458,7 +460,8 @@ This component owns:
 - create input and color picker UI
 - optimistic create overlays
 - optimistic color updates
-- optional inline rename (opt-in via `onRename` — used by moods; tags/activities omit it)
+- optional inline rename (opt-in via `onRename` — used by moods and activities; tags omit it)
+- optional per-row category dropdown (opt-in via `categoryOptions`/`onUpdateCategory` — used by activities)
 - delete confirmation dialog before removing items
 - reconciliation between optimistic and persisted rows
 

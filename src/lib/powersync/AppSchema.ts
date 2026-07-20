@@ -32,6 +32,7 @@ export const activityTypesTable = new Table({
   user_id: column.text,
   name: column.text,
   color: column.text,
+  category: column.text, // one of ACTIVITY_CATEGORIES; drives tracker widget semantics
   created_at: column.text
 });
 

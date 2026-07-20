@@ -13,21 +13,19 @@ export default function SharePage() {
   const payload = useMemo(() => readIncomingSharePayload(searchParams), [searchParams]);
 
   return (
-    <div className="min-h-full bg-background px-[var(--app-gutter-x)] py-8">
-      <div className="mx-auto flex max-w-2xl flex-col gap-6">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-primary/10 p-3 text-primary">
-            <Share2 className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Capture</h1>
+    <div className="min-h-full bg-background px-[var(--app-gutter-x)] py-10 sm:py-14">
+      <div className="mx-auto flex max-w-xl flex-col gap-7">
+        <header className="flex items-baseline gap-2.5">
+          <Share2 className="h-4 w-4 shrink-0 translate-y-0.5 text-muted-foreground" />
+          <div className="space-y-1">
+            <h1 className="font-serif text-2xl leading-tight text-foreground">Capture</h1>
             <p className="text-sm text-muted-foreground">
-              Save the shared content to the right place. Pick a destination — we&apos;ve guessed one for you.
+              We&apos;ve guessed where this belongs — change it if you like.
             </p>
           </div>
-        </div>
+        </header>
 
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <section className="rounded-3xl border border-border/60 bg-card/50 p-5 sm:p-6">
           <CaptureTriage key={searchKey} payload={payload} mode="page" />
         </section>
       </div>

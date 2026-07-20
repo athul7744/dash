@@ -32,8 +32,10 @@ const TARGET_APP: Record<CaptureTarget, string> = {
 
 const TARGET_ORDER: CaptureTarget[] = ["bookmark", "quote", "note", "task"];
 
+// Borderless, transparent fields — the app's calm editing style (see QuoteCard
+// / notes). No persistent outlines; a soft fill marks focus instead.
 const FIELD =
-  "w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground/60";
+  "w-full rounded-lg bg-transparent px-3 py-2 text-sm text-foreground outline-none transition-colors focus:bg-muted/50 placeholder:text-muted-foreground/50";
 
 const META_DEBOUNCE_MS = 450;
 
@@ -189,7 +191,7 @@ export function CaptureTriage({
   }
 
   const urlField = (placeholder: string) => (
-    <div className="flex items-center gap-2 rounded-xl border border-input bg-background px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+    <div className="flex items-center gap-2 rounded-lg px-3 transition-colors focus-within:bg-muted/50">
       <span className="shrink-0 text-muted-foreground">
         {url.trim() ? <Favicon url={url} /> : <Link2 className="h-3.5 w-3.5" />}
       </span>
@@ -199,7 +201,7 @@ export function CaptureTriage({
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-transparent py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
+        className="w-full bg-transparent py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
       />
       {classification.platform ? (
         <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
@@ -210,9 +212,9 @@ export function CaptureTriage({
   );
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Target chooser */}
-      <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-5">
+      {/* Target chooser — ghost chips, the active one softly tinted with its app accent */}
+      <div className="-mx-1 flex flex-wrap gap-1">
         {TARGET_ORDER.map((t) => {
           const app = getApp(TARGET_APP[t]);
           const active = t === target;
@@ -222,10 +224,10 @@ export function CaptureTriage({
               type="button"
               onClick={() => setTarget(t)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
                 active
-                  ? cn("border-transparent", app.accent.iconBg, app.accent.iconText)
-                  : "border-border/70 text-muted-foreground hover:bg-accent",
+                  ? cn(app.accent.iconBg, app.accent.iconText)
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
             >
               <app.icon className="h-4 w-4" />

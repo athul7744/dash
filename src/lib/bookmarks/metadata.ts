@@ -9,15 +9,47 @@ export interface PageMetadata {
   image: string;
 }
 
-/** Decode the small set of HTML entities that commonly appear in titles. */
+/** Common named HTML entities that appear in titles/descriptions. */
+const NAMED_ENTITIES: Record<string, string> = {
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+  mdash: "—",
+  ndash: "–",
+  hellip: "…",
+  rsquo: "’",
+  lsquo: "‘",
+  ldquo: "“",
+  rdquo: "”",
+  middot: "·",
+  copy: "©",
+  reg: "®",
+  trade: "™",
+};
+
+/** A numeric character reference → its character, or the original text if invalid. */
+function fromCodePoint(raw: string, code: number): string {
+  if (!Number.isFinite(code) || code <= 0 || code > 0x10ffff) return raw;
+  try {
+    return String.fromCodePoint(code);
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Decode HTML entities commonly found in scraped titles/descriptions: any
+ * numeric reference (decimal `&#064;` or hex `&#x40;`) plus a small named set.
+ * `&amp;` is decoded last so a doubly-encoded `&amp;#064;` stays literal.
+ */
 function decodeEntities(value: string): string {
   return value
+    .replace(/&#(\d+);/g, (m, d: string) => fromCodePoint(m, parseInt(d, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (m, h: string) => fromCodePoint(m, parseInt(h, 16)))
+    .replace(/&([a-z]+);/gi, (m, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? m)
     .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#0*39;|&apos;/gi, "'")
-    .replace(/&nbsp;/gi, " ")
     .trim();
 }
 

@@ -22,6 +22,11 @@ describe("parseMetadataHtml", () => {
     expect(parseMetadataHtml(html).title).toBe("Cats & Dogs 'n Friends");
   });
 
+  it("decodes numeric (decimal + hex) and extra named entities", () => {
+    const html = `<title>me &#064; home &#x40; work &mdash; notes &rsquo;24</title>`;
+    expect(parseMetadataHtml(html).title).toBe("me @ home @ work — notes ’24");
+  });
+
   it("reads description and image from og tags (either attribute order)", () => {
     const html = `
       <meta content="A description" property="og:description">

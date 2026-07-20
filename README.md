@@ -1,6 +1,6 @@
 # Dash.
 
-A personal productivity workspace that works offline and syncs across devices. Tasks, time tracking, notes, quotes, and bookmarks — all in one place, and capturable from anywhere you can share a link or text.
+A personal productivity workspace that works offline and syncs across devices. Tasks, time tracking, notes, quotes, bookmarks, and recurring reminders — all in one place, and capturable from anywhere you can share a link or text.
 
 ## What It Does
 
@@ -31,6 +31,10 @@ Collect lines worth remembering — each with an optional author. Star your favo
 ### Bookmarks
 
 Save links to read or watch later. Titles are fetched automatically, the site's favicon is shown, and the platform (YouTube, Instagram, X, …) is recognized. Tag them (the same tags as Tasks), mark them read/unread, star them, and search or filter. One unread bookmark resurfaces on the dashboard each day to nudge you to revisit it.
+
+### Reminders
+
+Set up recurring obligations once and let them add themselves. A reminder is a task template — title, link, tags, priority — plus a schedule (one-off, weekly, monthly, or yearly) and a lead time. Dash automatically creates the real task in your Tasks app that many days before each occurrence, so it shows up with everything filled in and a due date. It never stacks up: if the last one is still unfinished, the next won't be created until you clear it.
 
 ### Capture
 

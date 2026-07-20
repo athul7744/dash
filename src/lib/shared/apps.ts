@@ -1,4 +1,4 @@
-import { ListTodo, Clock, FileText, Quote, Bookmark, type LucideIcon } from "lucide-react";
+import { ListTodo, Clock, FileText, Quote, Bookmark, BellRing, type LucideIcon } from "lucide-react";
 
 export interface AppAccent {
   /** Icon background: e.g. "bg-indigo-500/10 dark:bg-indigo-500/20" */
@@ -70,6 +70,17 @@ export const APPS: AppConfig[] = [
     accent: {
       iconBg: "bg-sky-500/10 dark:bg-sky-500/20",
       iconText: "text-sky-600 dark:text-sky-400",
+    },
+  },
+  {
+    id: "reminders",
+    name: "Reminders",
+    description: "Schedule recurring tasks that add themselves",
+    href: "/reminders",
+    icon: BellRing,
+    accent: {
+      iconBg: "bg-violet-500/10 dark:bg-violet-500/20",
+      iconText: "text-violet-600 dark:text-violet-400",
     },
   },
 ];

@@ -9,6 +9,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/tracker/` — tracker-specific test entry points and notes about where tracker suites belong.
 - `tests/quotes/` — quotes-specific logic tests.
 - `tests/bookmarks/` — bookmarks-specific logic tests.
+- `tests/reminders/` — reminders recurrence-engine tests.
 - `tests/shared/` — reusable fixtures, builders, and assertions shared across app groups (incl. the universal-capture classifier).
 
 ## Current Notes Suites
@@ -117,6 +118,11 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 
 - `tests/bookmarks/metadata.test.ts`
   Covers `parseMetadataHtml` (`src/lib/bookmarks/metadata.ts`): preferring `og:title` over `<title>`, entity decoding, description/image extraction in either attribute order, the `description` meta fallback, and empty output for missing tags / malformed HTML.
+
+## Current Reminders Suites
+
+- `tests/reminders/schedule.test.ts`
+  Covers the pure recurrence engine (`src/lib/reminders/schedule.ts`): `nextOccurrenceOnOrAfter` for once/weekly/monthly/yearly incl. month-length clamping (day 31 → Feb 28, Feb 29 → Feb 28 in a non-leap year) and past-`once` → null; `formatSchedule` summaries; and `dueOccurrence` (lead-window boundary, `lastMaterializedKey` suppression, advancing to the next occurrence).
 
 ## Current Tracker Suites
 

@@ -7,6 +7,7 @@ import { BookmarksLoadingSkeleton } from "@/components/skeletons/BookmarksLoadin
 import { DashboardLoadingSkeleton } from "@/components/skeletons/DashboardLoadingSkeleton";
 import { NotesLoadingSkeleton } from "@/components/skeletons/NotesLoadingSkeleton";
 import { QuotesLoadingSkeleton } from "@/components/skeletons/QuotesLoadingSkeleton";
+import { RemindersLoadingSkeleton } from "@/components/skeletons/RemindersLoadingSkeleton";
 import { TasksLoadingSkeleton } from "@/components/skeletons/TasksLoadingSkeleton";
 import { TrackerLoadingSkeleton } from "@/components/skeletons/TrackerLoadingSkeleton";
 
@@ -47,6 +48,7 @@ export function AppBootSkeleton() {
   if (path.startsWith("/tasks")) return <TasksLoadingSkeleton />;
   if (path.startsWith("/quotes")) return <QuotesLoadingSkeleton />;
   if (path.startsWith("/bookmarks")) return <BookmarksLoadingSkeleton />;
+  if (path.startsWith("/reminders")) return <RemindersLoadingSkeleton />;
   if (path.startsWith("/notes")) {
     return (
       <Suspense fallback={<NotesLoadingSkeleton />}>

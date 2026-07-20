@@ -9,6 +9,8 @@ export interface CreateTaskInput {
   dueDate?: Date | null;
   tags?: string[];
   priority?: "low" | "medium" | "high" | "urgent";
+  /** Optional deterministic id (e.g. reminders derive one per occurrence for idempotency). */
+  id?: string;
 }
 
 /**
@@ -18,7 +20,7 @@ export interface CreateTaskInput {
  * from it, and tests load that classifier).
  */
 export async function createTask(input: CreateTaskInput): Promise<string> {
-  const id = uuidv4();
+  const id = input.id ?? uuidv4();
   const userId = await getCurrentUserId();
   const now = new Date().toISOString();
   await db.execute(

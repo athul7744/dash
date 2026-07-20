@@ -1,0 +1,123 @@
+"use client";
+
+import { useState } from "react";
+import { useQuery } from "@powersync/react";
+import { BellRing, Plus } from "lucide-react";
+
+import { AppHeader } from "@/components/AppHeader";
+import { MobileBottomFabs } from "@/components/MobileBottomFabs";
+import { ReminderCard } from "@/components/reminders/ReminderCard";
+import { ReminderForm } from "@/components/reminders/ReminderForm";
+import { RemindersLoadingSkeleton } from "@/components/skeletons/RemindersLoadingSkeleton";
+import { useReminderMaterializer, useReminders } from "@/hooks/use-reminders";
+import type { Reminder } from "@/lib/reminders/reminders";
+import { Tag } from "@/lib/powersync/AppSchema";
+import { getApp } from "@/lib/shared/apps";
+
+const remindersApp = getApp("reminders");
+
+export default function RemindersPage() {
+  const { reminders, isLoading } = useReminders();
+  const { data: allTags = [] } = useQuery<Tag>("SELECT id, name, color FROM tags");
+  // Materialize any due reminders when this screen opens, too.
+  useReminderMaterializer();
+
+  // The form dialog: null = closed; a reminder = editing; "new" = creating.
+  const [editing, setEditing] = useState<Reminder | "new" | null>(null);
+
+  const openNew = () => setEditing("new");
+
+  if (isLoading) return <RemindersLoadingSkeleton />;
+
+  return (
+    <>
+      <AppHeader
+        app={remindersApp}
+        actions={
+          <button
+            type="button"
+            onClick={openNew}
+            className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-violet-600 dark:hover:text-violet-400"
+          >
+            <Plus className="h-4 w-4" />
+            New reminder
+          </button>
+        }
+      />
+
+      <div className="mx-auto max-w-7xl px-[var(--app-gutter-x)] py-8 pb-40">
+        {reminders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
+            <div className="rounded-2xl bg-violet-500/10 p-3 dark:bg-violet-500/20">
+              <BellRing className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-serif text-lg text-foreground">No reminders yet</p>
+              <p className="max-w-xs text-sm text-muted-foreground">
+                Set a recurring task and a lead time. Dash adds it to your tasks automatically before
+                it&apos;s due.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={openNew}
+              className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-violet-500"
+            >
+              <Plus className="h-4 w-4" />
+              New reminder
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="mx-auto max-w-2xl py-2 text-center sm:py-6">
+              <p className="text-sm text-muted-foreground">
+                Recurring tasks add themselves. A task lands in{" "}
+                <span className="text-foreground">Tasks</span> a set number of days before each
+                occurrence — with the title, link, tags, and priority you set here.
+              </p>
+            </div>
+
+            {/* Section break: the collection reads as a distinct zone. */}
+            <div className="mt-8 mb-6 flex items-baseline gap-3 sm:mt-12">
+              <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                All reminders
+              </h2>
+              <span className="text-xs tabular-nums text-muted-foreground/50">{reminders.length}</span>
+              <div className="h-px flex-1 bg-gradient-to-r from-border/70 to-transparent" />
+            </div>
+
+            <div className="columns-1 gap-5 md:columns-2 lg:columns-3">
+              {reminders.map((reminder) => (
+                <div key={reminder.id} className="mb-5 break-inside-avoid">
+                  <ReminderCard reminder={reminder} allTags={allTags} onEdit={setEditing} />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <ReminderForm
+        open={editing !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null);
+        }}
+        reminder={editing === "new" ? null : editing}
+      />
+
+      <MobileBottomFabs
+        app={remindersApp}
+        centerContent={
+          <button
+            type="button"
+            onClick={openNew}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground"
+          >
+            <Plus className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+            New reminder
+          </button>
+        }
+      />
+    </>
+  );
+}

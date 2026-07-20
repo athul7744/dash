@@ -8,7 +8,7 @@ import { APPS, getApp } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 
 /** Dashboard launcher order — Tracker sits in the middle and is centered. */
-const DASHBOARD_ORDER = ["bookmarks", "tasks", "tracker", "notes", "quotes"];
+const DASHBOARD_ORDER = ["bookmarks", "reminders", "tasks", "tracker", "notes", "quotes"];
 const CENTER_APP = "tracker";
 
 /**

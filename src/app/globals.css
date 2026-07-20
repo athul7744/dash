@@ -315,26 +315,40 @@ body[data-display-font="bricolage"] {
 }
 
 /* "Open in browser" button rendered right after each link. */
-.note-link-open {
+.note-link-ctls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.05em;
+  margin-inline: 0.15em 0.05em;
+  vertical-align: -0.15em;
+}
+
+.note-link-ctl {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 1.05em;
   height: 1.05em;
-  margin-inline: 0.15em 0.05em;
+  padding: 0;
+  border: 0;
+  background: transparent;
   border-radius: 0.3rem;
-  vertical-align: -0.15em;
   color: var(--color-muted-foreground);
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: pointer;
   transition: color 0.12s, background-color 0.12s, opacity 0.12s;
   text-decoration: none;
 }
 
-.note-link-open:hover {
+.note-link-ctl:hover {
   opacity: 1;
   color: color-mix(in oklab, var(--color-primary) 80%, var(--color-foreground));
   background: var(--color-accent);
+}
+
+.note-link-copy.is-copied {
+  opacity: 1;
+  color: var(--color-emerald-600, #059669);
 }
 
 .note-ref-token-page {

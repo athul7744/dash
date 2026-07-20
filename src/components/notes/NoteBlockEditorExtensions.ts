@@ -184,10 +184,16 @@ export const MarkdownLink = Link.extend({
 const EXTERNAL_LINK_SVG =
   '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
 
-/** Build the little contentEditable-false button placed after a link. */
+const COPY_SVG =
+  '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+
+const CHECK_SVG =
+  '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+
+/** Build the "open in browser" button placed after a link. */
 function createLinkOpenButton(href: string): HTMLElement {
   const button = document.createElement("a");
-  button.className = "note-link-open";
+  button.className = "note-link-ctl note-link-open";
   button.href = href;
   button.target = "_blank";
   button.rel = "noopener noreferrer nofollow";
@@ -205,12 +211,52 @@ function createLinkOpenButton(href: string): HTMLElement {
   return button;
 }
 
+/** Build the "copy link" button placed after a link (briefly confirms with a check). */
+function createLinkCopyButton(href: string): HTMLElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "note-link-ctl note-link-copy";
+  button.contentEditable = "false";
+  button.title = "Copy link";
+  button.setAttribute("aria-label", "Copy link");
+  button.innerHTML = COPY_SVG;
+  button.addEventListener("mousedown", (event) => event.preventDefault());
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void navigator.clipboard
+      ?.writeText(href)
+      .then(() => {
+        button.innerHTML = CHECK_SVG;
+        button.classList.add("is-copied");
+        window.setTimeout(() => {
+          button.innerHTML = COPY_SVG;
+          button.classList.remove("is-copied");
+        }, 1200);
+      })
+      .catch(() => {
+        /* clipboard blocked */
+      });
+  });
+  return button;
+}
+
+/** One control group (open + copy) rendered just after a link run. */
+function createLinkControls(href: string): HTMLElement {
+  const wrap = document.createElement("span");
+  wrap.className = "note-link-ctls";
+  wrap.contentEditable = "false";
+  wrap.appendChild(createLinkOpenButton(href));
+  wrap.appendChild(createLinkCopyButton(href));
+  return wrap;
+}
+
 const linkOpenControlsKey = new PluginKey("noteLinkOpenControls");
 
 /**
- * Renders a small "open in browser" button immediately after each link (links
- * themselves don't open on click — `openOnClick` is false — so this is how you
- * follow one). One button per contiguous link run.
+ * Renders a small control group (open-in-browser + copy-link) immediately after
+ * each link (links themselves don't open on click — `openOnClick` is false — so
+ * this is how you follow one). One group per contiguous link run.
  */
 export const LinkOpenControls = Extension.create({
   name: "linkOpenControls",
@@ -251,10 +297,10 @@ export const LinkOpenControls = Extension.create({
             const decorations = runs
               .filter((run) => run.href)
               .map((run) =>
-                Decoration.widget(run.to, () => createLinkOpenButton(run.href), {
+                Decoration.widget(run.to, () => createLinkControls(run.href), {
                   side: 1,
                   ignoreSelection: true,
-                  key: `link-open:${run.to}:${run.href}`,
+                  key: `link-ctls:${run.to}:${run.href}`,
                 }),
               );
 

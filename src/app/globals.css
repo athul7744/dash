@@ -315,14 +315,6 @@ body[data-display-font="bricolage"] {
 }
 
 /* "Open in browser" button rendered right after each link. */
-.note-link-ctls {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.05em;
-  margin-inline: 0.15em 0.05em;
-  vertical-align: -0.15em;
-}
-
 .note-link-ctl {
   display: inline-flex;
   align-items: center;
@@ -332,7 +324,9 @@ body[data-display-font="bricolage"] {
   padding: 0;
   border: 0;
   background: transparent;
+  margin-inline: 0.12em 0.02em;
   border-radius: 0.3rem;
+  vertical-align: -0.15em;
   color: var(--color-muted-foreground);
   opacity: 0.6;
   cursor: pointer;

@@ -241,22 +241,12 @@ function createLinkCopyButton(href: string): HTMLElement {
   return button;
 }
 
-/** One control group (open + copy) rendered just after a link run. */
-function createLinkControls(href: string): HTMLElement {
-  const wrap = document.createElement("span");
-  wrap.className = "note-link-ctls";
-  wrap.contentEditable = "false";
-  wrap.appendChild(createLinkOpenButton(href));
-  wrap.appendChild(createLinkCopyButton(href));
-  return wrap;
-}
-
 const linkOpenControlsKey = new PluginKey("noteLinkOpenControls");
 
 /**
  * Renders a small control group (open-in-browser + copy-link) immediately after
  * each link (links themselves don't open on click — `openOnClick` is false — so
- * this is how you follow one). One group per contiguous link run.
+ * this is how you follow one). Open + copy, per contiguous link run.
  */
 export const LinkOpenControls = Extension.create({
   name: "linkOpenControls",
@@ -296,13 +286,20 @@ export const LinkOpenControls = Extension.create({
 
             const decorations = runs
               .filter((run) => run.href)
-              .map((run) =>
-                Decoration.widget(run.to, () => createLinkControls(run.href), {
+              .flatMap((run) => [
+                // Two independent inline widgets (open, then copy) — no wrapper,
+                // so they flow inline right after the link like the text does.
+                Decoration.widget(run.to, () => createLinkOpenButton(run.href), {
                   side: 1,
                   ignoreSelection: true,
-                  key: `link-ctls:${run.to}:${run.href}`,
+                  key: `link-open:${run.to}:${run.href}`,
                 }),
-              );
+                Decoration.widget(run.to, () => createLinkCopyButton(run.href), {
+                  side: 2,
+                  ignoreSelection: true,
+                  key: `link-copy:${run.to}:${run.href}`,
+                }),
+              ]);
 
             return DecorationSet.create(state.doc, decorations);
           },

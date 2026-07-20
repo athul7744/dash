@@ -5,15 +5,12 @@ import { format, isAfter, startOfDay } from "date-fns";
 import { BarChart3, Zap } from "lucide-react";
 import { cn } from "@/lib/shared/utils";
 import { WidgetProps, COLOR_HEX } from "./types";
+import { categoryToProductivityBucket } from "@/lib/tracker/activities";
 import { WidgetHeader, ToggleButton, HatchedEmpty, ActivityItem } from "./shared";
-
-/** Activities generally considered productive. Case-insensitive match. */
-const PRODUCTIVE_KEYWORDS = ["coding", "deep work", "study", "reading", "writing", "work", "exercise", "learning", "design", "planning"];
-const PASSIVE_KEYWORDS = ["sleep", "rest", "break", "social media", "tv", "gaming", "youtube", "netflix"];
 
 type Category = "productive" | "passive" | "other";
 
-export function ProductivityRatio({ days, data, colorMap }: WidgetProps) {
+export function ProductivityRatio({ days, data, colorMap, categoryMap }: WidgetProps) {
   const today = startOfDay(new Date());
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [showDaily, setShowDaily] = useState(false);
@@ -45,17 +42,9 @@ export function ProductivityRatio({ days, data, colorMap }: WidgetProps) {
       const dateStr = key.split("|")[0];
       if (!validDates.has(dateStr)) continue;
       if (!cell.activityName) continue;
-      const name = cell.activityName.toLowerCase();
       const displayName = cell.activityName;
 
-      let cat: Category;
-      if (PRODUCTIVE_KEYWORDS.some((k) => name.includes(k))) {
-        cat = "productive";
-      } else if (PASSIVE_KEYWORDS.some((k) => name.includes(k))) {
-        cat = "passive";
-      } else {
-        cat = "other";
-      }
+      const cat: Category = categoryToProductivityBucket(categoryMap[displayName]);
 
       counts[cat]++;
       activities[cat][displayName] = (activities[cat][displayName] || 0) + 1;
@@ -72,7 +61,7 @@ export function ProductivityRatio({ days, data, colorMap }: WidgetProps) {
       ratio: Math.round((counts.productive / total) * 100),
       activities,
     };
-  }, [data, days, today]);
+  }, [data, days, today, categoryMap]);
 
   // Daily breakdown for the mini chart
   const dailyBreakdown = useMemo(() => {
@@ -87,17 +76,14 @@ export function ProductivityRatio({ days, data, colorMap }: WidgetProps) {
           const key = `${dateKey}|${String(h).padStart(2, "0")}`;
           const cell = data.get(key);
           if (!cell?.activityName) continue;
-          const name = cell.activityName.toLowerCase();
-          if (PRODUCTIVE_KEYWORDS.some((k) => name.includes(k))) counts.productive++;
-          else if (PASSIVE_KEYWORDS.some((k) => name.includes(k))) counts.passive++;
-          else counts.other++;
+          counts[categoryToProductivityBucket(categoryMap[cell.activityName])]++;
         }
       }
 
       const total = counts.productive + counts.passive + counts.other;
       return { letter: format(day, "EEEEE"), isFuture, ...counts, total };
     });
-  }, [showDaily, days, data, today]);
+  }, [showDaily, days, data, today, categoryMap]);
 
   // Activities for selected category
   const categoryActivities = useMemo(() => {

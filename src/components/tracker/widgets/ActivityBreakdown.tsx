@@ -7,7 +7,7 @@ import { List, Moon, PieChart } from "lucide-react";
 import { WidgetProps, COLOR_HEX } from "./types";
 import { WidgetHeader, ToggleButton, WheelOverlay, HatchedEmpty } from "./shared";
 
-export function ActivityBreakdown({ days, data, colorMap }: WidgetProps) {
+export function ActivityBreakdown({ days, data, colorMap, categoryMap }: WidgetProps) {
   const [excludeSleep, setExcludeSleep] = useState(false);
   const [selectedSlice, setSelectedSlice] = useState<{ name: string; hours: number } | null>(null);
   const [showList, setShowList] = useState(false);
@@ -28,7 +28,7 @@ export function ActivityBreakdown({ days, data, colorMap }: WidgetProps) {
 
   const slices = useMemo(() => {
     const entries = Object.entries(activityHours)
-      .filter(([name]) => !excludeSleep || name.toLowerCase() !== "sleep")
+      .filter(([name]) => !excludeSleep || categoryMap[name] !== "sleep")
       .sort((a, b) => b[1] - a[1]);
 
     const total = entries.reduce((sum, [, h]) => sum + h, 0);
@@ -40,7 +40,7 @@ export function ActivityBreakdown({ days, data, colorMap }: WidgetProps) {
       color: COLOR_HEX[colorMap[name]] || "#6b7280",
       percentage: (hours / total) * 100,
     }));
-  }, [activityHours, colorMap, excludeSleep]);
+  }, [activityHours, colorMap, categoryMap, excludeSleep]);
 
   const piePaths = useMemo(() => {
     if (slices.length === 0) return [];
@@ -69,7 +69,11 @@ export function ActivityBreakdown({ days, data, colorMap }: WidgetProps) {
   }, [slices]);
 
   const totalTracked = Object.values(activityHours).reduce((a, b) => a + b, 0);
-  const displayTotal = excludeSleep ? totalTracked - (activityHours["Sleep"] || 0) : totalTracked;
+  const sleepHours = Object.entries(activityHours).reduce(
+    (sum, [name, hours]) => sum + (categoryMap[name] === "sleep" ? hours : 0),
+    0
+  );
+  const displayTotal = excludeSleep ? totalTracked - sleepHours : totalTracked;
 
   return (
     <div className="border border-border rounded-lg p-3 flex flex-col relative h-full min-h-[258px]">
@@ -77,7 +81,7 @@ export function ActivityBreakdown({ days, data, colorMap }: WidgetProps) {
           {slices.length > 0 && (
             <ToggleButton active={showList} onClick={() => { setShowList(!showList); setSelectedSlice(null); }} icon={List} />
           )}
-          {activityHours["Sleep"] && (
+          {sleepHours > 0 && (
             <ToggleButton active={excludeSleep} onClick={() => setExcludeSleep(!excludeSleep)} icon={Moon}>
               {excludeSleep ? "Hidden" : "Sleep"}
             </ToggleButton>

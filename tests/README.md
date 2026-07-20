@@ -132,6 +132,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/tracker/moods.test.ts`
   Covers the configurable mood-scale helpers (`src/lib/tracker/moods.ts`): `moodRange` (bounds + midpoint, empty fallback), `moodTier` (good/bad/neutral classified relative to the scale's range, for any scale length), and `moodByValue`.
 
+- `tests/tracker/activity-categories.test.ts`
+  Covers `categoryToProductivityBucket` (`src/lib/tracker/activities.ts`): productive→productive, rest/sleep→passive, neutral/unknown/missing→other; and that `DEFAULT_ACTIVITIES` seed with valid categories.
+
 ## Current Dashboard Suites
 
 - `tests/dashboard/hero-action.test.ts`

@@ -27,7 +27,7 @@ import { cancelExecute, cancelUpdate, debouncedExecute, debouncedUpdate, flushAl
 import { flushAllBlockDocumentPersisters } from "@/lib/notes/editor/block-persister";
 import { cn } from "@/lib/shared/utils";
 import { DURATION, SPRING_SOFT } from "@/lib/shared/motion";
-import { DEFAULT_ACTIVITIES } from "@/lib/tracker/activities";
+import { DEFAULT_ACTIVITIES, DEFAULT_ACTIVITY_CATEGORY, type ActivityCategory } from "@/lib/tracker/activities";
 import { DEFAULT_MOODS } from "@/lib/tracker/moods";
 import { useMoods } from "@/hooks/use-moods";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -127,8 +127,8 @@ export default function TrackerPage() {
       if (existingActivities.length === 0) {
         for (const a of DEFAULT_ACTIVITIES) {
           await db.execute(
-            `INSERT INTO activity_types (id, user_id, name, color, created_at) VALUES (?, ?, ?, ?, datetime('now'))`,
-            [uuidv4(), userId, a.name, a.color]
+            `INSERT INTO activity_types (id, user_id, name, color, category, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+            [uuidv4(), userId, a.name, a.color, a.category]
           );
         }
       }
@@ -148,6 +148,15 @@ export default function TrackerPage() {
   // Build a name→color map from the DB rows
   const activityColorMap = useMemo(
     () => Object.fromEntries(activityTypes.map((a) => [a.name, a.color ?? "teal"])),
+    [activityTypes]
+  );
+
+  // Build a name→category map (drives the widgets' productive/rest/sleep semantics)
+  const activityCategoryMap = useMemo<Record<string, ActivityCategory>>(
+    () =>
+      Object.fromEntries(
+        activityTypes.map((a) => [a.name, ((a.category as ActivityCategory) ?? DEFAULT_ACTIVITY_CATEGORY)])
+      ),
     [activityTypes]
   );
 
@@ -614,7 +623,7 @@ export default function TrackerPage() {
                 </section>
 
                 <section className="mt-4 min-w-0 overflow-x-hidden [touch-action:pan-y]">
-                  <WeekWidgets days={widgetData.days} data={widgetData.data} colorMap={activityColorMap} ratings={widgetData.ratings} moods={moods} />
+                  <WeekWidgets days={widgetData.days} data={widgetData.data} colorMap={activityColorMap} categoryMap={activityCategoryMap} ratings={widgetData.ratings} moods={moods} />
                 </section>
 
                 <section className="mt-8 min-w-0 overflow-x-hidden pb-16 sm:pb-0 [touch-action:pan-y]">

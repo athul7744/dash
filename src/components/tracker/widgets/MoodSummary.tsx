@@ -8,7 +8,7 @@ import { WidgetProps, COLOR_HEX } from "./types";
 import { moodByValue, moodHex, moodRange, moodTier } from "@/lib/tracker/moods";
 import { WidgetHeader, ToggleButton, DismissButton, HatchedEmpty, ActivityItem } from "./shared";
 
-export function MoodSummary({ days, data, colorMap, ratings, moods }: WidgetProps) {
+export function MoodSummary({ days, data, colorMap, categoryMap, ratings, moods }: WidgetProps) {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [showInsights, setShowInsights] = useState(false);
   const range = moodRange(moods);
@@ -30,7 +30,7 @@ export function MoodSummary({ days, data, colorMap, ratings, moods }: WidgetProp
       for (let h = 0; h < 24; h++) {
         const key = `${bestDate}|${String(h).padStart(2, "0")}`;
         const cell = data.get(key);
-        if (cell?.activityName && cell.activityName.toLowerCase() !== "sleep") {
+        if (cell?.activityName && categoryMap[cell.activityName] !== "sleep") {
           counts[cell.activityName] = (counts[cell.activityName] || 0) + 1;
         }
       }
@@ -54,7 +54,8 @@ export function MoodSummary({ days, data, colorMap, ratings, moods }: WidgetProp
       let sleep = 0;
       for (let h = 0; h < 24; h++) {
         const key = `${dateStr}|${String(h).padStart(2, "0")}`;
-        if (data.get(key)?.activityName?.toLowerCase() === "sleep") sleep++;
+        const an = data.get(key)?.activityName;
+        if (an && categoryMap[an] === "sleep") sleep++;
       }
       if (sleep > 0) {
         const tier = moodTier(score, range);
@@ -72,7 +73,7 @@ export function MoodSummary({ days, data, colorMap, ratings, moods }: WidgetProp
       sleepGood: goodCount > 0 ? Math.round((goodSleep / goodCount) * 10) / 10 : null,
       sleepBad: badCount > 0 ? Math.round((badSleep / badCount) * 10) / 10 : null,
     };
-  }, [ratings, data, days, colorMap, range]);
+  }, [ratings, data, days, colorMap, categoryMap, range]);
 
   // Per-day detail for selected dot
   const dayDetail = useMemo(() => {
@@ -86,7 +87,7 @@ export function MoodSummary({ days, data, colorMap, ratings, moods }: WidgetProp
       const key = `${selectedDay}|${String(h).padStart(2, "0")}`;
       const cell = data.get(key);
       if (cell?.activityName) {
-        if (cell.activityName.toLowerCase() === "sleep") {
+        if (categoryMap[cell.activityName] === "sleep") {
           sleepHours++;
         } else {
           counts[cell.activityName] = (counts[cell.activityName] || 0) + 1;
@@ -102,7 +103,7 @@ export function MoodSummary({ days, data, colorMap, ratings, moods }: WidgetProp
     const dayName = day ? format(day, "EEEE") : selectedDay;
 
     return { score, label: moodByValue(moods, score)?.label ?? "—", dayName, activities, sleepHours };
-  }, [selectedDay, ratings, data, days, colorMap, moods]);
+  }, [selectedDay, ratings, data, days, colorMap, categoryMap, moods]);
 
   if (!insights || !ratings) {
     return (

@@ -7,7 +7,7 @@ import { cn } from "@/lib/shared/utils";
 import { WidgetProps } from "./types";
 import { WidgetHeader, HatchedEmpty } from "./shared";
 
-export function SleepStats({ days, data }: WidgetProps) {
+export function SleepStats({ days, data, categoryMap }: WidgetProps) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const stats = useMemo(() => {
     const today = startOfDay(new Date());
@@ -20,7 +20,7 @@ export function SleepStats({ days, data }: WidgetProps) {
       for (let h = 0; h < 24; h++) {
         const key = `${dateKey}|${String(h).padStart(2, "0")}`;
         const cell = data.get(key);
-        if (cell?.activityName?.toLowerCase() === "sleep") sleepHours++;
+        if (cell?.activityName && categoryMap[cell.activityName] === "sleep") sleepHours++;
       }
       dailySleep.push({ day: format(day, "EEE"), letter: format(day, "EEEEE"), hours: sleepHours });
     }
@@ -34,7 +34,7 @@ export function SleepStats({ days, data }: WidgetProps) {
     const max = Math.max(...withSleep.map((d) => d.hours));
 
     return { dailySleep, totalHours, avg, min, max, daysTracked: withSleep.length };
-  }, [days, data]);
+  }, [days, data, categoryMap]);
 
   if (!stats) {
     return (

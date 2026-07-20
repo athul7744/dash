@@ -7,7 +7,7 @@ import { cn } from "@/lib/shared/utils";
 import { WidgetProps, COLOR_HEX } from "./types";
 import { WidgetHeader, ToggleButton, DismissButton, WheelOverlay } from "./shared";
 
-export function DailyStacks({ days, data, colorMap }: WidgetProps) {
+export function DailyStacks({ days, data, colorMap, categoryMap }: WidgetProps) {
   const [excludeSleep, setExcludeSleep] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const today = startOfDay(new Date());
@@ -23,7 +23,7 @@ export function DailyStacks({ days, data, colorMap }: WidgetProps) {
         const key = `${dateKey}|${String(h).padStart(2, "0")}`;
         const cell = data.get(key);
         if (cell?.activityName) {
-          if (excludeSleep && cell.activityName.toLowerCase() === "sleep") continue;
+          if (excludeSleep && categoryMap[cell.activityName] === "sleep") continue;
           activities[cell.activityName] = (activities[cell.activityName] || 0) + 1;
           total++;
         }
@@ -41,7 +41,7 @@ export function DailyStacks({ days, data, colorMap }: WidgetProps) {
 
       return { day: format(day, "EEE"), letter: format(day, "EEEEE"), segments, total, isFuture };
     });
-  }, [days, data, colorMap, excludeSleep, today]);
+  }, [days, data, colorMap, categoryMap, excludeSleep, today]);
 
   const totalHours = dailyData.filter((d) => !d.isFuture).reduce((s, d) => s + d.total, 0);
 

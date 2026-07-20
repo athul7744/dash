@@ -1,4 +1,5 @@
 import type { Mood } from "@/lib/tracker/moods";
+import type { ActivityCategory } from "@/lib/tracker/activities";
 
 /** Shared types for week widgets */
 export interface WidgetProps {
@@ -6,6 +7,8 @@ export interface WidgetProps {
   /** Map key: "YYYY-MM-DD|HH" → cell data */
   data: Map<string, { id?: string; activityName?: string }>;
   colorMap: Record<string, string>;
+  /** Map from activity name → its user-assigned category. */
+  categoryMap: Record<string, ActivityCategory>;
   ratings?: Map<string, number>;
   /** The user's configured mood scale (worst→best). */
   moods: Mood[];

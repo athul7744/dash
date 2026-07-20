@@ -1,6 +1,13 @@
-import { PowerSyncBackendConnector, AbstractPowerSyncDatabase, UpdateType, CrudEntry } from '@powersync/web';
+import { PowerSyncBackendConnector, AbstractPowerSyncDatabase, UpdateType } from '@powersync/web';
 import { createClient } from '../supabase/client';
 import { logger as log } from '../shared/logger';
+import { collapseCrudOps, isForeignKeyViolation, type CrudOpKind } from './upload-helpers';
+
+const OP_KIND: Record<UpdateType, CrudOpKind> = {
+  [UpdateType.PUT]: 'put',
+  [UpdateType.PATCH]: 'patch',
+  [UpdateType.DELETE]: 'delete',
+};
 
 /** Response codes that indicate a permanent/fatal error — discard the transaction. */
 const FATAL_RESPONSE_CODES = [/^22/, /^23/, /^42/];
@@ -100,32 +107,18 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     const batch = await database.getCrudBatch(100);
     if (!batch) return;
 
-    // Dedupe PUTs per table by id (last write wins). A single upsert() array
-    // must not contain the same primary key twice or Postgres throws
-    // "ON CONFLICT DO UPDATE command cannot affect row a second time" — which
-    // happens when a row is created/deleted/recreated (e.g. deterministic-id
-    // system pages) before the batch uploads.
-    const putOps: { [table: string]: Map<string, any> } = {};
-    const deleteOps: { [table: string]: string[] } = {};
-    const patchOps: CrudEntry[] = [];
-
-    for (const op of batch.crud) {
-      const parsedData = parseJsonColumns(op.table, op.opData);
-
-      switch (op.op) {
-        case UpdateType.PUT:
-          if (!putOps[op.table]) putOps[op.table] = new Map();
-          putOps[op.table].set(op.id, { ...parsedData, id: op.id });
-          break;
-        case UpdateType.PATCH:
-          patchOps.push(op);
-          break;
-        case UpdateType.DELETE:
-          if (!deleteOps[op.table]) deleteOps[op.table] = [];
-          deleteOps[op.table].push(op.id);
-          break;
-      }
-    }
+    // Collapse the batch to one net op per (table, id), honouring op ORDER so a
+    // deterministic-id row that is deleted then re-created (e.g. an empty
+    // weekly-journal system page pruned on week change, then reopened) is never
+    // both upserted and deleted in one batch (see collapseCrudOps).
+    const { putOps, deleteOps, patchOps } = collapseCrudOps(
+      batch.crud.map((op) => ({
+        kind: OP_KIND[op.op],
+        table: op.table,
+        id: op.id,
+        data: { ...parseJsonColumns(op.table, op.opData), id: op.id },
+      })),
+    );
 
     try {
       // Execute bulk PUTs (upsert) per table
@@ -133,12 +126,20 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
         const records = [...putOps[table].values()];
         log.info(`BATCH PUT ${table}: ${records.length} record(s)`);
         const { error } = await this.client.from(table).upsert(records);
-        if (error) throw new Error(`PUT ${table} failed: ${error.message}`);
+        if (!error) continue;
+        // A foreign-key violation means one row references a parent that no
+        // longer exists (an orphan from a create/delete race). The upsert fails
+        // atomically, so retry row-by-row and drop only the orphan(s) — keeping
+        // the valid rows and preventing the unsatisfiable op from wedging the
+        // queue on endless retries. Table-agnostic (keyed on the FK code).
+        if (!isForeignKeyViolation(error)) throw new Error(`PUT ${table} failed: ${error.message}`);
+        await this.upsertSkippingOrphans(table, records);
       }
 
       // Execute bulk DELETEs per table
       for (const table of orderTables(Object.keys(deleteOps), DELETE_TABLE_ORDER)) {
-        const ids = deleteOps[table];
+        const ids = [...deleteOps[table]];
+        if (ids.length === 0) continue;
         log.info(`BATCH DELETE ${table}: ${ids.length} record(s)`);
         const { error } = await this.client.from(table).delete().in('id', ids);
         if (error) throw new Error(`DELETE ${table} failed: ${error.message}`);
@@ -146,16 +147,15 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
       // Execute PATCH operations individually (partial updates can't be easily batched)
       for (const op of patchOps) {
-        const data = parseJsonColumns(op.table, op.opData);
-        log.info(`PATCH ${op.table}/${op.id}`, Object.keys(data).join(", "));
-        const { error } = await this.client.from(op.table).update(data).eq('id', op.id);
+        log.info(`PATCH ${op.table}/${op.id}`, Object.keys(op.data).join(", "));
+        const { error } = await this.client.from(op.table).update(op.data).eq('id', op.id);
         if (error) throw new Error(`PATCH ${op.table}/${op.id} failed: ${error.message}`);
       }
 
       await batch.complete();
 
       const total = Object.values(putOps).reduce((s, r) => s + r.size, 0)
-        + Object.values(deleteOps).reduce((s, r) => s + r.length, 0)
+        + Object.values(deleteOps).reduce((s, r) => s + r.size, 0)
         + patchOps.length;
       log.info(`Upload complete — ${total} op(s) batched`);
 
@@ -169,6 +169,23 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
         log.error("Upload error (will retry):", ex.message || ex);
         throw ex;
       }
+    }
+  }
+
+  /**
+   * Upsert records one at a time, dropping any that fail with a foreign-key
+   * violation (an orphan whose parent is gone — it can never succeed). Only
+   * reached on the rare failure path, after a bulk upsert fails atomically.
+   */
+  private async upsertSkippingOrphans(table: string, records: Record<string, unknown>[]): Promise<void> {
+    for (const record of records) {
+      const { error } = await this.client.from(table).upsert(record);
+      if (!error) continue;
+      if (isForeignKeyViolation(error)) {
+        log.warn(`Dropping orphaned ${table} row ${String(record.id)} — parent row missing (${error.message})`);
+        continue;
+      }
+      throw new Error(`PUT ${table} failed: ${error.message}`);
     }
   }
 }

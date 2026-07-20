@@ -5,11 +5,12 @@ import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import { Plugin, PluginKey, TextSelection, type EditorState } from "@tiptap/pm/state";
 import type { Node as PMNode, Schema } from "@tiptap/pm/model";
-import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 
 import { BLOCK_NODE_TYPE, DEFAULT_BLOCK_TYPE, TASK_BLOCK_TYPE } from "@/lib/notes/editor/block-document";
 import { BLOCK_COLORS } from "@/components/notes/NoteBlockEditorColor";
 import { TASK_LINE_NODE } from "@/components/notes/editor/TaskLineNode";
+import { normalizeUrl } from "@/lib/tasks/tasks";
 
 // ---------------------------------------------------------------------------
 // Regex patterns
@@ -190,63 +191,342 @@ const COPY_SVG =
 const CHECK_SVG =
   '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
 
-/** Build the "open in browser" button placed after a link. */
-function createLinkOpenButton(href: string): HTMLElement {
-  const button = document.createElement("a");
-  button.className = "note-link-ctl note-link-open";
-  button.href = href;
-  button.target = "_blank";
-  button.rel = "noopener noreferrer nofollow";
-  button.contentEditable = "false";
-  button.title = "Open in browser";
-  button.setAttribute("aria-label", "Open link in new tab");
-  button.innerHTML = EXTERNAL_LINK_SVG;
-  // Keep the click from moving the caret / being swallowed by the editor.
+const EDIT_SVG =
+  '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>';
+
+const UNLINK_SVG =
+  '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71"/><path d="m5.17 11.75-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71"/><line x1="8" x2="8" y1="2" y2="5"/><line x1="2" x2="5" y1="8" y2="8"/><line x1="16" x2="16" y1="19" y2="22"/><line x1="19" x2="22" y1="16" y2="16"/></svg>';
+
+const OPEN_DELAY = 300;
+const CLOSE_DELAY = 150;
+
+/** A small square icon button for the link toolbar. */
+function iconButton(svg: string, label: string): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "note-link-ctl";
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.innerHTML = svg;
   button.addEventListener("mousedown", (event) => event.preventDefault());
-  button.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    window.open(href, "_blank", "noopener,noreferrer");
-  });
   return button;
 }
 
-/** Build the "copy link" button placed after a link (briefly confirms with a check). */
-function createLinkCopyButton(href: string): HTMLElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "note-link-ctl note-link-copy";
-  button.contentEditable = "false";
-  button.title = "Copy link";
-  button.setAttribute("aria-label", "Copy link");
-  button.innerHTML = COPY_SVG;
-  button.addEventListener("mousedown", (event) => event.preventDefault());
-  button.addEventListener("click", (event) => {
+/**
+ * A single floating toolbar, anchored to a link on hover (or tap, on touch),
+ * with open / copy / edit / unlink. Being fixed-positioned (outside the text
+ * flow) it never reflows text and adds no persistent inline icons. Living in
+ * the plugin means every editor instance gets it with no per-page wiring.
+ */
+class LinkToolbarView {
+  private readonly view: EditorView;
+  private readonly el: HTMLElement;
+  private readonly bar: HTMLElement;
+  private readonly form: HTMLElement;
+  private readonly textInput: HTMLInputElement;
+  private readonly urlInput: HTMLInputElement;
+  private readonly copyBtn: HTMLButtonElement;
+
+  private currentHref = "";
+  private range: { from: number; to: number } | null = null;
+  private anchor: HTMLElement | null = null;
+  private pointerType: "mouse" | "touch" = "mouse";
+  private visible = false;
+  private editing = false;
+  private openTimer: ReturnType<typeof setTimeout> | null = null;
+  private closeTimer: ReturnType<typeof setTimeout> | null = null;
+  private copyTimer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor(view: EditorView) {
+    this.view = view;
+
+    const el = document.createElement("div");
+    el.className = "note-link-toolbar";
+    el.setAttribute("contenteditable", "false");
+    el.style.display = "none";
+
+    // Compact action bar
+    const bar = document.createElement("div");
+    bar.className = "note-link-bar";
+    const openBtn = iconButton(EXTERNAL_LINK_SVG, "Open in browser");
+    openBtn.addEventListener("click", () => {
+      if (this.currentHref) window.open(this.currentHref, "_blank", "noopener,noreferrer");
+    });
+    const copyBtn = iconButton(COPY_SVG, "Copy link");
+    copyBtn.addEventListener("click", () => this.copy());
+    const editBtn = iconButton(EDIT_SVG, "Edit link");
+    editBtn.addEventListener("click", () => this.setEditing(true));
+    const unlinkBtn = iconButton(UNLINK_SVG, "Remove link");
+    unlinkBtn.addEventListener("click", () => this.unlink());
+    bar.append(openBtn, copyBtn, editBtn, unlinkBtn);
+    this.copyBtn = copyBtn;
+
+    // Edit form
+    const form = document.createElement("div");
+    form.className = "note-link-form";
+    const textInput = document.createElement("input");
+    textInput.type = "text";
+    textInput.className = "note-link-input";
+    textInput.placeholder = "Text";
+    const urlInput = document.createElement("input");
+    urlInput.type = "text";
+    urlInput.className = "note-link-input";
+    urlInput.placeholder = "Link URL";
+    for (const input of [textInput, urlInput]) {
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          this.save();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          this.setEditing(false);
+        }
+      });
+    }
+    const actions = document.createElement("div");
+    actions.className = "note-link-form-actions";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "note-link-form-cancel";
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.addEventListener("mousedown", (event) => event.preventDefault());
+    cancelBtn.addEventListener("click", () => this.setEditing(false));
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.className = "note-link-form-save";
+    saveBtn.textContent = "Save";
+    saveBtn.addEventListener("mousedown", (event) => event.preventDefault());
+    saveBtn.addEventListener("click", () => this.save());
+    actions.append(cancelBtn, saveBtn);
+    form.append(textInput, urlInput, actions);
+    this.textInput = textInput;
+    this.urlInput = urlInput;
+
+    el.append(bar, form);
+    document.body.appendChild(el);
+    this.el = el;
+    this.bar = bar;
+    this.form = form;
+
+    // Keep the toolbar open while the pointer is over it.
+    el.addEventListener("mouseenter", () => this.clearClose());
+    el.addEventListener("mouseleave", () => {
+      if (!this.editing) this.scheduleClose();
+    });
+
+    view.dom.addEventListener("mouseover", this.onOver);
+    view.dom.addEventListener("mouseout", this.onOut);
+    view.dom.addEventListener("pointerdown", this.onEditorPointerDown, true);
+    view.dom.addEventListener("click", this.onEditorClick);
+    document.addEventListener("pointerdown", this.onDocPointerDown, true);
+    document.addEventListener("keydown", this.onKeyDown, true);
+    window.addEventListener("scroll", this.onScroll, true);
+  }
+
+  private linkAt(target: EventTarget | null): HTMLElement | null {
+    if (!(target instanceof HTMLElement)) return null;
+    const a = target.closest("a[href]") as HTMLElement | null;
+    return a && this.view.dom.contains(a) ? a : null;
+  }
+
+  private onOver = (event: Event) => {
+    if (this.pointerType === "touch") return;
+    const a = this.linkAt(event.target);
+    if (!a) return;
+    this.clearClose();
+    if (this.visible && this.anchor === a) return;
+    this.clearOpen();
+    this.openTimer = setTimeout(() => this.show(a), OPEN_DELAY);
+  };
+
+  private onOut = (event: Event) => {
+    const a = this.linkAt(event.target);
+    if (!a) return;
+    const to = (event as MouseEvent).relatedTarget;
+    if (to instanceof HTMLElement && (to.closest("a[href]") === a || this.el.contains(to))) return;
+    this.clearOpen();
+    if (!this.editing) this.scheduleClose();
+  };
+
+  private onEditorPointerDown = (event: Event) => {
+    this.pointerType = (event as PointerEvent).pointerType === "touch" ? "touch" : "mouse";
+  };
+
+  private onEditorClick = (event: Event) => {
+    if (this.pointerType !== "touch") return;
+    const a = this.linkAt(event.target);
+    if (!a) return;
     event.preventDefault();
-    event.stopPropagation();
+    this.show(a);
+  };
+
+  private onDocPointerDown = (event: Event) => {
+    if (!this.visible || this.editing) return;
+    const t = event.target;
+    if (t instanceof Node && (this.el.contains(t) || this.linkAt(t))) return;
+    this.hide();
+  };
+
+  private onKeyDown = (event: Event) => {
+    if (!this.visible) return;
+    if ((event as KeyboardEvent).key !== "Escape") return;
+    if (this.editing) {
+      event.preventDefault();
+      this.setEditing(false);
+    } else {
+      this.hide();
+    }
+  };
+
+  private onScroll = () => {
+    if (this.visible && !this.editing) this.hide();
+  };
+
+  private clearOpen() {
+    if (this.openTimer) clearTimeout(this.openTimer);
+    this.openTimer = null;
+  }
+
+  private clearClose() {
+    if (this.closeTimer) clearTimeout(this.closeTimer);
+    this.closeTimer = null;
+  }
+
+  private scheduleClose() {
+    this.clearClose();
+    this.closeTimer = setTimeout(() => this.hide(), CLOSE_DELAY);
+  }
+
+  private show(anchor: HTMLElement) {
+    const from = this.view.posAtDOM(anchor, 0);
+    const text = anchor.textContent ?? "";
+    const to = from + text.length;
+    const linkType = this.view.state.schema.marks.link;
+    const node = this.view.state.doc.nodeAt(from);
+    const mark = linkType ? node?.marks.find((m) => m.type === linkType) : undefined;
+    const href = String(mark?.attrs.href ?? anchor.getAttribute("href") ?? "");
+    if (!href) return;
+
+    this.currentHref = href;
+    this.range = { from, to };
+    this.anchor = anchor;
+    this.setEditing(false);
+    this.el.style.display = "flex";
+    this.visible = true;
+    this.position();
+    requestAnimationFrame(() => this.el.classList.add("is-open"));
+  }
+
+  private position() {
+    if (!this.anchor) return;
+    const rect = this.anchor.getBoundingClientRect();
+    const box = this.el.getBoundingClientRect();
+    const margin = 8;
+    let top = rect.bottom + 6;
+    if (top + box.height > window.innerHeight - margin) {
+      const above = rect.top - box.height - 6;
+      if (above >= margin) top = above;
+    }
+    let left = rect.left;
+    if (left + box.width > window.innerWidth - margin) left = window.innerWidth - box.width - margin;
+    this.el.style.top = `${Math.max(margin, top)}px`;
+    this.el.style.left = `${Math.max(margin, left)}px`;
+  }
+
+  private setEditing(on: boolean) {
+    this.editing = on;
+    this.el.classList.toggle("is-editing", on);
+    this.bar.style.display = on ? "none" : "flex";
+    this.form.style.display = on ? "flex" : "none";
+    if (on) {
+      this.textInput.value = this.anchor?.textContent ?? "";
+      this.urlInput.value = this.currentHref;
+      this.position();
+      this.urlInput.focus();
+      this.urlInput.select();
+    }
+  }
+
+  private copy() {
+    if (!this.currentHref) return;
     void navigator.clipboard
-      ?.writeText(href)
+      ?.writeText(this.currentHref)
       .then(() => {
-        button.innerHTML = CHECK_SVG;
-        button.classList.add("is-copied");
-        window.setTimeout(() => {
-          button.innerHTML = COPY_SVG;
-          button.classList.remove("is-copied");
+        this.copyBtn.innerHTML = CHECK_SVG;
+        this.copyBtn.classList.add("is-copied");
+        if (this.copyTimer) clearTimeout(this.copyTimer);
+        this.copyTimer = setTimeout(() => {
+          this.copyBtn.innerHTML = COPY_SVG;
+          this.copyBtn.classList.remove("is-copied");
         }, 1200);
       })
       .catch(() => {
         /* clipboard blocked */
       });
-  });
-  return button;
+  }
+
+  private save() {
+    const url = this.urlInput.value.trim();
+    if (!this.range) return this.hide();
+    if (!url) return this.unlink();
+    const { state } = this.view;
+    const linkType = state.schema.marks.link;
+    if (!linkType) return this.hide();
+    const { from, to } = this.range;
+    const text = this.textInput.value.trim() || url;
+    const href = normalizeUrl(url);
+    const tr = state.tr.insertText(text, from, to);
+    tr.addMark(from, from + text.length, linkType.create({ href }));
+    this.view.dispatch(tr);
+    this.view.focus();
+    this.hide();
+  }
+
+  private unlink() {
+    const { state } = this.view;
+    const linkType = state.schema.marks.link;
+    if (this.range && linkType) {
+      this.view.dispatch(state.tr.removeMark(this.range.from, this.range.to, linkType));
+      this.view.focus();
+    }
+    this.hide();
+  }
+
+  private hide() {
+    this.clearOpen();
+    this.clearClose();
+    this.visible = false;
+    this.editing = false;
+    this.el.classList.remove("is-open", "is-editing");
+    this.el.style.display = "none";
+    this.bar.style.display = "flex";
+    this.form.style.display = "none";
+    this.anchor = null;
+    this.range = null;
+  }
+
+  destroy() {
+    this.clearOpen();
+    this.clearClose();
+    if (this.copyTimer) clearTimeout(this.copyTimer);
+    this.view.dom.removeEventListener("mouseover", this.onOver);
+    this.view.dom.removeEventListener("mouseout", this.onOut);
+    this.view.dom.removeEventListener("pointerdown", this.onEditorPointerDown, true);
+    this.view.dom.removeEventListener("click", this.onEditorClick);
+    document.removeEventListener("pointerdown", this.onDocPointerDown, true);
+    document.removeEventListener("keydown", this.onKeyDown, true);
+    window.removeEventListener("scroll", this.onScroll, true);
+    this.el.remove();
+  }
 }
 
 const linkOpenControlsKey = new PluginKey("noteLinkOpenControls");
 
 /**
- * Renders a small control group (open-in-browser + copy-link) immediately after
- * each link (links themselves don't open on click — `openOnClick` is false — so
- * this is how you follow one). Open + copy, per contiguous link run.
+ * A floating toolbar anchored to each link on hover (desktop) / tap (touch):
+ * open, copy, edit (URL + text), unlink. Links don't open on click
+ * (`openOnClick` is false), so this is how you act on one. Fixed-positioned, so
+ * it never reflows text or leaves persistent inline icons.
  */
 export const LinkOpenControls = Extension.create({
   name: "linkOpenControls",
@@ -255,55 +535,7 @@ export const LinkOpenControls = Extension.create({
     return [
       new Plugin({
         key: linkOpenControlsKey,
-        props: {
-          decorations(state) {
-            const linkType = state.schema.marks.link;
-            if (!linkType) return DecorationSet.empty;
-
-            const runs: Array<{ to: number; href: string }> = [];
-            let current: { to: number; href: string } | null = null;
-
-            state.doc.descendants((node, pos) => {
-              if (!node.isText) {
-                current = null;
-                return;
-              }
-              const mark = node.marks.find((m) => m.type === linkType);
-              if (!mark) {
-                current = null;
-                return;
-              }
-              const href = String(mark.attrs.href ?? "");
-              const from = pos;
-              const to = pos + node.nodeSize;
-              if (current && current.to === from && current.href === href) {
-                current.to = to; // extend the contiguous run in place
-              } else {
-                current = { to, href };
-                runs.push(current);
-              }
-            });
-
-            const decorations = runs
-              .filter((run) => run.href)
-              .flatMap((run) => [
-                // Two independent inline widgets (open, then copy) — no wrapper,
-                // so they flow inline right after the link like the text does.
-                Decoration.widget(run.to, () => createLinkOpenButton(run.href), {
-                  side: 1,
-                  ignoreSelection: true,
-                  key: `link-open:${run.to}:${run.href}`,
-                }),
-                Decoration.widget(run.to, () => createLinkCopyButton(run.href), {
-                  side: 2,
-                  ignoreSelection: true,
-                  key: `link-copy:${run.to}:${run.href}`,
-                }),
-              ]);
-
-            return DecorationSet.create(state.doc, decorations);
-          },
-        },
+        view: (editorView) => new LinkToolbarView(editorView),
       }),
     ];
   },

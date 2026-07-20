@@ -22,7 +22,7 @@ A structured editor for thinking and writing. Create pages, nest blocks into out
 
 Pages can have emoji icons, and headings stick while you scroll for easy orientation in long documents. Blocks can be colored for visual emphasis. Date tokens let you insert formatted dates inline via slash commands. Query blocks let you build filtered, sorted views of your pages — like a lightweight database.
 
-Navigate between linked pages with a breadcrumb trail that tracks your path. On desktop, hover a page link to see a peek preview; on mobile, long-press to preview before opening. Paste a URL and it becomes a clickable link with small buttons to open it in your browser or copy it.
+Navigate between linked pages with a breadcrumb trail that tracks your path. On desktop, hover a page link to see a peek preview; on mobile, long-press to preview before opening. Paste a URL and it becomes a link; hover (or tap) it for a small toolbar to open, copy, edit, or remove it.
 
 ### Quotes
 

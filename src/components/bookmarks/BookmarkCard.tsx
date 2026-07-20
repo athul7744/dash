@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, Circle, ExternalLink, Loader2, RefreshCw, Star, Tag as TagIcon, Trash2 } from "lucide-react";
+import { Check, CheckCircle2, Circle, Copy, ExternalLink, Loader2, RefreshCw, Star, Tag as TagIcon, Trash2 } from "lucide-react";
 
 import { Favicon } from "@/components/tasks/Favicon";
 import { TagSelector } from "@/components/tags/TagSelector";
@@ -47,6 +47,8 @@ export function BookmarkCard({
   const [title, setTitle] = useState(bookmark.title);
   const [note, setNote] = useState(bookmark.note);
   const [refetching, setRefetching] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleRef = useRef<HTMLInputElement | null>(null);
@@ -77,9 +79,21 @@ export function BookmarkCard({
   useEffect(
     () => () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
     },
     [],
   );
+
+  const copyUrl = async () => {
+    try {
+      await navigator.clipboard?.writeText(bookmark.url);
+      setCopied(true);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked */
+    }
+  };
 
   const scheduleSave = (nextTitle: string, nextNote: string) => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -182,15 +196,30 @@ export function BookmarkCard({
         placeholder="Title"
         className="w-full bg-transparent text-base font-medium leading-snug text-foreground outline-none placeholder:text-muted-foreground/50"
       />
-      <a
-        href={bookmark.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-xs text-muted-foreground transition-colors hover:text-sky-600 dark:hover:text-sky-400"
-      >
-        <span className="truncate">{host}</span>
-        <ExternalLink className="h-3 w-3 shrink-0" />
-      </a>
+      <div className="mt-0.5 flex items-center gap-1">
+        <a
+          href={bookmark.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-w-0 items-center gap-1 truncate text-xs text-muted-foreground transition-colors hover:text-sky-600 dark:hover:text-sky-400"
+        >
+          <span className="truncate">{host}</span>
+          <ExternalLink className="h-3 w-3 shrink-0" />
+        </a>
+        <button
+          type="button"
+          onClick={() => void copyUrl()}
+          aria-label="Copy link"
+          title={copied ? "Copied" : "Copy link"}
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
+        >
+          {copied ? (
+            <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
+          )}
+        </button>
+      </div>
 
       {busy ? (
         <p className="mt-1 flex items-center gap-1.5 text-xs italic text-muted-foreground/70">

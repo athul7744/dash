@@ -75,26 +75,26 @@ export function DashboardBookmarks({
   if (variant === "hero") {
     return (
       <Reveal root={root}>
-        <section id="revisit-bookmark" className="mx-auto max-w-2xl scroll-mt-20 px-2 py-6 text-center sm:py-12">
-          <div className="mb-6 flex items-center justify-center gap-2">{eyebrow}</div>
+        <section id="revisit-bookmark" className="mx-auto max-w-2xl scroll-mt-20 px-2 py-4 text-center sm:py-7">
+          <div className="mb-4 flex items-center justify-center gap-2">{eyebrow}</div>
           <a href={current.url} target="_blank" rel="noopener noreferrer" className="group block">
-            <span className="mx-auto mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-sky-500/10 dark:bg-sky-500/20">
-              <Favicon url={current.url} className="h-5 w-5" />
+            <span className="mx-auto mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/10 dark:bg-sky-500/20">
+              <Favicon url={current.url} className="h-4.5 w-4.5" />
             </span>
-            <p className="text-balance font-serif text-2xl leading-snug text-foreground transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-400 sm:text-[1.75rem]">
+            <p className="text-balance font-serif text-xl leading-snug text-foreground transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-400 sm:text-2xl">
               {current.title}
             </p>
-            <span className="mt-3 inline-flex max-w-full items-center gap-1 text-sm text-muted-foreground">
+            <span className="mt-2 inline-flex max-w-full items-center gap-1 text-sm text-muted-foreground">
               <span className="truncate">{host}</span>
               <ExternalLink className="h-3.5 w-3.5 shrink-0" />
             </span>
           </a>
           {current.note ? (
-            <p className="mx-auto mt-4 max-w-md whitespace-pre-line text-sm italic text-muted-foreground/80">
+            <p className="mx-auto mt-3 max-w-md whitespace-pre-line text-sm italic text-muted-foreground/80">
               {current.note}
             </p>
           ) : null}
-          {showAnotherButton ? <div className="mt-8">{showAnotherButton}</div> : null}
+          {showAnotherButton ? <div className="mt-5">{showAnotherButton}</div> : null}
         </section>
       </Reveal>
     );

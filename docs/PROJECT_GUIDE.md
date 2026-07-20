@@ -13,15 +13,16 @@ Next.js 16 · PowerSync · Supabase · Tailwind CSS v4 · Shadcn/UI · Tiptap 3.
 
 ## What Dash Is
 
-Dash is an offline-first Next.js application with five apps under one shell:
+Dash is an offline-first Next.js application with six apps under one shell:
 
 - `Tasks` — todo management with subtasks, tags, due dates, priorities, and trash/restore
 - `Tracker` — time-block logging on a 7-day x 24-hour grid, daily mood ratings, yearly heatmaps, and weekly widgets
 - `Notes` — a local-first outline editor built on pages, blocks, graph edges, and explicitly owned attachments
 - `Quotes` — a collection of quotes stored in the notes backend (a hidden `kind: "quote"` system page) with a favorites-weighted daily resurfacing on the dashboard
 - `Bookmarks` — saved links stored in the notes backend (a hidden `kind: "bookmark"` system page) with platform detection, server-fetched titles, tags, read/unread, and an unread-weighted daily "revisit"
+- `Reminders` — recurring task templates stored in the notes backend (a hidden `kind: "reminder"` system page) with a schedule + lead time; a client-side reconciler materializes a real Task before each occurrence (see [Reminders App Structure](#reminders-app-structure))
 
-Content enters through **universal capture**: the PWA share target (`/share`) and an in-app quick-capture modal both classify shared links/text and triage them into any app (see [Universal Capture](#universal-capture)). Quotes and Bookmarks reuse the notes `pages`/`blocks` store via the system-page mechanism, so they add no new tables.
+Content enters through **universal capture**: the PWA share target (`/share`) and an in-app quick-capture modal both classify shared links/text and triage them into any app (see [Universal Capture](#universal-capture)). Quotes, Bookmarks, and Reminders reuse the notes `pages`/`blocks` store via the system-page mechanism, so they add no new tables.
 
 Testing is organized separately under `tests/`, with app-group suites and shared helpers rather than colocated source tests.
 
@@ -87,7 +88,7 @@ Key runtime behavior:
 
 ### Route-level loading behavior
 
-- `src/app/{tasks,tracker,notes,quotes,bookmarks}/loading.tsx`
+- `src/app/{tasks,tracker,notes,quotes,bookmarks,reminders}/loading.tsx`
   - Route-level fallback for navigation into each app
   - Each renders the real header shell plus an app-specific skeleton from `src/components/skeletons/*` (shared with the cold-start boot skeleton)
 
@@ -111,6 +112,7 @@ Important convention:
 - `src/app/notes/page.tsx` — notes dashboard shell
 - `src/app/quotes/page.tsx` — quotes collection
 - `src/app/bookmarks/page.tsx` — bookmarks collection
+- `src/app/reminders/page.tsx` — reminders collection (recurring task templates; see [Reminders App Structure](#reminders-app-structure))
 - `src/app/api/bookmark-metadata/route.ts` — auth-gated, SSRF-guarded server proxy that fetches a URL's `<title>`/OG metadata (used by bookmarks + capture to prefill titles)
 
 ### Shared components
@@ -190,11 +192,12 @@ Important convention:
 - `src/lib/tasks/tags.ts` — tag creation helpers
 - `src/lib/quotes/quotes.ts` / `quotes/daily.ts` — quote CRUD over the `kind:"quote"` system page, and the favorites-weighted `pickDailyQuote`
 - `src/lib/bookmarks/bookmarks.ts` / `bookmarks/daily.ts` / `bookmarks/metadata.ts` / `bookmarks/fetch-metadata.ts` — bookmark CRUD over the `kind:"bookmark"` system page, the unread-weighted `pickDailyBookmark`, the pure `parseMetadataHtml` (used by the metadata route), and the client `refreshBookmarkTitle` wrapper
+- `src/lib/reminders/reminders.ts` / `reminders/schedule.ts` / `reminders/materialize.ts` — reminder CRUD over the `kind:"reminder"` system page, the pure recurrence engine, and the on-mount reconciler that materializes due reminders into Tasks (see [Reminders App Structure](#reminders-app-structure))
 - `src/lib/tracker/activities.ts` — tracker activity palette and class maps
 - `src/lib/tracker/ratings.ts` — `setDailyRating` upsert (insert/update/clear) for the mood picker, shared by the dashboard
 - `src/lib/tracker/day-keys.ts` — UTC-naive/local date-key helpers, incl. `recentNaiveWindow` for the "logged in the last 2h" check
 - `src/hooks/use-notes.ts` — local SQLite query hooks for note pages and blocks (excludes `properties.kind`-tagged system pages from Notes lists)
-- `src/hooks/use-quotes.ts` / `src/hooks/use-bookmarks.ts` — live query hooks reading the quote/bookmark blocks off their system page (a "settled" latch keeps the empty state from flashing during the page-id → query swap)
+- `src/hooks/use-quotes.ts` / `src/hooks/use-bookmarks.ts` / `src/hooks/use-reminders.ts` — live query hooks reading the quote/bookmark/reminder blocks off their system page (a "settled" latch keeps the empty state from flashing during the page-id → query swap); `use-reminders.ts` also exports `useReminderMaterializer`
 - `src/hooks/use-autosize-textarea.ts` — grows a textarea to fit its content, recomputing on width/masonry-column changes (quote + bookmark cards)
 - `src/hooks/use-display-font.ts` — reads/writes the selected display font via `useSyncExternalStore` + `localStorage`, applying it to `<body data-display-font>`
 - `src/hooks/use-settled-timestamp.ts` — debounced timestamp display that waits for pending writes to settle
@@ -225,6 +228,7 @@ Important convention:
 - `tests/tasks/*` — task-specific Vitest suites
 - `tests/tracker/*` — tracker-specific Vitest suites
 - `tests/quotes/*` / `tests/bookmarks/*` — quotes/bookmarks daily-pick + metadata suites
+- `tests/reminders/*` — the recurrence-engine suite (`schedule.ts`)
 - `tests/shared/*` — shared fixtures, builders, and assertions reused across app groups (incl. the capture classifier)
 - `tests/README.md` — current suite map and short descriptions of what each test file covers
 
@@ -493,6 +497,17 @@ Route: `src/app/quotes/page.tsx`. Quotes are `type:"quote"` blocks on one hidden
 
 Route: `src/app/bookmarks/page.tsx`. Bookmarks are `type:"bookmark"` blocks on one hidden system page (`kind:"bookmark"`, key `"library"`). `src/lib/bookmarks/bookmarks.ts` is the CRUD layer (content JSON holds `url/title/note/tags/favorite/unread/addedAt`; tag ids reuse the shared `tags` table), `src/hooks/use-bookmarks.ts` the live query, `BookmarkCard` the editable card (favicon, title, note, tags, read/unread, star, per-card refresh), and `DashboardBookmarks` the unread-weighted daily "revisit". Titles are fetched server-side via `/api/bookmark-metadata` (auth-gated + SSRF-guarded); a single omni-field on the page does both search and paste-to-add.
 
+## Reminders App Structure
+
+Route: `src/app/reminders/page.tsx`. Reminders are `type:"reminder"` blocks on one hidden system page (`kind:"reminder"`, key `"schedules"`) — no schema change. Each block's content JSON holds a task template (`title/link/tags/priority`), a `schedule`, a `daysBefore` lead time, `active`, and materialization bookkeeping (`lastMaterializedKey`, `lastTaskId`).
+
+- `src/lib/reminders/schedule.ts` — the pure, DB-free recurrence engine (like `capture.ts`, so tests don't load PowerSync): the `ReminderSchedule` union (`once`/`weekly`/`monthly`/`yearly`), `nextOccurrenceOnOrAfter` (local-day, month-length clamping), `formatSchedule`, and the `dueOccurrence` lead-window decision.
+- `src/lib/reminders/reminders.ts` — CRUD over the system page (mirrors `bookmarks.ts`), plus `markMaterialized` (deactivates a fired `once`).
+- `src/lib/reminders/materialize.ts` — `materializeDueReminders()`, the client-side reconciler. There is no server cron: it's fired fire-and-forget from a mount effect (`useReminderMaterializer` on the dashboard + `/reminders`), like `pruneEmptyJournalPages`. For each due occurrence it creates a Task via `createTask` using a **deterministic id** (`uuidv5(reminderId:occurrenceKey)`) so cross-device double-fires collapse to one row; `lastMaterializedKey` stops recreation after a task is resolved; a **pending-gate** (skip while the previous task is still `pending`) stops pile-up.
+- `src/hooks/use-reminders.ts` — the settle-latched live query + `useReminderMaterializer`. `src/components/reminders/` holds `ReminderCard` and the schedule-builder `ReminderForm`.
+
+`createTask` (`src/lib/tasks/create-task.ts`) takes an optional deterministic `id` for this.
+
 ## Data And Write Flow
 
 ### Read path
@@ -538,10 +553,10 @@ Important implementation notes:
 
 ## App Registry And Visual Identity
 
-- `src/lib/shared/apps.ts` is the central registry for each app's route, name, icon, and accent colors (currently tasks/tracker/notes/quotes/bookmarks)
-- The header, switcher, and mobile FAB shell all rely on this registry; adding an entry surfaces the app in `AppSwitcher` and `AppsFab` automatically
+- `src/lib/shared/apps.ts` is the central registry for each app's route, name, icon, and accent colors (currently tasks/tracker/notes/quotes/bookmarks/reminders)
+- The header, switcher, and mobile FAB shell all rely on this registry; adding an entry surfaces the app in `AppSwitcher` and `AppsFab` automatically (the dashboard bar order lives in `AppsFab`'s `DASHBOARD_ORDER`)
 - If a new app is added, start there first
-- **Reusing the notes backend:** Quotes and Bookmarks are feature-owned "system pages" (`src/lib/notes/system-pages.ts` — a `kind` tag + deterministic `uuidv5` id, hidden from `/notes`). This is the pattern for any app that wants storage/sync without a schema change; extend `SystemPageKind` and add a thin CRUD lib + hook (mirror `src/lib/quotes/` or `src/lib/bookmarks/`).
+- **Reusing the notes backend:** Quotes, Bookmarks, and Reminders are feature-owned "system pages" (`src/lib/notes/system-pages.ts` — a `kind` tag + deterministic `uuidv5` id, hidden from `/notes`). This is the pattern for any app that wants storage/sync without a schema change; extend `SystemPageKind` and add a thin CRUD lib + hook (mirror `src/lib/quotes/`, `src/lib/bookmarks/`, or `src/lib/reminders/`).
 
 The notes app follows that same pattern, so new shell behavior should extend the shared primitives instead of introducing app-only chrome.
 

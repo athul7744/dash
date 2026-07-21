@@ -5,7 +5,18 @@ export interface AppAccent {
   iconBg: string;
   /** Icon/dot foreground: e.g. "text-indigo-600 dark:text-indigo-400" */
   iconText: string;
+  /** Hover-only text accent for the app's one primary header button */
+  hoverText: string;
 }
+
+/**
+ * Shared base for every top-bar action button (pill shape, size, spacing).
+ * Compose with `app.accent.hoverText` for the single primary action, or
+ * `HEADER_ACTION_NEUTRAL` for every secondary one — never a foreign accent.
+ */
+export const HEADER_ACTION_BASE =
+  "inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent";
+export const HEADER_ACTION_NEUTRAL = `${HEADER_ACTION_BASE} hover:text-foreground`;
 
 export interface AppConfig {
   id: string;
@@ -26,6 +37,7 @@ export const APPS: AppConfig[] = [
     accent: {
       iconBg: "bg-indigo-500/10 dark:bg-indigo-500/20",
       iconText: "text-indigo-600 dark:text-indigo-400",
+      hoverText: "hover:text-indigo-600 dark:hover:text-indigo-400",
     },
   },
   {
@@ -37,6 +49,7 @@ export const APPS: AppConfig[] = [
     accent: {
       iconBg: "bg-teal-500/10 dark:bg-teal-500/20",
       iconText: "text-teal-600 dark:text-teal-400",
+      hoverText: "hover:text-teal-600 dark:hover:text-teal-400",
     },
   },
   {
@@ -48,6 +61,7 @@ export const APPS: AppConfig[] = [
     accent: {
       iconBg: "bg-amber-500/10 dark:bg-amber-500/20",
       iconText: "text-amber-700 dark:text-amber-400",
+      hoverText: "hover:text-amber-700 dark:hover:text-amber-400",
     },
   },
   {
@@ -59,6 +73,7 @@ export const APPS: AppConfig[] = [
     accent: {
       iconBg: "bg-rose-500/10 dark:bg-rose-500/20",
       iconText: "text-rose-600 dark:text-rose-400",
+      hoverText: "hover:text-rose-600 dark:hover:text-rose-400",
     },
   },
   {
@@ -70,6 +85,7 @@ export const APPS: AppConfig[] = [
     accent: {
       iconBg: "bg-sky-500/10 dark:bg-sky-500/20",
       iconText: "text-sky-600 dark:text-sky-400",
+      hoverText: "hover:text-sky-600 dark:hover:text-sky-400",
     },
   },
   {
@@ -81,6 +97,7 @@ export const APPS: AppConfig[] = [
     accent: {
       iconBg: "bg-violet-500/10 dark:bg-violet-500/20",
       iconText: "text-violet-600 dark:text-violet-400",
+      hoverText: "hover:text-violet-600 dark:hover:text-violet-400",
     },
   },
 ];

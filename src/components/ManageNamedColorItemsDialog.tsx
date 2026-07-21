@@ -31,6 +31,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { cn } from "@/lib/shared/utils";
+import { HEADER_ACTION_BASE } from "@/lib/shared/apps";
 
 type ManagedColorItem = {
   id: string;
@@ -56,7 +57,8 @@ type ManagedColorOverlay = {
 type TriggerConfig = {
   icon: LucideIcon;
   label: string;
-  hoverClassName: string;
+  /** Optional accent hover for the app's ONE primary action; omit to stay neutral. */
+  hoverClassName?: string;
 };
 
 export type CategoryOption = { value: string; label: string };
@@ -482,8 +484,8 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
           {children}
         </DialogTrigger>
       ) : (
-        <DialogTrigger className={cn("inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-medium transition-colors hover:bg-accent", trigger.hoverClassName)}>
-          <TriggerIcon className="h-3.5 w-3.5" />
+        <DialogTrigger className={cn(HEADER_ACTION_BASE, trigger.hoverClassName ?? "hover:text-foreground")}>
+          <TriggerIcon className="h-4 w-4" />
           <span className="hidden sm:inline">{trigger.label}</span>
         </DialogTrigger>
       ))}

@@ -50,7 +50,6 @@ export function ManageTagsDialog({ children, open, onOpenChange, hideTrigger = f
       trigger={{
         icon: TagIcon,
         label: "Tags",
-        hoverClassName: "hover:text-indigo-600 dark:hover:text-indigo-400",
       }}
       children={children}
       open={open}

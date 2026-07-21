@@ -71,7 +71,6 @@ export function ManageMoodsDialog({ children, open, onOpenChange, hideTrigger = 
       trigger={{
         icon: SmilePlus,
         label: "Moods",
-        hoverClassName: "hover:text-amber-600 dark:hover:text-amber-400",
       }}
       open={open}
       onOpenChange={onOpenChange}

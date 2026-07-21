@@ -18,7 +18,7 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { TasksContentSkeleton, TasksFilterRowSkeleton } from "../../components/tasks/TasksPageSkeleton";
-import { getApp } from "@/lib/shared/apps";
+import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { hasPendingWrites, flushAllUpdates } from "@/lib/shared/debounced-update";
 
 const tasksApp = getApp("tasks");
@@ -153,7 +153,7 @@ export default function Home() {
             <button
               type="button"
               onClick={handleAddNewTask}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-indigo-600 dark:hover:text-indigo-400"
+              className={cn(HEADER_ACTION_BASE, tasksApp.accent.hoverText)}
             >
               <Plus className="h-4 w-4" />
               New task

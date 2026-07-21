@@ -13,7 +13,7 @@ import { useBookmarks } from "@/hooks/use-bookmarks";
 import { createBookmark } from "@/lib/bookmarks/bookmarks";
 import { refreshBookmarkTitle } from "@/lib/bookmarks/fetch-metadata";
 import { Tag } from "@/lib/powersync/AppSchema";
-import { getApp } from "@/lib/shared/apps";
+import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 import { getTagColorClasses } from "@/lib/tasks/colors";
 import { getLinkHost } from "@/lib/tasks/tasks";
@@ -133,7 +133,7 @@ export default function BookmarksPage() {
           <button
             type="button"
             onClick={focusInput}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-sky-600 dark:hover:text-sky-400"
+            className={cn(HEADER_ACTION_BASE, bookmarksApp.accent.hoverText)}
           >
             <Plus className="h-4 w-4" />
             New bookmark

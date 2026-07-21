@@ -10,7 +10,8 @@ import { QuoteCard } from "@/components/quotes/QuoteCard";
 import { QuotesLoadingSkeleton } from "@/components/skeletons/QuotesLoadingSkeleton";
 import { useQuotes } from "@/hooks/use-quotes";
 import { createQuote } from "@/lib/quotes/quotes";
-import { getApp } from "@/lib/shared/apps";
+import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
+import { cn } from "@/lib/shared/utils";
 
 const quotesApp = getApp("quotes");
 
@@ -35,7 +36,7 @@ export default function QuotesPage() {
           <button
             type="button"
             onClick={addQuote}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-rose-600 dark:hover:text-rose-400"
+            className={cn(HEADER_ACTION_BASE, quotesApp.accent.hoverText)}
           >
             <Plus className="h-4 w-4" />
             New quote

@@ -9,7 +9,8 @@ import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { RemindersLoadingSkeleton } from "@/components/skeletons/RemindersLoadingSkeleton";
 import { useReminderMaterializer, useReminders } from "@/hooks/use-reminders";
 import { createReminder } from "@/lib/reminders/reminders";
-import { getApp } from "@/lib/shared/apps";
+import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
+import { cn } from "@/lib/shared/utils";
 
 const remindersApp = getApp("reminders");
 
@@ -35,7 +36,7 @@ export default function RemindersPage() {
           <button
             type="button"
             onClick={addReminder}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-violet-600 dark:hover:text-violet-400"
+            className={cn(HEADER_ACTION_BASE, remindersApp.accent.hoverText)}
           >
             <Plus className="h-4 w-4" />
             New reminder

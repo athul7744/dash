@@ -88,7 +88,7 @@ export function AppHeader({ app, actions, mobileMenuItems, children }: AppHeader
               className="rounded-full text-muted-foreground hover:text-foreground"
               title="Settings"
             >
-              <Settings className="h-5 w-5" />
+              <Settings className="h-4 w-4" />
             </Button>
           </div>
         </div>

@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/shared/utils";
+import { HEADER_ACTION_NEUTRAL } from "@/lib/shared/apps";
 
 import {
   usePropertyDefinitions,
@@ -413,8 +414,8 @@ export function ManagePropertiesDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!hideTrigger && (
-        <DialogTrigger className="inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-medium transition-colors hover:bg-accent hover:text-violet-600 dark:hover:text-violet-400">
-          <Columns3 className="h-3.5 w-3.5" />
+        <DialogTrigger className={HEADER_ACTION_NEUTRAL}>
+          <Columns3 className="h-4 w-4" />
           <span className="hidden sm:inline">Properties</span>
         </DialogTrigger>
       )}

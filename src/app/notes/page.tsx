@@ -25,7 +25,7 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAllNotePages, useFavoriteNotePages, useNoteCounts, useRecentNotePages } from "@/hooks/use-notes";
 import { createStarterPage, normalizeNotePageTitle, updateNotePageProperties } from "@/lib/notes/notes";
 import { flushAllBlockDocumentPersisters } from "@/lib/notes/editor/block-persister";
-import { getApp } from "@/lib/shared/apps";
+import { getApp, HEADER_ACTION_BASE, HEADER_ACTION_NEUTRAL } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 import { flushAllUpdates, hasPendingWrites } from "@/lib/shared/debounced-update";
 import { NotesDetailsRail } from "@/components/notes/page/NotesDetailsRail";
@@ -474,15 +474,14 @@ export default function NotesPage() {
             </>
           ) : undefined}
           actions={graphView ? (
-            <Button
+            <button
+              type="button"
               onClick={() => startTransition(() => { router.push("/notes"); })}
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 rounded-full text-xs h-8 px-2.5"
+              className={HEADER_ACTION_NEUTRAL}
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
+              <ArrowLeft className="h-4 w-4" />
               <span>Overview</span>
-            </Button>
+            </button>
           ) : isDisplayingOverview ? (
             <>
               <ManageTagsDialog />
@@ -492,7 +491,7 @@ export default function NotesPage() {
               <button
                 type="button"
                 onClick={() => startTransition(() => { router.push("/notes?view=graph"); })}
-                className="inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className={HEADER_ACTION_NEUTRAL}
               >
                 <Network className="h-4 w-4" />
                 <span className="hidden sm:inline">Graph</span>
@@ -501,7 +500,7 @@ export default function NotesPage() {
                 type="button"
                 onClick={handleCreateStarterPage}
                 disabled={isCreatingPage}
-                className="inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-amber-600 dark:hover:text-amber-400 disabled:pointer-events-none disabled:opacity-50"
+                className={cn(HEADER_ACTION_BASE, notesApp.accent.hoverText, "disabled:pointer-events-none disabled:opacity-50")}
               >
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">{isCreatingPage ? "Creating…" : "New page"}</span>

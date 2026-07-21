@@ -138,7 +138,7 @@ Important convention:
 - `src/components/dashboard/DashboardQuote.tsx` / `DashboardBookmarks.tsx` — the daily "quote of the day" / "revisit" resurfacing cards (a `variant` renders either the compact dashboard tile or the larger hero atop `/quotes` and `/bookmarks`); render nothing until there's content
 - `src/components/dashboard/DashboardJournal.tsx` — embeds `WeeklyJournal` for the current week, editable in place
 - `src/components/dashboard/AppsFab.tsx` — bottom horizontal app strip (single-click nav) over a blurred scrim; a dashboard-specific order (bookmarks, tasks, tracker, notes, quotes) centered on Tracker, with the ends scroll-reachable on narrow screens
-- `src/components/capture/QuickCapture.tsx` — in-app capture modal (opened by the dashboard Capture button / ⌘Ctrl+Shift+K); seeds `CaptureTriage` from the clipboard (see [Universal Capture](#universal-capture))
+- `src/components/capture/QuickCapture.tsx` — in-app capture modal (opened by the dashboard Capture button / ⌘/Ctrl+I); seeds `CaptureTriage` from the clipboard (see [Universal Capture](#universal-capture))
 
 ### Task-specific components
 
@@ -348,7 +348,7 @@ Responsibilities and behavior:
 - **Search:** `GlobalSearch` is controlled (opened by the hero bar, the top-bar icon, or ⌘K), filters tasks by title and notes via `useNotesPageDerivedState`, and reuses `SearchPopup`. Notes deep-link to `/notes?page=`; tasks open in `TaskPopup`.
 - **Journal:** `DashboardJournal` embeds the tracker's `WeeklyJournal` for the current week (same `systemPageId`), editable in place.
 - **Apps:** `AppsFab` is a fixed bottom strip of single-click app links over a blurred scrim (replaces the old floating `AppSwitcher` FAB here); ordered bookmarks/tasks/tracker/notes/quotes and scroll-centered on Tracker so the middle app is reachable on launch.
-- **Capture:** a Capture button in the top bar (and ⌘/Ctrl+Shift+K) opens `QuickCapture` (see [Universal Capture](#universal-capture)).
+- **Capture:** a Capture button in the top bar (and ⌘/Ctrl+I) opens `QuickCapture` (see [Universal Capture](#universal-capture)).
 - Greeting text comes from `useGreeting` (one seed shared by hero + collapsed bar). There is no route restoration — the app always opens on the dashboard.
 
 ## Tasks App Structure
@@ -485,7 +485,7 @@ If one of these dialogs breaks, start with the shared component first.
 Two entry points, one triage component:
 
 - **PWA share target** — `src/app/share/page.tsx`. The manifest (`public/manifest.json`) declares a GET `share_target` at `/share`; on an installed Android PWA a shared link/text lands here. (iOS Safari doesn't support Web Share Target — deferred.)
-- **In-app quick capture** — `src/components/capture/QuickCapture.tsx`, opened from the dashboard Capture button or ⌘/Ctrl+Shift+K; seeds the triage from the clipboard.
+- **In-app quick capture** — `src/components/capture/QuickCapture.tsx`, opened from the dashboard Capture button or ⌘/Ctrl+I; seeds the triage from the clipboard.
 
 Both render `src/components/capture/CaptureTriage.tsx`, which:
 

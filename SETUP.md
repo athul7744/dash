@@ -376,7 +376,7 @@ bunx tsc --noEmit
 Development notes:
 
 - `bun run dev` and `bun run build` already use the repo's configured Webpack-based Next.js commands.
-- The `/share` route is wired as the PWA web share target (universal capture: shared links/text triage into Bookmarks/Tasks/Notes/Quotes), so mobile share-sheet flows can be exercised locally after sign-in. The same triage is reachable in-app via the dashboard Capture button or ⌘/Ctrl+Shift+K.
+- The `/share` route is wired as the PWA web share target (universal capture: shared links/text triage into Bookmarks/Tasks/Notes/Quotes), so mobile share-sheet flows can be exercised locally after sign-in. The same triage is reachable in-app via the dashboard Capture button or ⌘/Ctrl+I.
 - Set `NEXT_PUBLIC_ENABLE_LOG_VIEW=true` to expose an in-app viewer for the latest 50 logger entries from the current browser session.
 
 ### Test layout

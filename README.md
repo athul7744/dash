@@ -38,7 +38,7 @@ Set up recurring obligations once and let them add themselves. A reminder is a t
 
 ### Capture
 
-The fastest way in. On Android, install Dash as a PWA and it shows up in your phone's share sheet — share a link or text from any app and a triage screen lets you save it to Bookmarks, Tasks, Notes, or Quotes (a smart default is preselected — links default to Bookmarks). Anywhere else, the dashboard Capture button (or ⌘/Ctrl+Shift+K) opens the same triage from your clipboard. Everything saves locally, so capture works offline.
+The fastest way in. On Android, install Dash as a PWA and it shows up in your phone's share sheet — share a link or text from any app and a triage screen lets you save it to Bookmarks, Tasks, Notes, or Quotes (a smart default is preselected — links default to Bookmarks). Anywhere else, the dashboard Capture button (or ⌘/Ctrl+I) opens the same triage from your clipboard. Everything saves locally, so capture works offline.
 
 ## How It Works
 

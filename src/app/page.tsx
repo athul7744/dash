@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Plus, Search, Settings } from "lucide-react";
 import { motion, useScroll, useTransform } from "motion/react";
 
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { Button } from "@/components/ui/button";
-import { QuickCapture } from "@/components/capture/QuickCapture";
+import { useCapture } from "@/components/capture/CaptureProvider";
 import { AppsFab } from "@/components/dashboard/AppsFab";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { DashboardBookmarks } from "@/components/dashboard/DashboardBookmarks";
@@ -23,25 +23,13 @@ import { useReminderMaterializer } from "@/hooks/use-reminders";
 export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [captureOpen, setCaptureOpen] = useState(false);
+  const openCapture = useCapture();
   const { greeting, subline, date } = useGreeting();
 
   // Turn any due reminders into tasks when the dashboard opens (no server cron).
   useReminderMaterializer();
 
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  // ⌘/Ctrl+Shift+K opens quick capture from anywhere on the dashboard.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setCaptureOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   // Scroll-linked collapse driven by the container's raw scroll offset (px).
   // Tight ranges so the hero snaps into the top bar within a short scroll.
@@ -89,9 +77,9 @@ export default function Home() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setCaptureOpen(true)}
+            onClick={openCapture}
             className="rounded-full text-muted-foreground hover:text-foreground"
-            title="Capture (⌘/Ctrl+Shift+K)"
+            title="Capture (⌘/Ctrl+I)"
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -136,7 +124,6 @@ export default function Home() {
       <AppsFab />
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
-      <QuickCapture open={captureOpen} onOpenChange={setCaptureOpen} />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );

@@ -241,144 +241,143 @@ export function TaskCard({ task, subtasks, isNew, onNewCancel }: TaskCardProps) 
       optimisticState === 'completed' ? "bg-muted/50" : ""
     )}>
       {/* Main Task Header — roomy vertical padding, tighter side padding on mobile */}
-      <div className="flex items-start gap-3 px-3 py-4 sm:p-4">
-        {!isNew && !isTrashed && (
-          <button
-            onClick={() => toggleTaskState(task)}
-            className={cn(
-              "h-5 w-5 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-all duration-300 ease-out mt-0.5",
-              optimisticState === 'completed'
-                ? "bg-emerald-500 border-emerald-500 text-white"
-                : "border-muted-foreground/30 hover:border-emerald-500/50"
-            )}
-          >
-            <AnimatePresence>
-              {optimisticState === 'completed' && (
-                <motion.span
-                  initial={reduce ? false : { scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={reduce ? { opacity: 0 } : { scale: 0, opacity: 0 }}
-                  transition={SPRING_SOFT}
-                  className="flex items-center justify-center"
-                >
-                  <Check className="h-3.5 w-3.5 stroke-[3]" />
-                </motion.span>
+      <div className="flex flex-col gap-1 px-3 py-4 sm:p-4">
+        {/* Checkbox + title + actions share the top line; checkbox centered to the title */}
+        <div className="flex items-center gap-3 min-w-0">
+          {!isNew && !isTrashed && (
+            <button
+              onClick={() => toggleTaskState(task)}
+              className={cn(
+                "h-5 w-5 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-all duration-300 ease-out",
+                optimisticState === 'completed'
+                  ? "bg-emerald-500 border-emerald-500 text-white"
+                  : "border-muted-foreground/30 hover:border-emerald-500/50"
               )}
-            </AnimatePresence>
-          </button>
-        )}
-
-        <div className="flex flex-col flex-1 gap-1 min-w-0">
-          {/* Title */}
-          <textarea
-            ref={titleRef}
-            maxLength={250}
-            rows={1}
-            className={`bg-transparent text-[15px] font-semibold focus:outline-none placeholder:text-muted-foreground/50 w-full resize-none overflow-hidden block leading-snug ${task.state === 'completed' || isTrashed ? 'line-through text-muted-foreground' : 'text-card-foreground'}`}
-            placeholder="Task Title..."
-            value={title}
-            readOnly={isTrashed}
-            onChange={(e) => { if (!isTrashed) setTitle(e.target.value); }}
-            onBlur={() => { if (!isNew && !isTrashed) handleUpdate("title", title); }}
-            onKeyDown={(e) => {
-              if (isTrashed) return;
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                if (isNew) handleSaveNew(); else e.currentTarget.blur();
-              }
-            }}
-            autoFocus={isNew}
-          />
-
-          {/* Meta line — due date, due badge, and tag pills share one wrapping row
-              so short tasks stay on a single line (tags add-button is in the action
-              bar). Hidden for trashed tasks. */}
-          {!isTrashed && (
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <TaskMetadataEditor
-                dueDate={dueDate}
-                onDueDateChange={(date) => {
-                  setDueDate(date);
-                  if (!isNew) handleUpdate("due_date", date ? date.toISOString() : null);
-                }}
-                selectedTagIds={selectedTagIds}
-                onSelectedTagIdsChange={setSelectedTagIds}
-                density="compact"
-                dueDateFormat="MMM d, yyyy"
-                showTags={false}
-                className="mt-0 pb-0"
-              />
-              <SelectedTagPills tagIds={selectedTagIds} />
-            </div>
-          )}
-        </div>
-
-        {/* Actions: Link + Tag + Priority + Restore + Trash */}
-        <div className="flex items-center gap-1.5 ml-auto pl-2">
-          {!isTrashed && (
-            <TaskLink
-              link={link}
-              onLinkChange={(value) => {
-                setLink(value);
-                if (!isNew) handleUpdate("link", value.trim() || null);
-              }}
-            />
-          )}
-
-          {!isTrashed && (
-            <TagSelector
-              selectedTagIds={selectedTagIds}
-              onSelectedTagIdsChange={(tagIds) => {
-                setSelectedTagIds(tagIds);
-                if (!isNew) handleUpdate("tags", JSON.stringify(tagIds));
-              }}
-              showSelectedTags={false}
-              triggerContent={<TagIcon className="h-4 w-4" />}
-              triggerClassName="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/70 hover:bg-accent hover:text-foreground transition-colors"
-            />
-          )}
-
-          {!isTrashed && (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className="flex h-6 w-6 items-center justify-center focus:outline-none rounded-md ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                title={`Priority: ${priority}`}
-              >
-                <div
-                  className={cn(
-                    "h-3 w-3 rounded-full shadow-sm ring-2 ring-offset-1 ring-offset-background transition-colors",
-                    PRIORITY_COLORS[priority]?.bg || PRIORITY_COLORS.medium.bg,
-                    PRIORITY_COLORS[priority]?.ring || PRIORITY_COLORS.medium.ring
-                  )}
-                />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-32">
-                {PRIORITY_LEVELS.map((p) => (
-                  <DropdownMenuItem
-                    key={p}
-                    onClick={() => { setPriority(p); if (!isNew) handleUpdate("priority", p); }}
-                    className="flex items-center gap-2 cursor-pointer capitalize"
+            >
+              <AnimatePresence>
+                {optimisticState === 'completed' && (
+                  <motion.span
+                    initial={reduce ? false : { scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={reduce ? { opacity: 0 } : { scale: 0, opacity: 0 }}
+                    transition={SPRING_SOFT}
+                    className="flex items-center justify-center"
                   >
-                    <div className={cn("h-2.5 w-2.5 rounded-full", PRIORITY_COLORS[p].bg)} />
-                    {p}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    <Check className="h-3.5 w-3.5 stroke-[3]" />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </button>
           )}
+            <textarea
+              ref={titleRef}
+              maxLength={250}
+              rows={1}
+              className={`bg-transparent text-[15px] font-semibold focus:outline-none placeholder:text-muted-foreground/50 flex-1 resize-none overflow-hidden block leading-snug ${task.state === 'completed' || isTrashed ? 'line-through text-muted-foreground' : 'text-card-foreground'}`}
+              placeholder="Task Title..."
+              value={title}
+              readOnly={isTrashed}
+              onChange={(e) => { if (!isTrashed) setTitle(e.target.value); }}
+              onBlur={() => { if (!isNew && !isTrashed) handleUpdate("title", title); }}
+              onKeyDown={(e) => {
+                if (isTrashed) return;
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (isNew) handleSaveNew(); else e.currentTarget.blur();
+                }
+              }}
+              autoFocus={isNew}
+            />
 
-          {isTrashed && !isNew && (
-            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground/50 hover:text-emerald-600 shrink-0 transition-colors" onClick={restoreTask} title="Restore task">
-              <Undo2 className="h-4 w-4" />
-            </Button>
-          )}
+            {/* Actions: Link + Tag + Priority + Restore + Trash */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {!isTrashed && (
+                <TaskLink
+                  link={link}
+                  onLinkChange={(value) => {
+                    setLink(value);
+                    if (!isNew) handleUpdate("link", value.trim() || null);
+                  }}
+                />
+              )}
 
-          {!isNew && (
-            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground/50 hover:text-destructive shrink-0 transition-colors" onClick={() => trashTask(task)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+              {!isTrashed && (
+                <TagSelector
+                  selectedTagIds={selectedTagIds}
+                  onSelectedTagIdsChange={(tagIds) => {
+                    setSelectedTagIds(tagIds);
+                    if (!isNew) handleUpdate("tags", JSON.stringify(tagIds));
+                  }}
+                  showSelectedTags={false}
+                  triggerContent={<TagIcon className="h-4 w-4" />}
+                  triggerClassName="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/70 hover:bg-accent hover:text-foreground transition-colors"
+                />
+              )}
+
+              {!isTrashed && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className="flex h-6 w-6 items-center justify-center focus:outline-none rounded-md ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    title={`Priority: ${priority}`}
+                  >
+                    <div
+                      className={cn(
+                        "h-3 w-3 rounded-full shadow-sm ring-2 ring-offset-1 ring-offset-background transition-colors",
+                        PRIORITY_COLORS[priority]?.bg || PRIORITY_COLORS.medium.bg,
+                        PRIORITY_COLORS[priority]?.ring || PRIORITY_COLORS.medium.ring
+                      )}
+                    />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-32">
+                    {PRIORITY_LEVELS.map((p) => (
+                      <DropdownMenuItem
+                        key={p}
+                        onClick={() => { setPriority(p); if (!isNew) handleUpdate("priority", p); }}
+                        className="flex items-center gap-2 cursor-pointer capitalize"
+                      >
+                        <div className={cn("h-2.5 w-2.5 rounded-full", PRIORITY_COLORS[p].bg)} />
+                        {p}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              {isTrashed && !isNew && (
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground/50 hover:text-emerald-600 shrink-0 transition-colors" onClick={restoreTask} title="Restore task">
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+              )}
+
+              {!isNew && (
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground/50 hover:text-destructive shrink-0 transition-colors" onClick={() => trashTask(task)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Meta line — due date, due badge, and tag pills share one wrapping row,
+              now on their own full-width line below the title/actions so tags stretch
+              the whole card. Hidden for trashed tasks. */}
+        {!isTrashed && (
+          <div className={cn("flex flex-wrap items-center gap-x-2 gap-y-1", !isNew && "pl-8")}>
+            <TaskMetadataEditor
+              dueDate={dueDate}
+              onDueDateChange={(date) => {
+                setDueDate(date);
+                if (!isNew) handleUpdate("due_date", date ? date.toISOString() : null);
+              }}
+              selectedTagIds={selectedTagIds}
+              onSelectedTagIdsChange={setSelectedTagIds}
+              density="compact"
+              dueDateFormat="MMM d, yyyy"
+              showTags={false}
+              className="mt-0 pb-0"
+            />
+            <SelectedTagPills tagIds={selectedTagIds} />
+          </div>
+        )}
       </div>
 
       {/* Subtasks Section */}

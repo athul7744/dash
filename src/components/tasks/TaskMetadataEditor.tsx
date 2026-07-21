@@ -56,7 +56,7 @@ export function TaskMetadataEditor({
         <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
           <PopoverTrigger
             className={cn(
-              "flex items-center justify-start text-left font-normal hover:bg-accent hover:text-accent-foreground rounded-md transition-colors shrink-0 whitespace-nowrap",
+              "flex items-center justify-start text-left font-normal leading-none hover:bg-accent hover:text-accent-foreground rounded-md transition-colors shrink-0 whitespace-nowrap",
               variant.dueTrigger,
               !dueDate && "text-muted-foreground"
             )}

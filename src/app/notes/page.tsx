@@ -492,19 +492,19 @@ export default function NotesPage() {
               <button
                 type="button"
                 onClick={() => startTransition(() => { router.push("/notes?view=graph"); })}
-                className="inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-medium transition-colors hover:bg-accent hover:text-emerald-600 dark:hover:text-emerald-400"
+                className="inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
-                <Network className="h-3.5 w-3.5" />
+                <Network className="h-4 w-4" />
                 <span className="hidden sm:inline">Graph</span>
               </button>
               <button
                 type="button"
                 onClick={handleCreateStarterPage}
                 disabled={isCreatingPage}
-                className="inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-medium transition-colors hover:bg-accent hover:text-amber-600 dark:hover:text-amber-400 disabled:pointer-events-none disabled:opacity-50"
+                className="inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-amber-600 dark:hover:text-amber-400 disabled:pointer-events-none disabled:opacity-50"
               >
-                <Plus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{isCreatingPage ? "Creating…" : "Page"}</span>
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">{isCreatingPage ? "Creating…" : "New page"}</span>
               </button>
             </>
           ) : undefined}
@@ -709,7 +709,7 @@ export default function NotesPage() {
             aria-label="Create new page"
           >
             <Plus className="h-4 w-4 text-amber-700 dark:text-amber-400" />
-            Add page
+            New page
           </button>
         ) : navStack.stack.length > 0 && !isDisplayingOverview ? (
           <NotesPageBreadcrumb

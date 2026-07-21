@@ -150,10 +150,14 @@ export default function Home() {
         actions={
           <>
             <ManageTagsDialog />
-            <Button onClick={handleAddNewTask} variant="ghost" size="sm" className="gap-1.5 rounded-full text-xs h-8 px-2.5 hover:text-emerald-600 dark:hover:text-emerald-400">
-              <Plus className="h-3.5 w-3.5" />
-              <span>Task</span>
-            </Button>
+            <button
+              type="button"
+              onClick={handleAddNewTask}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-indigo-600 dark:hover:text-indigo-400"
+            >
+              <Plus className="h-4 w-4" />
+              New task
+            </button>
           </>
         }
       >
@@ -318,7 +322,7 @@ export default function Home() {
               <p className="text-muted-foreground text-sm">No tasks match your filters</p>
               <Button onClick={handleAddNewTask} variant="ghost" className="gap-2 mt-4 text-primary hidden sm:inline-flex">
                 <Plus className="h-4 w-4" />
-                Add Task
+                New task
               </Button>
             </div>
           ) : (
@@ -388,7 +392,7 @@ export default function Home() {
             className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground"
           >
             <Plus className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-            Add task
+            New task
           </button>
         }
       />

@@ -136,7 +136,7 @@ export default function BookmarksPage() {
             className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-sky-600 dark:hover:text-sky-400"
           >
             <Plus className="h-4 w-4" />
-            Add bookmark
+            New bookmark
           </button>
         }
       />
@@ -223,7 +223,7 @@ export default function BookmarksPage() {
             className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground"
           >
             <Plus className="h-4 w-4 text-sky-600 dark:text-sky-400" />
-            Add bookmark
+            New bookmark
           </button>
         }
       />

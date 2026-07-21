@@ -38,7 +38,7 @@ export default function QuotesPage() {
             className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-rose-600 dark:hover:text-rose-400"
           >
             <Plus className="h-4 w-4" />
-            Add quote
+            New quote
           </button>
         }
       />
@@ -98,7 +98,7 @@ export default function QuotesPage() {
             className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground"
           >
             <Plus className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-            Add quote
+            New quote
           </button>
         }
       />

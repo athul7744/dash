@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PowerSyncProvider } from "@/components/powersync-provider";
 import { CaptureProvider } from "@/components/capture/CaptureProvider";
+import { CommandPaletteProvider } from "@/components/command/CommandPaletteProvider";
 import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -74,12 +75,14 @@ export default function RootLayout({
         >
           <PowerSyncProvider>
             <CaptureProvider>
-              {/* App Shell Layout structure will be placed here or inside individual pages */}
-              <div className="flex flex-col md:flex-row h-screen overflow-hidden">
-                <main className="flex-1 overflow-y-auto relative">
-                  {children}
-                </main>
-              </div>
+              <CommandPaletteProvider>
+                {/* App Shell Layout structure will be placed here or inside individual pages */}
+                <div className="flex flex-col md:flex-row h-screen overflow-hidden">
+                  <main className="flex-1 overflow-y-auto relative">
+                    {children}
+                  </main>
+                </div>
+              </CommandPaletteProvider>
             </CaptureProvider>
           </PowerSyncProvider>
         </ThemeProvider>

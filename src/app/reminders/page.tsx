@@ -8,6 +8,7 @@ import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { RemindersLoadingSkeleton } from "@/components/skeletons/RemindersLoadingSkeleton";
 import { useReminderMaterializer, useReminders } from "@/hooks/use-reminders";
+import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { createReminder } from "@/lib/reminders/reminders";
 import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
@@ -25,6 +26,9 @@ export default function RemindersPage() {
     const id = await createReminder();
     setJustCreatedId(id);
   };
+
+  // Command-palette "New reminder" (?new=1) adds a fresh reminder on arrival.
+  useNewItemParam(addReminder, !isLoading);
 
   if (isLoading) return <RemindersLoadingSkeleton />;
 

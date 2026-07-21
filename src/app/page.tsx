@@ -13,7 +13,7 @@ import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { DashboardBookmarks } from "@/components/dashboard/DashboardBookmarks";
 import { DashboardJournal } from "@/components/dashboard/DashboardJournal";
 import { DashboardQuote } from "@/components/dashboard/DashboardQuote";
-import { GlobalSearch } from "@/components/dashboard/GlobalSearch";
+import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
 import { TodayTasks } from "@/components/dashboard/TodayTasks";
 import { TodayTracking } from "@/components/dashboard/TodayTracking";
 import { Reveal } from "@/components/motion/Reveal";
@@ -22,8 +22,8 @@ import { useReminderMaterializer } from "@/hooks/use-reminders";
 
 export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const openCapture = useCapture();
+  const openSearch = useCommandPalette();
   const { greeting, subline, date } = useGreeting();
 
   // Turn any due reminders into tasks when the dashboard opens (no server cron).
@@ -66,9 +66,9 @@ export default function Home() {
           </motion.div>
           <motion.button
             type="button"
-            onClick={() => setSearchOpen(true)}
+            onClick={openSearch}
             title="Search"
-            aria-label="Search tasks and notes"
+            aria-label="Search everything"
             style={{ opacity: compactOpacity, pointerEvents: compactPointer }}
             className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
@@ -100,7 +100,7 @@ export default function Home() {
         style={{ opacity: heroOpacity, y: heroY, scale: heroScale, pointerEvents: heroPointer }}
         className="flex min-h-[calc(100svh-3.5rem)] snap-start items-center justify-center px-[var(--app-gutter-x)] pb-8"
       >
-        <DashboardHero greeting={greeting} subline={subline} date={date} onOpenSearch={() => setSearchOpen(true)} />
+        <DashboardHero greeting={greeting} subline={subline} date={date} onOpenSearch={openSearch} />
       </motion.div>
 
       {/* Reveal — quiet, borderless, fades in as the hero merges to the top bar */}
@@ -123,7 +123,6 @@ export default function Home() {
       {/* Apps — all apps in a bottom pill, one click each */}
       <AppsFab />
 
-      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );

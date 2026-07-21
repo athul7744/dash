@@ -19,6 +19,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { TasksContentSkeleton, TasksFilterRowSkeleton } from "../../components/tasks/TasksPageSkeleton";
 import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
+import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { hasPendingWrites, flushAllUpdates } from "@/lib/shared/debounced-update";
 
 const tasksApp = getApp("tasks");
@@ -124,6 +125,9 @@ export default function Home() {
   const handleCancelNewTask = (id: string) => {
     setNewTasks(prev => prev.filter(t => t.id !== id));
   };
+
+  // Command-palette "New task" (/tasks?new=1) opens a fresh draft on arrival.
+  useNewItemParam(handleAddNewTask, true);
 
   // Grouping Logic
   const topLevelTasks = allTasks.filter(t => !t.parent_id);

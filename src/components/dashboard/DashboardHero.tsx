@@ -53,11 +53,11 @@ export function DashboardHero({
       <button
         type="button"
         onClick={onOpenSearch}
-        aria-label="Search tasks and notes"
+        aria-label="Search everything"
         className="flex h-12 w-full max-w-xs items-center gap-3 rounded-full border border-border/70 bg-card/95 px-5 text-left text-sm text-muted-foreground shadow-[0_10px_30px_-24px_rgba(15,23,42,0.6)] transition-colors hover:border-border hover:text-foreground sm:max-w-md lg:max-w-lg"
       >
         <Search className="h-4 w-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">Search tasks &amp; notes</span>
+        <span className="min-w-0 flex-1 truncate">Search everything</span>
         <span className="hidden rounded-md border border-border px-1.5 py-0.5 text-[11px] font-medium sm:inline-flex">⌘K</span>
       </button>
 

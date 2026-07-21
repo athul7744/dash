@@ -8,7 +8,7 @@ import type { Task } from "@/lib/powersync/AppSchema";
 import { getApp } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 
-import { TaskPopup } from "./TaskPopup";
+import { EntityPopup } from "@/components/command/EntityPopup";
 
 type TaskRow = Task & { id: string };
 /** The nudge kinds HeroAction renders (mood variants are handled by the hero). */
@@ -55,13 +55,13 @@ function config(kind: ActionKind, topTask: TaskRow | null): {
  */
 export function HeroAction({ kind, topTask }: { kind: ActionKind; topTask: TaskRow | null }) {
   const router = useRouter();
-  const [openTask, setOpenTask] = useState<TaskRow | null>(null);
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const { icon: Icon, iconBg, iconText, label, sub } = config(kind, topTask);
 
   const handleClick = () => {
     switch (kind) {
       case "task":
-        if (topTask) setOpenTask(topTask);
+        if (topTask) setOpenTaskId(topTask.id);
         else scrollToId("today-tasks");
         break;
       case "plan":
@@ -93,7 +93,10 @@ export function HeroAction({ kind, topTask }: { kind: ActionKind; topTask: TaskR
         <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
       </button>
 
-      <TaskPopup task={openTask} onOpenChange={(next) => { if (!next) setOpenTask(null); }} />
+      <EntityPopup
+        item={openTaskId ? { kind: "task", id: openTaskId } : null}
+        onOpenChange={(next) => { if (!next) setOpenTaskId(null); }}
+      />
     </>
   );
 }

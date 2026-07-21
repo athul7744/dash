@@ -26,6 +26,7 @@ import { useAllNotePages, useFavoriteNotePages, useNoteCounts, useRecentNotePage
 import { createStarterPage, normalizeNotePageTitle, updateNotePageProperties } from "@/lib/notes/notes";
 import { flushAllBlockDocumentPersisters } from "@/lib/notes/editor/block-persister";
 import { getApp, HEADER_ACTION_BASE, HEADER_ACTION_NEUTRAL } from "@/lib/shared/apps";
+import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { cn } from "@/lib/shared/utils";
 import { flushAllUpdates, hasPendingWrites } from "@/lib/shared/debounced-update";
 import { NotesDetailsRail } from "@/components/notes/page/NotesDetailsRail";
@@ -271,6 +272,9 @@ export default function NotesPage() {
     setPageSearchQuery("");
     setIsPageSearchOpen(true);
   };
+
+  // Command-palette "New note" (/notes?new=1) opens the create-page search.
+  useNewItemParam(handleCreateStarterPage, true);
 
   const handleSelectPageFromSearch = (pageId: string) => {
     setIsPageSearchOpen(false);

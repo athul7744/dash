@@ -9,6 +9,7 @@ import { DashboardQuote } from "@/components/dashboard/DashboardQuote";
 import { QuoteCard } from "@/components/quotes/QuoteCard";
 import { QuotesLoadingSkeleton } from "@/components/skeletons/QuotesLoadingSkeleton";
 import { useQuotes } from "@/hooks/use-quotes";
+import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { createQuote } from "@/lib/quotes/quotes";
 import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
@@ -23,6 +24,9 @@ export default function QuotesPage() {
     const id = await createQuote();
     setJustCreatedId(id);
   };
+
+  // Command-palette "New quote" (?new=1) adds a fresh quote on arrival.
+  useNewItemParam(addQuote, !isLoading);
 
   // Show the route skeleton until the first real result lands, so there's no
   // blank gap or empty-state flash between the boot skeleton and content.

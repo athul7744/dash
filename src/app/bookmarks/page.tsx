@@ -10,6 +10,7 @@ import { BookmarkCard } from "@/components/bookmarks/BookmarkCard";
 import { DashboardBookmarks } from "@/components/dashboard/DashboardBookmarks";
 import { BookmarksLoadingSkeleton } from "@/components/skeletons/BookmarksLoadingSkeleton";
 import { useBookmarks } from "@/hooks/use-bookmarks";
+import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { createBookmark } from "@/lib/bookmarks/bookmarks";
 import { refreshBookmarkTitle } from "@/lib/bookmarks/fetch-metadata";
 import { Tag } from "@/lib/powersync/AppSchema";
@@ -54,6 +55,9 @@ export default function BookmarksPage() {
   };
 
   const focusInput = () => inputRef.current?.focus();
+
+  // Command-palette "New bookmark" (?new=1) focuses the add field on arrival.
+  useNewItemParam(focusInput, !isLoading);
 
   // Tags that are actually used, for a compact filter row.
   const usedTags = useMemo(() => {

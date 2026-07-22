@@ -13,8 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LinkedFrom } from "@/components/links/LinkedFrom";
+import { RefField } from "@/components/links/RefField";
 import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
 import { TagSelector } from "@/components/tags/TagSelector";
+import { reconcileEntityRefs } from "@/lib/links/links";
 import {
   deleteReminder,
   toggleActive,
@@ -56,12 +59,6 @@ export function ReminderCard({
   const [dateOpen, setDateOpen] = useState(false);
   const focusedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const titleRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (autoFocus) titleRef.current?.focus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Reconcile remote (synced) changes only when this card isn't being edited.
   useEffect(() => {
@@ -82,10 +79,19 @@ export function ReminderCard({
     timerRef.current = setTimeout(() => void updateReminder(reminder.id, patch), SAVE_DEBOUNCE_MS);
   };
 
+  const scheduleTitle = (next: string) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      void updateReminder(reminder.id, { title: next });
+      void reconcileEntityRefs(reminder.id, [next]);
+    }, SAVE_DEBOUNCE_MS);
+  };
+
   const flushTitle = () => {
     focusedRef.current = false;
     if (timerRef.current) clearTimeout(timerRef.current);
     void updateReminder(reminder.id, { title, daysBefore: clampDays(daysBefore) });
+    void reconcileEntityRefs(reminder.id, [title]);
   };
 
   const saveSchedule = (schedule: ReminderSchedule) => void updateReminder(reminder.id, { schedule });
@@ -159,20 +165,24 @@ export function ReminderCard({
         </Select>
 
         <div className="min-w-0 flex-1 pr-14">
-          <input
-            ref={titleRef}
+          <RefField
             value={title}
+            autoFocus={autoFocus}
+            singleLine
+            excludeId={reminder.id}
+            ariaLabel="Reminder title"
+            placeholder="Task title…"
             onFocus={() => {
               focusedRef.current = true;
             }}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              scheduleSave({ title: e.target.value });
+            onChange={(v) => {
+              setTitle(v);
+              scheduleTitle(v);
             }}
+            onCommit={flushTitle}
             onBlur={flushTitle}
-            placeholder="Task title…"
             className={cn(
-              "w-full bg-transparent text-[15px] font-semibold text-card-foreground outline-none placeholder:text-muted-foreground/50",
+              "w-full bg-transparent text-[15px] font-semibold text-card-foreground",
               !reminder.active && "line-through",
             )}
           />
@@ -291,6 +301,8 @@ export function ReminderCard({
           </div>
 
           <SelectedTagPills tagIds={reminder.tags} className="mt-3" />
+
+          <LinkedFrom targetId={reminder.id} className="mt-3" />
 
           <p className="mt-3 text-xs text-muted-foreground/70">
             {reminder.active ? (next ? `Next task on ${format(next, "PP")}` : "No upcoming occurrence") : "Paused"}

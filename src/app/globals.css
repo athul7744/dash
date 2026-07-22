@@ -296,12 +296,51 @@ body[data-display-font="bricolage"] {
 }
 
 .note-ref-token {
-  display: inline;
-  border-radius: 0.55rem;
-  padding: 0.02rem 0.24rem;
-  font-weight: 600;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
+  font-weight: 550;
+}
+
+/* RefField (card link inputs): empty-state placeholder via a node decoration. */
+.ref-field .ProseMirror .is-empty::before,
+.ref-field .ProseMirror.is-empty::before {
+  content: attr(data-placeholder);
+  color: color-mix(in oklab, var(--color-muted-foreground) 80%, transparent);
+  pointer-events: none;
+  height: 0;
+  float: left;
+}
+
+/* Reference chip node view — "link underline": no fill, accent glyph + text,
+   dotted underline in the entity's accent (driven by an inline `--chip`). */
+.entity-ref-chip {
+  /* Inline (not flex) so the label sits on the text baseline; the glyph is
+     nudged to meet it. Underline lives on the label only, never the icon. */
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 550;
+  color: color-mix(in oklab, var(--chip, var(--color-primary)) 74%, var(--color-foreground));
+}
+.entity-ref-chip > svg {
+  display: inline-block;
+  vertical-align: -0.15em;
+  margin-right: 0.28em;
+}
+.entity-ref-chip > span {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: color-mix(in oklab, var(--chip, var(--color-primary)) 55%, transparent);
+  text-underline-offset: 3px;
+}
+.entity-ref-chip:hover > span {
+  text-decoration-style: solid;
+}
+.entity-ref-chip:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.ProseMirror-selectednode .entity-ref-chip > span,
+.entity-ref-chip-wrap.ProseMirror-selectednode .entity-ref-chip > span {
+  text-decoration-style: solid;
 }
 
 /* Links in the editor: look like links (they don't open on click — the
@@ -441,30 +480,25 @@ body[data-display-font="bricolage"] {
 }
 
 .note-ref-token-page {
-  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
-  color: color-mix(in oklab, var(--color-primary) 80%, var(--color-foreground));
+  color: color-mix(in oklab, var(--color-primary) 78%, var(--color-foreground));
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: color-mix(in oklab, var(--color-primary) 55%, transparent);
+  text-underline-offset: 3px;
   cursor: pointer;
 }
 
-.dark .note-ref-token-page {
-  background: color-mix(in oklab, var(--color-primary) 24%, transparent);
-}
-
 .note-date-token {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25em;
-  /* Low-emphasis chip (Notion/Linear style): small radius, muted low-chroma
-     slate — legible, calm, and distinct from the vivid indigo [[page refs]]
-     without the loud yellow. */
-  border-radius: 0.35em;
-  padding: 0.02em 0.34em;
-  font-size: 0.9em;
+  /* "Link underline" register in tracker teal — dates are time, so they wear the
+     time app's colour and match the entity chips' link treatment (no fill).
+     Inline (not flex) so the date text stays on the baseline. */
   font-weight: 500;
   white-space: nowrap;
-  background: color-mix(in oklab, var(--color-slate-500) 12%, transparent);
-  color: color-mix(in oklab, var(--color-slate-500) 48%, var(--color-foreground));
-  border: 1px solid color-mix(in oklab, var(--color-slate-500) 20%, transparent);
+  color: color-mix(in oklab, var(--color-teal-500) 76%, var(--color-foreground));
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: color-mix(in oklab, var(--color-teal-500) 55%, transparent);
+  text-underline-offset: 3px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
@@ -472,8 +506,10 @@ body[data-display-font="bricolage"] {
 .note-date-token::before {
   content: "";
   display: inline-block;
-  width: 0.85em;
-  height: 0.85em;
+  width: 0.9em;
+  height: 0.9em;
+  vertical-align: -0.15em;
+  margin-right: 0.28em;
   background: currentColor;
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4'/%3E%3Cpath d='M16 2v4'/%3E%3Crect width='18' height='18' x='3' y='4' rx='2'/%3E%3Cpath d='M3 10h18'/%3E%3C/svg%3E");
   mask-size: contain;
@@ -481,13 +517,11 @@ body[data-display-font="bricolage"] {
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4'/%3E%3Cpath d='M16 2v4'/%3E%3Crect width='18' height='18' x='3' y='4' rx='2'/%3E%3Cpath d='M3 10h18'/%3E%3C/svg%3E");
   -webkit-mask-size: contain;
   -webkit-mask-repeat: no-repeat;
-  flex-shrink: 0;
 }
 
 .dark .note-date-token {
-  background: color-mix(in oklab, var(--color-slate-400) 14%, transparent);
-  color: color-mix(in oklab, var(--color-slate-300) 72%, var(--color-foreground));
-  border-color: color-mix(in oklab, var(--color-slate-400) 26%, transparent);
+  color: color-mix(in oklab, var(--color-teal-400) 82%, var(--color-foreground));
+  text-decoration-color: color-mix(in oklab, var(--color-teal-400) 55%, transparent);
 }
 
 /* Hide the `{`/`}` delimiters that mark a date token in the text. */

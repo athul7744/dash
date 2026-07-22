@@ -59,22 +59,30 @@ export const pagesTable = new Table({
   updated_at: column.text
 });
 
-export const blocksTable = new Table({
-  user_id: column.text,
-  page_id: column.text,
-  parent_block_id: column.text,
-  type: column.text,
-  content: column.text, // stored as JSON string
-  sort_rank: column.text,
-  updated_at: column.text
-});
+export const blocksTable = new Table(
+  {
+    user_id: column.text,
+    page_id: column.text,
+    parent_block_id: column.text,
+    type: column.text,
+    content: column.text, // stored as JSON string
+    sort_rank: column.text,
+    updated_at: column.text
+  },
+  // Hot path: "all items of one app" (WHERE page_id = ? AND type = ?) and note-block loads by page.
+  { indexes: { page_type: ['page_id', 'type'] } }
+);
 
-export const edgesTable = new Table({
-  source_block_id: column.text,
-  target_id: column.text,
-  user_id: column.text,
-  type: column.text
-});
+export const edgesTable = new Table(
+  {
+    source_block_id: column.text, // generic source entity id (block id or task id)
+    target_id: column.text, // generic target entity id
+    user_id: column.text,
+    type: column.text // 'page_ref' (legacy note wikilink) | 'ref' (id-bound any-entity link)
+  },
+  // Outbound links (WHERE source_block_id = ?) and backlinks (WHERE target_id = ?).
+  { indexes: { source: ['source_block_id'], target: ['target_id'] } }
+);
 
 export const attachmentsTable = new Table({
   user_id: column.text,

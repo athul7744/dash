@@ -98,12 +98,7 @@ function SingleBlockEditorInner({
       <BlockMenuLayer editor={editor} />
       <TableToolbarLayer editor={editor} containerRef={surfaceRef} />
       {enableSlash ? <SlashMenuLayer editor={editor} containerRef={surfaceRef} /> : null}
-      <RefMenuLayer
-        editor={editor}
-        containerRef={surfaceRef}
-        pageTitles={handlers?.notePageTitles ?? []}
-        emojiByTitle={handlers?.notePageEmojiByTitle}
-      />
+      <RefMenuLayer editor={editor} excludeId={pageId} />
     </div>
   );
 }

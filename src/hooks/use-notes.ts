@@ -20,7 +20,6 @@ export type LinkedNoteReferenceRow = {
 
 const EMPTY_PAGE_QUERY = "SELECT id, user_id, title, properties, created_at, updated_at FROM pages WHERE 1 = 0";
 const EMPTY_BLOCKS_QUERY = "SELECT id, user_id, page_id, parent_block_id, type, content, sort_rank, updated_at FROM blocks WHERE 1 = 0";
-const EMPTY_EDGES_QUERY = "SELECT id, source_block_id, target_id, user_id, type FROM edges WHERE 1 = 0";
 const EMPTY_ATTACHMENTS_QUERY = "SELECT id, user_id, page_id, block_id, file_path, sync_state FROM attachments WHERE 1 = 0";
 const EMPTY_LINKED_REFS_QUERY = [
   "SELECT DISTINCT",
@@ -177,7 +176,9 @@ export function useLinkedNoteReferences(pageId?: string | null) {
         "FROM edges e",
         "JOIN blocks b ON b.id = e.source_block_id",
         "JOIN pages p ON p.id = b.page_id",
-        "WHERE e.type = 'page_ref' AND e.target_id = ?",
+        // Note → note only (both legacy `page_ref` and id-bound `ref`). Cross-app
+        // sources (tasks/bookmarks/…) surface via the <Backlinks> chip row.
+        "WHERE e.type IN ('ref', 'page_ref') AND e.target_id = ? AND json_extract(p.properties, '$.kind') IS NULL",
         "ORDER BY b.updated_at DESC, e.source_block_id DESC",
       ].join(" ")
     : EMPTY_LINKED_REFS_QUERY;

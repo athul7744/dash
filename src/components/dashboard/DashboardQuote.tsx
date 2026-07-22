@@ -8,6 +8,7 @@ import { ArrowRight, Shuffle } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
 import { useQuotes } from "@/hooks/use-quotes";
 import { pickDailyQuote } from "@/lib/quotes/daily";
+import { stripRefs } from "@/lib/links/tokens";
 import { getApp } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 
@@ -68,7 +69,7 @@ export function DashboardQuote({
               &ldquo;
             </span>
             <blockquote className="whitespace-pre-line text-balance font-serif text-xl leading-relaxed text-foreground sm:text-2xl sm:leading-[1.5]">
-              {current.text}
+              {stripRefs(current.text)}
             </blockquote>
             {current.author ? (
               <figcaption className="mt-6 text-sm italic text-muted-foreground">&mdash; {current.author}</figcaption>
@@ -96,7 +97,7 @@ export function DashboardQuote({
 
         <figure className="rounded-2xl border border-border/65 bg-card/50 p-6 sm:p-8">
           <blockquote className="whitespace-pre-line font-serif text-xl leading-relaxed text-foreground sm:text-2xl">
-            {current.text}
+            {stripRefs(current.text)}
           </blockquote>
           {current.author ? (
             <figcaption className="mt-3 text-sm italic text-muted-foreground">&mdash; {current.author}</figcaption>

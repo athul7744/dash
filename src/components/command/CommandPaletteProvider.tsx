@@ -18,6 +18,7 @@ import { useNotesPageDerivedState } from "@/components/notes/page/useNotesPageDe
 import { CommandEmpty, CommandGroup, CommandItem, CommandShortcut } from "@/components/ui/command";
 import { SearchPopup } from "@/components/ui/search-popup";
 import { EntityPopup, type EntityRef } from "@/components/command/EntityPopup";
+import { OPEN_ENTITY_EVENT, type OpenEntityDetail } from "@/components/links/EntityRefNode";
 import { useCapture } from "@/components/capture/CaptureProvider";
 import { useAllNotePages } from "@/hooks/use-notes";
 import { useBookmarks } from "@/hooks/use-bookmarks";
@@ -25,6 +26,7 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useReminders } from "@/hooks/use-reminders";
 import type { Task } from "@/lib/powersync/AppSchema";
 import { APPS, getApp } from "@/lib/shared/apps";
+import { stripRefs } from "@/lib/links/tokens";
 import { cn } from "@/lib/shared/utils";
 import { getDueDateInfo, getLinkHost } from "@/lib/tasks/tasks";
 
@@ -80,6 +82,22 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [openPalette]);
+
+  // A reference chip anywhere dispatches OPEN_ENTITY_EVENT; open its target
+  // (notes navigate, the other four open in the shared popup).
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const detail = (event as CustomEvent<OpenEntityDetail>).detail;
+      if (!detail?.id) return;
+      if (detail.kind === "note") {
+        router.push(`/notes?page=${detail.id}`);
+        return;
+      }
+      setSelected({ kind: detail.kind, id: detail.id });
+    };
+    window.addEventListener(OPEN_ENTITY_EVENT, onOpen as EventListener);
+    return () => window.removeEventListener(OPEN_ENTITY_EVENT, onOpen as EventListener);
+  }, [router]);
 
   const navigate = useCallback(
     (href: string) => {
@@ -294,7 +312,7 @@ function CommandPaletteResults({
                 className="items-center gap-3 rounded-lg px-3 py-2"
               >
                 <AppChip appId="tasks" />
-                <span className="min-w-0 flex-1 truncate text-sm text-foreground">{task.title || "Untitled task"}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-foreground">{stripRefs(task.title || "") || "Untitled task"}</span>
                 {showChip ? (
                   <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px]", info.bg, info.text)}>{info.label}</span>
                 ) : null}
@@ -355,7 +373,7 @@ function CommandPaletteResults({
             >
               <AppChip appId="quotes" />
               <div className="min-w-0 flex-1">
-                <div className="line-clamp-1 text-sm text-foreground">{qt.text || "Untitled quote"}</div>
+                <div className="line-clamp-1 text-sm text-foreground">{stripRefs(qt.text || "") || "Untitled quote"}</div>
                 {qt.author ? <div className="mt-0.5 truncate text-xs text-muted-foreground">— {qt.author}</div> : null}
               </div>
             </CommandItem>
@@ -373,7 +391,7 @@ function CommandPaletteResults({
               className="items-center gap-3 rounded-lg px-3 py-2"
             >
               <AppChip appId="reminders" />
-              <span className="min-w-0 flex-1 truncate text-sm text-foreground">{r.title || "Untitled reminder"}</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-foreground">{stripRefs(r.title || "") || "Untitled reminder"}</span>
             </CommandItem>
           ))}
         </CommandGroup>

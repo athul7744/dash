@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, NotebookPen, type LucideIcon } from "lucide-react";
 
 import type { Task } from "@/lib/powersync/AppSchema";
+import { stripRefs } from "@/lib/links/tokens";
 import { getApp } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 
@@ -38,7 +39,7 @@ function config(kind: ActionKind, topTask: TaskRow | null): {
 } {
   switch (kind) {
     case "task":
-      return { icon: TASKS.icon, iconBg: TASKS.accent.iconBg, iconText: TASKS.accent.iconText, label: "Do this next", sub: topTask?.title || "Untitled task" };
+      return { icon: TASKS.icon, iconBg: TASKS.accent.iconBg, iconText: TASKS.accent.iconText, label: "Do this next", sub: stripRefs(topTask?.title || "") || "Untitled task" };
     case "plan":
       return { icon: TASKS.icon, iconBg: TASKS.accent.iconBg, iconText: TASKS.accent.iconText, label: "Plan your day", sub: null };
     case "track":

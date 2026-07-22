@@ -1,6 +1,7 @@
 import { LexoRank } from "lexorank";
-import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
+import { reconcileEntityRefs } from "@/lib/links/links";
 import { createNoteDocumentFromText, extractNoteText, serializeNoteDocument } from "@/lib/notes/notes-content";
 import { systemPageId, type SystemPageKind } from "@/lib/notes/system-pages";
 import { db } from "@/lib/powersync/db";
@@ -39,22 +40,6 @@ interface CreateBlockInput {
   sortRank: string;
 }
 
-interface ReplaceEdgesInput {
-  sourceBlockId: string;
-  edges: Array<{
-    id?: string;
-    targetId: string;
-    type: string;
-  }>;
-}
-
-const EDGE_ID_NAMESPACE = "9b17a01f-3454-4db0-8f39-7f093ac0f56b";
-
-type PageLookupRow = {
-  id: string;
-  title: string | null;
-};
-
 type NotePageTitleLookupRow = {
   id: string;
   title: string | null;
@@ -71,10 +56,6 @@ function toNullableOwner(ownerId?: string | null) {
 
 export function normalizeNotePageTitle(value: string | null | undefined) {
   return (value ?? "").trim().replace(/\s+/g, " ");
-}
-
-function normalizeReferenceToken(value: string) {
-  return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 function extractPlainText(value: JsonValue | undefined) {
@@ -128,47 +109,8 @@ async function insertNoteBlocksImmediately(inputs: CreateBlockInput[]) {
 }
 
 
-function parseReferenceTokens(text: string) {
-  const pageTitles = new Set<string>();
-
-  for (const match of text.matchAll(/\[\[([^\]]+)\]\]/g)) {
-    const normalized = normalizeReferenceToken(match[1] ?? "");
-    if (normalized) {
-      pageTitles.add(normalized);
-    }
-  }
-
-  return {
-    pageTitles: [...pageTitles],
-  };
-}
-
 export async function reconcileNoteBlockEdges(blockId: string, content: JsonValue | undefined, ctx?: DbContext) {
-  const execCtx = ctx ?? db;
-  const text = extractPlainText(content);
-  const references = parseReferenceTokens(text);
-
-  const pageRows = references.pageTitles.length > 0
-    ? await execCtx.getAll<PageLookupRow>("SELECT id, title FROM pages")
-    : [];
-
-  const pageIdByTitle = new Map<string, string>();
-  for (const row of pageRows) {
-    const normalizedTitle = normalizeReferenceToken(row.title ?? "");
-    if (normalizedTitle && !pageIdByTitle.has(normalizedTitle)) {
-      pageIdByTitle.set(normalizedTitle, row.id);
-    }
-  }
-
-  const edges = references.pageTitles.flatMap((title) => {
-    const targetId = pageIdByTitle.get(title);
-    return targetId ? [{ targetId, type: "page_ref" }] : [];
-  });
-
-  await replaceNoteEdges({
-    sourceBlockId: blockId,
-    edges,
-  }, execCtx);
+  await reconcileEntityRefs(blockId, [extractPlainText(content)], ctx ?? db);
 }
 
 /** @deprecated Edge reconciles are now synchronous during block flush. Always returns false. */
@@ -235,72 +177,9 @@ export async function deleteNotePage(pageId: string) {
   await db.execute(`DELETE FROM attachments WHERE block_id IN (SELECT id FROM blocks WHERE page_id = ?)`, [pageId]);
   await db.execute(`DELETE FROM attachments WHERE page_id = ?`, [pageId]);
   await db.execute(`DELETE FROM edges WHERE source_block_id IN (SELECT id FROM blocks WHERE page_id = ?)`, [pageId]);
-  await db.execute(`DELETE FROM edges WHERE target_id = ? AND type = 'page_ref'`, [pageId]);
+  await db.execute(`DELETE FROM edges WHERE target_id = ? AND type IN ('ref', 'page_ref')`, [pageId]);
   await db.execute(`DELETE FROM blocks WHERE page_id = ?`, [pageId]);
   await db.execute(`DELETE FROM pages WHERE id = ?`, [pageId]);
-}
-
-async function replaceNoteEdges(input: ReplaceEdgesInput, ctx: DbContext = db) {
-  const buildEdgeKey = (targetId: string, type: string) => `${type}:${targetId}`;
-  const createDeterministicEdgeId = (sourceBlockId: string, targetId: string, type: string) => (
-    uuidv5(`${sourceBlockId}|${targetId}|${type}`, EDGE_ID_NAMESPACE)
-  );
-
-  const existingRows = await ctx.getAll<{ id: string; target_id: string; type: string }>(
-    `SELECT id, target_id, type FROM edges WHERE source_block_id = ?`,
-    [input.sourceBlockId]
-  );
-
-  const desiredByKey = new Map<string, { id: string; targetId: string; type: string }>();
-  for (const edge of input.edges) {
-    const key = buildEdgeKey(edge.targetId, edge.type);
-    if (desiredByKey.has(key)) continue;
-
-    desiredByKey.set(key, {
-      id: edge.id ?? createDeterministicEdgeId(input.sourceBlockId, edge.targetId, edge.type),
-      targetId: edge.targetId,
-      type: edge.type,
-    });
-  }
-
-  const existingByKey = new Map<string, { id: string; targetId: string; type: string }>();
-  const duplicateIdsToDelete: string[] = [];
-
-  for (const row of existingRows) {
-    const key = buildEdgeKey(row.target_id, row.type);
-    if (existingByKey.has(key)) {
-      duplicateIdsToDelete.push(row.id);
-      continue;
-    }
-
-    existingByKey.set(key, {
-      id: row.id,
-      targetId: row.target_id,
-      type: row.type,
-    });
-  }
-
-  for (const duplicateId of duplicateIdsToDelete) {
-    await ctx.execute(`DELETE FROM edges WHERE id = ?`, [duplicateId]);
-  }
-
-  for (const [key, existing] of existingByKey) {
-    if (desiredByKey.has(key)) continue;
-    await ctx.execute(`DELETE FROM edges WHERE id = ?`, [existing.id]);
-  }
-
-  const needsInsert = [...desiredByKey.entries()].filter(([key]) => !existingByKey.has(key));
-  if (needsInsert.length === 0) {
-    return;
-  }
-
-  const userId = await getCurrentUserId();
-  for (const [, edge] of needsInsert) {
-    await ctx.execute(
-      `INSERT INTO edges (id, source_block_id, target_id, user_id, type) VALUES (?, ?, ?, ?, ?)`,
-      [edge.id, input.sourceBlockId, edge.targetId, userId, edge.type]
-    );
-  }
 }
 
 async function createNoteBlock(input: CreateBlockInput) {

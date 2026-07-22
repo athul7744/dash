@@ -1,6 +1,7 @@
 import { LexoRank } from "lexorank";
 import { v4 as uuidv4 } from "uuid";
 
+import { deleteEntityEdges } from "@/lib/links/links";
 import { ensureSystemPage } from "@/lib/notes/notes";
 import { systemPageId } from "@/lib/notes/system-pages";
 import { db } from "@/lib/powersync/db";
@@ -189,6 +190,7 @@ export async function markMaterialized(id: string, key: string, taskId: string):
 
 export async function deleteReminder(id: string): Promise<void> {
   await db.execute(`DELETE FROM blocks WHERE id = ?`, [id]);
+  await deleteEntityEdges(id);
 }
 
 async function readReminderContent(id: string): Promise<ReminderContent | null> {

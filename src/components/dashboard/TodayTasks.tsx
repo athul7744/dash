@@ -11,6 +11,7 @@ import type { Task } from "@/lib/powersync/AppSchema";
 import { db } from "@/lib/powersync/db";
 import { getApp } from "@/lib/shared/apps";
 import { getCurrentUserId } from "@/lib/shared/auth";
+import { stripRefs } from "@/lib/links/tokens";
 import { debouncedUpdate } from "@/lib/shared/debounced-update";
 import { DURATION, EASE } from "@/lib/shared/motion";
 import { cn } from "@/lib/shared/utils";
@@ -115,7 +116,7 @@ export function TodayTasks() {
                   className="size-4 shrink-0 rounded-full border-2 border-muted-foreground/40 transition-colors hover:border-primary hover:bg-primary/10"
                 />
                 <Link href="/tasks" className="min-w-0 flex-1 truncate text-sm text-foreground hover:underline">
-                  {task.title || "Untitled task"}
+                  {stripRefs(task.title || "") || "Untitled task"}
                 </Link>
                 <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px]", info.bg, info.text)}>{info.label}</span>
               </motion.li>

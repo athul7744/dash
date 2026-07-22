@@ -48,6 +48,7 @@ import {
   TaskShortcut,
 } from "@/components/notes/NoteBlockEditorExtensions";
 import { MathBlock, MathInline } from "@/components/notes/NoteBlockEditorMath";
+import { EntityRefNode } from "@/components/links/EntityRefNode";
 import { QueryBlock } from "@/components/notes/editor/QueryBlockNode";
 import { TaskLine } from "@/components/notes/editor/TaskLineNode";
 import { createBlockNodeView } from "@/components/notes/editor/blockNodeViewDom";
@@ -97,6 +98,7 @@ export function buildNoteEditorExtensions(): Extensions {
     Code,
     HardBreak,
     MathInline,
+    EntityRefNode,
     TableRow,
     TableHeader.extend({ content: `${BLOCK_CONTENT_GROUP}+` }),
     TableCell.extend({ content: `${BLOCK_CONTENT_GROUP}+` }),

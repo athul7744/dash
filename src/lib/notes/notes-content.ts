@@ -1,5 +1,15 @@
+import { formatRefToken, ENTITY_REF_NODE_TYPE, type RefKind } from "@/lib/links/tokens";
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object";
+}
+
+/** The `[[label|kind:id]]` token an entityRef node stands for (used in text extraction/markdown). */
+function entityRefToToken(attrs: Record<string, unknown> | null): string {
+  const label = typeof attrs?.label === "string" ? attrs.label : "Untitled";
+  const kind = typeof attrs?.kind === "string" ? (attrs.kind as RefKind) : undefined;
+  const id = typeof attrs?.id === "string" ? attrs.id : undefined;
+  return formatRefToken({ label, kind, id });
 }
 
 function isNoteDocument(value: unknown): value is Record<string, unknown> & { type: string } {
@@ -141,6 +151,11 @@ function getNoteNodeSize(value: unknown): number {
     return value.text.length;
   }
 
+  // Inline atoms (an entityRef chip) count as a single position.
+  if (value.type === ENTITY_REF_NODE_TYPE) {
+    return 1;
+  }
+
   const contentSize = Array.isArray(value.content)
     ? value.content.reduce((total, child) => total + getNoteNodeSize(child), 0)
     : 0;
@@ -276,6 +291,11 @@ export function extractNoteText(raw: unknown) {
       parts.push(value.text);
     }
 
+    // An entityRef atom has no `.text`; surface its token so edge reconcile sees it.
+    if (value.type === ENTITY_REF_NODE_TYPE) {
+      parts.push(entityRefToToken(getNodeAttrs(value)));
+    }
+
     if (Array.isArray(value.content)) {
       for (const child of value.content) {
         visit(child);
@@ -362,6 +382,11 @@ function serializeMarkdownInline(node: unknown): string {
   if (node.type === "mathInline") {
     const latex = getNodeAttrs(node)?.latex;
     return typeof latex === "string" && latex.length > 0 ? `$${latex}$` : "";
+  }
+
+  if (node.type === ENTITY_REF_NODE_TYPE) {
+    const label = getNodeAttrs(node)?.label;
+    return typeof label === "string" && label.length > 0 ? label : "";
   }
 
   return getNodeContent(node).map((child) => serializeMarkdownInline(child)).join("");

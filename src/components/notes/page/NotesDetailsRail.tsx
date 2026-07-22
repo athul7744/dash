@@ -10,6 +10,7 @@ import { cn } from "@/lib/shared/utils";
 
 import { attachmentLabel, getPageDescription, parseProperties } from "./utils";
 import { DetailsRailCardSkeleton, DetailsSection, PageIcon } from "./ui";
+import { Backlinks } from "@/components/links/Backlinks";
 import { LocalGraphPanel } from "@/components/notes/graph/LocalGraphPanel";
 import type { NoteTag, OutlineEntry } from "./types";
 
@@ -269,6 +270,7 @@ export function NotesDetailsRail({
               ))}
             </div>
           )}
+          {selectedPage ? <Backlinks targetId={selectedPage.id} exclude={["note"]} className="mt-2" /> : null}
         </DetailsSection>
       </div>
 

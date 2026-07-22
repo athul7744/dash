@@ -1,6 +1,7 @@
 import { LexoRank } from "lexorank";
 import { v4 as uuidv4 } from "uuid";
 
+import { deleteEntityEdges } from "@/lib/links/links";
 import { ensureSystemPage } from "@/lib/notes/notes";
 import { systemPageId } from "@/lib/notes/system-pages";
 import { db } from "@/lib/powersync/db";
@@ -98,6 +99,7 @@ export async function toggleFavorite(id: string): Promise<void> {
 
 export async function deleteQuote(id: string): Promise<void> {
   await db.execute(`DELETE FROM blocks WHERE id = ?`, [id]);
+  await deleteEntityEdges(id);
 }
 
 async function readQuoteContent(id: string): Promise<QuoteContent | null> {

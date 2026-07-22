@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { Check, CheckCircle2, Circle, Copy, ExternalLink, Loader2, RefreshCw, Star, Tag as TagIcon, Trash2 } from "lucide-react";
 
 import { Favicon } from "@/components/tasks/Favicon";
+import { LinkedFrom } from "@/components/links/LinkedFrom";
+import { RefField } from "@/components/links/RefField";
 import { TagSelector } from "@/components/tags/TagSelector";
-import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
 import {
   deleteBookmark,
   markRead,
@@ -14,6 +15,7 @@ import {
   updateBookmark,
   type Bookmark,
 } from "@/lib/bookmarks/bookmarks";
+import { reconcileEntityRefs } from "@/lib/links/links";
 import { refreshBookmarkTitle } from "@/lib/bookmarks/fetch-metadata";
 import { Tag } from "@/lib/powersync/AppSchema";
 import { getTagColorClasses } from "@/lib/tasks/colors";
@@ -52,7 +54,6 @@ export function BookmarkCard({
   const focusedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleRef = useRef<HTMLInputElement | null>(null);
-  const noteRef = useRef<HTMLTextAreaElement | null>(null);
 
   const host = getLinkHost(bookmark.url) ?? bookmark.url;
   const busy = loading || refetching;
@@ -73,9 +74,6 @@ export function BookmarkCard({
     setNote(bookmark.note);
   }, [bookmark.title, bookmark.note]);
 
-  // Grow the note field to fit its content (recomputes on width/masonry reflow).
-  useAutosizeTextarea(noteRef, note);
-
   useEffect(
     () => () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -95,17 +93,20 @@ export function BookmarkCard({
     }
   };
 
+  const persist = (nextTitle: string, nextNote: string) => {
+    void updateBookmark(bookmark.id, { title: nextTitle, note: nextNote });
+    void reconcileEntityRefs(bookmark.id, [nextNote]);
+  };
+
   const scheduleSave = (nextTitle: string, nextNote: string) => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      void updateBookmark(bookmark.id, { title: nextTitle, note: nextNote });
-    }, SAVE_DEBOUNCE_MS);
+    timerRef.current = setTimeout(() => persist(nextTitle, nextNote), SAVE_DEBOUNCE_MS);
   };
 
   const flushSave = () => {
     focusedRef.current = false;
     if (timerRef.current) clearTimeout(timerRef.current);
-    void updateBookmark(bookmark.id, { title, note });
+    persist(title, note);
   };
 
   const refetch = async () => {
@@ -228,20 +229,20 @@ export function BookmarkCard({
         </p>
       ) : null}
 
-      <textarea
-        ref={noteRef}
+      <RefField
         value={note}
-        rows={1}
+        excludeId={bookmark.id}
+        ariaLabel="Bookmark note"
+        placeholder="Add a note…"
         onFocus={() => {
           focusedRef.current = true;
         }}
-        onChange={(e) => {
-          setNote(e.target.value);
-          scheduleSave(title, e.target.value);
+        onChange={(v) => {
+          setNote(v);
+          scheduleSave(title, v);
         }}
         onBlur={flushSave}
-        placeholder="Add a note…"
-        className="mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-muted-foreground outline-none placeholder:text-muted-foreground/40"
+        className="mt-2 w-full bg-transparent text-sm leading-relaxed text-muted-foreground"
       />
 
       {selectedTags.length > 0 ? (
@@ -259,6 +260,8 @@ export function BookmarkCard({
           ))}
         </div>
       ) : null}
+
+      <LinkedFrom targetId={bookmark.id} className="mt-2.5" />
     </div>
   );
 }

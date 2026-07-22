@@ -3,30 +3,25 @@
 import { useEffect, useRef, useState } from "react";
 import { Star, Trash2 } from "lucide-react";
 
-import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
+import { LinkedFrom } from "@/components/links/LinkedFrom";
+import { RefField } from "@/components/links/RefField";
+import { reconcileEntityRefs } from "@/lib/links/links";
 import { deleteQuote, toggleFavorite, updateQuote, type Quote } from "@/lib/quotes/quotes";
 import { cn } from "@/lib/shared/utils";
 
 const SAVE_DEBOUNCE_MS = 600;
 
 /**
- * A single editable quote: a quote-text field + an author/source line, with a
- * star and a delete. Text/author are locally controlled and saved debounced
- * (plus on blur); external (synced) changes reconcile only while unfocused so
- * they never yank the caret mid-edit.
+ * A single editable quote: a quote-text field (supports inline `[[ ]]` links) +
+ * an author/source line, with a star and a delete. Text/author are locally
+ * controlled and saved debounced (plus on blur); external (synced) changes
+ * reconcile only while unfocused so they never yank the caret mid-edit.
  */
 export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocus?: boolean }) {
   const [text, setText] = useState(quote.text);
   const [author, setAuthor] = useState(quote.author);
   const focusedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  // Focus a freshly-added quote so the user can type straight away.
-  useEffect(() => {
-    if (autoFocus) textareaRef.current?.focus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Reconcile remote changes only when the user isn't editing this card.
   useEffect(() => {
@@ -35,9 +30,6 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
     setAuthor(quote.author);
   }, [quote.text, quote.author]);
 
-  // Grow the quote field to fit its content (recomputes on width/masonry reflow).
-  useAutosizeTextarea(textareaRef, text);
-
   useEffect(
     () => () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -45,17 +37,20 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
     [],
   );
 
+  const persist = (nextText: string, nextAuthor: string) => {
+    void updateQuote(quote.id, { text: nextText, author: nextAuthor });
+    void reconcileEntityRefs(quote.id, [nextText]);
+  };
+
   const scheduleSave = (nextText: string, nextAuthor: string) => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      void updateQuote(quote.id, { text: nextText, author: nextAuthor });
-    }, SAVE_DEBOUNCE_MS);
+    timerRef.current = setTimeout(() => persist(nextText, nextAuthor), SAVE_DEBOUNCE_MS);
   };
 
   const flushSave = () => {
     focusedRef.current = false;
     if (timerRef.current) clearTimeout(timerRef.current);
-    void updateQuote(quote.id, { text, author });
+    persist(text, author);
   };
 
   return (
@@ -65,20 +60,21 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
           &ldquo;
         </span>
         <div className="min-w-0 flex-1 pr-16">
-          <textarea
-            ref={textareaRef}
+          <RefField
             value={text}
-            rows={1}
+            autoFocus={autoFocus}
+            excludeId={quote.id}
+            ariaLabel="Quote text"
+            placeholder="Write a quote…"
             onFocus={() => {
               focusedRef.current = true;
             }}
-            onChange={(e) => {
-              setText(e.target.value);
-              scheduleSave(e.target.value, author);
+            onChange={(v) => {
+              setText(v);
+              scheduleSave(v, author);
             }}
             onBlur={flushSave}
-            placeholder="Write a quote…"
-            className="w-full resize-none bg-transparent font-serif text-lg leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/50"
+            className="w-full bg-transparent font-serif text-lg leading-relaxed text-foreground"
           />
           <div className="mt-1 flex items-center gap-1.5">
             <span className="select-none text-muted-foreground">&mdash;</span>
@@ -96,6 +92,7 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
               className="min-w-0 flex-1 bg-transparent text-sm italic text-muted-foreground outline-none placeholder:text-muted-foreground/40"
             />
           </div>
+          <LinkedFrom targetId={quote.id} className="mt-3" />
         </div>
       </div>
 

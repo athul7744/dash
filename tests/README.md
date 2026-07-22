@@ -10,6 +10,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/quotes/` — quotes-specific logic tests.
 - `tests/bookmarks/` — bookmarks-specific logic tests.
 - `tests/reminders/` — reminders recurrence-engine tests.
+- `tests/links/` — cross-app reference tests (the `[[label|kind:id]]` token grammar).
 - `tests/shared/` — reusable fixtures, builders, and assertions shared across app groups (incl. the universal-capture classifier).
 
 ## Current Notes Suites
@@ -57,7 +58,12 @@ This folder holds the project's Vitest suites and lightweight test helpers.
   Covers `systemPageId`: deterministic ids per `(userId, kind, key)`, matching an explicit uuidv5 over the documented name scheme, and v5 uuid format.
 
 - `tests/notes/graph.test.ts`
-  Covers the pure graph helpers (`src/lib/notes/graph.ts`) behind the notes graph view: `buildGraph` collapsing block→page edges into an undirected, deduped, weighted page graph (self-links and edges to unknown pages dropped; degree computed), `neighborhood` BFS to a depth, and `isOrphan`.
+  Covers the pure graph helpers (`src/lib/notes/graph.ts`) behind the (now universal, one-node-per-item) graph view: `buildGraph` building an undirected, deduped, weighted node graph from resolved entity→entity edges (self-links and edges to unknown nodes dropped; degree computed; `kind` carried onto nodes), `neighborhood` BFS to a depth, and `isOrphan`.
+
+## Current Links Suites
+
+- `tests/links/tokens.test.ts`
+  Covers the cross-app reference token grammar (`src/lib/links/tokens.ts`): parsing bare `[[Title]]` and id-bound `[[label|kind:id]]` tokens, `stripRefs` reducing tokens to labels, and `formatRefToken`/`normalizeRefLabel` round-tripping (including stripping grammar characters from labels).
 
 ## Single-Document Editor Suites (`tests/notes/editor/`)
 

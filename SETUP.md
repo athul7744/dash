@@ -125,10 +125,13 @@ CREATE TABLE public.blocks (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Notes graph edges table
+-- Reference edges (any entity → any entity). `source_block_id` / `target_id`
+-- hold an entity id that may be a block id or a task id, so there is no blocks
+-- foreign key (links can originate from tasks); edge cleanup on delete is done
+-- in app code. `type` is `page_ref` (note wikilink) or `ref` (id-bound).
 CREATE TABLE public.edges (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  source_block_id UUID NOT NULL REFERENCES public.blocks(id) ON DELETE CASCADE,
+  source_block_id UUID NOT NULL,
   target_id UUID NOT NULL,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   type TEXT NOT NULL,

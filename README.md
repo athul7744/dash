@@ -6,7 +6,7 @@ A personal productivity workspace that works offline and syncs across devices. T
 
 ### Dashboard
 
-The home screen opens calm and centered: a rotating, time-of-day greeting and one search bar that spans both tasks and notes (⌘K anywhere). Beneath it sits a single contextual nudge that changes with the time of day and what you've actually done — the most relevant task in the morning, a reminder to log time if you've tracked nothing in the last couple of hours, your weekly journal in the evening, and a mood check-in at night. Scroll down and the greeting glides up into a slim top bar while the day's essentials fade in — today's tasks with quick-add, hours logged, and this week's journal to write in place. A row of apps sits at the bottom, one tap to each.
+The home screen opens calm and centered: a rotating, time-of-day greeting and a search bar that opens a command palette across everything — every task, note, bookmark, quote, and reminder, plus jump-to-app and quick-create commands (⌘K anywhere). Beneath it sits a single contextual nudge that changes with the time of day and what you've actually done — the most relevant task in the morning, a reminder to log time if you've tracked nothing in the last couple of hours, your weekly journal in the evening, and a mood check-in at night. Scroll down and the greeting glides up into a slim top bar while the day's essentials fade in — today's tasks with quick-add, hours logged, and this week's journal to write in place. A row of apps sits at the bottom, one tap to each.
 
 ### Tasks
 
@@ -23,6 +23,8 @@ A structured editor for thinking and writing. Create pages, nest blocks into out
 Pages can have emoji icons, and headings stick while you scroll for easy orientation in long documents. Blocks can be colored for visual emphasis. Date tokens let you insert formatted dates inline via slash commands. Query blocks let you build filtered, sorted views of your pages — like a lightweight database.
 
 Navigate between linked pages with a breadcrumb trail that tracks your path. On desktop, hover a page link to see a peek preview; on mobile, long-press to preview before opening. Paste a URL and it becomes a link; hover (or tap) it for a small toolbar to open, copy, edit, or remove it.
+
+Linking isn't limited to notes. Type `[[` in any item — a task (or subtask), bookmark, quote, or reminder — to link it to any other item. Each link shows up as a backlink on the other side, and every linked item becomes a node in the notes graph, so the graph is a map of your whole workspace, not just your notes.
 
 ### Quotes
 

@@ -22,7 +22,7 @@ Dash is an offline-first Next.js application with six apps under one shell:
 - `Bookmarks` — saved links stored in the notes backend (a hidden `kind: "bookmark"` system page) with platform detection, server-fetched titles, tags, read/unread, and an unread-weighted daily "revisit"
 - `Reminders` — recurring task templates stored in the notes backend (a hidden `kind: "reminder"` system page) with a schedule + lead time; a client-side reconciler materializes a real Task before each occurrence (see [Reminders App Structure](#reminders-app-structure))
 
-Content enters through **universal capture**: the PWA share target (`/share`) and an in-app quick-capture modal both classify shared links/text and triage them into any app (see [Universal Capture](#universal-capture)). Quotes, Bookmarks, and Reminders reuse the notes `pages`/`blocks` store via the system-page mechanism, so they add no new tables.
+Content enters through **universal capture**: the PWA share target (`/share`) and an in-app quick-capture modal both classify shared links/text and triage them into any app (see [Universal Capture](#universal-capture)). A global ⌘/Ctrl+K **command palette** searches all five entities and jumps between apps. Any entity can **link to any other** via inline `[[ ]]` references that surface as backlinks and in the notes graph (see [Cross-App Links & References](#cross-app-links--references)). Quotes, Bookmarks, and Reminders reuse the notes `pages`/`blocks` store via the system-page mechanism, so they add no new tables.
 
 Testing is organized separately under `tests/`, with app-group suites and shared helpers rather than colocated source tests.
 
@@ -132,8 +132,8 @@ Important convention:
 - `src/components/dashboard/DashboardGreeting.tsx` — presentational greeting: the date as a small serif eyebrow above the greeting (centered stack)
 - `src/components/dashboard/HeroAction.tsx` — the contextual nudge button (opens a task, scrolls to a section, or navigates)
 - `src/components/dashboard/MoodPicker.tsx` — a dot per configured mood (from the `moods` table) writing to `daily_ratings` (night hero + shared)
-- `src/components/dashboard/GlobalSearch.tsx` — controlled combined tasks+notes search (built on `SearchPopup`)
-- `src/components/dashboard/TaskPopup.tsx` — opens a `TaskCard` in a blurred modal (tasks have no deep-link route)
+- `src/components/command/CommandPaletteProvider.tsx` — the global ⌘/Ctrl+K command palette, mounted app-wide in the root layout. Fuzzy-searches all five entities and runs Go-to-app / Quick-capture / New-item commands; built on `SearchPopup`. Also listens for reference-chip open events (see [Cross-App Links & References](#cross-app-links--references))
+- `src/components/command/EntityPopup.tsx` — opens any task/bookmark/quote/reminder in a blurred modal by reusing that app's own card (looked up live by id; notes deep-link to `/notes?page=`). Used by the palette, the dashboard hero nudge, and reference-chip clicks
 - `src/components/dashboard/TodayTasks.tsx` / `TodayTracking.tsx` — borderless reveal widgets
 - `src/components/dashboard/DashboardQuote.tsx` / `DashboardBookmarks.tsx` — the daily "quote of the day" / "revisit" resurfacing cards (a `variant` renders either the compact dashboard tile or the larger hero atop `/quotes` and `/bookmarks`); render nothing until there's content
 - `src/components/dashboard/DashboardJournal.tsx` — embeds `WeeklyJournal` for the current week, editable in place
@@ -199,6 +199,10 @@ Important convention:
 - `src/lib/tracker/day-keys.ts` — UTC-naive/local date-key helpers, incl. `recentNaiveWindow` for the "logged in the last 2h" check
 - `src/hooks/use-notes.ts` — local SQLite query hooks for note pages and blocks (excludes `properties.kind`-tagged system pages from Notes lists)
 - `src/hooks/use-quotes.ts` / `src/hooks/use-bookmarks.ts` / `src/hooks/use-reminders.ts` — live query hooks reading the quote/bookmark/reminder blocks off their system page (a "settled" latch keeps the empty state from flashing during the page-id → query swap); `use-reminders.ts` also exports `useReminderMaterializer`
+- `src/lib/links/tokens.ts` / `links.ts` / `resolve.ts` — the cross-app link layer: the `[[label|kind:id]]` token grammar (`parseRefTokens`/`stripRefs`/`formatRefToken`/`refKindAccentVar`), the generic reader/writer over `edges` (`reconcileEntityRefs`/`replaceEdges`/`deleteEntityEdges`, serialized per source id), and the opaque-id → `{kind,label}` resolver. See [Cross-App Links & References](#cross-app-links--references)
+- `src/components/links/*` — `EntityRefNode` (shared inline chip Tiptap node), `RefField` (wraps a plain card field as a one-line rich editor hosting chips), `Backlinks` (inline inbound chips, notes rail), `LinkedFrom` (card "N linked" popover: local graph + linking-items list)
+- `src/hooks/use-links.ts` / `use-entity-search.ts` — reactive backlinks (`useBacklinks`) and the shared all-entity `[[` search (reuses each app's hooks; mount lazily)
+- `src/hooks/use-derived-state.ts` — `useDerivedState(source, transform)`: local editable state that re-syncs from a prop via adjust-during-render (the endorsed alternative to a setState-in-effect), used by `TaskCard`
 - `src/hooks/use-autosize-textarea.ts` — grows a textarea to fit its content, recomputing on width/masonry-column changes (quote + bookmark cards)
 - `src/hooks/use-display-font.ts` — reads/writes the selected display font via `useSyncExternalStore` + `localStorage`, applying it to `<body data-display-font>`
 - `src/hooks/use-settled-timestamp.ts` — debounced timestamp display that waits for pending writes to settle
@@ -230,6 +234,7 @@ Important convention:
 - `tests/tracker/*` — tracker-specific Vitest suites
 - `tests/quotes/*` / `tests/bookmarks/*` — quotes/bookmarks daily-pick + metadata suites
 - `tests/reminders/*` — the recurrence-engine suite (`schedule.ts`)
+- `tests/links/*` — the cross-app reference token grammar (`tokens.ts`)
 - `tests/shared/*` — shared fixtures, builders, and assertions reused across app groups (incl. the capture classifier)
 - `tests/README.md` — current suite map and short descriptions of what each test file covers
 
@@ -263,13 +268,13 @@ Key modules:
   - Plain-DOM NodeView for the `block` wrapper (a hover grip that opens the block menu). Plain DOM instead of a React NodeView per block keeps large pages fast; a single shared React `BlockMenuLayer` renders the actual menu.
 
 - `src/components/notes/editor/BlockMenuLayer.tsx` / `SlashMenuLayer.tsx` / `RefMenuLayer.tsx` / `TableToolbarLayer.tsx`
-  - One shared React overlay each (not per block): the grip's block menu (convert/color/move/delete), the caret-anchored slash-command menu, the `[[`-triggered page-link autocomplete (matching pages with their emoji), and the table add/delete row+column controls.
+  - One shared React overlay each (not per block): the grip's block menu (convert/color/move/delete), the caret-anchored slash-command menu, the `[[`-triggered reference autocomplete, and the table add/delete row+column controls. `RefMenuLayer` searches **all entities** and inserts an `entityRef` chip node bound to the target id; it's portalled to `<body>`, fixed-positioned at the caret, viewport-clamped, and re-anchors on scroll (see [Cross-App Links & References](#cross-app-links--references)). Shared with the cards' `RefField`.
 
 - `src/components/notes/MarkdownCheatsheetDialog.tsx`
   - Reference popup (opened from the editor's three-dot "Shortcuts" item) listing every markdown/keyboard shortcut, grouped and color-accented.
 
 - `src/components/notes/graph/*` + `src/hooks/use-note-graph.ts` + `src/lib/notes/graph.ts`
-  - Obsidian-style graph view of the vault. `graph.ts` holds pure helpers (`buildGraph` collapses block→page `edges` into an undirected, deduped, weighted page graph; `neighborhood` BFS; `isOrphan`); `use-note-graph.ts` is the reactive model (pages = nodes, resolved `[[links]]` = edges, node color from the page's first tag). `useForceSimulation` wraps `d3-force`; `NotesGraphCanvas` renders SVG with pan/zoom, zoom-to-fit, node drag-to-pin, and hover-neighbourhood highlight; `NotesGraphView` adds the controls (search, hide-orphans, tag filter, neighbour depth). Reached via the overview header's "Graph" button (`?view=graph`); clicking a node opens the page. `LocalGraphPanel` reuses the engine (mini variant) in the details rail's Connections tab to show the open page's neighbourhood. Only resolved links exist as edges, so links to not-yet-created pages don't appear.
+  - A universal, Obsidian-style graph of the vault: **one node per item** — every note page plus any task/bookmark/quote/reminder that participates in a link (see [Cross-App Links & References](#cross-app-links--references)). `graph.ts` holds pure helpers (`buildGraph` builds an undirected, deduped, weighted node graph from resolved reference edges; `neighborhood` BFS; `isOrphan`); `use-note-graph.ts` is the reactive model — it resolves both endpoints of each `edges` row (`type IN ('ref','page_ref')`) to a node, colours notes by their first tag and other kinds by the app accent, and only surfaces non-note items that are actually linked. `useForceSimulation` wraps `d3-force`; `NotesGraphCanvas` renders SVG with pan/zoom, zoom-to-fit, node drag-to-pin, hover-neighbourhood highlight, and a Lucide kind-icon inside each node (the icon carries the accent colour; the node body follows the theme); clicking a node opens its target — notes open the page, other kinds open `EntityPopup`. `NotesGraphView` adds the controls (search, hide-orphans, tag filter, neighbour depth, and a **show-other-apps** toggle). `LocalGraphPanel` reuses the engine (mini variant, one uniform node size) in the details rail's Connections tab and behind each card's `LinkedFrom` popover. Node size scales with degree in the full graph only; the mini graph is uniform. Only resolved links exist as edges, so links to not-yet-created pages don't appear.
 
 - `src/components/notes/editor/TaskLineNode.ts` / `QueryBlockNode.tsx`
   - `taskLine` is a single checkbox line — each checklist item is its OWN block (`blockType: "task"`), no `taskList` wrapper. `queryBlock` is an atom NodeView rendering the existing `QueryBlockView`.
@@ -312,7 +317,7 @@ Additional notes editor behavior:
 - **Sticky headings** — heading blocks stick to the top of the scroll viewport for orientation in long documents.
 - **Block colors** — blocks can be assigned a background color via the block (grip) menu. Colors persist per-block.
 - **Markdown shortcuts** — every block type can be created by typing its markdown (`#`, `>`, ` ``` `, `---`, `[]`, `![]()`, `!color`, …); `[[` autocompletes page links and `{date}` renders a date token. The full list is in the editor's "Shortcuts" popup.
-- **Date tokens** — typing `{May 2, 2025}` or the date slash commands (`/today`, `/tomorrow`, `/date`) inserts an inline date chip (low-emphasis slate style).
+- **Date tokens** — typing `{May 2, 2025}` or the date slash commands (`/today`, `/tomorrow`, `/date`) inserts an inline date chip, styled as a link-underline in tracker teal (dates read as time, matching the reference-chip link treatment).
 - **Hover grip** — a drag/menu handle appears in the left margin on hover; clicking it opens the block menu.
 - **Emoji icons** — pages and property definitions use a Fluent Emoji Flat picker for visual identity.
 
@@ -345,9 +350,9 @@ Responsibilities and behavior:
 - **Hero collapse (Motion):** `useScroll` + `useTransform` map the container's raw `scrollY` (px) to a fade/scale on the hero and a fade-in of a compact greeting + search icon in the sticky top bar. Driven by raw `scrollY` (not a measured target) to avoid feedback from the hero's own transforms; bidirectional (reverses on scroll up).
 - **Reveal:** each section is wrapped in `motion/Reveal` (`whileInView`, once) with the container as `root`; reduced-motion renders them static.
 - **Contextual hero action:** `useHeroAction` gathers signals — pending/overdue/due-today tasks (and the most-relevant one), whether time was logged in the last 2h (`recentNaiveWindow`), whether mood was rated today, and whether this week's journal system page exists — and feeds the pure `chooseHeroAction` picker (`src/lib/dashboard/hero-action.ts`). At night it shows `MoodPicker`; otherwise a single `HeroAction` nudge (most-relevant task → task modal, plan → scroll to `#today-tasks`, track → `/tracker`, journal → scroll to `#weekly-journal`).
-- **Search:** `GlobalSearch` is controlled (opened by the hero bar, the top-bar icon, or ⌘K), filters tasks by title and notes via `useNotesPageDerivedState`, and reuses `SearchPopup`. Notes deep-link to `/notes?page=`; tasks open in `TaskPopup`.
+- **Search:** the hero bar and the collapsed top-bar icon open the global **command palette** (`useCommandPalette()`; also ⌘/Ctrl+K anywhere), which searches all five entities and runs navigation/create/capture commands. Entity hits open in `EntityPopup` (notes deep-link to `/notes?page=`). See [Cross-App Links & References](#cross-app-links--references) for the shared entity search.
 - **Journal:** `DashboardJournal` embeds the tracker's `WeeklyJournal` for the current week (same `systemPageId`), editable in place.
-- **Apps:** `AppsFab` is a fixed bottom strip of single-click app links over a blurred scrim (replaces the old floating `AppSwitcher` FAB here); ordered bookmarks/tasks/tracker/notes/quotes and scroll-centered on Tracker so the middle app is reachable on launch.
+- **Apps:** `AppsFab` is a fixed bottom strip of single-click app links over a blurred scrim; ordered bookmarks/tasks/tracker/notes/quotes and scroll-centered on Tracker so the middle app is reachable on launch.
 - **Capture:** a Capture button in the top bar (and ⌘/Ctrl+I) opens `QuickCapture` (see [Universal Capture](#universal-capture)).
 - Greeting text comes from `useGreeting` (one seed shared by hero + collapsed bar). There is no route restoration — the app always opens on the dashboard.
 
@@ -495,6 +500,17 @@ Both render `src/components/capture/CaptureTriage.tsx`, which:
 
 All writes are local (offline-safe). The proxy (`src/proxy.ts`) preserves `/share?...` across a login round-trip via `sanitizeNextPath`.
 
+## Cross-App Links & References
+
+Any entity can reference any other (task→bookmark, quote→note, reminder→task, note→anything, …) via inline `[[ ]]` chips. Everything is stored in the generic `edges` table (the same table that backs notes' `[[wikilinks]]`), so there are no new tables.
+
+- **Token grammar** — `src/lib/links/tokens.ts`. `[[label|kind:id]]` is an id-bound link to any entity (what new inserts produce); a bare `[[label]]` resolves by page title. `stripRefs(text)` returns the label-only text for any surface that shows the raw string without an editor (command palette, dashboard, lists, graph labels). `parseRefSegments` splits a string into text runs + id-bound chips for the editor.
+- **Edges** — `source_block_id → target_id`, both an entity id that may be a block id, a task id, or a page id (all uuids, globally unique). `type` is `page_ref` (note wikilink) or `ref` (id-bound); reference-consuming queries match `type IN ('ref','page_ref')`. `source_block_id` has no foreign key (a source may be a task, not only a block), so edge cleanup on entity delete is handled in app code (`deleteEntityEdges`, the block persister, `deleteNotePage`). Indexes on `edges(source_block_id)`, `edges(target_id)`, and `blocks(page_id, type)` keep linking and backlinks flat.
+- **Reconcile (single writer)** — `reconcileEntityRefs(sourceId, texts)` in `src/lib/links/links.ts` extracts tokens from the text a source owns and diff-writes its edge rows to match (deterministic uuidv5 ids; **serialized per source id** to avoid concurrent-insert races). Every source has exactly one reconcile call site, so nothing clobbers. **Tasks roll up to the root task**: a subtask's references attach to the parent task's id, as the deduped union of the root title + all subtask titles — a task + its subtasks is one graph node.
+- **Authoring** — `src/components/links/`. `EntityRefNode` is a shared inline atomic Tiptap node rendered as a chip (Lucide kind-icon + accent link-underlined label; click dispatches an open event). `RefField` wraps a plain card field as a one-line rich editor hosting those chips — string in / string out, so the card keeps its own (debounced) column persistence; supports `singleLine`, `clearOnCommit`, `maxLength`, `readOnly`. Used by the notes editor and the four block-app cards (task title + subtasks + the add-subtask composer, bookmark note, quote text, reminder title). The `[[` picker is `RefMenuLayer` backed by `useEntitySearch`.
+- **Backlinks** — `src/hooks/use-links.ts` + `src/lib/links/resolve.ts`. `useBacklinks(id)` resolves every inbound edge to `{kind,id,label}` (deduped; note sources collapse block→page). `LinkedFrom` (the four cards) is a compact "N linked" popover with the local Connections graph + the linking-items list; `Backlinks` (notes rail) shows cross-app inbound chips inline while the rail's rich list keeps note→note. A reference chip anywhere dispatches an open event that `CommandPaletteProvider` handles (notes navigate; the four open in `EntityPopup`).
+- **Graph** — the notes graph is a universal one-node-per-item graph over these edges; see the notes graph module above.
+
 ## Quotes App Structure
 
 Route: `src/app/quotes/page.tsx`. Quotes are `type:"quote"` blocks on one hidden system page (`kind:"quote"`, key `"library"`) — no schema change. `src/lib/quotes/quotes.ts` is the CRUD layer, `src/hooks/use-quotes.ts` the live query, `QuoteCard` the editable card (masonry list), and `DashboardQuote` the favorites-weighted daily "quote of the day" (dashboard tile + `variant="hero"` atop `/quotes`).
@@ -559,7 +575,8 @@ Important implementation notes:
 
 ## App Registry And Visual Identity
 
-- `src/lib/shared/apps.ts` is the central registry for each app's route, name, icon, and accent colors (currently tasks/tracker/notes/quotes/bookmarks/reminders)
+- `src/lib/shared/apps.ts` is the central registry for each app's route, name, icon, and accent (`iconBg`/`iconText`/`hoverText`) — currently tasks/tracker/notes/quotes/bookmarks/reminders
+- It also exports the shared top-bar button primitives `HEADER_ACTION_BASE` / `HEADER_ACTION_NEUTRAL`. Convention: each app header spends its accent on **one** primary action (the "New \<item\>" create button, via `app.accent.hoverText`); every other top-bar button uses `HEADER_ACTION_NEUTRAL` so headers stay calm and consistent across apps
 - The header, switcher, and mobile FAB shell all rely on this registry; adding an entry surfaces the app in `AppSwitcher` and `AppsFab` automatically (the dashboard bar order lives in `AppsFab`'s `DASHBOARD_ORDER`)
 - If a new app is added, start there first
 - **Reusing the notes backend:** Quotes, Bookmarks, and Reminders are feature-owned "system pages" (`src/lib/notes/system-pages.ts` — a `kind` tag + deterministic `uuidv5` id, hidden from `/notes`). This is the pattern for any app that wants storage/sync without a schema change; extend `SystemPageKind` and add a thin CRUD lib + hook (mirror `src/lib/quotes/`, `src/lib/bookmarks/`, or `src/lib/reminders/`).
@@ -618,6 +635,8 @@ If you are debugging behavior in this repo, start from the narrowest owning surf
 - tag/activity dialog issues: `ManageNamedColorItemsDialog.tsx` first, then the wrapper dialog file
 - tracker week grid behavior: `tracker/page.tsx`, `TimeGrid.tsx`, `ActivityToolbar.tsx`
 - sync/bootstrap issues: `powersync-provider.tsx`, `src/lib/powersync/db.ts`, `SupabaseConnector.ts`
+- links / backlinks / references (`[[ ]]`, chips, graph nodes): `src/lib/links/*`, `src/components/links/*`, `RefMenuLayer.tsx`, `use-note-graph.ts` (see [Cross-App Links & References](#cross-app-links--references))
+- command palette / global search / ⌘K: `src/components/command/CommandPaletteProvider.tsx`
 
 A few repo-specific patterns matter repeatedly:
 

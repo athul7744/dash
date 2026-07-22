@@ -5,6 +5,7 @@ import { Network } from "lucide-react";
 
 import { useNoteGraph } from "@/hooks/use-note-graph";
 import { isOrphan } from "@/lib/notes/graph";
+import { dispatchOpenEntity } from "@/components/links/EntityRefNode";
 import { NotesGraphCanvas } from "./NotesGraphCanvas";
 import { GraphControls, GraphLegend } from "./GraphControls";
 
@@ -18,6 +19,7 @@ export function NotesGraphView({ onOpenPage }: { onOpenPage: (id: string) => voi
 
   const [searchQuery, setSearchQuery] = useState("");
   const [hideOrphans, setHideOrphans] = useState(false);
+  const [showEntities, setShowEntities] = useState(true);
   const [depth, setDepth] = useState(1);
   const [hiddenTagIds, setHiddenTagIds] = useState<Set<string>>(new Set());
 
@@ -39,15 +41,16 @@ export function NotesGraphView({ onOpenPage }: { onOpenPage: (id: string) => voi
   // surviving nodes so the simulation never references a hidden page.
   const { visibleNodes, visibleLinks } = useMemo(() => {
     const kept = nodes.filter((node) => {
+      if (!showEntities && node.kind !== "note") return false;
       if (hideOrphans && isOrphan(node)) return false;
-      if (node.tagId && hiddenTagIds.has(node.tagId)) return false;
-      if (!node.tagId && hiddenTagIds.has("__untagged__")) return false;
+      if (node.kind === "note" && node.tagId && hiddenTagIds.has(node.tagId)) return false;
+      if (node.kind === "note" && !node.tagId && hiddenTagIds.has("__untagged__")) return false;
       return true;
     });
     const keptIds = new Set(kept.map((n) => n.id));
     const visibleLinks = links.filter((link) => keptIds.has(link.source) && keptIds.has(link.target));
     return { visibleNodes: kept, visibleLinks };
-  }, [nodes, links, hideOrphans, hiddenTagIds]);
+  }, [nodes, links, hideOrphans, showEntities, hiddenTagIds]);
 
   const toggleTag = (id: string) =>
     setHiddenTagIds((current) => {
@@ -75,7 +78,7 @@ export function NotesGraphView({ onOpenPage }: { onOpenPage: (id: string) => voi
             links={visibleLinks}
             size={size}
             selectedId={null}
-            onSelect={onOpenPage}
+            onSelect={(id, kind) => (kind === "note" ? onOpenPage(id) : dispatchOpenEntity(kind, id))}
             depth={depth}
             searchQuery={searchQuery}
           />
@@ -89,13 +92,15 @@ export function NotesGraphView({ onOpenPage }: { onOpenPage: (id: string) => voi
             onSearchChange={setSearchQuery}
             hideOrphans={hideOrphans}
             onToggleOrphans={() => setHideOrphans((value) => !value)}
+            showEntities={showEntities}
+            onToggleEntities={() => setShowEntities((value) => !value)}
             depth={depth}
             onDepthChange={setDepth}
           />
           <GraphLegend tags={tags} hiddenTagIds={hiddenTagIds} onToggleTag={toggleTag} />
           {/* Mobile: a pill above the Overview fab, lifted above the bottom fade (z-50). Desktop: plain text bottom-left. */}
           <div className="pointer-events-none absolute bottom-14 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full border border-border/60 bg-popover/90 px-3 py-1 text-[11px] font-medium text-muted-foreground shadow-md backdrop-blur-sm sm:bottom-5 sm:left-5 sm:top-auto sm:z-auto sm:translate-x-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:text-xs sm:shadow-none sm:backdrop-blur-none">
-            <b className="text-foreground tabular-nums">{visibleNodes.length}</b> pages · <b className="text-foreground tabular-nums">{visibleLinks.length}</b> links
+            <b className="text-foreground tabular-nums">{visibleNodes.length}</b> nodes · <b className="text-foreground tabular-nums">{visibleLinks.length}</b> links
           </div>
         </>
       ) : null}

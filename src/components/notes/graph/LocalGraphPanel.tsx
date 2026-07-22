@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useNoteGraph } from "@/hooks/use-note-graph";
 import { neighborhood } from "@/lib/notes/graph";
+import { dispatchOpenEntity } from "@/components/links/EntityRefNode";
 import { NotesGraphCanvas } from "./NotesGraphCanvas";
 
 /**
@@ -73,7 +74,7 @@ export function LocalGraphPanel({
             links={subLinks}
             size={size}
             selectedId={pageId}
-            onSelect={onNavigateToPage}
+            onSelect={(id, kind) => (kind === "note" ? onNavigateToPage(id) : dispatchOpenEntity(kind, id))}
             depth={1}
             variant="mini"
           />

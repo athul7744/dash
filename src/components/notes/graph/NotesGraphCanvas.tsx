@@ -5,6 +5,8 @@ import { Maximize2, Minus, Plus } from "lucide-react";
 
 import { buildAdjacency, neighborhood, type GraphLink } from "@/lib/notes/graph";
 import type { GraphViewNode } from "@/hooks/use-note-graph";
+import type { RefKind } from "@/lib/links/tokens";
+import { getApp } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 import { nodeRadius, useForceSimulation, type SimLink, type SimNode } from "./useForceSimulation";
 
@@ -13,9 +15,28 @@ type Transform = { x: number; y: number; k: number };
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 3;
 const CLICK_SLOP = 4; // px of movement below which a pointer-up counts as a click
+// The local "Connections" panel has too few nodes for degree-sizing to mean
+// anything, so it uses one uniform radius; the full vault graph keeps hubs big.
+const MINI_NODE_RADIUS = 9;
 
 const endId = (end: SimLink["source"]): string =>
   typeof end === "object" && end != null ? (end as SimNode).id : String(end);
+
+/** The entity's Lucide icon, in its accent colour, centered inside a node. */
+function KindGlyph({ kind, r, color }: { kind: RefKind; r: number; color: string }) {
+  const Icon = getApp(`${kind}s`).icon;
+  const size = r * 1.15;
+  return (
+    <Icon
+      x={-size / 2}
+      y={-size / 2}
+      size={size}
+      color={color}
+      strokeWidth={2.4}
+      style={{ pointerEvents: "none" }}
+    />
+  );
+}
 
 export function NotesGraphCanvas({
   nodes,
@@ -31,7 +52,7 @@ export function NotesGraphCanvas({
   links: GraphLink[];
   size: { width: number; height: number };
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, kind: RefKind) => void;
   depth?: number;
   searchQuery?: string;
   variant?: "full" | "mini";
@@ -163,7 +184,7 @@ export function NotesGraphCanvas({
   const onNodePointerUp = (node: SimNode) => {
     const drag = dragRef.current;
     sim.onDragEnd();
-    if (drag && drag.node === node && !drag.moved) onSelect(node.id);
+    if (drag && drag.node === node && !drag.moved) onSelect(node.id, metaById.get(node.id)?.kind ?? "note");
     dragRef.current = null;
   };
 
@@ -219,7 +240,7 @@ export function NotesGraphCanvas({
             {sim.nodes.map((node) => {
               const meta = metaById.get(node.id) ?? node;
               const faded = dimming && !highlight!.has(node.id);
-              const r = nodeRadius(node.degree) * (variant === "mini" ? 0.8 : 1);
+              const r = variant === "mini" ? MINI_NODE_RADIUS : nodeRadius(node.degree);
               const selected = node.id === selectedId;
               return (
                 <g
@@ -237,14 +258,18 @@ export function NotesGraphCanvas({
                 >
                   <circle
                     r={r}
-                    fill={meta.tagColor ?? "var(--color-muted-foreground)"}
-                    stroke={selected ? "var(--primary)" : "var(--background)"}
-                    strokeWidth={selected ? 3 : 2}
+                    fill="var(--background)"
+                    stroke={selected ? "var(--color-muted-foreground)" : "var(--border)"}
+                    strokeWidth={1.5}
                   />
-                  {meta.emoji && node.degree >= 4 && variant === "full" ? (
-                    <text textAnchor="middle" dominantBaseline="central" fontSize={r} style={{ pointerEvents: "none" }}>
-                      {meta.emoji}
-                    </text>
+                  {r >= 6 ? (
+                    meta.kind === "note" && meta.emoji ? (
+                      <text textAnchor="middle" dominantBaseline="central" fontSize={r} style={{ pointerEvents: "none" }}>
+                        {meta.emoji}
+                      </text>
+                    ) : (
+                      <KindGlyph kind={meta.kind} r={r} color={meta.tagColor ?? "var(--color-muted-foreground)"} />
+                    )
                   ) : null}
                   {showLabel(node, faded) ? (
                     <text

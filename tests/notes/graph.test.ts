@@ -11,6 +11,7 @@ import {
 
 const page = (id: string, overrides: Partial<GraphPageInput> = {}): GraphPageInput => ({
   id,
+  kind: "note",
   title: id.toUpperCase(),
   emoji: null,
   tagColor: null,
@@ -21,8 +22,8 @@ describe("buildGraph", () => {
   it("collapses block->page edges into an undirected page graph", () => {
     const pages = [page("a"), page("b"), page("c")];
     const edges: PageEdgeRow[] = [
-      { source_page_id: "a", target_id: "b" },
-      { source_page_id: "b", target_id: "c" },
+      { source: "a", target: "b" },
+      { source: "b", target: "c" },
     ];
     const { nodes, links } = buildGraph(pages, edges);
 
@@ -35,9 +36,9 @@ describe("buildGraph", () => {
   it("dedupes repeated references into one weighted link", () => {
     const pages = [page("a"), page("b")];
     const edges: PageEdgeRow[] = [
-      { source_page_id: "a", target_id: "b" },
-      { source_page_id: "a", target_id: "b" },
-      { source_page_id: "b", target_id: "a" }, // reverse direction, same pair
+      { source: "a", target: "b" },
+      { source: "a", target: "b" },
+      { source: "b", target: "a" }, // reverse direction, same pair
     ];
     const { links, nodes } = buildGraph(pages, edges);
 
@@ -50,10 +51,10 @@ describe("buildGraph", () => {
   it("drops self-links and edges to unknown pages", () => {
     const pages = [page("a"), page("b")];
     const edges: PageEdgeRow[] = [
-      { source_page_id: "a", target_id: "a" }, // self
-      { source_page_id: "a", target_id: "ghost" }, // unresolved target
-      { source_page_id: null, target_id: "b" }, // missing source
-      { source_page_id: "a", target_id: "b" }, // the only real one
+      { source: "a", target: "a" }, // self
+      { source: "a", target: "ghost" }, // unresolved target
+      { source: null, target: "b" }, // missing source
+      { source: "a", target: "b" }, // the only real one
     ];
     const { links } = buildGraph(pages, edges);
 
@@ -109,7 +110,7 @@ describe("neighborhood", () => {
 describe("isOrphan", () => {
   it("is true only when degree is 0", () => {
     const { nodes } = buildGraph([page("a"), page("b"), page("lonely")], [
-      { source_page_id: "a", target_id: "b" },
+      { source: "a", target: "b" },
     ]);
     expect(isOrphan(nodes.find((n) => n.id === "lonely")!)).toBe(true);
     expect(isOrphan(nodes.find((n) => n.id === "a")!)).toBe(false);

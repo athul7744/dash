@@ -10,6 +10,8 @@ export function GraphControls({
   onSearchChange,
   hideOrphans,
   onToggleOrphans,
+  showEntities,
+  onToggleEntities,
   depth,
   onDepthChange,
 }: {
@@ -17,6 +19,8 @@ export function GraphControls({
   onSearchChange: (value: string) => void;
   hideOrphans: boolean;
   onToggleOrphans: () => void;
+  showEntities: boolean;
+  onToggleEntities: () => void;
   depth: number;
   onDepthChange: (value: number) => void;
 }) {
@@ -42,6 +46,19 @@ export function GraphControls({
           className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${hideOrphans ? "bg-primary" : "bg-border"}`}
         >
           <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${hideOrphans ? "translate-x-4" : ""}`} />
+        </button>
+      </label>
+
+      <label className="mt-2.5 flex cursor-pointer items-center justify-between text-[12.5px] font-medium">
+        <span>Show other apps</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showEntities}
+          onClick={onToggleEntities}
+          className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${showEntities ? "bg-primary" : "bg-border"}`}
+        >
+          <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${showEntities ? "translate-x-4" : ""}`} />
         </button>
       </label>
 

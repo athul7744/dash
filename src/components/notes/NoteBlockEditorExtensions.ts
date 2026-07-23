@@ -1,5 +1,4 @@
 import { Extension, InputRule, markInputRule, markPasteRule } from "@tiptap/core";
-import { isValid, format } from "date-fns";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
@@ -70,31 +69,6 @@ export const ReferenceDecorations = Extension.create({
 
             return DecorationSet.create(state.doc, decorations);
           },
-        },
-      }),
-    ];
-  },
-});
-
-// ---------------------------------------------------------------------------
-// Date auto-format
-// ---------------------------------------------------------------------------
-
-export const DateAutoFormat = Extension.create({
-  name: "dateAutoFormat",
-
-  addInputRules() {
-    return [
-      new InputRule({
-        find: /\{([^}]+)\}$/,
-        handler: ({ state, range, match }) => {
-          const dateStr = match[1];
-          const parsed = new Date(dateStr);
-          if (!isValid(parsed)) return;
-          const formatted = `{${format(parsed, "MMM d, yyyy")}}`;
-          if (formatted === match[0]) return;
-          const { tr } = state;
-          tr.replaceWith(range.from, range.to, state.schema.text(formatted));
         },
       }),
     ];

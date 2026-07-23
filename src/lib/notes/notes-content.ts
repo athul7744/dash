@@ -1,4 +1,11 @@
 import { formatRefToken, ENTITY_REF_NODE_TYPE, type RefKind } from "@/lib/links/tokens";
+import { DATE_TOKEN_NODE_TYPE } from "@/lib/notes/date-tokens";
+
+/** The `{MMM d, yyyy}` token a dateToken node stands for (text extraction/markdown). */
+function dateTokenToText(attrs: Record<string, unknown> | null): string {
+  const date = typeof attrs?.date === "string" ? attrs.date : "";
+  return date ? `{${date}}` : "";
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object";
@@ -151,8 +158,8 @@ function getNoteNodeSize(value: unknown): number {
     return value.text.length;
   }
 
-  // Inline atoms (an entityRef chip) count as a single position.
-  if (value.type === ENTITY_REF_NODE_TYPE) {
+  // Inline atoms (an entityRef / dateToken chip) count as a single position.
+  if (value.type === ENTITY_REF_NODE_TYPE || value.type === DATE_TOKEN_NODE_TYPE) {
     return 1;
   }
 
@@ -296,6 +303,11 @@ export function extractNoteText(raw: unknown) {
       parts.push(entityRefToToken(getNodeAttrs(value)));
     }
 
+    // A dateToken atom has no `.text`; surface its `{…}` token form.
+    if (value.type === DATE_TOKEN_NODE_TYPE) {
+      parts.push(dateTokenToText(getNodeAttrs(value)));
+    }
+
     if (Array.isArray(value.content)) {
       for (const child of value.content) {
         visit(child);
@@ -387,6 +399,11 @@ function serializeMarkdownInline(node: unknown): string {
   if (node.type === ENTITY_REF_NODE_TYPE) {
     const label = getNodeAttrs(node)?.label;
     return typeof label === "string" && label.length > 0 ? label : "";
+  }
+
+  if (node.type === DATE_TOKEN_NODE_TYPE) {
+    const date = getNodeAttrs(node)?.date;
+    return typeof date === "string" ? date : "";
   }
 
   return getNodeContent(node).map((child) => serializeMarkdownInline(child)).join("");

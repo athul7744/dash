@@ -38,7 +38,6 @@ import { CodeBlockWithToolbar } from "@/components/notes/NoteBlockEditorCode";
 import { BlockColor } from "@/components/notes/NoteBlockEditorColor";
 import {
   BlockColorShortcut,
-  DateAutoFormat,
   LinkOpenControls,
   MarkdownLink,
   NotesArrowReplacement,
@@ -48,6 +47,7 @@ import {
   TaskShortcut,
 } from "@/components/notes/NoteBlockEditorExtensions";
 import { MathBlock, MathInline } from "@/components/notes/NoteBlockEditorMath";
+import { DateTokenNode } from "@/components/notes/DateTokenNode";
 import { EntityRefNode } from "@/components/links/EntityRefNode";
 import { QueryBlock } from "@/components/notes/editor/QueryBlockNode";
 import { TaskLine } from "@/components/notes/editor/TaskLineNode";
@@ -99,6 +99,7 @@ export function buildNoteEditorExtensions(): Extensions {
     HardBreak,
     MathInline,
     EntityRefNode,
+    DateTokenNode,
     TableRow,
     TableHeader.extend({ content: `${BLOCK_CONTENT_GROUP}+` }),
     TableCell.extend({ content: `${BLOCK_CONTENT_GROUP}+` }),
@@ -108,7 +109,6 @@ export function buildNoteEditorExtensions(): Extensions {
     MarkdownLink,
     LinkOpenControls,
     NotesArrowReplacement,
-    DateAutoFormat,
     TaskShortcut,
     BlockColorShortcut,
     ReferenceDecorations,

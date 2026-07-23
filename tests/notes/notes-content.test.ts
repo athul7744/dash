@@ -407,6 +407,25 @@ describe("notes-content", () => {
     expect(serializeNoteDocumentToMarkdown(document)).toBe("- [x] Done\n\n- [ ] Pending");
     expect(extractNoteText(document)).toBe("Done Pending");
   });
+
+  it("serializes a dateToken atom as its plain date, and surfaces its token in text", () => {
+    const document = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Due " },
+            { type: "dateToken", attrs: { date: "Jul 23, 2026" } },
+          ],
+        },
+      ],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("Due Jul 23, 2026");
+    expect(extractNoteText(document)).toBe("Due {Jul 23, 2026}");
+    // The atom counts as one position: "Due " (4) + atom (1) + paragraph border (2) => end = 6.
+    expect(getNoteDocumentEndSelection(document)).toBe(6);
+  });
 });
 
 describe("getNoteDocumentEndSelection", () => {

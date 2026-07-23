@@ -1,7 +1,7 @@
 import type { Editor, JSONContent } from "@tiptap/core";
 import { Calendar, CalendarDays, CalendarPlus, Code2, Database, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Minus, Paintbrush, Quote, Sigma, Table2, TextCursorInput, Type, type LucideIcon } from "lucide-react";
 
-import { formatDateToken, getRelativeDate } from "@/lib/notes/date-tokens";
+import { DATE_TOKEN_NODE_TYPE, formatDateLabel, getRelativeDate } from "@/lib/notes/date-tokens";
 import { encodeQueryConfig } from "@/lib/notes/query-block-content";
 import { filterSlashCommands, groupSlashCommands, type SlashCommandSection } from "@/lib/notes/slash-command-filter";
 export type { SlashCommandSection } from "@/lib/notes/slash-command-filter";
@@ -279,7 +279,12 @@ export const slashCommands: SlashCommand[] = [
 export function createDateDocument(date: Date): JSONContent {
   return {
     type: "doc",
-    content: [{ type: "paragraph", content: [{ type: "text", text: formatDateToken(date) }] }],
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: DATE_TOKEN_NODE_TYPE, attrs: { date: formatDateLabel(date) } }],
+      },
+    ],
   };
 }
 

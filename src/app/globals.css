@@ -524,9 +524,13 @@ body[data-display-font="bricolage"] {
   text-decoration-color: color-mix(in oklab, var(--color-teal-400) 55%, transparent);
 }
 
-/* Hide the `{`/`}` delimiters that mark a date token in the text. */
+/* Collapse the `{`/`}` delimiters that mark a date token to zero width. Not
+   `display:none`: a non-rendered inline element has no caret positions around
+   it, so the browser can't place the cursor after a trailing `}` and the caret
+   gets trapped inside the token. Keeping the glyphs in flow at zero width keeps
+   those positions reachable while hiding the braces. */
 .note-date-token-edge {
-  display: none;
+  font-size: 0;
 }
 
 .ProseMirror h1,

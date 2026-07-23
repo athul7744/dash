@@ -82,29 +82,6 @@ export const ACTIVITY_CELL_CLASSES: Record<string, string> = {
   amber:   "bg-amber-400/80 dark:bg-amber-600/70 text-amber-950 dark:text-amber-100",
 };
 
-/** Toolbar button classes (stronger fill for the selected state). */
-export const ACTIVITY_BUTTON_CLASSES: Record<string, { base: string; active: string }> = {
-  teal:    { base: "border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300",       active: "bg-teal-500 text-white border-teal-500 dark:bg-teal-600 dark:border-teal-600" },
-  sky:     { base: "border-sky-300 dark:border-sky-700 text-sky-700 dark:text-sky-300",             active: "bg-sky-500 text-white border-sky-500 dark:bg-sky-600 dark:border-sky-600" },
-  blue:    { base: "border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300",         active: "bg-blue-600 text-white border-blue-600 dark:bg-blue-700 dark:border-blue-700" },
-  slate:   { base: "border-slate-400 dark:border-slate-600 text-slate-700 dark:text-slate-300",     active: "bg-slate-700 text-white border-slate-700 dark:bg-slate-600 dark:border-slate-600" },
-  indigo:  { base: "border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300", active: "bg-indigo-500 text-white border-indigo-500 dark:bg-indigo-600 dark:border-indigo-600" },
-  emerald: { base: "border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300", active: "bg-emerald-500 text-white border-emerald-500 dark:bg-emerald-600 dark:border-emerald-600" },
-  pink:    { base: "border-pink-300 dark:border-pink-700 text-pink-700 dark:text-pink-300",         active: "bg-pink-500 text-white border-pink-500 dark:bg-pink-600 dark:border-pink-600" },
-  lime:    { base: "border-lime-300 dark:border-lime-700 text-lime-700 dark:text-lime-300",         active: "bg-lime-500 text-white border-lime-500 dark:bg-lime-600 dark:border-lime-600" },
-  green:   { base: "border-green-300 dark:border-green-700 text-green-700 dark:text-green-300",     active: "bg-green-500 text-white border-green-500 dark:bg-green-600 dark:border-green-600" },
-  yellow:  { base: "border-yellow-300 dark:border-yellow-700 text-yellow-700 dark:text-yellow-300", active: "bg-yellow-500 text-white border-yellow-500 dark:bg-yellow-600 dark:border-yellow-600" },
-  olive:   { base: "border-green-500 dark:border-green-700 text-green-800 dark:text-green-300",     active: "bg-green-700 text-white border-green-700 dark:bg-green-800 dark:border-green-800" },
-  violet:  { base: "border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300", active: "bg-violet-500 text-white border-violet-500 dark:bg-violet-600 dark:border-violet-600" },
-  purple:  { base: "border-purple-400 dark:border-purple-700 text-purple-700 dark:text-purple-300", active: "bg-purple-600 text-white border-purple-600 dark:bg-purple-700 dark:border-purple-700" },
-  rose:    { base: "border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300",         active: "bg-rose-500 text-white border-rose-500 dark:bg-rose-600 dark:border-rose-600" },
-  fuchsia: { base: "border-fuchsia-300 dark:border-fuchsia-700 text-fuchsia-700 dark:text-fuchsia-300", active: "bg-fuchsia-500 text-white border-fuchsia-500 dark:bg-fuchsia-600 dark:border-fuchsia-600" },
-  cyan:    { base: "border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300",         active: "bg-cyan-500 text-white border-cyan-500 dark:bg-cyan-600 dark:border-cyan-600" },
-  orange:  { base: "border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300", active: "bg-orange-500 text-white border-orange-500 dark:bg-orange-600 dark:border-orange-600" },
-  blush:   { base: "border-pink-200 dark:border-pink-400 text-pink-600 dark:text-pink-300",         active: "bg-pink-300 text-pink-900 border-pink-300 dark:bg-pink-400 dark:border-pink-400" },
-  amber:   { base: "border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300",     active: "bg-amber-500 text-white border-amber-500 dark:bg-amber-600 dark:border-amber-600" },
-};
-
 /** Dot class for the color picker (matches getTagDotClass pattern). */
 export const getActivityDotClass = (color: string): string => {
   const dotMap: Record<string, string> = {

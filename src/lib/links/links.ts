@@ -27,8 +27,6 @@ export interface DbContext {
 /** Namespace for deterministic edge ids (kept stable — do not change). */
 export const EDGE_ID_NAMESPACE = "9b17a01f-3454-4db0-8f39-7f093ac0f56b";
 
-/** Every edge type that represents a reference link (for query filters). */
-export const REF_EDGE_TYPES = ["ref", "page_ref"] as const;
 /** SQL fragment: `type IN ('ref','page_ref')`. */
 export const REF_TYPE_SQL = "type IN ('ref', 'page_ref')";
 

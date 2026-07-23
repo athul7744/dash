@@ -485,26 +485,6 @@ export const colorSlashCommands: SlashCommand[] = [
   },
 ];
 
-export function getSlashQuery(editor: Editor) {
-  const { state } = editor;
-
-  if (!state.selection.empty || state.doc.childCount !== 1) {
-    return null;
-  }
-
-  const firstChild = state.doc.firstChild;
-  if (!firstChild || firstChild.type.name !== "paragraph") {
-    return null;
-  }
-
-  const text = state.doc.textBetween(0, state.doc.content.size, "\n", "\0");
-  if (!text.startsWith("/") || text.includes("\n")) {
-    return null;
-  }
-
-  return text.slice(1);
-}
-
 /** Which slash commands a menu offers. "dates" is the journal (date actions only). */
 export type SlashScope = "all" | "dates";
 

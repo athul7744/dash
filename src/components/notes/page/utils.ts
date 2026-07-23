@@ -3,9 +3,7 @@
 import type { NoteBlockRow } from "@/hooks/use-notes";
 import type { Tag } from "@/lib/powersync/AppSchema";
 import { normalizeNoteDocument, parseSerializedRecord } from "@/lib/notes/notes-content";
-import type { JsonValue } from "@/lib/notes/notes";
 import { formatRelativeTime } from "@/lib/shared/utils";
-import { TAG_COLORS } from "@/lib/tasks/colors";
 
 import type { NoteTag, OutlineEntry } from "./types";
 
@@ -139,18 +137,6 @@ export function attachmentLabel(filePath: string | null | undefined) {
   return parts.at(-1) ?? filePath;
 }
 
-export function createBlockDocument(text = ""): JsonValue {
-  return {
-    type: "doc",
-    content: [
-      {
-        type: "paragraph",
-        content: text.trim().length > 0 ? [{ type: "text", text }] : [],
-      },
-    ],
-  };
-}
-
 export function parseProperties(raw: unknown) {
   return parseSerializedRecord(raw) ?? {};
 }
@@ -193,20 +179,6 @@ export function resolveNoteTags(tagIds: string[], availableTags: Tag[]): NoteTag
       color: tag.color || "slate",
     }];
   });
-}
-
-export function getDeterministicTagColor(tag: string | null | undefined) {
-  const normalizedTag = (tag ?? "").trim().toLocaleLowerCase();
-  if (!normalizedTag) {
-    return null;
-  }
-
-  let hash = 0;
-  for (const character of normalizedTag) {
-    hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
-  }
-
-  return TAG_COLORS[hash % TAG_COLORS.length] ?? null;
 }
 
 export function normalizePageEmoji(value: unknown) {

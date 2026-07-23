@@ -47,21 +47,6 @@ export function getRankAfter(currentSortRank?: string | null, nextSiblingSortRan
   return currentRank.genNext().format();
 }
 
-export function getRankBefore(previousSiblingSortRank?: string | null, currentSortRank?: string | null) {
-  const previousSiblingRank = parseRank(previousSiblingSortRank);
-  const currentRank = parseRank(currentSortRank);
-
-  if (!currentRank) {
-    return getNextRank(previousSiblingSortRank ? [previousSiblingSortRank] : []);
-  }
-
-  if (previousSiblingRank) {
-    return previousSiblingRank.between(currentRank).format();
-  }
-
-  return currentRank.genPrev().format();
-}
-
 export function getSiblingItems<TItem extends RankedOrderItem>(
   items: TItem[],
   parentId: string | null | undefined,
@@ -89,20 +74,6 @@ export function getRankAtParentEnd<TItem extends RankedOrderItem>(
   return getNextRank(siblingItems.map((item) => item.sort_rank));
 }
 
-export function getRankAtParentStart<TItem extends RankedOrderItem>(
-  items: TItem[],
-  parentId: string | null | undefined,
-  getParentId: (item: TItem) => string | null | undefined,
-  excludeItemId?: string
-) {
-  const siblingItems = getSiblingItems(items, parentId, getParentId, excludeItemId)
-    .sort((left, right) => (left.sort_rank ?? "").localeCompare(right.sort_rank ?? ""));
-  const firstSibling = siblingItems[0] ?? null;
-  const firstRank = parseRank(firstSibling?.sort_rank ?? null);
-
-  return firstRank ? firstRank.genPrev().format() : LexoRank.middle().format();
-}
-
 export function getRankAfterItem<TItem extends RankedOrderItem>(
   items: TItem[],
   siblingItemId: string,
@@ -118,23 +89,5 @@ export function getRankAfterItem<TItem extends RankedOrderItem>(
 
   return currentSibling
     ? getRankAfter(currentSibling.sort_rank, nextSibling?.sort_rank ?? null)
-    : getNextRank(siblingItems.map((item) => item.sort_rank));
-}
-
-export function getRankBeforeItem<TItem extends RankedOrderItem>(
-  items: TItem[],
-  siblingItemId: string,
-  parentId: string | null | undefined,
-  getParentId: (item: TItem) => string | null | undefined,
-  excludeItemId?: string
-) {
-  const siblingItems = getSiblingItems(items, parentId, getParentId, excludeItemId)
-    .sort((left, right) => (left.sort_rank ?? "").localeCompare(right.sort_rank ?? ""));
-  const siblingIndex = siblingItems.findIndex((item) => item.id === siblingItemId);
-  const previousSibling = siblingIndex > 0 ? siblingItems[siblingIndex - 1] : null;
-  const currentSibling = siblingIndex >= 0 ? siblingItems[siblingIndex] : null;
-
-  return currentSibling
-    ? getRankBefore(previousSibling?.sort_rank ?? null, currentSibling.sort_rank)
     : getNextRank(siblingItems.map((item) => item.sort_rank));
 }

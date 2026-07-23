@@ -1,9 +1,4 @@
-import type { Editor, JSONContent } from "@tiptap/core";
-import type { EditorView } from "@tiptap/pm/view";
-
-import { createNoteDocumentFromText, extractNoteText, normalizeNoteDocument } from "@/lib/notes/notes-content";
-import { emptyDocument } from "@/components/notes/NoteBlockEditorSlash";
-import { logger } from "@/lib/shared/logger";
+import type { Editor } from "@tiptap/core";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -20,57 +15,6 @@ export type ResolvedPageReference = {
   from: number;
   to: number;
 };
-
-// ---------------------------------------------------------------------------
-// Document helpers
-// ---------------------------------------------------------------------------
-
-export function isJsonContent(value: unknown): value is JSONContent {
-  return Boolean(value) && typeof value === "object" && "type" in (value as Record<string, unknown>);
-}
-
-export function parseDocument(raw: unknown): JSONContent {
-  const normalized = normalizeNoteDocument(raw);
-
-  if (isJsonContent(normalized)) {
-    return normalized;
-  }
-
-  logger.warn("[notes] Normalized block content was not a valid document", {
-    raw,
-    normalized,
-  });
-  return emptyDocument();
-}
-
-export function splitEditorDocumentAtSelection(editor: Editor) {
-  const { from, to } = editor.state.selection;
-  const currentContent = parseDocument(editor.state.doc.cut(0, from).toJSON());
-  const nextSiblingContent = parseDocument(editor.state.doc.cut(to).toJSON());
-
-  return {
-    currentContent,
-    nextSiblingContent,
-  };
-}
-
-export function createNormalTextSiblingContent(content: JSONContent) {
-  const text = extractNoteText(content);
-  return text.trim().length > 0 ? createNoteDocumentFromText(text) : emptyDocument();
-}
-
-export function isAtStartOfBlockContent(editor: Editor) {
-  const { from } = editor.state.selection;
-  return editor.state.doc.textBetween(0, from, "\n", "\0").length === 0;
-}
-
-export function isHorizontalRuleOnlyDocument(value: JSONContent | null | undefined) {
-  if (!value || value.type !== "doc" || !Array.isArray(value.content) || value.content.length !== 1) {
-    return false;
-  }
-
-  return value.content[0]?.type === "horizontalRule";
-}
 
 // ---------------------------------------------------------------------------
 // Page reference query

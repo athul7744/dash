@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from "uuid";
 
 import { deleteEntityEdges } from "@/lib/links/links";
 import { ensureSystemPage } from "@/lib/notes/notes";
-import { systemPageId } from "@/lib/notes/system-pages";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { getLinkHost, normalizeUrl } from "@/lib/tasks/tasks";
@@ -46,12 +45,6 @@ interface BookmarkContent {
 }
 
 const SQL_UTC_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
-
-/** Deterministic id of the current user's bookmarks page (no lookup needed). */
-export async function bookmarksPageId(): Promise<string> {
-  const userId = await getCurrentUserId();
-  return systemPageId(userId, "bookmark", BOOKMARKS_KEY);
-}
 
 /** Idempotently create the bookmarks page. Returns its id. */
 export async function ensureBookmarksPage(): Promise<string> {

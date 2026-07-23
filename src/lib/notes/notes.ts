@@ -113,14 +113,6 @@ export async function reconcileNoteBlockEdges(blockId: string, content: JsonValu
   await reconcileEntityRefs(blockId, [extractPlainText(content)], ctx ?? db);
 }
 
-/** @deprecated Edge reconciles are now synchronous during block flush. Always returns false. */
-export function hasPendingNoteEdgeReconciles() {
-  return false;
-}
-
-/** @deprecated Edge reconciles are now synchronous during block flush. No-op. */
-export async function flushPendingNoteEdgeReconciles() {}
-
 async function createNotePage(input: CreatePageInput = {}) {
   const normalizedTitle = normalizeNotePageTitle(input.title) || "Untitled";
   const existingPageId = await findNotePageIdByTitle(normalizedTitle);

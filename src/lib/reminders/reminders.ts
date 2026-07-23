@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from "uuid";
 
 import { deleteEntityEdges } from "@/lib/links/links";
 import { ensureSystemPage } from "@/lib/notes/notes";
-import { systemPageId } from "@/lib/notes/system-pages";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import type { ReminderSchedule } from "@/lib/reminders/schedule";
@@ -51,12 +50,6 @@ const DEFAULT_SCHEDULE: ReminderSchedule = { freq: "monthly", day: 1 };
 /** A sensible starting schedule for a brand-new reminder: monthly on today's date. */
 function defaultNewSchedule(): ReminderSchedule {
   return { freq: "monthly", day: new Date().getDate() };
-}
-
-/** Deterministic id of the current user's reminders page (no lookup needed). */
-export async function remindersPageId(): Promise<string> {
-  const userId = await getCurrentUserId();
-  return systemPageId(userId, "reminder", REMINDERS_KEY);
 }
 
 /** Idempotently create the reminders page. Returns its id. */

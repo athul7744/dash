@@ -93,6 +93,37 @@ describe("BlockDocumentPersister save path", () => {
     expect(reconcileEdges).toHaveBeenCalledTimes(1);
   });
 
+  it("INSERTs (not UPDATEs) the stamped starter block's first content on a lazy page", async () => {
+    // A fresh lazy page (journal) has no rows, but the id-plugin stamps the
+    // empty starter block with an id on mount. hydrateFromDoc must NOT baseline
+    // that unpersisted id, or the first content diffs to an UPDATE that matches
+    // zero rows and is lost.
+    let doc: ReturnType<typeof assembleDoc> = {
+      type: "doc",
+      content: [{ type: "block", attrs: { blockId: "X", blockType: "text" }, content: [{ type: "paragraph" }] }],
+    };
+    const ensurePage = vi.fn(async () => {});
+    const persister = new BlockDocumentPersister("page-1", { getDoc: () => doc, debounceMs: 5, ensurePage });
+    persister.hydrateFromDoc(doc, []);
+
+    doc = {
+      type: "doc",
+      content: [
+        {
+          type: "block",
+          attrs: { blockId: "X", blockType: "text" },
+          content: [{ type: "paragraph", content: [{ type: "text", text: "hello" }] }],
+        },
+      ],
+    };
+    await persister.flush();
+
+    expect(ensurePage).toHaveBeenCalledTimes(1);
+    expect(sqlOf("UPDATE").length).toBe(0);
+    expect(sqlOf("INSERT").length).toBe(1);
+    expect(sqlOf("INSERT")[0].params[0]).toBe("X");
+  });
+
   it("DELETEs a removed block and its edges", async () => {
     const { persister, setRows } = makePersister([row("b1"), row("b2", { sort_rank: RANK_1 })]);
     setRows([row("b1")]);

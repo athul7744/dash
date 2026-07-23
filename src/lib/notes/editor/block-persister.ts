@@ -24,8 +24,6 @@ import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 import { reconcileNoteBlockEdges } from "@/lib/notes/notes";
 import { extractNoteText, normalizeNoteDocument, serializeNoteDocument } from "@/lib/notes/notes-content";
 
-import { LexoRank } from "lexorank";
-
 import { assembleDoc, decomposeDoc, type BlockDocumentRow } from "./block-document";
 import { diffBlocks, type PersistedBlock } from "./block-diff";
 
@@ -109,18 +107,28 @@ export class BlockDocumentPersister {
     this.snapshot = this.buildSnapshotFromDoc(doc, rows);
   }
 
-  /** Snapshot keyed by block id: content/type/parent from the doc, ranks from rows. */
+  /**
+   * Snapshot keyed by block id: content/type/parent from the doc, ranks from
+   * rows. Only blocks that ALREADY exist as a DB row are baselined — a block the
+   * id-plugin stamped on mount but that has no row yet (the empty-page starter,
+   * or the extra blocks a legacy `taskList` row expands into) must NOT be
+   * baselined, or its first real content diffs to an `UPDATE … WHERE id=?` that
+   * matches zero rows and is silently lost. Leaving it out lets it fall through
+   * to an `INSERT` on the first flush.
+   */
   private buildSnapshotFromDoc(doc: JSONContent, rows: BlockDocumentRow[]): Map<string, PersistedBlock> {
     const rankById = new Map(rows.map((r) => [r.id, r.sort_rank]));
     const map = new Map<string, PersistedBlock>();
     for (const block of decomposeDoc(doc)) {
       if (!block.blockId) continue; // never baseline an unstamped block
+      const sortRank = rankById.get(block.blockId);
+      if (sortRank === undefined) continue; // stamped but unpersisted → let it INSERT
       map.set(block.blockId, {
         blockId: block.blockId,
         parentId: block.parentId,
         type: block.type,
         content: block.content,
-        sortRank: rankById.get(block.blockId) ?? LexoRank.middle().format(),
+        sortRank,
       });
     }
     return map;

@@ -7,7 +7,7 @@
  * via a capture-phase listener. One instance per editor (like BlockMenuLayer).
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type { Editor } from "@tiptap/core";
 
@@ -72,6 +72,17 @@ export function SlashMenuLayer({
   useEffect(() => {
     indexRef.current = index;
   }, [index]);
+
+  // Grouped commands drive the render; `flat` is the SAME list flattened in
+  // section order. Keyboard nav, apply, and hover all index into `flat`, so the
+  // highlighted row always matches what Enter/click actually runs (raw array
+  // order and grouped order diverge — e.g. math-block is declared last but sits
+  // in the "structure" group).
+  const grouped = useMemo(
+    () => (query === null ? [] : getGroupedSlashCommands(getFilteredSlashCommands(query, scope))),
+    [query, scope],
+  );
+  const flat = useMemo(() => grouped.flatMap((section) => section.commands), [grouped]);
 
   // Keep the highlighted command visible as arrows move through the list.
   useEffect(() => {
@@ -183,7 +194,6 @@ export function SlashMenuLayer({
   // Intercept nav keys before ProseMirror (capture phase).
   useEffect(() => {
     if (query === null) return;
-    const flat = getFilteredSlashCommands(query, scope);
     const handler = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -208,7 +218,7 @@ export function SlashMenuLayer({
     };
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
-  }, [query, close, apply, scope]);
+  }, [query, close, apply, flat]);
 
   // Flip above the caret when there isn't room below (uses viewport y).
   useLayoutEffect(() => {
@@ -231,9 +241,6 @@ export function SlashMenuLayer({
   }
 
   if (query === null || !caret) return null;
-
-  const filtered = getFilteredSlashCommands(query, scope);
-  const grouped = getGroupedSlashCommands(filtered);
 
   let flatIndex = -1;
   return (
@@ -271,7 +278,7 @@ export function SlashMenuLayer({
                     itemRefs.current[itemIndex] = element;
                   }}
                   onMouseDown={(event) => event.preventDefault()}
-                  onMouseEnter={() => setIndex(filtered.indexOf(command))}
+                  onMouseEnter={() => setIndex(itemIndex)}
                   onClick={() => apply(command)}
                   className={`flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[13px] leading-5 outline-none ${
                     active ? "bg-muted/80 text-foreground" : "text-foreground/95 hover:bg-muted/50"

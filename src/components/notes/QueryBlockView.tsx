@@ -28,6 +28,7 @@ import { BUILT_IN_PROPERTIES, OPERATORS_BY_TYPE } from "@/lib/notes/query-block"
 import { encodeQueryConfig } from "@/lib/notes/query-block-content";
 import type { PropertyType } from "@/components/notes/page/types";
 import { parseCustomPropertyValues } from "@/lib/notes/properties";
+import { normalizePageEmoji, parseProperties } from "@/components/notes/page/utils";
 
 import { type QueryResultRow, parseConfig, buildQuerySQL, getPropertyName } from "./query-block-sql";
 import { PROPERTY_TYPE_ICONS, getPropertyIcon, getPropertyCustomIcon } from "./query-block-helpers";
@@ -187,18 +188,8 @@ export function QueryBlockView({
     updateConfig({ ...config, filters: config.filters.filter((_, i) => i !== index) });
   };
 
-  const getPageEmoji = (row: QueryResultRow): string | null => {
-    if (!row.properties) return null;
-    try {
-      const props = JSON.parse(row.properties);
-      return props.emoji ?? null;
-    } catch { return null; }
-  };
-
-  const getPageProperties = (row: QueryResultRow): Record<string, unknown> => {
-    if (!row.properties) return {};
-    try { return JSON.parse(row.properties); } catch { return {}; }
-  };
+  const getPageProperties = (row: QueryResultRow): Record<string, unknown> => parseProperties(row.properties);
+  const getPageEmoji = (row: QueryResultRow): string | null => normalizePageEmoji(getPageProperties(row).emoji);
 
   const getCellValue = (row: QueryResultRow, propertyId: string): unknown => {
     if (propertyId === "__created_at__") return row.created_at;

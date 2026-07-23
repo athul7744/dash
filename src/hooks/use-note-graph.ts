@@ -9,6 +9,7 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useReminders } from "@/hooks/use-reminders";
 import { parseProperties, parseStoredTagIds, normalizePageEmoji } from "@/components/notes/page/utils";
 import { buildGraph, type GraphNode, type NoteGraph, type PageEdgeRow } from "@/lib/notes/graph";
+import { refTypeSql } from "@/lib/links/links";
 import { stripRefs, REF_KIND_HUE, type RefKind } from "@/lib/links/tokens";
 import type { Tag, Task } from "@/lib/powersync/AppSchema";
 
@@ -49,7 +50,7 @@ const EDGE_RESOLVE_QUERY = [
   "LEFT JOIN blocks tb ON tb.id = e.target_id",
   "LEFT JOIN pages tbp ON tbp.id = tb.page_id",
   "LEFT JOIN pages tp ON tp.id = e.target_id",
-  "WHERE e.type IN ('ref', 'page_ref')",
+  `WHERE ${refTypeSql("e")}`,
 ].join(" ");
 
 type EdgeResolveRow = {

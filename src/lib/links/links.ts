@@ -30,6 +30,11 @@ export const EDGE_ID_NAMESPACE = "9b17a01f-3454-4db0-8f39-7f093ac0f56b";
 /** SQL fragment: `type IN ('ref','page_ref')`. */
 export const REF_TYPE_SQL = "type IN ('ref', 'page_ref')";
 
+/** `REF_TYPE_SQL`, optionally column-qualified for a joined query — `refTypeSql("e")` → `e.type IN (…)`. */
+export function refTypeSql(alias?: string): string {
+  return alias ? `${alias}.${REF_TYPE_SQL}` : REF_TYPE_SQL;
+}
+
 type DesiredEdge = { targetId: string; type: string };
 
 /**

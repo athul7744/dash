@@ -79,6 +79,19 @@ export function formatRefToken(token: RefToken): string {
   return token.kind && token.id ? `[[${label}|${token.kind}:${token.id}]]` : `[[${label}]]`;
 }
 
+/**
+ * Build a token from a node's loose attrs (label/kind/id), applying the same
+ * defaults everywhere — shared by the entityRef node's `renderText` and the
+ * text/markdown serializer.
+ */
+export function formatRefTokenFromAttrs(attrs: { label?: unknown; kind?: unknown; id?: unknown } | null | undefined): string {
+  return formatRefToken({
+    label: typeof attrs?.label === "string" && attrs.label ? attrs.label : "Untitled",
+    kind: typeof attrs?.kind === "string" ? (attrs.kind as RefKind) : undefined,
+    id: typeof attrs?.id === "string" ? attrs.id : undefined,
+  });
+}
+
 /** Normalized key for legacy title matching (case/whitespace-insensitive). */
 export function normalizeTitleKey(value: string): string {
   return value.trim().replace(/\s+/g, " ").toLowerCase();

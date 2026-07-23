@@ -1,22 +1,14 @@
-import { formatRefToken, ENTITY_REF_NODE_TYPE, type RefKind } from "@/lib/links/tokens";
-import { DATE_TOKEN_NODE_TYPE } from "@/lib/notes/date-tokens";
+import { formatRefTokenFromAttrs, ENTITY_REF_NODE_TYPE } from "@/lib/links/tokens";
+import { DATE_TOKEN_NODE_TYPE, dateLabelToToken } from "@/lib/notes/date-tokens";
 
 /** The `{MMM d, yyyy}` token a dateToken node stands for (text extraction/markdown). */
 function dateTokenToText(attrs: Record<string, unknown> | null): string {
   const date = typeof attrs?.date === "string" ? attrs.date : "";
-  return date ? `{${date}}` : "";
+  return date ? dateLabelToToken(date) : "";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object";
-}
-
-/** The `[[label|kind:id]]` token an entityRef node stands for (used in text extraction/markdown). */
-function entityRefToToken(attrs: Record<string, unknown> | null): string {
-  const label = typeof attrs?.label === "string" ? attrs.label : "Untitled";
-  const kind = typeof attrs?.kind === "string" ? (attrs.kind as RefKind) : undefined;
-  const id = typeof attrs?.id === "string" ? attrs.id : undefined;
-  return formatRefToken({ label, kind, id });
 }
 
 function isNoteDocument(value: unknown): value is Record<string, unknown> & { type: string } {
@@ -300,7 +292,7 @@ export function extractNoteText(raw: unknown) {
 
     // An entityRef atom has no `.text`; surface its token so edge reconcile sees it.
     if (value.type === ENTITY_REF_NODE_TYPE) {
-      parts.push(entityRefToToken(getNodeAttrs(value)));
+      parts.push(formatRefTokenFromAttrs(getNodeAttrs(value)));
     }
 
     // A dateToken atom has no `.text`; surface its `{…}` token form.

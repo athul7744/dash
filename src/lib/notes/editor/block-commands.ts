@@ -18,12 +18,20 @@
 import type { EditorState, Transaction } from "@tiptap/pm/state";
 import { NodeSelection, Selection, TextSelection } from "@tiptap/pm/state";
 import { canSplit } from "@tiptap/pm/transform";
-import type { Node as PMNode, ResolvedPos } from "@tiptap/pm/model";
+import type { Node as PMNode, ResolvedPos, Schema } from "@tiptap/pm/model";
 
 import { BLOCK_NODE_TYPE } from "./block-document";
 
 type Dispatch = (tr: Transaction) => void;
 export type BlockCommand = (state: EditorState, dispatch?: Dispatch) => boolean;
+
+/** A fresh empty text block (`block > paragraph`) with an unstamped id. */
+function createEmptyTextBlock(schema: Schema): PMNode {
+  return schema.nodes[BLOCK_NODE_TYPE].create(
+    { blockId: null, blockType: "text" },
+    schema.nodes.paragraph.create(),
+  );
+}
 
 const LINE_TYPES = new Set(["paragraph", "heading", "taskLine"]);
 // Content nodes that hold multiple inner lines (quote paragraphs). Their
@@ -94,7 +102,6 @@ function wrapperEnter(state: EditorState, dispatch: Dispatch | undefined, $from:
   }
 
   const paragraph = state.schema.nodes.paragraph;
-  const blockType = state.schema.nodes[BLOCK_NODE_TYPE];
 
   if (info.childCount === 1) {
     if (dispatch) {
@@ -110,7 +117,7 @@ function wrapperEnter(state: EditorState, dispatch: Dispatch | undefined, $from:
       const blockEnd = $from.after(blockDepth);
       const tr = state.tr.delete(itemStart, itemStart + info.item.nodeSize);
       const insertAt = tr.mapping.map(blockEnd);
-      tr.insert(insertAt, blockType.create({ blockId: null, blockType: "text" }, paragraph.create()));
+      tr.insert(insertAt, createEmptyTextBlock(state.schema));
       tr.setSelection(Selection.near(tr.doc.resolve(insertAt + 2)));
       dispatch(tr.scrollIntoView());
     }
@@ -192,11 +199,9 @@ function previousLinePos(doc: PMNode, pos: number): ResolvedPos | null {
 
 /** Insert a fresh empty paragraph block right after the block at `blockDepth`. */
 function insertBlockAfter(state: EditorState, dispatch: Dispatch | undefined, $pos: ResolvedPos, blockDepth: number): boolean {
-  const blockType = state.schema.nodes[BLOCK_NODE_TYPE];
-  const paragraph = state.schema.nodes.paragraph;
   const insertAt = $pos.after(blockDepth);
   if (dispatch) {
-    const tr = state.tr.insert(insertAt, blockType.create({ blockId: null, blockType: "text" }, paragraph.create()));
+    const tr = state.tr.insert(insertAt, createEmptyTextBlock(state.schema));
     tr.setSelection(Selection.near(tr.doc.resolve(insertAt + 2)));
     dispatch(tr.scrollIntoView());
   }
@@ -260,7 +265,7 @@ export const splitBlock: BlockCommand = (state, dispatch) => {
     // Enter at the very start of a non-empty line: push an empty block above and
     // keep the current block (id + content) untouched. Selection maps forward.
     if (atStart && line.content.size > 0) {
-      tr.insert($from.before(blockDepth), blockType.create({ blockId: null, blockType: "text" }, paragraph.create()));
+      tr.insert($from.before(blockDepth), createEmptyTextBlock(schema));
       dispatch(tr.scrollIntoView());
       return true;
     }

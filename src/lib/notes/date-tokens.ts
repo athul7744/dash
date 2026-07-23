@@ -22,9 +22,14 @@ export function formatDateLabel(date: Date): string {
   return format(date, "MMM d, yyyy");
 }
 
+/** Wrap a display date label in its `{…}` token form — the one place `{…}` is built. */
+export function dateLabelToToken(label: string): string {
+  return `{${label}}`;
+}
+
 /** The serialized `{MMM d, yyyy}` token form (plain-text/markdown fallback). */
 export function formatDateToken(date: Date): string {
-  return `{${formatDateLabel(date)}}`;
+  return dateLabelToToken(formatDateLabel(date));
 }
 
 export function getRelativeDate(offset: RelativeDateOffset): Date {

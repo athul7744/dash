@@ -1,6 +1,6 @@
 import { InputRule, Node, mergeAttributes } from "@tiptap/core";
 
-import { DATE_TOKEN_NODE_TYPE, formatDateLabel, parseDateToken } from "@/lib/notes/date-tokens";
+import { DATE_TOKEN_NODE_TYPE, dateLabelToToken, formatDateLabel, parseDateToken } from "@/lib/notes/date-tokens";
 
 /**
  * `dateToken` — an inline, atomic node for a date, the sibling of `entityRef`
@@ -55,7 +55,7 @@ export const DateTokenNode = Node.create({
   },
 
   renderText({ node }) {
-    return `{${(node.attrs.date as string) || ""}}`;
+    return dateLabelToToken((node.attrs.date as string) || "");
   },
 
   addInputRules() {

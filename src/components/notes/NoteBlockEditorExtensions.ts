@@ -84,6 +84,36 @@ export const ReferenceDecorations = Extension.create({
  * (one `taskLine` per block, matching the slash `/todo` command). Keyboard-only
  * checklist creation — no list node exists in this schema.
  */
+type BlockStartTrigger = {
+  /** The block's own content line node (paragraph/heading/…). */
+  node: PMNode;
+  contentPos: number;
+  blockPos: number;
+  block: PMNode;
+};
+
+/**
+ * If `range` starts a block's own content line — the line node sits directly in
+ * a `block` and the trigger is at the line's very start — return its positions;
+ * else null. Shared by the block input-rule shortcuts, which add their own
+ * node-type check (paragraph, heading, …).
+ */
+function blockStartTrigger(
+  state: EditorState,
+  range: { from: number; to: number },
+): BlockStartTrigger | null {
+  const $from = state.selection.$from;
+  const depth = $from.depth;
+  const blockDepth = depth - 1;
+  if (blockDepth < 0) return null;
+  const block = $from.node(blockDepth);
+  if (block?.type.name !== BLOCK_NODE_TYPE) return null;
+  const contentPos = $from.before(depth);
+  // The trigger must sit at the very start of the block's content line.
+  if (range.from !== contentPos + 1) return null;
+  return { node: $from.node(depth), contentPos, blockPos: $from.before(blockDepth), block };
+}
+
 export const TaskShortcut = Extension.create({
   name: "taskShortcut",
 
@@ -92,19 +122,12 @@ export const TaskShortcut = Extension.create({
       new InputRule({
         find: /^(?:[-*]\s)?\[( |x|X)?\]\s$/,
         handler: ({ state, range, match }) => {
-          const $from = state.selection.$from;
-          const depth = $from.depth;
-          if ($from.node(depth)?.type.name !== "paragraph") return;
-          const blockDepth = depth - 1;
-          if (blockDepth < 0 || $from.node(blockDepth)?.type.name !== BLOCK_NODE_TYPE) return;
+          const trigger = blockStartTrigger(state, range);
+          if (!trigger || trigger.node.type.name !== "paragraph") return;
           const taskType = state.schema.nodes[TASK_LINE_NODE];
           if (!taskType) return;
 
-          const contentPos = $from.before(depth);
-          // Only fire when the trigger sits at the very start of the block.
-          if (range.from !== contentPos + 1) return;
-
-          const blockPos = $from.before(blockDepth);
+          const { contentPos, blockPos } = trigger;
           const checked = /x/i.test(match[1] ?? "");
           const { tr } = state;
           tr.delete(range.from, range.to);
@@ -545,19 +568,12 @@ function convertBlockToAtom(
   makeAtom: (schema: Schema) => PMNode,
 ): void {
   const { schema } = state;
-  const $from = state.selection.$from;
-  const depth = $from.depth;
-  const para = $from.node(depth);
-  if (para?.type.name !== "paragraph") return;
-  const blockDepth = depth - 1;
-  if (blockDepth < 0 || $from.node(blockDepth)?.type.name !== BLOCK_NODE_TYPE) return;
-  const contentPos = $from.before(depth);
   // Trigger must start the block; the caret sits at the end of the marker, so
   // the whole line is just the marker (its typed last char isn't in the doc yet).
-  if (range.from !== contentPos + 1) return;
-
-  const blockNode = $from.node(blockDepth);
-  const afterBlock = $from.before(blockDepth) + blockNode.nodeSize;
+  const trigger = blockStartTrigger(state, range);
+  if (!trigger || trigger.node.type.name !== "paragraph") return;
+  const { node: para, contentPos, blockPos, block: blockNode } = trigger;
+  const afterBlock = blockPos + blockNode.nodeSize;
 
   const { tr } = state;
   tr.replaceWith(contentPos, contentPos + para.nodeSize, makeAtom(schema));
@@ -623,14 +639,9 @@ export const BlockColorShortcut = Extension.create({
       new InputRule({
         find: blockColorRegex,
         handler: ({ state, range, match }) => {
-          const $from = state.selection.$from;
-          const depth = $from.depth;
-          const node = $from.node(depth);
-          if (node?.type.name !== "paragraph" && node?.type.name !== "heading") return;
-          const blockDepth = depth - 1;
-          if (blockDepth < 0 || $from.node(blockDepth)?.type.name !== BLOCK_NODE_TYPE) return;
-          const contentPos = $from.before(depth);
-          if (range.from !== contentPos + 1) return;
+          const trigger = blockStartTrigger(state, range);
+          if (!trigger || (trigger.node.type.name !== "paragraph" && trigger.node.type.name !== "heading")) return;
+          const { node, contentPos } = trigger;
 
           const key = match[1].toLowerCase();
           const color = key === "none" || key === "nocolor" ? null : key;

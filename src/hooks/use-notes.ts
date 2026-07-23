@@ -2,6 +2,7 @@
 
 import { useQuery } from "@powersync/react";
 
+import { refTypeSql } from "@/lib/links/links";
 import type { AttachmentRecord, BlockRecord, PageRecord } from "@/lib/powersync/AppSchema";
 
 type NoteCountRow = { count: number };
@@ -163,7 +164,7 @@ export function useLinkedNoteReferences(pageId?: string | null) {
         "JOIN pages p ON p.id = b.page_id",
         // Note → note only (both legacy `page_ref` and id-bound `ref`). Cross-app
         // sources (tasks/bookmarks/…) surface via the <Backlinks> chip row.
-        "WHERE e.type IN ('ref', 'page_ref') AND e.target_id = ? AND json_extract(p.properties, '$.kind') IS NULL",
+        `WHERE ${refTypeSql("e")} AND e.target_id = ? AND json_extract(p.properties, '$.kind') IS NULL`,
         "ORDER BY b.updated_at DESC, e.source_block_id DESC",
       ].join(" ")
     : EMPTY_LINKED_REFS_QUERY;

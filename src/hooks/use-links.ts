@@ -10,6 +10,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@powersync/react";
 
+import { refTypeSql } from "@/lib/links/links";
 import {
   classifyEntityRow,
   ENTITY_JOIN_SQL,
@@ -22,7 +23,7 @@ const EMPTY = `SELECT ${ENTITY_JOIN_SQL} FROM edges e ${ENTITY_JOIN_FROM} WHERE 
 
 export function useBacklinks(targetId?: string | null): ResolvedEntity[] {
   const query = targetId
-    ? `SELECT ${ENTITY_JOIN_SQL} FROM edges e ${ENTITY_JOIN_FROM} WHERE e.target_id = ? AND e.type IN ('ref', 'page_ref')`
+    ? `SELECT ${ENTITY_JOIN_SQL} FROM edges e ${ENTITY_JOIN_FROM} WHERE e.target_id = ? AND ${refTypeSql("e")}`
     : EMPTY;
   const { data = [] } = useQuery<EntityJoinRow>(query, targetId ? [targetId] : []);
 

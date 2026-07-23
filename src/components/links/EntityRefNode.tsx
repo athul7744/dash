@@ -18,7 +18,7 @@ import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tip
 
 import type { CSSProperties } from "react";
 
-import { formatRefToken, refKindAccentVar, ENTITY_REF_NODE_TYPE, type RefKind } from "@/lib/links/tokens";
+import { formatRefTokenFromAttrs, refKindAccentVar, ENTITY_REF_NODE_TYPE, type RefKind } from "@/lib/links/tokens";
 import { getApp } from "@/lib/shared/apps";
 
 export const ENTITY_REF_NODE = ENTITY_REF_NODE_TYPE;
@@ -110,11 +110,7 @@ export const EntityRefNode = Node.create({
   },
 
   renderText({ node }) {
-    return formatRefToken({
-      label: (node.attrs.label as string) || "Untitled",
-      kind: (node.attrs.kind as RefKind | null) ?? undefined,
-      id: (node.attrs.id as string | null) ?? undefined,
-    });
+    return formatRefTokenFromAttrs(node.attrs);
   },
 
   addNodeView() {

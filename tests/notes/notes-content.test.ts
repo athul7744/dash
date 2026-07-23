@@ -426,6 +426,26 @@ describe("notes-content", () => {
     // The atom counts as one position: "Due " (4) + atom (1) + paragraph border (2) => end = 6.
     expect(getNoteDocumentEndSelection(document)).toBe(6);
   });
+
+  it("escapes a pipe inside a table cell so columns don't shift on re-parse", () => {
+    const cell = (text: string, type = "tableCell") => ({
+      type,
+      content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+    });
+    const document = {
+      type: "doc",
+      content: [
+        {
+          type: "table",
+          content: [
+            { type: "tableRow", content: [cell("A", "tableHeader"), cell("B", "tableHeader")] },
+            { type: "tableRow", content: [cell("a|b"), cell("c")] },
+          ],
+        },
+      ],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("| A | B |\n| --- | --- |\n| a\\|b | c |");
+  });
 });
 
 describe("getNoteDocumentEndSelection", () => {

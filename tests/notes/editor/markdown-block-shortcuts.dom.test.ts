@@ -14,7 +14,7 @@ import History from "@tiptap/extension-history";
 
 import { NotesDocument, BlockNode, asBlockContent } from "@/lib/notes/editor/block-schema";
 import { BlockColor } from "@/components/notes/NoteBlockEditorColor";
-import { BlockColorShortcut, NotesHorizontalRule, NotesImage } from "@/components/notes/NoteBlockEditorExtensions";
+import { BlockColorShortcut, MarkdownLink, NotesHorizontalRule, NotesImage } from "@/components/notes/NoteBlockEditorExtensions";
 import { BlockIdPlugin } from "@/lib/notes/editor/block-id-plugin";
 import { BlockNormalize } from "@/lib/notes/editor/block-normalize";
 import { assembleDoc, decomposeDoc, type BlockDocumentRow } from "@/lib/notes/editor/block-document";
@@ -48,6 +48,7 @@ function makeEditor(rows: BlockDocumentRow[]): Editor {
       History,
       BlockColor,
       BlockColorShortcut,
+      MarkdownLink,
       BlockIdPlugin,
       BlockNormalize,
     ],
@@ -115,6 +116,22 @@ describe("block color shortcut", () => {
     const node = firstContent(editor);
     expect(node.type).toBe("paragraph");
     expect(node.attrs?.color ?? null).toBeNull();
+    editor.destroy();
+  });
+});
+
+describe("markdown link shortcut", () => {
+  it("turns `[label](url)` into the label linked to the url, not the url as text", () => {
+    const editor = makeEditor([row("b1", "[Roadmap](https://x.com")]);
+    typeAtEnd(editor, ")");
+
+    const para = firstContent(editor);
+    const textNode = para.content.find((n: { type: string; text?: string }) => n.type === "text");
+    expect(textNode.text).toBe("Roadmap");
+    const linkMark = textNode.marks.find((m: { type: string }) => m.type === "link");
+    expect(linkMark.attrs.href).toBe("https://x.com");
+    // The URL must not survive as its own visible text.
+    expect(JSON.stringify(para.content)).not.toContain(">https://x.com<");
     editor.destroy();
   });
 });

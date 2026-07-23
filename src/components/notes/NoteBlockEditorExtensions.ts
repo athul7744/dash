@@ -1,4 +1,4 @@
-import { Extension, InputRule, markInputRule, markPasteRule } from "@tiptap/core";
+import { Extension, InputRule, markPasteRule } from "@tiptap/core";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
@@ -124,11 +124,26 @@ export const TaskShortcut = Extension.create({
 
 export const MarkdownLink = Link.extend({
   addInputRules() {
+    // Custom (not markInputRule): markInputRule keeps the LAST capture group as
+    // the retained text, which here is the URL — so `[label](url)` would drop
+    // "label" and show the url linked to itself. Insert the label instead and
+    // mark it with the href.
+    const linkType = this.type;
     return [
-      markInputRule({
+      new InputRule({
         find: markdownLinkInputRegex,
-        type: this.type,
-        getAttributes: (match) => ({ href: match[2] }),
+        handler: ({ state, range, match }) => {
+          const label = match[1];
+          const href = match[2];
+          if (!label || !href) return;
+          // The regex's `(?:^|\s)` prefix may capture a leading space — keep it.
+          const lead = match[0].startsWith("[") ? "" : match[0][0];
+          const linkStart = range.from + lead.length;
+          const { tr } = state;
+          tr.insertText(lead + label, range.from, range.to);
+          tr.addMark(linkStart, linkStart + label.length, linkType.create({ href }));
+          tr.removeStoredMark(linkType);
+        },
       }),
     ];
   },

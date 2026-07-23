@@ -474,7 +474,12 @@ function serializeMarkdownBlock(node: unknown): string {
   if (node.type === "table") {
     const rows = getNodeContent(node)
       .filter((child) => isRecord(child) && child.type === "tableRow")
-      .map((row) => getNodeContent(row).map((cell) => serializeMarkdownBlock(cell).replace(/\n+/g, " ").trim()));
+      // Escape `|` so a cell's own pipe can't be read as a column separator.
+      .map((row) =>
+        getNodeContent(row).map((cell) =>
+          serializeMarkdownBlock(cell).replace(/\n+/g, " ").replace(/\|/g, "\\|").trim(),
+        ),
+      );
 
     if (rows.length === 0) {
       return "";

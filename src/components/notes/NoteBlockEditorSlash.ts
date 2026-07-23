@@ -505,9 +505,15 @@ export function getSlashQuery(editor: Editor) {
   return text.slice(1);
 }
 
-export function getFilteredSlashCommands(slashQuery: string | null) {
-  const allCommands = [...slashCommands, ...dateSlashCommands, querySlashCommand, ...colorSlashCommands];
-  return filterSlashCommands(allCommands, slashQuery);
+/** Which slash commands a menu offers. "dates" is the journal (date actions only). */
+export type SlashScope = "all" | "dates";
+
+export function getFilteredSlashCommands(slashQuery: string | null, scope: SlashScope = "all") {
+  const commands =
+    scope === "dates"
+      ? dateSlashCommands
+      : [...slashCommands, ...dateSlashCommands, querySlashCommand, ...colorSlashCommands];
+  return filterSlashCommands(commands, slashQuery);
 }
 
 export function getGroupedSlashCommands(filteredSlashCommands: SlashCommand[]) {

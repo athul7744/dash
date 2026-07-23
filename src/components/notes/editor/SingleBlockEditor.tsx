@@ -25,6 +25,7 @@ import { useSingleBlockEditor, type SingleBlockEditorHandlers } from "./useSingl
 import { BlockMenuLayer } from "./BlockMenuLayer";
 import { TableToolbarLayer } from "./TableToolbarLayer";
 import { SlashMenuLayer } from "./SlashMenuLayer";
+import type { SlashScope } from "@/components/notes/NoteBlockEditorSlash";
 import { RefMenuLayer } from "./RefMenuLayer";
 
 const SURFACE_CLASS = "notes-reading col-span-2 pt-2 sm:col-span-2 sm:col-start-2";
@@ -35,6 +36,7 @@ export function SingleBlockEditor({
   onEditorChange,
   autoFocus = false,
   enableSlash = true,
+  slashScope = "all",
   debounceMs,
   ensurePage,
 }: {
@@ -42,8 +44,10 @@ export function SingleBlockEditor({
   handlers?: SingleBlockEditorHandlers;
   onEditorChange?: (editor: Editor | null) => void;
   autoFocus?: boolean;
-  /** Slash-command menu. Disabled in the journal, which wants plain prose. */
+  /** Slash-command menu. On everywhere; the journal narrows it via `slashScope`. */
   enableSlash?: boolean;
+  /** Which slash commands to offer; the journal uses "dates" (date actions only). */
+  slashScope?: SlashScope;
   /** Save debounce; defaults to the persister's own default when omitted. */
   debounceMs?: number;
   /** Lazily create the page on first write (see BlockPersisterConfig.ensurePage). */
@@ -58,7 +62,7 @@ export function SingleBlockEditor({
       </div>
     );
   }
-  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} enableSlash={enableSlash} debounceMs={debounceMs} ensurePage={ensurePage} />;
+  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} enableSlash={enableSlash} slashScope={slashScope} debounceMs={debounceMs} ensurePage={ensurePage} />;
 }
 
 function SingleBlockEditorInner({
@@ -68,6 +72,7 @@ function SingleBlockEditorInner({
   onEditorChange,
   autoFocus,
   enableSlash,
+  slashScope,
   debounceMs,
   ensurePage,
 }: {
@@ -77,6 +82,7 @@ function SingleBlockEditorInner({
   onEditorChange?: (editor: Editor | null) => void;
   autoFocus?: boolean;
   enableSlash: boolean;
+  slashScope: SlashScope;
   debounceMs?: number;
   ensurePage?: () => Promise<void>;
 }) {
@@ -97,7 +103,7 @@ function SingleBlockEditorInner({
       </div>
       <BlockMenuLayer editor={editor} />
       <TableToolbarLayer editor={editor} containerRef={surfaceRef} />
-      {enableSlash ? <SlashMenuLayer editor={editor} containerRef={surfaceRef} /> : null}
+      {enableSlash ? <SlashMenuLayer editor={editor} containerRef={surfaceRef} scope={slashScope} /> : null}
       <RefMenuLayer editor={editor} excludeId={pageId} />
     </div>
   );

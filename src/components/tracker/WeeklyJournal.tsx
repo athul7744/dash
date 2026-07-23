@@ -78,7 +78,7 @@ export function WeeklyJournal({ weekStart }: { weekStart: Date }) {
           key={pageId}
           pageId={pageId}
           autoFocus={isOpen}
-          enableSlash={false}
+          slashScope="dates"
           debounceMs={1000}
           ensurePage={ensurePage}
         />

@@ -16,6 +16,7 @@ import {
   getFilteredSlashCommands,
   getGroupedSlashCommands,
   type SlashCommand,
+  type SlashScope,
 } from "@/components/notes/NoteBlockEditorSlash";
 import { applySlashCommand, getSlashContext, type SlashContext } from "@/lib/notes/editor/slash-single";
 import { Calendar } from "@/components/ui/calendar";
@@ -49,9 +50,12 @@ const COLOR_SWATCH: Record<string, string> = {
 export function SlashMenuLayer({
   editor,
   containerRef,
+  scope = "all",
 }: {
   editor: Editor | null;
   containerRef: RefObject<HTMLElement | null>;
+  /** Restrict the offered commands; the journal uses "dates" (date actions only). */
+  scope?: SlashScope;
 }) {
   const [query, setQuery] = useState<string | null>(null);
   const [caret, setCaret] = useState<Caret | null>(null);
@@ -179,7 +183,7 @@ export function SlashMenuLayer({
   // Intercept nav keys before ProseMirror (capture phase).
   useEffect(() => {
     if (query === null) return;
-    const flat = getFilteredSlashCommands(query);
+    const flat = getFilteredSlashCommands(query, scope);
     const handler = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -204,7 +208,7 @@ export function SlashMenuLayer({
     };
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
-  }, [query, close, apply]);
+  }, [query, close, apply, scope]);
 
   // Flip above the caret when there isn't room below (uses viewport y).
   useLayoutEffect(() => {
@@ -228,7 +232,7 @@ export function SlashMenuLayer({
 
   if (query === null || !caret) return null;
 
-  const filtered = getFilteredSlashCommands(query);
+  const filtered = getFilteredSlashCommands(query, scope);
   const grouped = getGroupedSlashCommands(filtered);
 
   let flatIndex = -1;
@@ -244,7 +248,9 @@ export function SlashMenuLayer({
       }
     >
       {grouped.length === 0 ? (
-        <div className="px-2 py-3 text-center text-xs text-muted-foreground">No blocks found.</div>
+        <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+          {scope === "dates" ? "No dates found." : "No blocks found."}
+        </div>
       ) : (
         grouped.map((section) => (
           <div key={section.id} className="mb-1 last:mb-0">

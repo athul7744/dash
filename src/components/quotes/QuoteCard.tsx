@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Star, Trash2 } from "lucide-react";
 
 import { LinkedFrom } from "@/components/links/LinkedFrom";
 import { RefField } from "@/components/links/RefField";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { reconcileEntityRefs } from "@/lib/links/links";
 import { deleteQuote, toggleFavorite, updateQuote, type Quote } from "@/lib/quotes/quotes";
 import { cn } from "@/lib/shared/utils";
-
-const SAVE_DEBOUNCE_MS = 600;
 
 /**
  * A single editable quote: a quote-text field (supports inline `[[ ]]` links) +
@@ -20,38 +19,22 @@ const SAVE_DEBOUNCE_MS = 600;
 export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocus?: boolean }) {
   const [text, setText] = useState(quote.text);
   const [author, setAuthor] = useState(quote.author);
-  const focusedRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { focusedRef, schedule, flush } = useDebouncedSave();
 
   // Reconcile remote changes only when the user isn't editing this card.
   useEffect(() => {
     if (focusedRef.current) return;
     setText(quote.text);
     setAuthor(quote.author);
-  }, [quote.text, quote.author]);
-
-  useEffect(
-    () => () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    },
-    [],
-  );
+  }, [quote.text, quote.author, focusedRef]);
 
   const persist = (nextText: string, nextAuthor: string) => {
     void updateQuote(quote.id, { text: nextText, author: nextAuthor });
     void reconcileEntityRefs(quote.id, [nextText]);
   };
 
-  const scheduleSave = (nextText: string, nextAuthor: string) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => persist(nextText, nextAuthor), SAVE_DEBOUNCE_MS);
-  };
-
-  const flushSave = () => {
-    focusedRef.current = false;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    persist(text, author);
-  };
+  const scheduleSave = (nextText: string, nextAuthor: string) => schedule(() => persist(nextText, nextAuthor));
+  const flushSave = () => flush(() => persist(text, author));
 
   return (
     <div className="group relative rounded-2xl border border-border/65 bg-card/60 p-5 transition-colors focus-within:border-border sm:p-6">

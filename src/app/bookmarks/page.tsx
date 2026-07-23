@@ -5,6 +5,7 @@ import { useQuery } from "@powersync/react";
 import { Bookmark as BookmarkIcon, Plus, Search, X } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
+import { CollectionHeading } from "@/components/CollectionHeading";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { BookmarkCard } from "@/components/bookmarks/BookmarkCard";
 import { DashboardBookmarks } from "@/components/dashboard/DashboardBookmarks";
@@ -164,13 +165,7 @@ export default function BookmarksPage() {
             <DashboardBookmarks variant="hero" showAllLink={false} />
 
             {/* Section break: the collection reads as a distinct zone from the daily hero. */}
-            <div className="mt-12 mb-6 flex items-baseline gap-3 sm:mt-16">
-              <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                All bookmarks
-              </h2>
-              <span className="text-xs tabular-nums text-muted-foreground/50">{bookmarks.length}</span>
-              <div className="h-px flex-1 bg-gradient-to-r from-border/70 to-transparent" />
-            </div>
+            <CollectionHeading label="All bookmarks" count={bookmarks.length} className="mt-12 mb-6 sm:mt-16" />
 
             <div className="mb-8">
               {omniField}

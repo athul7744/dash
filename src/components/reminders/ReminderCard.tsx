@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, Pause, Play, Tag as TagIcon, Trash2 } from "lucide-react";
 
@@ -17,6 +17,7 @@ import { LinkedFrom } from "@/components/links/LinkedFrom";
 import { RefField } from "@/components/links/RefField";
 import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
 import { TagSelector } from "@/components/tags/TagSelector";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { reconcileEntityRefs } from "@/lib/links/links";
 import {
   deleteReminder,
@@ -29,7 +30,6 @@ import { nextOccurrenceOnOrAfter, type ReminderSchedule } from "@/lib/reminders/
 import { cn } from "@/lib/shared/utils";
 import { PRIORITY_COLORS, PRIORITY_LEVELS } from "@/lib/tasks/tasks";
 
-const SAVE_DEBOUNCE_MS = 600;
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const FREQS: Array<{ value: ReminderSchedule["freq"]; label: string }> = [
@@ -57,42 +57,29 @@ export function ReminderCard({
   const [title, setTitle] = useState(reminder.title);
   const [daysBefore, setDaysBefore] = useState(String(reminder.daysBefore));
   const [dateOpen, setDateOpen] = useState(false);
-  const focusedRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { focusedRef, schedule, flush } = useDebouncedSave();
 
   // Reconcile remote (synced) changes only when this card isn't being edited.
   useEffect(() => {
     if (focusedRef.current) return;
     setTitle(reminder.title);
     setDaysBefore(String(reminder.daysBefore));
-  }, [reminder.title, reminder.daysBefore]);
+  }, [reminder.title, reminder.daysBefore, focusedRef]);
 
-  useEffect(
-    () => () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    },
-    [],
-  );
+  const scheduleSave = (patch: Parameters<typeof updateReminder>[1]) =>
+    schedule(() => void updateReminder(reminder.id, patch));
 
-  const scheduleSave = (patch: Parameters<typeof updateReminder>[1]) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => void updateReminder(reminder.id, patch), SAVE_DEBOUNCE_MS);
-  };
-
-  const scheduleTitle = (next: string) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
+  const scheduleTitle = (next: string) =>
+    schedule(() => {
       void updateReminder(reminder.id, { title: next });
       void reconcileEntityRefs(reminder.id, [next]);
-    }, SAVE_DEBOUNCE_MS);
-  };
+    });
 
-  const flushTitle = () => {
-    focusedRef.current = false;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    void updateReminder(reminder.id, { title, daysBefore: clampDays(daysBefore) });
-    void reconcileEntityRefs(reminder.id, [title]);
-  };
+  const flushTitle = () =>
+    flush(() => {
+      void updateReminder(reminder.id, { title, daysBefore: clampDays(daysBefore) });
+      void reconcileEntityRefs(reminder.id, [title]);
+    });
 
   const saveSchedule = (schedule: ReminderSchedule) => void updateReminder(reminder.id, { schedule });
 

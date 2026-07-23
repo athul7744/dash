@@ -7,6 +7,7 @@ import { Favicon } from "@/components/tasks/Favicon";
 import { LinkedFrom } from "@/components/links/LinkedFrom";
 import { RefField } from "@/components/links/RefField";
 import { TagSelector } from "@/components/tags/TagSelector";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import {
   deleteBookmark,
   markRead,
@@ -22,7 +23,6 @@ import { getTagColorClasses } from "@/lib/tasks/colors";
 import { getLinkHost } from "@/lib/tasks/tasks";
 import { cn } from "@/lib/shared/utils";
 
-const SAVE_DEBOUNCE_MS = 600;
 const ACTION_BTN = "grid h-8 w-8 place-items-center rounded-full transition-colors";
 
 /**
@@ -51,9 +51,8 @@ export function BookmarkCard({
   const [refetching, setRefetching] = useState(false);
   const [copied, setCopied] = useState(false);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const focusedRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleRef = useRef<HTMLInputElement | null>(null);
+  const { focusedRef, schedule, flush } = useDebouncedSave();
 
   const host = getLinkHost(bookmark.url) ?? bookmark.url;
   const busy = loading || refetching;
@@ -72,11 +71,10 @@ export function BookmarkCard({
     if (focusedRef.current) return;
     setTitle(bookmark.title);
     setNote(bookmark.note);
-  }, [bookmark.title, bookmark.note]);
+  }, [bookmark.title, bookmark.note, focusedRef]);
 
   useEffect(
     () => () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
       if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
     },
     [],
@@ -98,16 +96,8 @@ export function BookmarkCard({
     void reconcileEntityRefs(bookmark.id, [nextNote]);
   };
 
-  const scheduleSave = (nextTitle: string, nextNote: string) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => persist(nextTitle, nextNote), SAVE_DEBOUNCE_MS);
-  };
-
-  const flushSave = () => {
-    focusedRef.current = false;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    persist(title, note);
-  };
+  const scheduleSave = (nextTitle: string, nextNote: string) => schedule(() => persist(nextTitle, nextNote));
+  const flushSave = () => flush(() => persist(title, note));
 
   const refetch = async () => {
     if (busy) return;

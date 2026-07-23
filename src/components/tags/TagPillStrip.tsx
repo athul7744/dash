@@ -14,7 +14,6 @@ type TagPillItem = {
 export function TagPillStrip({
   tags,
   className,
-  pillClassName,
   collapsible = false,
   autoCollapseMs = 10000,
   expandOnClick = false,
@@ -22,7 +21,6 @@ export function TagPillStrip({
 }: {
   tags: TagPillItem[];
   className?: string;
-  pillClassName?: string;
   collapsible?: boolean;
   autoCollapseMs?: number;
   expandOnClick?: boolean;
@@ -118,7 +116,6 @@ export function TagPillStrip({
               className={cn(
                 "inline-flex h-5 shrink-0 items-center gap-1 rounded-sm px-1.5 py-0 text-[10px] font-medium shadow-none",
                 getTagColorClasses(tag.color || "slate"),
-                pillClassName,
               )}
             >
               <span className={cn("h-1.5 w-1.5 rounded-full", getTagDotClass(tag.color || "slate"))} />
@@ -159,7 +156,6 @@ export function TagPillStrip({
                   className={cn(
                     "inline-flex h-5 shrink-0 items-center gap-1 rounded-sm px-1.5 py-0 text-[10px] font-medium shadow-none",
                     getTagColorClasses(tag.color || "slate"),
-                    pillClassName,
                   )}
                 >
                   <span className={cn("h-1.5 w-1.5 rounded-full", getTagDotClass(tag.color || "slate"))} />
@@ -176,7 +172,6 @@ export function TagPillStrip({
                     className={cn(
                       "inline-flex h-5 shrink-0 items-center gap-1 rounded-sm px-1.5 py-0 text-[10px] font-medium shadow-none",
                       getTagColorClasses(tag.color || "slate"),
-                      pillClassName,
                     )}
                   >
                     <span className={cn("h-1.5 w-1.5 rounded-full", getTagDotClass(tag.color || "slate"))} />

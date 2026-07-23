@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BellRing, Plus } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
+import { CollectionHeading } from "@/components/CollectionHeading";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { RemindersLoadingSkeleton } from "@/components/skeletons/RemindersLoadingSkeleton";
@@ -81,13 +82,7 @@ export default function RemindersPage() {
             </div>
 
             {/* Section break: the collection reads as a distinct zone. */}
-            <div className="mt-8 mb-6 flex items-baseline gap-3 sm:mt-12">
-              <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                All reminders
-              </h2>
-              <span className="text-xs tabular-nums text-muted-foreground/50">{reminders.length}</span>
-              <div className="h-px flex-1 bg-gradient-to-r from-border/70 to-transparent" />
-            </div>
+            <CollectionHeading label="All reminders" count={reminders.length} className="mt-8 mb-6 sm:mt-12" />
 
             <div className="columns-1 gap-5 md:columns-2 lg:columns-3">
               {reminders.map((reminder) => (

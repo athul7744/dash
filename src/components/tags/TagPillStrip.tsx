@@ -34,11 +34,10 @@ export function TagPillStrip({
   const hasTags = tags.length > 0;
 
   useEffect(() => {
-    if (!collapsible) {
-      setHasOverflow(false);
-      setIsExpanded(false);
-      return;
-    }
+    // Only collapsible strips measure/collapse; when off, `hasOverflow` and
+    // `isExpanded` stay inert (the render guards on `collapsible`), so there is
+    // nothing to reset here.
+    if (!collapsible) return;
 
     const updateOverflow = () => {
       const container = containerRef.current;

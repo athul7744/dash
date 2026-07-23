@@ -129,39 +129,6 @@ export function createNoteDocumentFromText(text: string) {
   };
 }
 
-function isEmptyParagraphNode(value: unknown) {
-  return isRecord(value) && value.type === "paragraph" && !Array.isArray(value.content);
-}
-
-function isParagraphNode(value: unknown): value is Record<string, unknown> {
-  return isRecord(value) && value.type === "paragraph";
-}
-
-function isTextContentNode(value: unknown): value is Record<string, unknown> {
-  return isRecord(value) && (value.type === "paragraph" || value.type === "heading");
-}
-
-function getNoteNodeSize(value: unknown): number {
-  if (!isRecord(value) || typeof value.type !== "string") {
-    return 0;
-  }
-
-  if (typeof value.text === "string") {
-    return value.text.length;
-  }
-
-  // Inline atoms (an entityRef / dateToken chip) count as a single position.
-  if (value.type === ENTITY_REF_NODE_TYPE || value.type === DATE_TOKEN_NODE_TYPE) {
-    return 1;
-  }
-
-  const contentSize = Array.isArray(value.content)
-    ? value.content.reduce((total, child) => total + getNoteNodeSize(child), 0)
-    : 0;
-
-  return contentSize + 2;
-}
-
 export function parseSerializedRecord(raw: unknown): Record<string, unknown> | null {
   if (!raw) {
     return null;
@@ -232,50 +199,6 @@ export function normalizeNoteDocument(raw: unknown): Record<string, unknown> {
 
 export function serializeNoteDocument(raw: unknown) {
   return JSON.stringify(normalizeNoteDocument(raw));
-}
-
-export function mergeNoteDocuments(left: unknown, right: unknown) {
-  const leftDocument = normalizeNoteDocument(left);
-  const rightDocument = normalizeNoteDocument(right);
-  const leftContent = Array.isArray(leftDocument.content) ? leftDocument.content : [];
-  const rightContent = Array.isArray(rightDocument.content) ? rightDocument.content : [];
-  const leftLastNode = leftContent.at(-1);
-  const rightFirstNode = rightContent[0];
-
-  const mergedContent = isTextContentNode(leftLastNode) && isTextContentNode(rightFirstNode)
-    ? [
-        ...leftContent.slice(0, -1),
-        {
-          ...leftLastNode,
-          content: [
-            ...(Array.isArray(leftLastNode.content) ? leftLastNode.content : []),
-            ...(Array.isArray(rightFirstNode.content) ? rightFirstNode.content : []),
-          ],
-        },
-        ...rightContent.slice(1),
-      ]
-    : [
-        ...leftContent,
-        ...rightContent,
-      ];
-
-  const filteredContent = mergedContent.length > 1
-    ? mergedContent.filter((node) => !isEmptyParagraphNode(node))
-    : mergedContent;
-
-  return normalizeNoteDocument({
-    type: "doc",
-    content: filteredContent.length > 0 ? filteredContent : createEmptyNoteDocument().content,
-  });
-}
-
-export function getNoteDocumentEndSelection(raw: unknown) {
-  const normalizedDocument = normalizeNoteDocument(raw);
-  const contentSize = Array.isArray(normalizedDocument.content)
-    ? normalizedDocument.content.reduce((total, child) => total + getNoteNodeSize(child), 0)
-    : 0;
-
-  return Math.max(1, contentSize - 1);
 }
 
 export function extractNoteText(raw: unknown) {

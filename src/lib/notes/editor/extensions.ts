@@ -10,9 +10,9 @@
  * groups. The `block` node, structural keymap, and stable-id plugin are added
  * on top; `History` gives one native undo timeline for the whole page.
  *
- * Not yet included (added as the editor UI is built): slash commands, page-ref
- * click/hover handling, block-clipboard paste, the query-block node, and the
- * block drag-handle/context-menu NodeView.
+ * UI layers that live outside this list (mounted by SingleBlockEditor): the
+ * slash-command menu, the `[[ ]]` reference menu, block-clipboard/markdown
+ * paste, and the block drag-handle/context-menu NodeView.
  */
 
 import type { Extensions } from "@tiptap/core";

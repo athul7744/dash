@@ -93,7 +93,10 @@ export class BlockDocumentPersister {
     activePersisters.add(this);
   }
 
-  /** Seed the snapshot from the initial row set (no write). */
+  /**
+   * Seed the snapshot from the raw row set (no write). Test-only convenience;
+   * production seeds via `hydrateFromDoc` (the editor's own serialization).
+   */
   hydrate(rows: BlockDocumentRow[]) {
     this.snapshot = snapshotFromRows(rows);
   }

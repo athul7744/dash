@@ -12,7 +12,7 @@ import { v5 as uuidv5 } from "uuid";
  */
 export type SystemPageKind = "journal" | "quote" | "bookmark" | "reminder";
 
-/** Namespace for deterministic system-page ids (mirrors EDGE_ID_NAMESPACE in notes.ts). */
+/** Namespace for deterministic system-page ids (mirrors EDGE_ID_NAMESPACE in links.ts). */
 export const SYSTEM_PAGE_NAMESPACE = "b6f0e4a2-1c7d-4f3a-9e58-2a4c8d5b1f90";
 
 /**

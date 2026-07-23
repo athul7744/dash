@@ -4,8 +4,6 @@ import {
   createEmptyNoteDocument,
   createNoteDocumentFromText,
   extractNoteText,
-  getNoteDocumentEndSelection,
-  mergeNoteDocuments,
   normalizeNoteDocument,
   serializeNoteDocument,
   serializeNoteDocumentToMarkdown,
@@ -58,197 +56,6 @@ describe("notes-content", () => {
     };
 
     expect(extractNoteText(document)).toBe("One Two Three");
-  });
-
-  it("merges into an effectively empty previous paragraph without keeping a blank node", () => {
-    expect(
-      mergeNoteDocuments(
-        { type: "doc", content: [{ type: "paragraph" }] },
-        createNoteDocumentFromText("Next")
-      )
-    ).toEqual(createNoteDocumentFromText("Next"));
-  });
-
-  it("preserves a previous non-paragraph trailing node instead of inline joining", () => {
-    expect(
-      mergeNoteDocuments(
-        {
-          type: "doc",
-          content: [{ type: "horizontalRule" }],
-        },
-        createNoteDocumentFromText("Next")
-      )
-    ).toEqual({
-      type: "doc",
-      content: [
-        { type: "horizontalRule" },
-        { type: "paragraph", content: [{ type: "text", text: "Next" }] },
-      ],
-    });
-  });
-
-  it("preserves task list content when merging a later paragraph block", () => {
-    expect(
-      mergeNoteDocuments(
-        {
-          type: "doc",
-          content: [
-            {
-              type: "taskList",
-              content: [
-                {
-                  type: "taskItem",
-                  attrs: { checked: false },
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "Todo" }] }],
-                },
-              ],
-            },
-          ],
-        },
-        createNoteDocumentFromText("Next")
-      )
-    ).toEqual({
-      type: "doc",
-      content: [
-        {
-          type: "taskList",
-          content: [
-            {
-              type: "taskItem",
-              attrs: { checked: false },
-              content: [{ type: "paragraph", content: [{ type: "text", text: "Todo" }] }],
-            },
-          ],
-        },
-        { type: "paragraph", content: [{ type: "text", text: "Next" }] },
-      ],
-    });
-  });
-
-  it("preserves code block content when merging a later paragraph block", () => {
-    expect(
-      mergeNoteDocuments(
-        {
-          type: "doc",
-          content: [
-            {
-              type: "codeBlock",
-              attrs: { language: null },
-              content: [{ type: "text", text: "const value = 1" }],
-            },
-          ],
-        },
-        createNoteDocumentFromText("Next")
-      )
-    ).toEqual({
-      type: "doc",
-      content: [
-        {
-          type: "codeBlock",
-          content: [{ type: "text", text: "const value = 1" }],
-        },
-        { type: "paragraph", content: [{ type: "text", text: "Next" }] },
-      ],
-    });
-  });
-
-  it("preserves table content when merging a later paragraph block", () => {
-    expect(
-      mergeNoteDocuments(
-        {
-          type: "doc",
-          content: [
-            {
-              type: "table",
-              content: [
-                {
-                  type: "tableRow",
-                  content: [
-                    { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "A" }] }] },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        createNoteDocumentFromText("Next")
-      )
-    ).toEqual({
-      type: "doc",
-      content: [
-        {
-          type: "table",
-          content: [
-            {
-              type: "tableRow",
-              content: [
-                { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "A" }] }] },
-              ],
-            },
-          ],
-        },
-        { type: "paragraph", content: [{ type: "text", text: "Next" }] },
-      ],
-    });
-  });
-
-  it("merges a paragraph inline into a heading, preserving heading type and attrs", () => {
-    expect(
-      mergeNoteDocuments(
-        {
-          type: "doc",
-          content: [
-            {
-              type: "heading",
-              attrs: { level: 2 },
-              content: [{ type: "text", text: "Title" }],
-            },
-          ],
-        },
-        createNoteDocumentFromText("Next")
-      )
-    ).toEqual({
-      type: "doc",
-      content: [
-        {
-          type: "heading",
-          attrs: { level: 2 },
-          content: [
-            { type: "text", text: "Title" },
-            { type: "text", text: "Next" },
-          ],
-        },
-      ],
-    });
-  });
-
-  it("merges a heading inline into a paragraph, preserving paragraph type", () => {
-    expect(
-      mergeNoteDocuments(
-        createNoteDocumentFromText("Before"),
-        {
-          type: "doc",
-          content: [
-            {
-              type: "heading",
-              attrs: { level: 3 },
-              content: [{ type: "text", text: "Title" }],
-            },
-          ],
-        }
-      )
-    ).toEqual({
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [
-            { type: "text", text: "Before" },
-            { type: "text", text: "Title" },
-          ],
-        },
-      ],
-    });
   });
 
   it("serializes mathInline nodes to $latex$ in markdown", () => {
@@ -423,8 +230,6 @@ describe("notes-content", () => {
     };
     expect(serializeNoteDocumentToMarkdown(document)).toBe("Due Jul 23, 2026");
     expect(extractNoteText(document)).toBe("Due {Jul 23, 2026}");
-    // The atom counts as one position: "Due " (4) + atom (1) + paragraph border (2) => end = 6.
-    expect(getNoteDocumentEndSelection(document)).toBe(6);
   });
 
   it("escapes a pipe inside a table cell so columns don't shift on re-parse", () => {
@@ -445,36 +250,5 @@ describe("notes-content", () => {
       ],
     };
     expect(serializeNoteDocumentToMarkdown(document)).toBe("| A | B |\n| --- | --- |\n| a\\|b | c |");
-  });
-});
-
-describe("getNoteDocumentEndSelection", () => {
-  it("returns 1 for an empty document", () => {
-    expect(getNoteDocumentEndSelection(null)).toBe(1);
-    expect(getNoteDocumentEndSelection({ type: "doc", content: [{ type: "paragraph" }] })).toBe(1);
-  });
-
-  it("returns correct position for a single paragraph with text", () => {
-    const doc = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "hello" }] }] };
-    // paragraph node: content(5) + 2 border = 7, doc total = 7, result = max(1, 7-1) = 6
-    expect(getNoteDocumentEndSelection(doc)).toBe(6);
-  });
-
-  it("returns correct position for multiple paragraphs", () => {
-    const doc = {
-      type: "doc",
-      content: [
-        { type: "paragraph", content: [{ type: "text", text: "ab" }] },
-        { type: "paragraph", content: [{ type: "text", text: "cd" }] },
-      ],
-    };
-    // Each paragraph: content(2) + 2 = 4, total = 8, result = max(1, 8-1) = 7
-    expect(getNoteDocumentEndSelection(doc)).toBe(7);
-  });
-
-  it("handles a heading with text", () => {
-    const doc = { type: "doc", content: [{ type: "heading", content: [{ type: "text", text: "Title" }] }] };
-    // heading: content(5) + 2 = 7, result = max(1, 7-1) = 6
-    expect(getNoteDocumentEndSelection(doc)).toBe(6);
   });
 });

@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@powersync/react";
 import { format, startOfWeek, subDays } from "date-fns";
 
+import { useCurrentUserId } from "@/hooks/use-current-user-id";
 import { useNotePage } from "@/hooks/use-notes";
 import { chooseHeroAction, type HeroActionKind } from "@/lib/dashboard/hero-action";
 import { systemPageId } from "@/lib/notes/system-pages";
 import type { Task } from "@/lib/powersync/AppSchema";
-import { getCurrentUserId } from "@/lib/shared/auth";
 import { timeOfDayForHour } from "@/lib/shared/greeting";
 import { getDueDateInfo } from "@/lib/tasks/tasks";
 import { localDateKey, recentNaiveWindow } from "@/lib/tracker/day-keys";
@@ -57,14 +57,7 @@ export function useHeroAction(): {
   );
 
   // This week's journal system page (exists once the user has started writing).
-  const [userId, setUserId] = useState<string | null>(null);
-  useEffect(() => {
-    let active = true;
-    getCurrentUserId()
-      .then((id) => { if (active) setUserId(id); })
-      .catch(() => {});
-    return () => { active = false; };
-  }, []);
+  const userId = useCurrentUserId();
   const weekKey = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
   const journalPageId = userId ? systemPageId(userId, "journal", weekKey) : null;
   const { page: journalPage, isLoading: journalLoading } = useNotePage(journalPageId);

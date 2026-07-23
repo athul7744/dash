@@ -20,6 +20,7 @@ import { Selection } from "@tiptap/pm/state";
 
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
+import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 import { reconcileNoteBlockEdges } from "@/lib/notes/notes";
 import { extractNoteText, normalizeNoteDocument, serializeNoteDocument } from "@/lib/notes/notes-content";
 
@@ -27,8 +28,6 @@ import { LexoRank } from "lexorank";
 
 import { assembleDoc, decomposeDoc, type BlockDocumentRow } from "./block-document";
 import { diffBlocks, type PersistedBlock } from "./block-diff";
-
-const SQL_UTC_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 
 export interface BlockPersisterConfig {
   getDoc: () => JSONContent;
@@ -193,14 +192,14 @@ export class BlockDocumentPersister {
           if (write.op === "insert") {
             const { blockId, parentId, type, content, sortRank } = write.row;
             await tx.execute(
-              `INSERT INTO blocks (id, user_id, page_id, parent_block_id, type, content, sort_rank, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ${SQL_UTC_NOW})`,
+              `INSERT INTO blocks (id, user_id, page_id, parent_block_id, type, content, sort_rank, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ${SQL_UTC_NOW_EXPRESSION})`,
               [blockId, userId, this.pageId, parentId, type, content, sortRank],
             );
             await reconcileNoteBlockEdges(blockId, JSON.parse(content), tx);
           } else if (write.op === "update") {
             const { blockId, parentId, type, content, sortRank } = write.row;
             await tx.execute(
-              `UPDATE blocks SET content = ?, type = ?, parent_block_id = ?, sort_rank = ?, updated_at = ${SQL_UTC_NOW} WHERE id = ?`,
+              `UPDATE blocks SET content = ?, type = ?, parent_block_id = ?, sort_rank = ?, updated_at = ${SQL_UTC_NOW_EXPRESSION} WHERE id = ?`,
               [content, type, parentId, sortRank, blockId],
             );
             await reconcileNoteBlockEdges(blockId, JSON.parse(content), tx);

@@ -5,6 +5,7 @@ import { deleteEntityEdges } from "@/lib/links/links";
 import { ensureSystemPage } from "@/lib/notes/notes";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
+import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 
 /**
  * Quotes are stored in the notes backend as one feature-owned "system page"
@@ -34,8 +35,6 @@ interface QuoteContent {
   author: string;
   favorite: boolean;
 }
-
-const SQL_UTC_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 
 /** Idempotently create the quotes page. Returns its id. */
 export async function ensureQuotesPage(): Promise<string> {
@@ -105,7 +104,7 @@ async function readQuoteContent(id: string): Promise<QuoteContent | null> {
 
 async function writeQuoteContent(id: string, content: QuoteContent): Promise<void> {
   await db.execute(
-    `UPDATE blocks SET content = ?, updated_at = ${SQL_UTC_NOW} WHERE id = ?`,
+    `UPDATE blocks SET content = ?, updated_at = ${SQL_UTC_NOW_EXPRESSION} WHERE id = ?`,
     [JSON.stringify(content), id],
   );
 }

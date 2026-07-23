@@ -5,6 +5,7 @@ import { deleteEntityEdges } from "@/lib/links/links";
 import { ensureSystemPage } from "@/lib/notes/notes";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
+import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 import { getLinkHost, normalizeUrl } from "@/lib/tasks/tasks";
 
 /**
@@ -43,8 +44,6 @@ interface BookmarkContent {
   unread: boolean;
   addedAt: string;
 }
-
-const SQL_UTC_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 
 /** Idempotently create the bookmarks page. Returns its id. */
 export async function ensureBookmarksPage(): Promise<string> {
@@ -144,7 +143,7 @@ async function readBookmarkContent(id: string): Promise<BookmarkContent | null> 
 
 async function writeBookmarkContent(id: string, content: BookmarkContent): Promise<void> {
   await db.execute(
-    `UPDATE blocks SET content = ?, updated_at = ${SQL_UTC_NOW} WHERE id = ?`,
+    `UPDATE blocks SET content = ?, updated_at = ${SQL_UTC_NOW_EXPRESSION} WHERE id = ?`,
     [JSON.stringify(content), id],
   );
 }

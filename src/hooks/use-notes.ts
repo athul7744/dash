@@ -84,20 +84,21 @@ export function useNoteCounts() {
   };
 }
 
+// The note-page SELECT list: page columns plus a `preview_content` correlated
+// subquery (the first block's content). Shared by the recent/favorite/all
+// queries so the subquery lives in one place.
+const NOTE_PAGE_SELECT = [
+  "SELECT id, user_id, title, properties, created_at, updated_at,",
+  "  (SELECT content FROM blocks WHERE page_id = pages.id ORDER BY sort_rank ASC LIMIT 1) AS preview_content",
+  "FROM pages",
+].join(" ");
+
+// Real note pages only: system-page kinds (bookmarks/quotes/…) store a `kind`.
+const NOTE_PAGE_WHERE = "WHERE json_extract(properties, '$.kind') IS NULL";
+
 export function useRecentNotePages(limit = 8) {
   const { data = [], isLoading } = useQuery<NotePageRow>(
-    [
-      "SELECT id, user_id, title, properties, created_at, updated_at,",
-      "  (SELECT content",
-      "   FROM blocks",
-      "   WHERE page_id = pages.id",
-      "   ORDER BY sort_rank ASC",
-      "   LIMIT 1) AS preview_content",
-      "FROM pages",
-      "WHERE json_extract(properties, '$.kind') IS NULL",
-      "ORDER BY updated_at DESC, created_at DESC",
-      "LIMIT ?"
-    ].join(" "),
+    [NOTE_PAGE_SELECT, NOTE_PAGE_WHERE, "ORDER BY updated_at DESC, created_at DESC", "LIMIT ?"].join(" "),
     [limit]
   );
 
@@ -110,16 +111,10 @@ export function useRecentNotePages(limit = 8) {
 export function useFavoriteNotePages() {
   const { data = [], isLoading } = useQuery<NotePageRow>(
     [
-      "SELECT id, user_id, title, properties, created_at, updated_at,",
-      "  (SELECT content",
-      "   FROM blocks",
-      "   WHERE page_id = pages.id",
-      "   ORDER BY sort_rank ASC",
-      "   LIMIT 1) AS preview_content",
-      "FROM pages",
-      "WHERE json_extract(properties, '$.kind') IS NULL",
+      NOTE_PAGE_SELECT,
+      NOTE_PAGE_WHERE,
       "  AND json_extract(properties, '$.favorite') = 1",
-      "ORDER BY updated_at DESC, created_at DESC"
+      "ORDER BY updated_at DESC, created_at DESC",
     ].join(" "),
   );
 
@@ -131,17 +126,7 @@ export function useFavoriteNotePages() {
 
 export function useAllNotePages() {
   const { data = [], isLoading } = useQuery<NotePageRow>(
-    [
-      "SELECT id, user_id, title, properties, created_at, updated_at,",
-      "  (SELECT content",
-      "   FROM blocks",
-      "   WHERE page_id = pages.id",
-      "   ORDER BY sort_rank ASC",
-      "   LIMIT 1) AS preview_content",
-      "FROM pages",
-      "WHERE json_extract(properties, '$.kind') IS NULL",
-      "ORDER BY title COLLATE NOCASE ASC, updated_at DESC, created_at DESC"
-    ].join(" ")
+    [NOTE_PAGE_SELECT, NOTE_PAGE_WHERE, "ORDER BY title COLLATE NOCASE ASC, updated_at DESC, created_at DESC"].join(" ")
   );
 
   return {

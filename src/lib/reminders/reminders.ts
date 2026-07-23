@@ -5,6 +5,7 @@ import { deleteEntityEdges } from "@/lib/links/links";
 import { ensureSystemPage } from "@/lib/notes/notes";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
+import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 import type { ReminderSchedule } from "@/lib/reminders/schedule";
 
 /**
@@ -41,8 +42,6 @@ export interface Reminder {
 
 /** Shape stored in `blocks.content` for a reminder block (no id/sortRank). */
 export type ReminderContent = Omit<Reminder, "id" | "sortRank">;
-
-const SQL_UTC_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 
 const PRIORITIES: ReminderPriority[] = ["low", "medium", "high", "urgent"];
 const DEFAULT_SCHEDULE: ReminderSchedule = { freq: "monthly", day: 1 };
@@ -196,7 +195,7 @@ async function readReminderContent(id: string): Promise<ReminderContent | null> 
 
 async function writeReminderContent(id: string, content: ReminderContent): Promise<void> {
   await db.execute(
-    `UPDATE blocks SET content = ?, updated_at = ${SQL_UTC_NOW} WHERE id = ?`,
+    `UPDATE blocks SET content = ?, updated_at = ${SQL_UTC_NOW_EXPRESSION} WHERE id = ?`,
     [JSON.stringify(content), id],
   );
 }

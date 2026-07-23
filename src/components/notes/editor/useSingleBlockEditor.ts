@@ -23,6 +23,7 @@ import { useEditor } from "@tiptap/react";
 
 import type { NoteBlockRow } from "@/hooks/use-notes";
 import { db } from "@/lib/powersync/db";
+import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 
 import { assembleDoc, type BlockDocumentRow } from "@/lib/notes/editor/block-document";
 import { BlockDocumentPersister } from "@/lib/notes/editor/block-persister";
@@ -38,8 +39,6 @@ export type SingleBlockEditorHandlers = {
   onOpenPageReference?: (title: string) => void;
   onPeekPageReference?: (title: string, rect: DOMRect) => void;
 };
-
-const SQL_UTC_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 
 function toBlockDocumentRow(block: NoteBlockRow): BlockDocumentRow {
   return {
@@ -222,7 +221,7 @@ export function useSingleBlockEditor({
       debounceMs,
       ensurePage: ensurePageRef.current ? () => ensurePageRef.current!() : undefined,
       onPersisted: async () => {
-        await db.execute(`UPDATE pages SET updated_at = ${SQL_UTC_NOW} WHERE id = ?`, [pageId]);
+        await db.execute(`UPDATE pages SET updated_at = ${SQL_UTC_NOW_EXPRESSION} WHERE id = ?`, [pageId]);
       },
     });
     persisterRef.current = persister;

@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { addDays, format } from "date-fns";
 import { NotebookPen } from "lucide-react";
 
 import { SingleBlockEditor } from "@/components/notes/editor/SingleBlockEditor";
+import { useCurrentUserId } from "@/hooks/use-current-user-id";
 import { useNotePage } from "@/hooks/use-notes";
 import { ensureSystemPage } from "@/lib/notes/notes";
 import { systemPageId } from "@/lib/notes/system-pages";
-import { getCurrentUserId } from "@/lib/shared/auth";
 
 function formatWeekLabel(weekStart: Date): string {
   const weekEnd = addDays(weekStart, 6);
@@ -32,19 +32,9 @@ export function WeeklyJournal({ weekStart }: { weekStart: Date }) {
   const weekKey = format(weekStart, "yyyy-MM-dd");
   const weekLabel = formatWeekLabel(weekStart);
 
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = useCurrentUserId();
   // Whether the user has opened the (possibly empty) editor for this week.
   const [openedKey, setOpenedKey] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    void getCurrentUserId().then((id) => {
-      if (active) setUserId(id);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const pageId = userId ? systemPageId(userId, "journal", weekKey) : null;
   const { page, isLoading } = useNotePage(pageId);

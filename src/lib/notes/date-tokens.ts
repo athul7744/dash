@@ -1,6 +1,18 @@
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 
 export type RelativeDateOffset = "today" | "tomorrow" | "yesterday" | "next-week" | "next-month" | "next-year";
+
+/**
+ * Parse the inside of a `{…}` token into a Date, or null if it isn't a date.
+ * The one parser shared by the date-token input rule and the legacy-text
+ * decoration, so both agree on what counts as a date (the `< 6` guard keeps
+ * short strings like `{2026}` from becoming chips).
+ */
+export function parseDateToken(raw: string): Date | null {
+  if (raw.trim().length < 6) return null;
+  const parsed = new Date(raw);
+  return isValid(parsed) ? parsed : null;
+}
 
 /** The inline atomic node a date renders as in the editor (see DateTokenNode). */
 export const DATE_TOKEN_NODE_TYPE = "dateToken";

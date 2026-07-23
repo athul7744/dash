@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import { formatDateToken, getRelativeDate } from "@/lib/notes/date-tokens";
+import { formatDateToken, getRelativeDate, parseDateToken } from "@/lib/notes/date-tokens";
 
 describe("formatDateToken", () => {
   it("formats a date as {MMM d, yyyy}", () => {
@@ -10,6 +10,22 @@ describe("formatDateToken", () => {
 
   it("uses the day without leading zero", () => {
     expect(formatDateToken(new Date(2026, 5, 3))).toBe("{Jun 3, 2026}");
+  });
+});
+
+describe("parseDateToken", () => {
+  it("parses a formatted date token", () => {
+    const d = parseDateToken("Jan 15, 2026");
+    expect(d).not.toBeNull();
+    expect(d!.getFullYear()).toBe(2026);
+  });
+
+  it("rejects short strings so {2026} never becomes a chip", () => {
+    expect(parseDateToken("2026")).toBeNull();
+  });
+
+  it("rejects non-dates", () => {
+    expect(parseDateToken("not a date")).toBeNull();
   });
 });
 

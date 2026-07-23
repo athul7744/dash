@@ -7,6 +7,7 @@ import type { Node as PMNode, Schema } from "@tiptap/pm/model";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 
 import { BLOCK_NODE_TYPE, DEFAULT_BLOCK_TYPE, TASK_BLOCK_TYPE } from "@/lib/notes/editor/block-document";
+import { parseDateToken } from "@/lib/notes/date-tokens";
 import { BLOCK_COLORS } from "@/components/notes/NoteBlockEditorColor";
 import { TASK_LINE_NODE } from "@/components/notes/editor/TaskLineNode";
 import { normalizeUrl } from "@/lib/tasks/tasks";
@@ -52,9 +53,7 @@ export const ReferenceDecorations = Extension.create({
 
               for (const match of node.text.matchAll(/\{([^}]+)\}/g)) {
                 if (match.index === undefined) continue;
-                if (match[1].length < 6) continue;
-                const parsed = Date.parse(match[1]);
-                if (isNaN(parsed)) continue;
+                if (!parseDateToken(match[1])) continue;
 
                 const start = pos + match.index;
                 const end = start + match[0].length;

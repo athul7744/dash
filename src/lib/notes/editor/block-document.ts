@@ -21,6 +21,7 @@
 import type { JSONContent } from "@tiptap/core";
 
 import { normalizeNoteDocument, serializeNoteDocument } from "@/lib/notes/notes-content";
+import { parseRank } from "@/lib/shared/ranked-order";
 
 export const BLOCK_NODE_TYPE = "block";
 export const DEFAULT_BLOCK_TYPE = "text";
@@ -80,7 +81,15 @@ export function assembleDoc(rows: BlockDocumentRow[]): JSONContent {
   }
 
   for (const bucket of childrenByParent.values()) {
-    bucket.sort((a, b) => a.sort_rank.localeCompare(b.sort_rank));
+    // Order siblings the way the differ compares ranks (LexoRank.compareTo), not
+    // by locale collation — ICU can treat LexoRank's separators as ignorable and
+    // disagree with the differ, causing wrong order or avoidable rank churn.
+    bucket.sort((a, b) => {
+      const ra = parseRank(a.sort_rank);
+      const rb = parseRank(b.sort_rank);
+      if (ra && rb) return ra.compareTo(rb);
+      return a.sort_rank < b.sort_rank ? -1 : a.sort_rank > b.sort_rank ? 1 : 0;
+    });
   }
 
   const buildBlockNodes = (row: BlockDocumentRow): JSONContent[] => {

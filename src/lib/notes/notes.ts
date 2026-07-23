@@ -1,7 +1,7 @@
 import { LexoRank } from "lexorank";
 import { v4 as uuidv4 } from "uuid";
 
-import { reconcileEntityRefs } from "@/lib/links/links";
+import { reconcileEntityRefs, REF_TYPE_SQL } from "@/lib/links/links";
 import { createNoteDocumentFromText, extractNoteText, serializeNoteDocument } from "@/lib/notes/notes-content";
 import { systemPageId, type SystemPageKind } from "@/lib/notes/system-pages";
 import { db } from "@/lib/powersync/db";
@@ -11,8 +11,8 @@ import type { JsonValue } from "@/lib/shared/types";
 
 /** Minimal interface for a DB execution context (transaction or db). */
 interface DbContext {
-  execute(sql: string, params?: any[]): Promise<any>;
-  getAll<T>(sql: string, params?: any[]): Promise<T[]>;
+  execute(sql: string, params?: unknown[]): Promise<unknown>;
+  getAll<T>(sql: string, params?: unknown[]): Promise<T[]>;
 }
 
 const NOTES_DEBOUNCE_MS = 10_000;
@@ -166,12 +166,16 @@ export function updateNotePageProperties(pageId: string, properties: Record<stri
 }
 
 export async function deleteNotePage(pageId: string) {
-  await db.execute(`DELETE FROM attachments WHERE block_id IN (SELECT id FROM blocks WHERE page_id = ?)`, [pageId]);
-  await db.execute(`DELETE FROM attachments WHERE page_id = ?`, [pageId]);
-  await db.execute(`DELETE FROM edges WHERE source_block_id IN (SELECT id FROM blocks WHERE page_id = ?)`, [pageId]);
-  await db.execute(`DELETE FROM edges WHERE target_id = ? AND type IN ('ref', 'page_ref')`, [pageId]);
-  await db.execute(`DELETE FROM blocks WHERE page_id = ?`, [pageId]);
-  await db.execute(`DELETE FROM pages WHERE id = ?`, [pageId]);
+  // One transaction so a mid-way failure can't leave orphaned blocks/edges/
+  // attachments behind a still-present page (or vice versa).
+  await db.writeTransaction(async (tx) => {
+    await tx.execute(`DELETE FROM attachments WHERE block_id IN (SELECT id FROM blocks WHERE page_id = ?)`, [pageId]);
+    await tx.execute(`DELETE FROM attachments WHERE page_id = ?`, [pageId]);
+    await tx.execute(`DELETE FROM edges WHERE source_block_id IN (SELECT id FROM blocks WHERE page_id = ?)`, [pageId]);
+    await tx.execute(`DELETE FROM edges WHERE target_id = ? AND ${REF_TYPE_SQL}`, [pageId]);
+    await tx.execute(`DELETE FROM blocks WHERE page_id = ?`, [pageId]);
+    await tx.execute(`DELETE FROM pages WHERE id = ?`, [pageId]);
+  });
 }
 
 async function createNoteBlock(input: CreateBlockInput) {

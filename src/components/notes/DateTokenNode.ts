@@ -1,7 +1,6 @@
 import { InputRule, Node, mergeAttributes } from "@tiptap/core";
-import { isValid } from "date-fns";
 
-import { DATE_TOKEN_NODE_TYPE, formatDateLabel } from "@/lib/notes/date-tokens";
+import { DATE_TOKEN_NODE_TYPE, formatDateLabel, parseDateToken } from "@/lib/notes/date-tokens";
 
 /**
  * `dateToken` — an inline, atomic node for a date, the sibling of `entityRef`
@@ -66,8 +65,8 @@ export const DateTokenNode = Node.create({
       new InputRule({
         find: /\{([^}]+)\}$/,
         handler: ({ state, range, match }) => {
-          const parsed = new Date(match[1]);
-          if (!isValid(parsed)) return null;
+          const parsed = parseDateToken(match[1]);
+          if (!parsed) return null;
           const dateNode = this.type.create({ date: formatDateLabel(parsed) });
           state.tr.replaceWith(range.from, range.to, dateNode);
         },

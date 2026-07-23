@@ -81,7 +81,8 @@ export class BlockDocumentPersister {
   /** Last state we believe is in the DB. Source of truth for the diff. */
   private snapshot = new Map<string, PersistedBlock>();
   private timer: ReturnType<typeof setTimeout> | null = null;
-  private flushing = false;
+  /** Serializes writes: each persist waits for the previous one to finish. */
+  private queue: Promise<void> = Promise.resolve();
 
   constructor(pageId: string, config: BlockPersisterConfig) {
     this.pageId = pageId;
@@ -169,10 +170,22 @@ export class BlockDocumentPersister {
     await this.persist();
   }
 
-  private async persist() {
+  private persist(): Promise<void> {
     this.timer = null;
-    if (this.flushing) return;
+    // Serialize: wait for any in-flight write (success OR failure) to settle,
+    // then run. This means a debounce fire or flush() that lands mid-write is
+    // never dropped — it re-reads the current doc and writes what's left.
+    const run = this.queue.then(
+      () => this.runPersist(),
+      () => this.runPersist(),
+    );
+    // Keep the stored chain non-rejecting so the next persist still runs; the
+    // returned promise still surfaces the error to flush()'s caller.
+    this.queue = run.catch(() => {});
+    return run;
+  }
 
+  private async runPersist(): Promise<void> {
     // Ignore any block that still lacks a stable id (a transient empty starter
     // block before its real rows arrive) — never write "" as a uuid.
     const decomposed = decomposeDoc(this.getDoc()).filter((b) => b.blockId);
@@ -186,50 +199,38 @@ export class BlockDocumentPersister {
     // still persist normally.
     if (this.ensurePage && !this.pageEnsured && isEmptyDoc(decomposed)) return;
 
-    this.flushing = true;
-    let committed = false;
-    try {
-      // Materialize the page before its first block write (lazy creation).
-      if (!this.pageEnsured && this.ensurePage) {
-        await this.ensurePage();
-        this.pageEnsured = true;
-      }
-      const userId = await getCurrentUserId();
-      await db.writeTransaction(async (tx) => {
-        for (const write of writes) {
-          if (write.op === "insert") {
-            const { blockId, parentId, type, content, sortRank } = write.row;
-            await tx.execute(
-              `INSERT INTO blocks (id, user_id, page_id, parent_block_id, type, content, sort_rank, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ${SQL_UTC_NOW_EXPRESSION})`,
-              [blockId, userId, this.pageId, parentId, type, content, sortRank],
-            );
-            await reconcileNoteBlockEdges(blockId, JSON.parse(content), tx);
-          } else if (write.op === "update") {
-            const { blockId, parentId, type, content, sortRank } = write.row;
-            await tx.execute(
-              `UPDATE blocks SET content = ?, type = ?, parent_block_id = ?, sort_rank = ?, updated_at = ${SQL_UTC_NOW_EXPRESSION} WHERE id = ?`,
-              [content, type, parentId, sortRank, blockId],
-            );
-            await reconcileNoteBlockEdges(blockId, JSON.parse(content), tx);
-          } else {
-            await tx.execute(`DELETE FROM edges WHERE source_block_id = ?`, [write.blockId]);
-            await tx.execute(`DELETE FROM blocks WHERE id = ?`, [write.blockId]);
-          }
+    // Materialize the page before its first block write (lazy creation).
+    if (!this.pageEnsured && this.ensurePage) {
+      await this.ensurePage();
+      this.pageEnsured = true;
+    }
+    const userId = await getCurrentUserId();
+    await db.writeTransaction(async (tx) => {
+      for (const write of writes) {
+        if (write.op === "insert") {
+          const { blockId, parentId, type, content, sortRank } = write.row;
+          await tx.execute(
+            `INSERT INTO blocks (id, user_id, page_id, parent_block_id, type, content, sort_rank, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ${SQL_UTC_NOW_EXPRESSION})`,
+            [blockId, userId, this.pageId, parentId, type, content, sortRank],
+          );
+          await reconcileNoteBlockEdges(blockId, JSON.parse(content), tx);
+        } else if (write.op === "update") {
+          const { blockId, parentId, type, content, sortRank } = write.row;
+          await tx.execute(
+            `UPDATE blocks SET content = ?, type = ?, parent_block_id = ?, sort_rank = ?, updated_at = ${SQL_UTC_NOW_EXPRESSION} WHERE id = ?`,
+            [content, type, parentId, sortRank, blockId],
+          );
+          await reconcileNoteBlockEdges(blockId, JSON.parse(content), tx);
+        } else {
+          await tx.execute(`DELETE FROM edges WHERE source_block_id = ?`, [write.blockId]);
+          await tx.execute(`DELETE FROM blocks WHERE id = ?`, [write.blockId]);
         }
-      });
-      committed = true;
-    } finally {
-      this.flushing = false;
-    }
-
-    if (committed) {
-      // Advance the snapshot only after the write commits (failure retention).
-      this.snapshot = next;
-      await this.onPersisted?.();
-    } else {
-      // Retry on the next debounce window.
-      this.markChanged();
-    }
+      }
+    });
+    // Reached only if the transaction committed — a throw above leaves the
+    // snapshot untouched so the next flush retries the same writes.
+    this.snapshot = next;
+    await this.onPersisted?.();
   }
 
   /**

@@ -88,7 +88,11 @@ function buildFilterClause(filter: QueryFilterCondition, definitions: PropertyDe
         return null;
       case "is_none":
         if (Array.isArray(value) && value.length > 0) {
-          const conditions = value.map(() => `json_extract(properties, '$.tags') NOT LIKE ?`);
+          // A page with no tags at all also excludes every tag (NULL NOT LIKE is
+          // NULL, not true, so it must be spelled out).
+          const conditions = value.map(
+            () => `(json_extract(properties, '$.tags') IS NULL OR json_extract(properties, '$.tags') NOT LIKE ?)`,
+          );
           value.forEach((v) => params.push(`%${JSON.stringify(v).slice(1, -1)}%`));
           return `(${conditions.join(" AND ")})`;
         }
@@ -102,15 +106,23 @@ function buildFilterClause(filter: QueryFilterCondition, definitions: PropertyDe
     }
   }
   else if (propertyId === "__updated_at__") col = "updated_at";
-  else col = `json_extract(properties, '$.custom."${propertyId}"')`;
+  else {
+    // Validate the id against known definitions before interpolating it into the
+    // JSON path (mirrors getSortColumn) — unknown/crafted ids are skipped, so a
+    // stored config can't inject SQL through the property id.
+    const def = definitions.find((d) => d.id === propertyId);
+    if (!def) return null;
+    col = `json_extract(properties, '$.custom."${def.id}"')`;
+  }
 
   switch (operator) {
     case "contains":
       params.push(`%${value}%`);
       return `${col} LIKE ?`;
     case "not_contains":
+      // Include pages missing the property (NULL NOT LIKE is NULL, not true).
       params.push(`%${value}%`);
-      return `${col} NOT LIKE ?`;
+      return `(${col} IS NULL OR ${col} NOT LIKE ?)`;
     case "equals":
     case "is":
     case "eq":
@@ -118,8 +130,9 @@ function buildFilterClause(filter: QueryFilterCondition, definitions: PropertyDe
       return `${col} = ?`;
     case "not_equals":
     case "neq":
+      // Include pages missing the property (NULL != ? is NULL, not true).
       params.push(value);
-      return `${col} != ?`;
+      return `(${col} IS NULL OR ${col} != ?)`;
     case "gt":
       params.push(value);
       return `${col} > ?`;
@@ -150,9 +163,11 @@ function buildFilterClause(filter: QueryFilterCondition, definitions: PropertyDe
       return `${col} >= datetime('now', ?)`;
     }
     case "is_checked":
-      return `${col} = 'true'`;
+      // Checkbox values are stored as JSON booleans, so json_extract yields 1/0,
+      // not the string 'true'. Accept the legacy string form too.
+      return `${col} IN (1, 'true')`;
     case "is_unchecked":
-      return `(${col} IS NULL OR ${col} != 'true')`;
+      return `(${col} IS NULL OR ${col} NOT IN (1, 'true'))`;
     case "is_any":
       if (Array.isArray(value) && value.length > 0) {
         const placeholders = value.map(() => "?").join(", ");

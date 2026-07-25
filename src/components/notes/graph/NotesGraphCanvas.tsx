@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, Minus, Plus } from "lucide-react";
 
 import { buildAdjacency, neighborhood, type GraphLink } from "@/lib/notes/graph";
-import type { GraphViewNode } from "@/hooks/use-note-graph";
-import type { RefKind } from "@/lib/links/tokens";
+import type { GraphCluster, GraphViewNode } from "@/hooks/use-note-graph";
+import { REF_KIND_LABEL, refKindAccentVar, type RefKind } from "@/lib/links/tokens";
 import { isEmoji } from "@/components/notes/SpriteIcon";
 import { getApp } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
@@ -19,9 +19,43 @@ const CLICK_SLOP = 4; // px of movement below which a pointer-up counts as a cli
 // The local "Connections" panel has too few nodes for degree-sizing to mean
 // anything, so it uses one uniform radius; the full vault graph keeps hubs big.
 const MINI_NODE_RADIUS = 9;
+// Uniform radius for an expanded cluster's items (they have no degree to size by).
+const CLUSTER_NODE_RADIUS = 13;
 
 const endId = (end: SimLink["source"]): string =>
   typeof end === "object" && end != null ? (end as SimNode).id : String(end);
+
+// A puck shows the item count as a field of small dots rather than a number.
+// Dots map 1:1 with items up to a cap; past it the disc simply reads "full"
+// (it's already at max size and density), so 60 vs 600 both look like a lot
+// without rendering hundreds of circles or needing a label. Size still scales
+// (sub-linearly) with count so smaller clusters stay visibly smaller.
+const PUCK_DOT_CAP = 50;
+const PUCK_MIN_R = 20;
+const PUCK_MAX_R = 46;
+/** Puck disc radius — grows sub-linearly with count, capped. */
+const puckRadius = (count: number): number => Math.min(PUCK_MAX_R, PUCK_MIN_R + Math.sqrt(count) * 3.0);
+/** Radius the expanded items spread over (for framing the camera). */
+const clusterSpread = (count: number): number => 26 * Math.sqrt(Math.max(1, count));
+
+/**
+ * Positions of the small dots packed inside a puck of radius `R`. A sunflower
+ * (phyllotaxis) layout gives even, tight packing; the dot radius tracks the
+ * nearest-neighbour spacing so dots sit close without overlapping at any count.
+ */
+function puckDots(count: number, R: number): { x: number; y: number; r: number }[] {
+  const usable = R - 6;
+  const n = Math.min(count, PUCK_DOT_CAP);
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const dotR = Math.max(1.6, Math.min(4.2, (usable / Math.sqrt(Math.max(1, n))) * 0.62));
+  const dots: { x: number; y: number; r: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const rad = usable * Math.sqrt((i + 0.5) / n);
+    const ang = i * golden;
+    dots.push({ x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, r: dotR });
+  }
+  return dots;
+}
 
 /**
  * The glyph centered inside a node. A note with a custom icon shows it: a
@@ -63,6 +97,10 @@ function NodeIcon({ meta, r }: { meta: GraphViewNode; r: number }) {
 export function NotesGraphCanvas({
   nodes,
   links,
+  clusters = [],
+  focusKind = null,
+  onExpandCluster,
+  onCollapse,
   size,
   selectedId,
   onSelect,
@@ -72,6 +110,12 @@ export function NotesGraphCanvas({
 }: {
   nodes: GraphViewNode[];
   links: GraphLink[];
+  /** Collapsed per-kind orphan clusters (full variant only). */
+  clusters?: GraphCluster[];
+  /** Which cluster is expanded, or null for the overview. */
+  focusKind?: RefKind | null;
+  onExpandCluster?: (kind: RefKind) => void;
+  onCollapse?: () => void;
   size: { width: number; height: number };
   selectedId: string | null;
   onSelect: (id: string, kind: RefKind) => void;
@@ -88,6 +132,14 @@ export function NotesGraphCanvas({
     userMovedRef.current = true;
   };
 
+  // Keep a ref in sync so the camera tween can read the live transform.
+  const transformRef = useRef(transform);
+  useEffect(() => {
+    transformRef.current = transform;
+  }, [transform]);
+
+  const focused = focusKind != null;
+
   // Calm entrance: the pre-settled layout is there instantly, so fade + a hair
   // of scale in rather than snapping into view.
   const [entered, setEntered] = useState(false);
@@ -102,15 +154,46 @@ export function NotesGraphCanvas({
   const metaById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
   const key = useMemo(() => nodes.map((node) => node.id).sort().join(","), [nodes]);
 
+  // Cluster pucks: one disc per kind, placed on a ring around the core centre.
+  const puckLayout = useMemo(() => {
+    const map = new Map<RefKind, { x: number; y: number; r: number; count: number }>();
+    const cx = size.width / 2;
+    const cy = size.height / 2;
+    const R = Math.min(size.width, size.height) * 0.42;
+    clusters.forEach((c, i) => {
+      const a = -Math.PI / 2 + (i / Math.max(1, clusters.length)) * Math.PI * 2;
+      map.set(c.kind, { x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, r: puckRadius(c.count), count: c.count });
+    });
+    return map;
+  }, [clusters, size.width, size.height]);
+
+  // Deterministic sunflower packing of the focused cluster's items around its puck.
+  const focusPositions = useMemo(() => {
+    if (!focusKind) return [] as { node: GraphViewNode; x: number; y: number }[];
+    const p = puckLayout.get(focusKind);
+    const cluster = clusters.find((c) => c.kind === focusKind);
+    if (!p || !cluster) return [];
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    const spacing = 26;
+    return cluster.nodes.map((node, i) => ({
+      node,
+      x: p.x + spacing * Math.sqrt(i + 0.5) * Math.cos(i * golden),
+      y: p.y + spacing * Math.sqrt(i + 0.5) * Math.sin(i * golden),
+    }));
+  }, [focusKind, puckLayout, clusters]);
+
   // Which nodes are emphasised: a hovered node's neighbourhood, else pages
   // matching the search box. Null means "no emphasis" (nothing dimmed).
   const highlight = useMemo(() => {
+    if (focused) return null;
     if (hoverId) return new Set(neighborhood(hoverId, adjacency, depth).keys());
     const query = searchQuery.trim().toLowerCase();
     if (query) return new Set(nodes.filter((n) => n.title.toLowerCase().includes(query)).map((n) => n.id));
     return null;
-  }, [hoverId, searchQuery, depth, adjacency, nodes]);
+  }, [focused, hoverId, searchQuery, depth, adjacency, nodes]);
   const dimming = highlight != null;
+  // In focus mode the search box filters within the open cluster instead.
+  const focusQuery = focused ? searchQuery.trim().toLowerCase() : "";
 
   const toGraph = useCallback(
     (clientX: number, clientY: number) => {
@@ -128,19 +211,52 @@ export function NotesGraphCanvas({
     });
   }, []);
 
-  const fitView = useCallback(() => {
+  // ── Camera tween (used for the expand/collapse zoom) ─────────────────────
+  const camAnimRef = useRef<number | null>(null);
+  const animateTo = useCallback((target: Transform) => {
+    if (camAnimRef.current != null) cancelAnimationFrame(camAnimRef.current);
+    const stepFn = () => {
+      const cur = transformRef.current;
+      const nx = cur.x + (target.x - cur.x) * 0.2;
+      const ny = cur.y + (target.y - cur.y) * 0.2;
+      const nk = cur.k + (target.k - cur.k) * 0.2;
+      const done = Math.abs(target.x - nx) < 0.5 && Math.abs(target.y - ny) < 0.5 && Math.abs(target.k - nk) < 0.002;
+      const next = done ? target : { x: nx, y: ny, k: nk };
+      transformRef.current = next;
+      setTransform(next);
+      if (!done) camAnimRef.current = requestAnimationFrame(stepFn);
+      else camAnimRef.current = null;
+    };
+    camAnimRef.current = requestAnimationFrame(stepFn);
+  }, []);
+  useEffect(() => () => {
+    if (camAnimRef.current != null) cancelAnimationFrame(camAnimRef.current);
+  }, []);
+
+  const fitTransform = useCallback((): Transform | null => {
     const placed = sim.nodes.filter((n) => n.x != null && n.y != null);
-    if (placed.length === 0) return;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const n of placed) {
       const r = nodeRadius(n.degree) + 34;
       minX = Math.min(minX, n.x! - r); minY = Math.min(minY, n.y! - r);
       maxX = Math.max(maxX, n.x! + r); maxY = Math.max(maxY, n.y! + r);
     }
+    // Frame the pucks too, so a ring of clusters never sits off-screen.
+    for (const p of puckLayout.values()) {
+      const r = p.r + 30;
+      minX = Math.min(minX, p.x - r); minY = Math.min(minY, p.y - r);
+      maxX = Math.max(maxX, p.x + r); maxY = Math.max(maxY, p.y + r);
+    }
+    if (minX === Infinity) return null;
     const gw = maxX - minX, gh = maxY - minY;
     const k = Math.max(MIN_ZOOM, Math.min(variant === "mini" ? 1.4 : 2, Math.min(size.width / gw, size.height / gh)));
-    setTransform({ k, x: (size.width - gw * k) / 2 - minX * k, y: (size.height - gh * k) / 2 - minY * k });
-  }, [sim.nodes, size.width, size.height, variant]);
+    return { k, x: (size.width - gw * k) / 2 - minX * k, y: (size.height - gh * k) / 2 - minY * k };
+  }, [sim.nodes, puckLayout, size.width, size.height, variant]);
+
+  const fitView = useCallback(() => {
+    const t = fitTransform();
+    if (t) setTransform(t);
+  }, [fitTransform]);
 
   // Frame the graph once per node set — on the next frame after the (already
   // settled) layout mounts, and only if the user hasn't panned/zoomed/dragged.
@@ -155,26 +271,51 @@ export function NotesGraphCanvas({
     userMovedRef.current = false;
   }, [key]);
   useEffect(() => {
-    if (nodes.length === 0 || size.width === 0) return;
+    if (nodes.length === 0 || size.width === 0 || focused) return;
     const raf = requestAnimationFrame(() => fitOnce());
     return () => cancelAnimationFrame(raf);
-  }, [key, size.width, nodes.length, fitOnce]);
+  }, [key, size.width, nodes.length, focused, fitOnce]);
+
+  // Expand → zoom the camera to frame the focused cluster; collapse → restore.
+  const preFocusRef = useRef<Transform | null>(null);
+  useEffect(() => {
+    if (!focusKind) {
+      if (preFocusRef.current) {
+        animateTo(preFocusRef.current);
+        preFocusRef.current = null;
+      }
+      return;
+    }
+    const p = puckLayout.get(focusKind);
+    if (!p) return;
+    if (!preFocusRef.current) preFocusRef.current = transformRef.current;
+    const cluster = clusters.find((c) => c.kind === focusKind);
+    const spread = clusterSpread(cluster?.count ?? 0) + CLUSTER_NODE_RADIUS + 50;
+    const k = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.min(size.width, size.height) / (2 * spread)));
+    animateTo({ k, x: size.width / 2 - p.x * k, y: size.height / 2 - p.y * k });
+  }, [focusKind, puckLayout, clusters, size.width, size.height, animateTo]);
 
   // ── Pan (background drag) + wheel zoom ───────────────────────────────────
-  const panRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+  const panRef = useRef<{ x: number; y: number; tx: number; ty: number; moved: boolean } | null>(null);
   const onBackgroundPointerDown = (event: React.PointerEvent) => {
-    if ((event.target as Element).closest("[data-node]")) return;
-    markMoved();
-    panRef.current = { x: event.clientX, y: event.clientY, tx: transform.x, ty: transform.y };
+    if ((event.target as Element).closest("[data-node],[data-puck]")) return;
+    panRef.current = { x: event.clientX, y: event.clientY, tx: transform.x, ty: transform.y, moved: false };
     svgRef.current?.setPointerCapture(event.pointerId);
   };
   const onBackgroundPointerMove = (event: React.PointerEvent) => {
     const pan = panRef.current;
     if (!pan) return;
-    setTransform((t) => ({ ...t, x: pan.tx + (event.clientX - pan.x), y: pan.ty + (event.clientY - pan.y) }));
+    if (!pan.moved && Math.hypot(event.clientX - pan.x, event.clientY - pan.y) > CLICK_SLOP) {
+      pan.moved = true;
+      markMoved();
+    }
+    if (pan.moved) setTransform((t) => ({ ...t, x: pan.tx + (event.clientX - pan.x), y: pan.ty + (event.clientY - pan.y) }));
   };
   const onBackgroundPointerUp = () => {
+    const pan = panRef.current;
     panRef.current = null;
+    // A click on empty space while focused returns to the overview.
+    if (pan && !pan.moved && focused) onCollapse?.();
   };
   const onWheel = (event: React.WheelEvent) => {
     const rect = svgRef.current?.getBoundingClientRect();
@@ -226,8 +367,11 @@ export function NotesGraphCanvas({
     <div className="relative h-full w-full">
       <div
         className={cn(
-          "h-full w-full transition-[opacity,transform] duration-500 ease-out will-change-transform motion-reduce:!transition-none motion-reduce:!duration-0",
-          entered ? "scale-100 opacity-100" : "scale-[0.985] opacity-0",
+          "h-full w-full transition-[opacity,transform] duration-500 ease-out motion-reduce:!transition-none motion-reduce:!duration-0",
+          // `will-change` only during the entrance tween — leaving it on keeps a
+          // cached GPU raster that the camera zoom then scales up, blurring the
+          // vectors until a repaint (e.g. hover) invalidates it.
+          entered ? "scale-100 opacity-100" : "scale-[0.985] opacity-0 will-change-transform",
         )}
       >
       <svg
@@ -241,66 +385,159 @@ export function NotesGraphCanvas({
         onWheel={onWheel}
       >
         <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
-          <g>
-            {sim.links.map((link, index) => {
-              const s = link.source as SimNode;
-              const t = link.target as SimNode;
-              if (typeof s !== "object" || typeof t !== "object") return null;
-              const on = dimming && highlight!.has(endId(link.source)) && highlight!.has(endId(link.target));
-              return (
-                <line
-                  key={index}
-                  x1={s.x} y1={s.y} x2={t.x} y2={t.y}
-                  stroke={on ? "var(--primary)" : "var(--border)"}
-                  strokeWidth={on ? 1.8 : 1.2}
-                  strokeOpacity={dimming && !on ? 0.25 : 1}
-                />
-              );
-            })}
-          </g>
-          <g>
-            {sim.nodes.map((node) => {
-              const meta = metaById.get(node.id) ?? node;
-              const faded = dimming && !highlight!.has(node.id);
-              const r = variant === "mini" ? MINI_NODE_RADIUS : nodeRadius(node.degree);
-              const selected = node.id === selectedId;
-              return (
-                <g
-                  key={node.id}
-                  data-node
-                  transform={`translate(${node.x ?? 0},${node.y ?? 0})`}
-                  className="cursor-pointer"
-                  style={{ opacity: faded ? 0.2 : 1, transition: "opacity .18s" }}
-                  onPointerDown={(e) => onNodePointerDown(e, node)}
-                  onPointerMove={(e) => onNodePointerMove(e, node)}
-                  onPointerUp={() => onNodePointerUp(node)}
-                  onDoubleClick={() => sim.unpin(node)}
-                  onPointerEnter={() => setHoverId(node.id)}
-                  onPointerLeave={() => setHoverId((current) => (current === node.id ? null : current))}
-                >
-                  <circle
-                    r={r}
-                    fill="var(--background)"
-                    stroke={selected ? "var(--color-muted-foreground)" : "var(--border)"}
-                    strokeWidth={1.5}
+          {/* Connected core + pucks — faded out while a cluster is focused. */}
+          <g
+            style={{
+              opacity: focused ? 0 : 1,
+              transition: "opacity .3s ease",
+              pointerEvents: focused ? "none" : "auto",
+            }}
+          >
+            <g>
+              {sim.links.map((link, index) => {
+                const s = link.source as SimNode;
+                const t = link.target as SimNode;
+                if (typeof s !== "object" || typeof t !== "object") return null;
+                const on = dimming && highlight!.has(endId(link.source)) && highlight!.has(endId(link.target));
+                return (
+                  <line
+                    key={index}
+                    x1={s.x} y1={s.y} x2={t.x} y2={t.y}
+                    stroke={on ? "var(--primary)" : "var(--border)"}
+                    strokeWidth={on ? 1.8 : 1.2}
+                    strokeOpacity={dimming && !on ? 0.25 : 1}
                   />
-                  {r >= 6 ? <NodeIcon meta={meta} r={r} /> : null}
-                  {showLabel(node, faded) ? (
-                    <text
-                      y={r + 11}
-                      textAnchor="middle"
-                      fontSize={variant === "mini" ? 9.5 : 11}
-                      fontWeight={600}
-                      fill="var(--foreground)"
-                      style={{ pointerEvents: "none", paintOrder: "stroke", stroke: "var(--background)", strokeWidth: 3, strokeLinejoin: "round" }}
+                );
+              })}
+            </g>
+            <g>
+              {sim.nodes.map((node) => {
+                const meta = metaById.get(node.id) ?? node;
+                const faded = dimming && !highlight!.has(node.id);
+                const r = variant === "mini" ? MINI_NODE_RADIUS : nodeRadius(node.degree);
+                const selected = node.id === selectedId;
+                return (
+                  <g
+                    key={node.id}
+                    data-node
+                    transform={`translate(${node.x ?? 0},${node.y ?? 0})`}
+                    className="cursor-pointer"
+                    style={{ opacity: faded ? 0.2 : 1, transition: "opacity .18s" }}
+                    onPointerDown={(e) => onNodePointerDown(e, node)}
+                    onPointerMove={(e) => onNodePointerMove(e, node)}
+                    onPointerUp={() => onNodePointerUp(node)}
+                    onDoubleClick={() => sim.unpin(node)}
+                    onPointerEnter={() => setHoverId(node.id)}
+                    onPointerLeave={() => setHoverId((current) => (current === node.id ? null : current))}
+                  >
+                    <circle
+                      r={r}
+                      fill="var(--background)"
+                      stroke={selected ? "var(--color-muted-foreground)" : "var(--border)"}
+                      strokeWidth={1.5}
+                    />
+                    {r >= 6 ? <NodeIcon meta={meta} r={r} /> : null}
+                    {showLabel(node, faded) ? (
+                      <text
+                        y={r + 11}
+                        textAnchor="middle"
+                        fontSize={variant === "mini" ? 9.5 : 11}
+                        fontWeight={600}
+                        fill="var(--foreground)"
+                        style={{ pointerEvents: "none", paintOrder: "stroke", stroke: "var(--background)", strokeWidth: 3, strokeLinejoin: "round" }}
+                      >
+                        {meta.title.length > 22 ? `${meta.title.slice(0, 21)}…` : meta.title}
+                      </text>
+                    ) : null}
+                  </g>
+                );
+              })}
+            </g>
+            {/* Cluster pucks (circular, count-in-disc, label beneath). */}
+            {variant === "full" ? (
+              <g>
+                {clusters.map((cluster) => {
+                  const p = puckLayout.get(cluster.kind);
+                  if (!p) return null;
+                  // Calm, monochromatic per kind: a soft tinted surface (accent
+                  // barely mixed into the card), a low-contrast border, and dots
+                  // in a muted accent "ink" (accent pulled toward the fg) — never
+                  // a saturated fill with loud white dots.
+                  const accent = refKindAccentVar(cluster.kind);
+                  const backFill = `color-mix(in oklab, ${accent} 20%, var(--card))`;
+                  const frontFill = `color-mix(in oklab, ${accent} 13%, var(--card))`;
+                  const stroke = `color-mix(in oklab, ${accent} 34%, var(--border))`;
+                  const dot = `color-mix(in oklab, ${accent} 60%, var(--foreground))`;
+                  return (
+                    <g
+                      key={cluster.kind}
+                      data-puck
+                      transform={`translate(${p.x},${p.y})`}
+                      className="cursor-pointer"
+                      onClick={() => onExpandCluster?.(cluster.kind)}
                     >
-                      {meta.title.length > 22 ? `${meta.title.slice(0, 21)}…` : meta.title}
-                    </text>
-                  ) : null}
-                </g>
-              );
-            })}
+                      {/* faint stacked discs → "many items under here" */}
+                      <circle cx={6} cy={5} r={p.r} fill={backFill} />
+                      <circle cx={3} cy={2.5} r={p.r} fill={backFill} />
+                      <circle r={p.r} fill={frontFill} stroke={stroke} strokeWidth={1} />
+                      {/* one hollow ring per item (capped) — magnitude at a glance, no number */}
+                      {puckDots(cluster.count, p.r).map((d, i) => (
+                        <circle key={i} cx={d.x} cy={d.y} r={d.r} fill="none" stroke={dot} strokeWidth={Math.max(0.35, d.r * 0.16)} opacity={0.9} style={{ pointerEvents: "none" }} />
+                      ))}
+                      <text
+                        y={p.r + 13}
+                        textAnchor="middle"
+                        fontSize={12}
+                        fontWeight={600}
+                        fill="var(--foreground)"
+                        style={{ pointerEvents: "none", paintOrder: "stroke", stroke: "var(--background)", strokeWidth: 3, strokeLinejoin: "round" }}
+                      >
+                        {REF_KIND_LABEL[cluster.kind]}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
+            ) : null}
           </g>
+
+          {/* Focused cluster's items — the only thing interactive while focused. */}
+          {focusKind ? (
+            <g style={{ opacity: focused ? 1 : 0, transition: "opacity .3s ease" }}>
+              {focusPositions.map(({ node, x, y }) => {
+                const r = CLUSTER_NODE_RADIUS;
+                const isHover = node.id === hoverId;
+                const faded = focusQuery !== "" && !node.title.toLowerCase().includes(focusQuery);
+                return (
+                  <g
+                    key={node.id}
+                    data-node
+                    transform={`translate(${x},${y})`}
+                    className="cursor-pointer"
+                    style={{ opacity: faded ? 0.2 : 1, transition: "opacity .18s" }}
+                    onClick={() => onSelect(node.id, node.kind)}
+                    onPointerEnter={() => setHoverId(node.id)}
+                    onPointerLeave={() => setHoverId((current) => (current === node.id ? null : current))}
+                  >
+                    <circle r={r} fill="var(--background)" stroke="var(--border)" strokeWidth={1.5} />
+                    <NodeIcon meta={node} r={r} />
+                    {isHover ? (
+                      <text
+                        y={r + 11}
+                        textAnchor="middle"
+                        fontSize={11}
+                        fontWeight={600}
+                        fill="var(--foreground)"
+                        style={{ pointerEvents: "none", paintOrder: "stroke", stroke: "var(--background)", strokeWidth: 3, strokeLinejoin: "round" }}
+                      >
+                        {node.title.length > 22 ? `${node.title.slice(0, 21)}…` : node.title}
+                      </text>
+                    ) : null}
+                  </g>
+                );
+              })}
+            </g>
+          ) : null}
         </g>
       </svg>
       </div>

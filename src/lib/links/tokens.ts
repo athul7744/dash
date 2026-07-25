@@ -27,6 +27,15 @@ export const REF_KIND_HUE: Record<RefKind, string> = {
 /** CSS accent color for a kind, e.g. `var(--color-indigo-500)`. */
 export const refKindAccentVar = (kind: RefKind) => `var(--color-${REF_KIND_HUE[kind]}-500)`;
 
+/** Plural label per kind (headings, legends, cluster pucks). */
+export const REF_KIND_LABEL: Record<RefKind, string> = {
+  note: "Notes",
+  task: "Tasks",
+  bookmark: "Bookmarks",
+  quote: "Quotes",
+  reminder: "Reminders",
+};
+
 export type RefToken = {
   /** Human label shown in the chip / plain text. */
   label: string;

@@ -16,6 +16,12 @@ import type { Tag, Task } from "@/lib/powersync/AppSchema";
 /** A graph node plus the id of the tag that colors it (for legend/filtering). */
 export type GraphViewNode = GraphNode & { tagId: string | null };
 
+/** All unlinked items of one kind, collapsed into a single overview cluster. */
+export type GraphCluster = { kind: RefKind; count: number; nodes: GraphViewNode[] };
+
+/** Cluster/legend ordering. */
+const KIND_ORDER: RefKind[] = ["note", "task", "bookmark", "quote", "reminder"];
+
 /** One entry in the tag legend / filter, with how many pages carry it. */
 export type GraphTagLegendEntry = {
   id: string;
@@ -28,9 +34,15 @@ export type GraphTagLegendEntry = {
 };
 
 export type NoteGraphData = {
+  /** The connected core: every item with at least one resolved link. */
   nodes: GraphViewNode[];
   links: NoteGraph["links"];
+  /** Unlinked items, collapsed per kind (rendered as pucks, expanded on demand). */
+  clusters: GraphCluster[];
+  /** Tag legend for the overview (core notes). */
   tags: GraphTagLegendEntry[];
+  /** Tag legend for the note cluster's items (used when drilled into it). */
+  noteClusterTags: GraphTagLegendEntry[];
   isLoading: boolean;
 };
 
@@ -126,74 +138,70 @@ export function useNoteGraph(): NoteGraphData {
       };
     });
 
-    // Label lookups for the non-note kinds.
-    const labelFor = (kind: RefKind, id: string): string | null => {
-      switch (kind) {
-        case "task": { const t = rootTasks.find((x) => x.id === id); return t ? (stripRefs(t.title ?? "") || "Untitled task") : null; }
-        case "bookmark": { const b = bookmarks.find((x) => x.id === id); return b ? (b.title || b.url || "Untitled bookmark") : null; }
-        case "quote": { const q = quotes.find((x) => x.id === id); return q ? (stripRefs(q.text || "") || "Untitled quote") : null; }
-        case "reminder": { const r = reminders.find((x) => x.id === id); return r ? (stripRefs(r.title || "") || "Untitled reminder") : null; }
-        default: return null;
-      }
-    };
+    // Every non-note entity becomes a node input (not just the linked ones), so
+    // an unlinked item can surface too. Labels/colors mirror the app accents.
+    const kindColor = (kind: RefKind) => tagColorToCss(REF_KIND_HUE[kind]);
+    const nonNoteInputs = [
+      ...rootTasks.map((t) => ({ id: t.id, kind: "task" as RefKind, title: stripRefs(t.title ?? "") || "Untitled task", emoji: null, tagColor: kindColor("task") })),
+      ...bookmarks.map((b) => ({ id: b.id, kind: "bookmark" as RefKind, title: b.title || b.url || "Untitled bookmark", emoji: null, tagColor: kindColor("bookmark") })),
+      ...quotes.map((q) => ({ id: q.id, kind: "quote" as RefKind, title: stripRefs(q.text || "") || "Untitled quote", emoji: null, tagColor: kindColor("quote") })),
+      ...reminders.map((r) => ({ id: r.id, kind: "reminder" as RefKind, title: stripRefs(r.title || "") || "Untitled reminder", emoji: null, tagColor: kindColor("reminder") })),
+    ];
 
-    // Resolve every edge; collect the non-note nodes that appear and the edge pairs.
-    const nonNote = new Map<string, { kind: RefKind; label: string }>();
-    const noteIds = new Set(noteInputs.map((n) => n.id));
+    // Resolve edges to node-id pairs; keep only those between known nodes.
+    const inputs = [...noteInputs, ...nonNoteInputs];
+    const knownIds = new Set(inputs.map((n) => n.id));
     const pairs: PageEdgeRow[] = [];
-
     for (const row of edgeRows) {
       const s = resolveSource(row);
       const t = resolveTarget(row);
       if (!s || !t) continue;
-
-      for (const end of [s, t]) {
-        if (end.kind === "note") continue;
-        if (nonNote.has(end.id)) continue;
-        const label = labelFor(end.kind, end.id);
-        if (label != null) nonNote.set(end.id, { kind: end.kind, label });
-      }
-
-      const exists = (end: Endpoint) => (end.kind === "note" ? noteIds.has(end.id) : nonNote.has(end.id));
-      if (exists(s) && exists(t)) pairs.push({ source: s.id, target: t.id });
+      if (knownIds.has(s.id) && knownIds.has(t.id)) pairs.push({ source: s.id, target: t.id });
     }
 
-    const nonNoteInputs = [...nonNote.entries()].map(([id, { kind, label }]) => ({
-      id,
-      kind,
-      title: label,
-      emoji: null,
-      tagColor: tagColorToCss(REF_KIND_HUE[kind]),
-    }));
-
-    const { nodes, links } = buildGraph([...noteInputs, ...nonNoteInputs], pairs);
+    const { nodes, links } = buildGraph(inputs, pairs);
     const viewNodes: GraphViewNode[] = nodes.map((node) => ({
       ...node,
       tagId: node.kind === "note" ? (pageTagId.get(node.id) ?? null) : null,
     }));
 
-    // Legend: only tags actually used by a page, with usage counts.
-    const counts = new Map<string, number>();
-    for (const tagId of pageTagId.values()) {
-      if (tagId) counts.set(tagId, (counts.get(tagId) ?? 0) + 1);
-    }
-    const tags: GraphTagLegendEntry[] = [...counts.entries()]
-      .map(([id, count]) => {
-        const tag = tagsById.get(id);
-        return {
-          id,
-          name: tag?.name?.trim() || "Tag",
-          color: tag?.color || "slate",
-          cssColor: tagColorToCss(tag?.color) ?? "var(--color-muted-foreground)",
-          count,
-        };
-      })
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    // Split: connected core (degree > 0) vs unlinked items collapsed per kind.
+    // Orphans carry no edges, so `links` only ever connect core nodes.
+    const core = viewNodes.filter((n) => n.degree > 0);
+    const orphans = viewNodes.filter((n) => n.degree === 0);
+    const clusters: GraphCluster[] = KIND_ORDER
+      .map((kind) => ({ kind, nodes: orphans.filter((n) => n.kind === kind) }))
+      .filter((c) => c.nodes.length > 0)
+      .map((c) => ({ kind: c.kind, count: c.nodes.length, nodes: c.nodes }));
+
+    // Legend from a set of note nodes: their tags with usage counts.
+    const legendFor = (noteNodes: GraphViewNode[]): GraphTagLegendEntry[] => {
+      const counts = new Map<string, number>();
+      for (const n of noteNodes) if (n.kind === "note" && n.tagId) counts.set(n.tagId, (counts.get(n.tagId) ?? 0) + 1);
+      return [...counts.entries()]
+        .map(([id, count]) => {
+          const tag = tagsById.get(id);
+          return {
+            id,
+            name: tag?.name?.trim() || "Tag",
+            color: tag?.color || "slate",
+            cssColor: tagColorToCss(tag?.color) ?? "var(--color-muted-foreground)",
+            count,
+          };
+        })
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    };
+    // Overview legend filters the core notes; the drill-down legend filters the
+    // note cluster (the only kind that carries tags).
+    const tags = legendFor(core);
+    const noteClusterTags = legendFor(clusters.find((c) => c.kind === "note")?.nodes ?? []);
 
     return {
-      nodes: viewNodes,
+      nodes: core,
       links,
+      clusters,
       tags,
+      noteClusterTags,
       isLoading: isLoadingPages || isLoadingEdges || isLoadingTags,
     };
   }, [pages, edgeRows, allTags, rootTasks, bookmarks, quotes, reminders, isLoadingPages, isLoadingEdges, isLoadingTags]);

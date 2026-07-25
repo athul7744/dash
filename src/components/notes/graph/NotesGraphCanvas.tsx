@@ -6,6 +6,7 @@ import { Maximize2, Minus, Plus } from "lucide-react";
 import { buildAdjacency, neighborhood, type GraphLink } from "@/lib/notes/graph";
 import type { GraphViewNode } from "@/hooks/use-note-graph";
 import type { RefKind } from "@/lib/links/tokens";
+import { isEmoji } from "@/components/notes/SpriteIcon";
 import { getApp } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 import { nodeRadius, useForceSimulation, type SimLink, type SimNode } from "./useForceSimulation";
@@ -22,16 +23,37 @@ const MINI_NODE_RADIUS = 9;
 const endId = (end: SimLink["source"]): string =>
   typeof end === "object" && end != null ? (end as SimNode).id : String(end);
 
-/** The entity's Lucide icon, in its accent colour, centered inside a node. */
-function KindGlyph({ kind, r, color }: { kind: RefKind; r: number; color: string }) {
-  const Icon = getApp(`${kind}s`).icon;
+/**
+ * The glyph centered inside a node. A note with a custom icon shows it: a
+ * stored "emoji" is either a Unicode emoji (render as text) or a Fluent-emoji
+ * sprite name (render the sprite) — the same split `SpriteIcon` makes; printing
+ * the raw string as text showed sprite names like "airplane" instead of the
+ * icon. Everything else falls back to the entity's Lucide icon in its accent.
+ */
+function NodeIcon({ meta, r }: { meta: GraphViewNode; r: number }) {
+  if (meta.kind === "note" && meta.emoji) {
+    if (isEmoji(meta.emoji)) {
+      return (
+        <text textAnchor="middle" dominantBaseline="central" fontSize={r} style={{ pointerEvents: "none" }}>
+          {meta.emoji}
+        </text>
+      );
+    }
+    const s = r * 1.5;
+    return (
+      <svg x={-s / 2} y={-s / 2} width={s} height={s} viewBox="0 0 32 32" style={{ pointerEvents: "none" }}>
+        <use href={`/icons/fluent-emoji.svg#${meta.emoji}`} />
+      </svg>
+    );
+  }
+  const Icon = getApp(`${meta.kind}s`).icon;
   const size = r * 1.15;
   return (
     <Icon
       x={-size / 2}
       y={-size / 2}
       size={size}
-      color={color}
+      color={meta.tagColor ?? "var(--color-muted-foreground)"}
       strokeWidth={2.4}
       style={{ pointerEvents: "none" }}
     />
@@ -262,15 +284,7 @@ export function NotesGraphCanvas({
                     stroke={selected ? "var(--color-muted-foreground)" : "var(--border)"}
                     strokeWidth={1.5}
                   />
-                  {r >= 6 ? (
-                    meta.kind === "note" && meta.emoji ? (
-                      <text textAnchor="middle" dominantBaseline="central" fontSize={r} style={{ pointerEvents: "none" }}>
-                        {meta.emoji}
-                      </text>
-                    ) : (
-                      <KindGlyph kind={meta.kind} r={r} color={meta.tagColor ?? "var(--color-muted-foreground)"} />
-                    )
-                  ) : null}
+                  {r >= 6 ? <NodeIcon meta={meta} r={r} /> : null}
                   {showLabel(node, faded) ? (
                     <text
                       y={r + 11}

@@ -83,6 +83,14 @@ export class BlockDocumentPersister {
   private timer: ReturnType<typeof setTimeout> | null = null;
   /** Serializes writes: each persist waits for the previous one to finish. */
   private queue: Promise<void> = Promise.resolve();
+  /**
+   * Whether a baseline has been established. A persister that has never
+   * hydrated has an empty snapshot, so diffing would treat every block as new
+   * and INSERT it — colliding with the existing rows. It must not write until
+   * hydrated. (An empty baseline from an empty page is still "hydrated": the
+   * lazy starter block legitimately INSERTs on first content.)
+   */
+  private hydrated = false;
 
   constructor(pageId: string, config: BlockPersisterConfig) {
     this.pageId = pageId;
@@ -99,6 +107,7 @@ export class BlockDocumentPersister {
    */
   hydrate(rows: BlockDocumentRow[]) {
     this.snapshot = snapshotFromRows(rows);
+    this.hydrated = true;
   }
 
   /**
@@ -109,6 +118,7 @@ export class BlockDocumentPersister {
    */
   hydrateFromDoc(doc: JSONContent, rows: BlockDocumentRow[]) {
     this.snapshot = this.buildSnapshotFromDoc(doc, rows);
+    this.hydrated = true;
   }
 
   /**
@@ -189,6 +199,10 @@ export class BlockDocumentPersister {
   }
 
   private async runPersist(): Promise<void> {
+    // Never write from an un-baselined persister — its empty snapshot would diff
+    // every existing block to an INSERT and collide (UNIQUE blocks.id).
+    if (!this.hydrated) return;
+
     // Ignore any block that still lacks a stable id (a transient empty starter
     // block before its real rows arrive) — never write "" as a uuid.
     const decomposed = decomposeDoc(this.getDoc()).filter((b) => b.blockId);

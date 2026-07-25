@@ -124,6 +124,45 @@ describe("BlockDocumentPersister save path", () => {
     expect(sqlOf("INSERT")[0].params[0]).toBe("X");
   });
 
+  it("writes nothing when flushed before it has hydrated (guards INSERT-all)", async () => {
+    // A persister recreated (e.g. dev Fast Refresh) but never hydrated has an
+    // empty snapshot; without the guard it would INSERT every doc block and
+    // collide with the existing rows.
+    const doc: ReturnType<typeof assembleDoc> = {
+      type: "doc",
+      content: [
+        {
+          type: "block",
+          attrs: { blockId: "b1", blockType: "text" },
+          content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }],
+        },
+      ],
+    };
+    const persister = new BlockDocumentPersister("page-1", { getDoc: () => doc, debounceMs: 5 });
+    await persister.flush(); // no hydrate()
+    expect(executed).toEqual([]);
+  });
+
+  it("does not re-INSERT a doc block that is already a persisted row", async () => {
+    // Regression: buildSnapshotFromDoc must baseline every id present in the
+    // rows it's given. A loaded block missing from the baseline diffs to an
+    // INSERT and collides (UNIQUE constraint failed: blocks.id).
+    const doc: ReturnType<typeof assembleDoc> = {
+      type: "doc",
+      content: [
+        {
+          type: "block",
+          attrs: { blockId: "b1", blockType: "text" },
+          content: [{ type: "paragraph", content: [{ type: "text", text: "hello" }] }],
+        },
+      ],
+    };
+    const persister = new BlockDocumentPersister("page-1", { getDoc: () => doc, debounceMs: 5 });
+    persister.hydrateFromDoc(doc, [row("b1")]);
+    await persister.flush();
+    expect(executed).toEqual([]);
+  });
+
   it("DELETEs a removed block and its edges", async () => {
     const { persister, setRows } = makePersister([row("b1"), row("b2", { sort_rank: RANK_1 })]);
     setRows([row("b1")]);

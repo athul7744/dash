@@ -16,7 +16,7 @@
  * NodeView are layered on afterwards.
  */
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { Editor } from "@tiptap/core";
 import type { EditorView } from "@tiptap/pm/view";
 import { useEditor } from "@tiptap/react";
@@ -67,7 +67,7 @@ export function useSingleBlockEditor({
 }): Editor | null {
   const rows = useMemo(() => blocks.map(toBlockDocumentRow), [blocks]);
 
-  const latestRowsRef = useRef(rows);
+  const liveRowsRef = useRef(rows);
   const editorRef = useRef<Editor | null>(null);
   const persisterRef = useRef<BlockDocumentPersister | null>(null);
 
@@ -79,7 +79,7 @@ export function useSingleBlockEditor({
   const peekTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    latestRowsRef.current = rows;
+    liveRowsRef.current = rows;
   });
   useEffect(() => {
     handlersRef.current = handlers;
@@ -210,9 +210,23 @@ export function useSingleBlockEditor({
     },
   });
 
+  // Baseline the current persister's snapshot from the editor's own
+  // serialization + the live DB rows, so an unedited load never looks "dirty"
+  // and every existing block is recognized (diffs to UPDATE, never a colliding
+  // INSERT). Called both when the editor first arrives AND whenever a persister
+  // is (re)created while the editor already exists (dev Fast Refresh / effect
+  // re-runs) — a persister that never hydrates has an empty snapshot and would
+  // INSERT every block on its next flush. Stable identity (reads only refs).
+  const hydrate = useCallback(() => {
+    const ed = editorRef.current;
+    const persister = persisterRef.current;
+    if (ed && persister) persister.hydrateFromDoc(ed.getJSON(), liveRowsRef.current);
+  }, []);
+
   useEffect(() => {
     editorRef.current = editor;
-  }, [editor]);
+    hydrate();
+  }, [editor, hydrate]);
 
   // Persister lifecycle: create per page, flush + dispose on unmount.
   useEffect(() => {
@@ -225,21 +239,13 @@ export function useSingleBlockEditor({
       },
     });
     persisterRef.current = persister;
+    hydrate();
     return () => {
       void persister.flush();
       persister.dispose();
       persisterRef.current = null;
     };
-  }, [pageId, debounceMs]);
-
-  // Baseline the snapshot from the editor's own serialization once it's ready,
-  // so an unedited load never looks "dirty". Must run before the reconcile
-  // effect below.
-  useEffect(() => {
-    if (editor && persisterRef.current) {
-      persisterRef.current.hydrateFromDoc(editor.getJSON(), latestRowsRef.current);
-    }
-  }, [editor]);
+  }, [pageId, debounceMs, hydrate]);
 
   // Schedule a debounced save on genuine edits only. Skip programmatic
   // transactions: the id-stamping pass (STAMP_META) and the remote-reconcile

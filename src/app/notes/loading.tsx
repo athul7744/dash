@@ -1,11 +1,7 @@
-"use client";
-
-import { usePathname } from "next/navigation";
-
-import { NotesLoadingSkeleton } from "@/components/skeletons/NotesLoadingSkeleton";
-
+// The notes surface renders inside the persistent layout shell (NotesWorkspace),
+// which shows its own scoped skeletons; a cold load is covered by AppBootSkeleton.
+// The route page itself is empty, so its loading boundary renders nothing —
+// this avoids a full-page skeleton flashing over the persistent pages rail.
 export default function Loading() {
-  const path = usePathname();
-  const mode = path === "/notes/graph" ? "graph" : /^\/notes\/.+/.test(path) ? "editor" : "overview";
-  return <NotesLoadingSkeleton mode={mode} />;
+  return null;
 }

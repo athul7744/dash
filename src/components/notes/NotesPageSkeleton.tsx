@@ -198,22 +198,42 @@ export function NotesEditorBodySkeleton() {
   );
 }
 
+function NotesDetailsRailSectionSkeleton({ lines }: { lines: number }) {
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between gap-3 rounded-lg py-1">
+        <div className="flex items-center gap-2">
+          <Bone className="h-3.5 w-3.5 rounded" />
+          <Bone className="h-3.5 w-24" />
+        </div>
+        <Bone className="h-3.5 w-3.5 rounded-full" />
+      </div>
+      <div className="space-y-2 pl-6">
+        {Array.from({ length: lines }).map((_, index) => (
+          <Bone key={index} className={`h-3 ${index === lines - 1 ? "w-2/3" : "w-full"}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function NotesDetailsRailSkeleton({ showHeader = true }: NotesDetailsRailSkeletonProps) {
   return (
     <div className="space-y-4 py-1">
       {showHeader ? (
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Bone className="h-4 w-4 rounded-full" />
-            <Bone className="h-4 w-16" />
+        <div className="flex items-center gap-2.5">
+          <Bone className="h-6 w-6 rounded-lg" />
+          <div className="space-y-2">
+            <Bone className="h-4 w-20" />
+            <Bone className="h-3 w-24" />
           </div>
-          <Bone className="h-8 w-20 rounded-full" />
         </div>
       ) : null}
-      <div className="space-y-3">
-        <Bone className="h-24 w-full rounded-xl" />
-        <Bone className="h-12 w-full rounded-xl" />
-        <Bone className="h-16 w-full rounded-xl" />
+      <div className="space-y-2 rounded-2xl bg-muted/35 p-2">
+        <NotesDetailsRailSectionSkeleton lines={3} />
+        <NotesDetailsRailSectionSkeleton lines={2} />
+        <NotesDetailsRailSectionSkeleton lines={2} />
+        <NotesDetailsRailSectionSkeleton lines={1} />
       </div>
     </div>
   );

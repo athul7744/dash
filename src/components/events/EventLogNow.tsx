@@ -8,6 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ActionInput } from "@/components/events/ActionInput";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { logOccurrence } from "@/lib/events/events";
 import type { RefKind } from "@/lib/links/tokens";
 import { cn } from "@/lib/shared/utils";
@@ -36,61 +37,96 @@ interface LogProps {
    *  - "label"  — stopwatch + "Log" always shown (FAB / notes rail).
    */
   variant?: "reveal" | "icon" | "label";
+  /**
+   * Compose opens as a lightweight Popover only when this trigger lives in a
+   * card AND the viewport is desktop; otherwise (mobile, or on a page like the
+   * detail view) it opens as a centered Dialog, matching how pages log.
+   */
+  inCard?: boolean;
+}
+
+function TriggerInner({ variant }: { variant: NonNullable<LogProps["variant"]> }) {
+  return (
+    <>
+      <StopwatchIcon className="h-4 w-4 shrink-0" />
+      {variant !== "icon" ? (
+        <span
+          className={cn(
+            "whitespace-nowrap font-medium",
+            variant === "label" ? "text-sm" : "max-w-0 overflow-hidden text-xs opacity-0 transition-all group-hover:ml-1.5 group-hover:max-w-[36px] group-hover:opacity-100",
+          )}
+        >
+          Log
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+function triggerClass(variant: NonNullable<LogProps["variant"]>) {
+  return cn(
+    "group inline-flex items-center justify-center rounded-full outline-none transition-all focus-visible:ring-1 focus-visible:ring-ring",
+    variant === "label"
+      ? "gap-1.5 text-sm font-medium text-foreground"
+      : variant === "icon"
+        ? "h-8 w-8 text-muted-foreground hover:bg-accent hover:text-violet-600 dark:hover:text-violet-400"
+        : "h-8 px-2 text-muted-foreground hover:bg-accent hover:text-violet-600 dark:hover:text-violet-400",
+  );
 }
 
 /**
  * The single, quiet way to log an occurrence — a small stopwatch trigger that
- * ALWAYS opens the Compose popover (no one-tap, so nothing is logged by
- * accident). Compose leads with "what happened", defaults the moment to now
- * (date **and** time), and keeps place/note optional. Used across every app.
+ * ALWAYS opens Compose (no one-tap, so nothing is logged by accident). Compose
+ * leads with "what happened", defaults the moment to now (date **and** time),
+ * and keeps place/note optional. On a card on desktop it opens as a Popover
+ * anchored to the trigger; everywhere else (mobile, or on a page) as a Dialog.
  */
-export function EventLogNow({ subjectId, subjectKind = "event", defaultPlace = "", placeSuggestions = [], variant = "reveal" }: LogProps) {
+export function EventLogNow({ subjectId, subjectKind = "event", defaultPlace = "", placeSuggestions = [], variant = "reveal", inCard = false }: LogProps) {
   const [open, setOpen] = useState(false);
   const [seq, setSeq] = useState(0);
+  const isDesktop = useMediaQuery("(min-width: 640px)");
+  const asPopover = inCard && isDesktop;
+
+  if (asPopover) {
+    return (
+      <Popover
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (next) setSeq((n) => n + 1); // fresh Compose state each open
+        }}
+      >
+        <PopoverTrigger aria-label="Log an event" title="Log an event" className={triggerClass(variant)}>
+          <TriggerInner variant={variant} />
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-80 p-0">
+          <ComposeForm
+            key={seq}
+            subjectId={subjectId}
+            subjectKind={subjectKind}
+            defaultPlace={defaultPlace}
+            placeSuggestions={placeSuggestions}
+            onDone={() => setOpen(false)}
+          />
+        </PopoverContent>
+      </Popover>
+    );
+  }
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (next) setSeq((n) => n + 1); // fresh Compose state each open
-      }}
-    >
-      <PopoverTrigger
-        aria-label="Log an event"
-        title="Log an event"
-        className={cn(
-          "group inline-flex items-center justify-center rounded-full outline-none transition-all focus-visible:ring-1 focus-visible:ring-ring",
-          variant === "label"
-            ? "gap-1.5 text-sm font-medium text-foreground"
-            : variant === "icon"
-              ? "h-8 w-8 text-muted-foreground hover:bg-accent hover:text-violet-600 dark:hover:text-violet-400"
-              : "h-8 px-2 text-muted-foreground hover:bg-accent hover:text-violet-600 dark:hover:text-violet-400",
-        )}
-      >
-        <StopwatchIcon className="h-4 w-4 shrink-0" />
-        {variant !== "icon" ? (
-          <span
-            className={cn(
-              "whitespace-nowrap font-medium",
-              variant === "label" ? "text-sm" : "max-w-0 overflow-hidden text-xs opacity-0 transition-all group-hover:ml-1.5 group-hover:max-w-[36px] group-hover:opacity-100",
-            )}
-          >
-            Log
-          </span>
-        ) : null}
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-80 p-0">
-        <ComposeForm
-          key={seq}
-          subjectId={subjectId}
-          subjectKind={subjectKind}
-          defaultPlace={defaultPlace}
-          placeSuggestions={placeSuggestions}
-          onDone={() => setOpen(false)}
-        />
-      </PopoverContent>
-    </Popover>
+    <>
+      <button type="button" aria-label="Log an event" title="Log an event" className={triggerClass(variant)} onClick={() => setOpen(true)}>
+        <TriggerInner variant={variant} />
+      </button>
+      <EventComposeDialog
+        subjectId={subjectId}
+        subjectKind={subjectKind}
+        defaultPlace={defaultPlace}
+        placeSuggestions={placeSuggestions}
+        open={open}
+        onOpenChange={setOpen}
+      />
+    </>
   );
 }
 

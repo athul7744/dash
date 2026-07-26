@@ -112,7 +112,7 @@ export function EventCard({
             <span className="rounded-full bg-red-500/10 px-2 py-0.5 font-semibold text-red-600 dark:text-red-400">Overdue</span>
           ) : null}
           <span className="pointer-events-auto">
-            <EventLogNow subjectId={event.id} subjectKind="event" defaultPlace={event.defaultPlace} placeSuggestions={placeSuggestions} />
+            <EventLogNow subjectId={event.id} subjectKind="event" defaultPlace={event.defaultPlace} placeSuggestions={placeSuggestions} inCard />
           </span>
         </div>
 

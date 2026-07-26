@@ -47,7 +47,7 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
         </span>
 
         <div className="flex items-center gap-0.5">
-          <EventLogNow subjectId={quote.id} subjectKind="quote" variant="icon" />
+          <EventLogNow subjectId={quote.id} subjectKind="quote" variant="icon" inCard />
           <button
             type="button"
             onClick={() => void toggleFavorite(quote.id)}

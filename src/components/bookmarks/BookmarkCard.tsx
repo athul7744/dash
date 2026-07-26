@@ -124,7 +124,7 @@ export function BookmarkCard({
         </span>
 
         <div className="flex items-center gap-0.5">
-          <EventLogNow subjectId={bookmark.id} subjectKind="bookmark" variant="icon" />
+          <EventLogNow subjectId={bookmark.id} subjectKind="bookmark" variant="icon" inCard />
           <TagSelector
             selectedTagIds={bookmark.tags}
             onSelectedTagIdsChange={(ids) => void setTags(bookmark.id, ids)}

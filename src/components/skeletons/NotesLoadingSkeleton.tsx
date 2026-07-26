@@ -11,7 +11,7 @@ const notesApp = getApp("notes");
  * fallback) and the cold-start boot skeleton so both look identical.
  *
  * `mode` mirrors the notes page's own two surfaces: "overview" (no page
- * selected, `/notes`) vs "editor" (`/notes?page=<id>`). The boot skeleton reads
+ * selected, `/notes`) vs "editor" (`/notes/<id>`). The boot skeleton reads
  * the URL to pick; the navigation fallback defaults to the overview.
  */
 export function NotesLoadingSkeleton({ mode = "overview" }: { mode?: "overview" | "editor" }) {

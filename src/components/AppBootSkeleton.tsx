@@ -19,16 +19,10 @@ function TrackerBoot() {
   return <TrackerLoadingSkeleton view={view} />;
 }
 
-/** Reads `?page=` so a refresh on an open note boots into the editor skeleton. */
-function NotesBoot() {
-  const mode = useSearchParams().get("page") ? "editor" : "overview";
-  return <NotesLoadingSkeleton mode={mode} />;
-}
-
 /**
  * Cold-start fallback shown while the local PowerSync DB opens (see
  * PowerSyncProvider). Picks the route-shaped skeleton by pathname — and, for
- * tracker/notes, by query param — so the boot screen matches the destination
+ * tracker, by query param — so the boot screen matches the destination
  * with no blank "Loading…" gap and no wrong-then-right skeleton swap.
  *
  * `useSearchParams` is wrapped in Suspense (Next requirement); its fallback is
@@ -50,11 +44,10 @@ export function AppBootSkeleton() {
   if (path.startsWith("/bookmarks")) return <BookmarksLoadingSkeleton />;
   if (path.startsWith("/events")) return <EventsLoadingSkeleton />;
   if (path.startsWith("/notes")) {
-    return (
-      <Suspense fallback={<NotesLoadingSkeleton />}>
-        <NotesBoot />
-      </Suspense>
-    );
+    // `/notes/<id>` boots the editor skeleton; bare `/notes` and `/notes/graph`
+    // the overview.
+    const mode = /^\/notes\/.+/.test(path) && path !== "/notes/graph" ? "editor" : "overview";
+    return <NotesLoadingSkeleton mode={mode} />;
   }
   return <DashboardLoadingSkeleton />;
 }

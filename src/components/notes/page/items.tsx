@@ -27,7 +27,7 @@ export function NavigationPageLink({
 
   return (
     <Link
-      href={`/notes?page=${page.id}`}
+      href={`/notes/${page.id}`}
       onClick={() => onSelectPage(page.id)}
       className={`group block overflow-hidden rounded-xl px-1.5 py-2 transition-smooth ${
         isSelected

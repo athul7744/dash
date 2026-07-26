@@ -35,39 +35,30 @@ export function useNotesNavigation({
   const appNavigationRef = useRef(false);
   const prevSelectedPageIdRef = useRef<string | null>(selectedPageId);
 
-  // Reconcile nav stack when browser back/forward changes the URL externally
+  // Reconcile the nav stack when the URL changes externally (browser back/
+  // forward). App-driven navigations set `appNavigationRef` and manage the stack
+  // themselves, so they're skipped. This only writes to the external nav-stack
+  // store — no React state — so it stays a plain synchronization effect.
   useEffect(() => {
     const prev = prevSelectedPageIdRef.current;
     prevSelectedPageIdRef.current = selectedPageId;
-
     if (prev === selectedPageId) return;
-
     if (appNavigationRef.current) {
       appNavigationRef.current = false;
       return;
     }
-
     if (!selectedPageId) {
       navStack.clear();
-      return;
-    }
-
-    const matchIdx = navStack.stack.findLastIndex((e) => e.pageId === selectedPageId);
-    if (matchIdx !== -1) {
-      const entry = navStack.stack[matchIdx];
-      setEditorPageTitle(entry.title);
+    } else if (navStack.stack.some((e) => e.pageId === selectedPageId)) {
       navStack.popTo(selectedPageId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPageId]);
 
-  // Reset editor title when navigating to overview
-  useEffect(() => {
-    if (!selectedPageId) {
-      setEditorPageTitle("");
-    }
-  }, [selectedPageId]);
-
-  const currentPageTitle = editorPageTitle || shellPageTitleDraft || "";
+  // The live shell title wins once the editor reports it; `editorPageTitle` is
+  // the optimistic value set on navigation so the breadcrumb isn't blank first.
+  // Empty on the overview (no page selected) — no reset effect needed.
+  const currentPageTitle = selectedPageId ? shellPageTitleDraft || editorPageTitle || "" : "";
 
   const goBack = useCallback(() => {
     const prev = navStack.pop();
@@ -75,7 +66,7 @@ export function useNotesNavigation({
     if (prev && prev.pageId !== "__overview__") {
       setEditorPageTitle(prev.title);
       transitionToEditor(prev.pageId);
-      startTransition(() => { router.push(`/notes?page=${prev.pageId}`); });
+      startTransition(() => { router.push(`/notes/${prev.pageId}`); });
     } else {
       transitionToOverview();
       router.push("/notes");
@@ -97,7 +88,7 @@ export function useNotesNavigation({
     appNavigationRef.current = true;
     transitionToEditor(pageId);
     startTransition(() => {
-      router.push(`/notes?page=${pageId}`);
+      router.push(`/notes/${pageId}`);
     });
     queueMicrotask(() => {
       if (prevPageId) {
@@ -119,7 +110,7 @@ export function useNotesNavigation({
     } else {
       if (entry) setEditorPageTitle(entry.title);
       transitionToEditor(pageId);
-      startTransition(() => { router.push(`/notes?page=${pageId}`); });
+      startTransition(() => { router.push(`/notes/${pageId}`); });
     }
   }, [navStack, transitionToEditor, transitionToOverview, router]);
 
@@ -134,7 +125,7 @@ export function useNotesNavigation({
     appNavigationRef.current = true;
     transitionToEditor(targetPageId);
     startTransition(() => {
-      router.push(`/notes?page=${targetPageId}`);
+      router.push(`/notes/${targetPageId}`);
     });
   }, [selectedPageId, currentPageTitle, navStack, transitionToEditor, router]);
 

@@ -61,5 +61,5 @@ export async function saveCapture(input: CaptureInput): Promise<CaptureResult> {
 
 /** Deep link to the saved item's app. */
 export function captureResultHref(result: CaptureResult): string {
-  return result.appId === "notes" ? `/notes?page=${result.itemId}` : `/${result.appId}`;
+  return result.appId === "notes" ? `/notes/${result.itemId}` : `/${result.appId}`;
 }

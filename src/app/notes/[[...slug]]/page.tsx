@@ -1,14 +1,14 @@
 "use client";
 
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronUp, Columns3, Files, Network, NotebookTabs, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Redo2, Tag as TagIcon, Undo2 } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { NotesDetailsRailSkeleton } from "@/components/notes/NotesPageSkeleton";
 import { NotesPageBreadcrumb } from "@/components/notes/NotesPageBreadcrumb";
-import { MobileRailDrawer } from "../../components/notes/MobileRailDrawer";
+import { MobileRailDrawer } from "@/components/notes/MobileRailDrawer";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -57,10 +57,11 @@ const RECENT_PAGE_SIZE = 16;
 
 export default function NotesPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const selectedPageId = searchParams.get("page");
-  // A third top-level surface (alongside overview + editor): the vault graph.
-  const graphView = searchParams.get("view") === "graph" && !selectedPageId;
+  // The first path segment selects the surface: `/notes/graph` is the vault
+  // graph, `/notes/<id>` opens that note, bare `/notes` is the overview.
+  const slug = useParams<{ slug?: string[] }>().slug?.[0] ?? null;
+  const graphView = slug === "graph";
+  const selectedPageId = graphView ? null : slug;
   const navStack = usePageNavStack();
   const [isCreatingPage, setIsCreatingPage] = useState(false);
   const [isPageSearchOpen, setIsPageSearchOpen] = useState(false);
@@ -495,7 +496,7 @@ export default function NotesPage() {
               <ManagePropertiesDialog open={isManagePropertiesOpen} onOpenChange={setIsManagePropertiesOpen} hideTrigger />
               <button
                 type="button"
-                onClick={() => startTransition(() => { router.push("/notes?view=graph"); })}
+                onClick={() => startTransition(() => { router.push("/notes/graph"); })}
                 className={HEADER_ACTION_NEUTRAL}
               >
                 <Network className="h-4 w-4" />
@@ -539,7 +540,7 @@ export default function NotesPage() {
               recentHasMore={recentHasMore}
               onLoadMoreRecent={loadMoreRecent}
               onOpenSearch={() => setIsPageSearchOpen(true)}
-              onOpenGraph={() => startTransition(() => { router.push("/notes?view=graph"); })}
+              onOpenGraph={() => startTransition(() => { router.push("/notes/graph"); })}
               onSelectPage={(pageId) => openPageById(pageId)}
               onToggleFavorite={togglePageFavorite}
             />

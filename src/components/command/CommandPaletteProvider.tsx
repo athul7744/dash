@@ -90,7 +90,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
       const detail = (event as CustomEvent<OpenEntityDetail>).detail;
       if (!detail?.id) return;
       if (detail.kind === "note") {
-        router.push(`/notes?page=${detail.id}`);
+        router.push(`/notes/${detail.id}`);
         return;
       }
       setSelected({ kind: detail.kind, id: detail.id });
@@ -328,7 +328,7 @@ function CommandPaletteResults({
             <CommandItem
               key={page.id}
               value={`note:${page.id}`}
-              onSelect={() => onNavigate(`/notes?page=${page.id}`)}
+              onSelect={() => onNavigate(`/notes/${page.id}`)}
               className="items-start gap-3 rounded-lg px-3 py-2"
             >
               <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">

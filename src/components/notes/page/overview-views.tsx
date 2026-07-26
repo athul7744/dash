@@ -206,7 +206,7 @@ function OverviewPageRow({ page, onSelectPage, onToggleFavorite }: ItemProps) {
   return (
     <div className="group relative border-b border-border/60 last:border-b-0">
       <Link
-        href={`/notes?page=${page.id}`}
+        href={`/notes/${page.id}`}
         onClick={() => onSelectPage(page.id)}
         className="absolute inset-0 rounded-lg"
         aria-label={`Open ${page.title || "Untitled page"}`}
@@ -266,7 +266,7 @@ function OverviewGalleryCard({ page, onSelectPage, onToggleFavorite }: ItemProps
   return (
     <article className="group relative h-full">
       <Link
-        href={`/notes?page=${page.id}`}
+        href={`/notes/${page.id}`}
         onClick={() => onSelectPage(page.id)}
         className="absolute inset-0 rounded-3xl"
         aria-label={`Open ${page.title || "Untitled page"}`}
@@ -323,7 +323,7 @@ function OverviewFavoritePin({ page, onSelectPage, onToggleFavorite }: ItemProps
   return (
     <div className="group relative">
       <Link
-        href={`/notes?page=${page.id}`}
+        href={`/notes/${page.id}`}
         onClick={() => onSelectPage(page.id)}
         className="absolute inset-0 rounded-full"
         aria-label={`Open ${page.title || "Untitled page"}`}
@@ -357,7 +357,7 @@ function OverviewSpineNode({ page, onSelectPage, onToggleFavorite }: ItemProps) 
   return (
     <div className="group relative pl-7">
       <Link
-        href={`/notes?page=${page.id}`}
+        href={`/notes/${page.id}`}
         onClick={() => onSelectPage(page.id)}
         className="absolute inset-0 rounded-lg"
         aria-label={`Open ${page.title || "Untitled page"}`}

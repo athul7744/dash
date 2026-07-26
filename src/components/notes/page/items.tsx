@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/shared/utils";
 
-import { PageIcon } from "./ui";
+import { PageIcon, selectPageOnClick } from "./ui";
 import { type NormalizedNotePage } from "./types";
 
 export function NavigationPageLink({
@@ -28,7 +28,7 @@ export function NavigationPageLink({
   return (
     <Link
       href={`/notes/${page.id}`}
-      onClick={() => onSelectPage(page.id)}
+      onClick={selectPageOnClick(onSelectPage, page.id)}
       className={`group block overflow-hidden rounded-xl px-1.5 py-2 transition-smooth ${
         isSelected
           ? "text-amber-700 dark:text-amber-300"

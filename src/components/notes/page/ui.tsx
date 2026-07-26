@@ -1,10 +1,25 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useId, type MouseEvent, type ReactNode } from "react";
 import { ChevronDown, FileText, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/shared/utils";
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
+
+/**
+ * Click handler for a page `<Link>`. A plain left-click opens in-app via
+ * `onSelectPage` (a `startTransition` navigation that keeps the persistent
+ * shell and shows only the editor's own skeleton — no full-page route
+ * skeleton). Modifier / middle clicks fall through to the `href` so
+ * open-in-new-tab still works.
+ */
+export function selectPageOnClick(onSelectPage: (id: string) => void, id: string) {
+  return (event: MouseEvent) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    event.preventDefault();
+    onSelectPage(id);
+  };
+}
 
 export function DetailsSection({
   title,

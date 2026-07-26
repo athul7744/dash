@@ -17,7 +17,7 @@ import { SPRING_SOFT } from "@/lib/shared/motion";
 import { cn } from "@/lib/shared/utils";
 import { getTagDotClass } from "@/lib/tasks/colors";
 
-import { PageIcon } from "./ui";
+import { PageIcon, selectPageOnClick } from "./ui";
 import { formatTimestampLabel, parseProperties } from "./utils";
 import { type NormalizedNotePage, NOTE_OVERVIEW_ACCENT_CLASSES } from "./types";
 
@@ -207,7 +207,7 @@ function OverviewPageRow({ page, onSelectPage, onToggleFavorite }: ItemProps) {
     <div className="group relative border-b border-border/60 last:border-b-0">
       <Link
         href={`/notes/${page.id}`}
-        onClick={() => onSelectPage(page.id)}
+        onClick={selectPageOnClick(onSelectPage, page.id)}
         className="absolute inset-0 rounded-lg"
         aria-label={`Open ${page.title || "Untitled page"}`}
       />
@@ -267,7 +267,7 @@ function OverviewGalleryCard({ page, onSelectPage, onToggleFavorite }: ItemProps
     <article className="group relative h-full">
       <Link
         href={`/notes/${page.id}`}
-        onClick={() => onSelectPage(page.id)}
+        onClick={selectPageOnClick(onSelectPage, page.id)}
         className="absolute inset-0 rounded-3xl"
         aria-label={`Open ${page.title || "Untitled page"}`}
       />
@@ -324,7 +324,7 @@ function OverviewFavoritePin({ page, onSelectPage, onToggleFavorite }: ItemProps
     <div className="group relative">
       <Link
         href={`/notes/${page.id}`}
-        onClick={() => onSelectPage(page.id)}
+        onClick={selectPageOnClick(onSelectPage, page.id)}
         className="absolute inset-0 rounded-full"
         aria-label={`Open ${page.title || "Untitled page"}`}
       />
@@ -358,7 +358,7 @@ function OverviewSpineNode({ page, onSelectPage, onToggleFavorite }: ItemProps) 
     <div className="group relative pl-7">
       <Link
         href={`/notes/${page.id}`}
-        onClick={() => onSelectPage(page.id)}
+        onClick={selectPageOnClick(onSelectPage, page.id)}
         className="absolute inset-0 rounded-lg"
         aria-label={`Open ${page.title || "Untitled page"}`}
       />

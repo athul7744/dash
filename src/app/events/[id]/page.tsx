@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -228,9 +228,20 @@ function EventDetail({ event }: { event: EventItem }) {
  * occurrences; the title/label is read-only (edited in the entity's own app).
  */
 function SubjectDetail({ subjectId }: { subjectId: string }) {
+  const router = useRouter();
   const aggregates = useThingAggregates();
   const { occurrences, isLoading } = useOccurrences({ thingId: subjectId, limit: 400 });
   const kind = occurrences[0]?.subjectKind ?? null;
+
+  // A subject only lives in Events through its occurrences. Once the last one is
+  // deleted it has no timeline (and no card), so return to the grid rather than
+  // showing "not found". Only redirect if it *had* occurrences — never on a
+  // brand-new event whose block hasn't synced into `useEvent` yet.
+  const [everHadOccurrences, setEverHadOccurrences] = useState(false);
+  if (occurrences.length > 0 && !everHadOccurrences) setEverHadOccurrences(true);
+  useEffect(() => {
+    if (!isLoading && everHadOccurrences && occurrences.length === 0) router.replace("/events");
+  }, [isLoading, everHadOccurrences, occurrences.length, router]);
   const subjectList = useMemo(() => (kind ? [{ id: subjectId, kind }] : []), [subjectId, kind]);
   const labels = useSubjectLabels(subjectList);
   const label = labels.get(subjectId) ?? "";
@@ -247,7 +258,9 @@ function SubjectDetail({ subjectId }: { subjectId: string }) {
   const lastAtDate = stats.lastAt ? new Date(stats.lastAt) : null;
 
   if (isLoading) return <EventDetailLoadingSkeleton />;
-  if (!kind || occurrences.length === 0) return <NotFound />;
+  // Empty after having had occurrences → redirecting to the grid (show the
+  // skeleton meanwhile); empty from the start → a genuinely unknown id.
+  if (!kind || occurrences.length === 0) return everHadOccurrences ? <EventDetailLoadingSkeleton /> : <NotFound />;
 
   const Icon = getApp(`${kind}s`).icon;
   const kindLabel = kind.charAt(0).toUpperCase() + kind.slice(1);

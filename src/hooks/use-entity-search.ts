@@ -13,7 +13,7 @@ import { useQuery } from "@powersync/react";
 import { useAllNotePages } from "@/hooks/use-notes";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useQuotes } from "@/hooks/use-quotes";
-import { useReminders } from "@/hooks/use-reminders";
+import { useEvents } from "@/hooks/use-events";
 import { stripRefs, type RefKind } from "@/lib/links/tokens";
 import type { Task } from "@/lib/powersync/AppSchema";
 import { getLinkHost } from "@/lib/tasks/tasks";
@@ -43,7 +43,7 @@ export function useEntitySearch(query: string, excludeId?: string | null): Entit
   const { pages } = useAllNotePages();
   const { bookmarks } = useBookmarks();
   const { quotes } = useQuotes();
-  const { reminders } = useReminders();
+  const { events } = useEvents();
 
   return useMemo(() => {
     const match = (haystack: string) => (q ? haystack.toLowerCase().includes(q) : true);
@@ -87,13 +87,13 @@ export function useEntitySearch(query: string, excludeId?: string | null): Entit
         })),
     );
 
-    const reminderHits: EntitySearchResult[] = take(
-      reminders
-        .filter((r) => r.id !== excludeId)
-        .filter((r) => match(`${r.title} ${r.tags.join(" ")}`))
-        .map((r) => ({ kind: "reminder" as const, id: r.id, label: stripRefs(r.title || "") || "Untitled reminder" })),
+    const eventHits: EntitySearchResult[] = take(
+      events
+        .filter((e) => e.id !== excludeId)
+        .filter((e) => match(`${e.title} ${e.tags.join(" ")}`))
+        .map((e) => ({ kind: "event" as const, id: e.id, label: stripRefs(e.title || "") || "Untitled event" })),
     );
 
-    return [...notes, ...tasks, ...bookmarkHits, ...quoteHits, ...reminderHits];
-  }, [q, excludeId, pages, allTasks, bookmarks, quotes, reminders]);
+    return [...notes, ...tasks, ...bookmarkHits, ...quoteHits, ...eventHits];
+  }, [q, excludeId, pages, allTasks, bookmarks, quotes, events]);
 }

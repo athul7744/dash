@@ -23,7 +23,7 @@ import { useCapture } from "@/components/capture/CaptureProvider";
 import { useAllNotePages } from "@/hooks/use-notes";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useQuotes } from "@/hooks/use-quotes";
-import { useReminders } from "@/hooks/use-reminders";
+import { useEvents } from "@/hooks/use-events";
 import type { Task } from "@/lib/powersync/AppSchema";
 import { APPS, getApp } from "@/lib/shared/apps";
 import { stripRefs } from "@/lib/links/tokens";
@@ -34,13 +34,13 @@ type TaskRow = Task & { id: string };
 const MAX_RESULTS = 6;
 
 /** Apps that support creating a single item from the palette (tracker doesn't). */
-const CREATE_APPS = ["tasks", "notes", "bookmarks", "quotes", "reminders"] as const;
+const CREATE_APPS = ["tasks", "notes", "bookmarks", "quotes", "events"] as const;
 const SINGULAR: Record<string, string> = {
   tasks: "task",
   notes: "note",
   bookmarks: "bookmark",
   quotes: "quote",
-  reminders: "reminder",
+  events: "event",
 };
 
 const CommandContext = createContext<() => void>(() => {});
@@ -190,7 +190,7 @@ function CommandPaletteResults({
   });
   const { bookmarks } = useBookmarks();
   const { quotes } = useQuotes();
-  const { reminders } = useReminders();
+  const { events } = useEvents();
 
   // --- Commands ---
   const matchCmd = (label: string) => !hasQuery || label.toLowerCase().includes(q);
@@ -225,12 +225,12 @@ function CommandPaletteResults({
     if (!hasQuery) return [];
     return quotes.filter((qt) => `${qt.text} ${qt.author}`.toLowerCase().includes(q)).slice(0, MAX_RESULTS);
   }, [quotes, q, hasQuery]);
-  const reminderHits = useMemo(() => {
+  const eventHits = useMemo(() => {
     if (!hasQuery) return [];
-    return reminders
-      .filter((r) => `${r.title} ${r.tags.join(" ")}`.toLowerCase().includes(q))
+    return events
+      .filter((e) => `${e.title} ${e.tags.join(" ")}`.toLowerCase().includes(q))
       .slice(0, MAX_RESULTS);
-  }, [reminders, q, hasQuery]);
+  }, [events, q, hasQuery]);
 
   const nothing =
     actionCmds.length === 0 &&
@@ -240,7 +240,7 @@ function CommandPaletteResults({
     notes.length === 0 &&
     bookmarkHits.length === 0 &&
     quoteHits.length === 0 &&
-    reminderHits.length === 0;
+    eventHits.length === 0;
 
   return (
     <>
@@ -381,17 +381,17 @@ function CommandPaletteResults({
         </CommandGroup>
       ) : null}
 
-      {reminderHits.length > 0 ? (
-        <CommandGroup heading="Reminders">
-          {reminderHits.map((r) => (
+      {eventHits.length > 0 ? (
+        <CommandGroup heading="Events">
+          {eventHits.map((e) => (
             <CommandItem
-              key={r.id}
-              value={`reminder:${r.id}`}
-              onSelect={() => onSelectEntity({ kind: "reminder", id: r.id })}
+              key={e.id}
+              value={`event:${e.id}`}
+              onSelect={() => onSelectEntity({ kind: "event", id: e.id })}
               className="items-center gap-3 rounded-lg px-3 py-2"
             >
-              <AppChip appId="reminders" />
-              <span className="min-w-0 flex-1 truncate text-sm text-foreground">{stripRefs(r.title || "") || "Untitled reminder"}</span>
+              <AppChip appId="events" />
+              <span className="min-w-0 flex-1 truncate text-sm text-foreground">{stripRefs(e.title || "") || "Untitled event"}</span>
             </CommandItem>
           ))}
         </CommandGroup>

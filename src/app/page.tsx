@@ -18,7 +18,7 @@ import { TodayTasks } from "@/components/dashboard/TodayTasks";
 import { TodayTracking } from "@/components/dashboard/TodayTracking";
 import { Reveal } from "@/components/motion/Reveal";
 import { useGreeting } from "@/hooks/use-greeting";
-import { useReminderMaterializer } from "@/hooks/use-reminders";
+import { useEventMaterializer } from "@/hooks/use-events";
 
 export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -26,8 +26,8 @@ export default function Home() {
   const openSearch = useCommandPalette();
   const { greeting, subline, date } = useGreeting();
 
-  // Turn any due reminders into tasks when the dashboard opens (no server cron).
-  useReminderMaterializer();
+  // Turn any due scheduled events into tasks when the dashboard opens (no server cron).
+  useEventMaterializer();
 
   const scrollRef = useRef<HTMLDivElement>(null);
 

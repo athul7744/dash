@@ -5,16 +5,16 @@ import { useQuery } from "@powersync/react";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { BookmarkCard } from "@/components/bookmarks/BookmarkCard";
 import { QuoteCard } from "@/components/quotes/QuoteCard";
-import { ReminderCard } from "@/components/reminders/ReminderCard";
+import { EventCard } from "@/components/events/EventCard";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { parseBookmarkContent, type Bookmark } from "@/lib/bookmarks/bookmarks";
 import { parseQuoteContent, type Quote } from "@/lib/quotes/quotes";
-import { parseReminderContent, type Reminder } from "@/lib/reminders/reminders";
+import { parseEventContent, type EventItem } from "@/lib/events/events";
 import type { Task, Tag } from "@/lib/powersync/AppSchema";
 import { cn } from "@/lib/shared/utils";
 
 /** Any single item the palette (or a dashboard nudge) can open in a popup. */
-export type EntityRef = { kind: "task" | "bookmark" | "quote" | "reminder"; id: string };
+export type EntityRef = { kind: "task" | "bookmark" | "quote" | "event"; id: string };
 
 type TaskRow = Task & { id: string };
 type BlockRow = { id: string; content: string | null; sort_rank: string | null };
@@ -27,12 +27,12 @@ const TITLE: Record<EntityRef["kind"], string> = {
   task: "Task",
   bookmark: "Bookmark",
   quote: "Quote",
-  reminder: "Reminder",
+  event: "Event",
 };
 
 const toBookmark = (r: BlockRow): Bookmark => ({ id: r.id, sortRank: r.sort_rank ?? "", ...parseBookmarkContent(r.content) });
 const toQuote = (r: BlockRow): Quote => ({ id: r.id, sortRank: r.sort_rank ?? "", ...parseQuoteContent(r.content) });
-const toReminder = (r: BlockRow): Reminder => ({ id: r.id, sortRank: r.sort_rank ?? "", ...parseReminderContent(r.content) });
+const toEvent = (r: BlockRow): EventItem => ({ id: r.id, sortRank: r.sort_rank ?? "", ...parseEventContent(r.content) });
 
 /**
  * Opens one task / bookmark / quote / reminder in a blurred modal, reusing that
@@ -92,7 +92,7 @@ export function EntityPopup({
             ) : item.kind === "quote" ? (
               <QuoteCard quote={toQuote(blockRow!)} />
             ) : (
-              <ReminderCard reminder={toReminder(blockRow!)} />
+              <EventCard event={toEvent(blockRow!)} />
             )}
           </div>
           <button

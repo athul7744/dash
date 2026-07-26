@@ -10,7 +10,7 @@
 
 import { parseBookmarkContent } from "@/lib/bookmarks/bookmarks";
 import { parseQuoteContent } from "@/lib/quotes/quotes";
-import { parseReminderContent } from "@/lib/reminders/reminders";
+import { parseEventContent } from "@/lib/events/events";
 import { stripRefs, type RefKind } from "@/lib/links/tokens";
 
 export type ResolvedEntity = { kind: RefKind; id: string; label: string };
@@ -44,9 +44,9 @@ export function classifyEntityRow(row: EntityJoinRow): ResolvedEntity | null {
       const q = parseQuoteContent(row.block_content);
       return { kind: "quote", id: row.source_id, label: stripRefs(q.text ?? "") || "Untitled quote" };
     }
-    case "reminder": {
-      const r = parseReminderContent(row.block_content);
-      return { kind: "reminder", id: row.source_id, label: stripRefs(r.title ?? "") || "Untitled reminder" };
+    case "event": {
+      const e = parseEventContent(row.block_content);
+      return { kind: "event", id: row.source_id, label: stripRefs(e.title ?? "") || "Untitled event" };
     }
     default:
       // A block on a note page → the note itself (collapse block → page).

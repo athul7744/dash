@@ -10,7 +10,7 @@
  * Pure and side-effect free so it can be unit tested without a DB or DOM.
  */
 
-export type RefKind = "note" | "task" | "bookmark" | "quote" | "reminder";
+export type RefKind = "note" | "task" | "bookmark" | "quote" | "event";
 
 /** ProseMirror node name for an id-bound reference chip (see EntityRefNode). */
 export const ENTITY_REF_NODE_TYPE = "entityRef";
@@ -21,7 +21,7 @@ export const REF_KIND_HUE: Record<RefKind, string> = {
   task: "indigo",
   bookmark: "sky",
   quote: "rose",
-  reminder: "violet",
+  event: "violet",
 };
 
 /** CSS accent color for a kind, e.g. `var(--color-indigo-500)`. */
@@ -33,7 +33,7 @@ export const REF_KIND_LABEL: Record<RefKind, string> = {
   task: "Tasks",
   bookmark: "Bookmarks",
   quote: "Quotes",
-  reminder: "Reminders",
+  event: "Events",
 };
 
 export type RefToken = {
@@ -44,7 +44,7 @@ export type RefToken = {
   id?: string;
 };
 
-const REF_KINDS = "note|task|bookmark|quote|reminder";
+const REF_KINDS = "note|task|bookmark|quote|event";
 
 /**
  * A fresh regex each call — a shared global regex carries `lastIndex` state

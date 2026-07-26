@@ -227,8 +227,8 @@ export default function NotesPage() {
       outline: true,
       summary: true,
       references: true,
-      mentions: true,
       attachments: true,
+      timeline: true,
     };
 
     setDetailsSectionOpen((current) => {
@@ -236,7 +236,8 @@ export default function NotesPage() {
         current.outline === nextState.outline &&
         current.summary === nextState.summary &&
         current.references === nextState.references &&
-        current.attachments === nextState.attachments
+        current.attachments === nextState.attachments &&
+        current.timeline === nextState.timeline
       ) {
         return current;
       }
@@ -619,6 +620,7 @@ export default function NotesPage() {
                   showAppHeader={showEditorAppHeader}
                   canUndo={canUndo}
                   canRedo={canRedo}
+                  pageId={selectedPageId ?? ""}
                   onBack={goBack}
                   onToggleTimestamp={revealAbsoluteUpdatedTime}
                   onToggleAppHeader={() => setShowEditorAppHeader((current) => !current)}

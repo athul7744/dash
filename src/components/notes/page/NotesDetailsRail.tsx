@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Clock, FileText, Files, Link2, Network, Orbit, Paperclip } from "lucide-react";
+import { Clock, FileText, Files, History, Link2, Network, Orbit, Paperclip } from "lucide-react";
 
 import type { LinkedNoteReferenceRow, NoteAttachmentRow, NotePageRow } from "@/hooks/use-notes";
 
@@ -12,6 +12,7 @@ import { attachmentLabel, getPageDescription, parseProperties } from "./utils";
 import { DetailsRailCardSkeleton, DetailsSection, PageIcon } from "./ui";
 import { Backlinks } from "@/components/links/Backlinks";
 import { LocalGraphPanel } from "@/components/notes/graph/LocalGraphPanel";
+import { OccurrenceLog } from "@/components/events/OccurrenceLog";
 import type { NoteTag, OutlineEntry } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -88,6 +89,7 @@ type DetailsSectionState = {
   summary: boolean;
   references: boolean;
   attachments: boolean;
+  timeline: boolean;
 };
 
 type DetailsRailView = "overview" | "connections";
@@ -208,7 +210,7 @@ export function NotesDetailsRail({
         </DetailsSection>
       </div>
 
-      <div className="pt-3">
+      <div className="py-3">
         <SummarySection
           summaryDraft={summaryDraft}
           onSetSummaryDraft={onSetSummaryDraft}
@@ -217,6 +219,18 @@ export function NotesDetailsRail({
           isOpen={detailsSectionOpen.summary}
           onToggle={() => onToggleDetailsSection("summary")}
         />
+      </div>
+
+      <div className="pt-3">
+        <DetailsSection
+          title="Timeline"
+          icon={History}
+          accentClassName="text-violet-600 dark:text-violet-400"
+          isOpen={detailsSectionOpen.timeline}
+          onToggle={() => onToggleDetailsSection("timeline")}
+        >
+          {selectedPage ? <OccurrenceLog subjectId={selectedPage.id} /> : null}
+        </DetailsSection>
       </div>
     </div>
   );

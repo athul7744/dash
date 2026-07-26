@@ -94,6 +94,7 @@ export function NotesEditorContent({
           selectedTagIdsDraft={selectedTagIdsDraft}
           allTags={allTags}
           isLoadingTags={isLoadingTags}
+          pageId={editorContent.pageId ?? ""}
           onBack={onBack}
           onTitleChange={onTitleChange}
           onCommitTitle={onCommitTitle}

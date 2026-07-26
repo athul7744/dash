@@ -6,7 +6,7 @@ import { useQuery } from "@powersync/react";
 import { useAllNotePages } from "@/hooks/use-notes";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useQuotes } from "@/hooks/use-quotes";
-import { useReminders } from "@/hooks/use-reminders";
+import { useEvents } from "@/hooks/use-events";
 import { parseProperties, parseStoredTagIds, normalizePageEmoji } from "@/components/notes/page/utils";
 import { buildGraph, type GraphNode, type NoteGraph, type PageEdgeRow } from "@/lib/notes/graph";
 import { refTypeSql } from "@/lib/links/links";
@@ -20,7 +20,7 @@ export type GraphViewNode = GraphNode & { tagId: string | null };
 export type GraphCluster = { kind: RefKind; count: number; nodes: GraphViewNode[] };
 
 /** Cluster/legend ordering. */
-const KIND_ORDER: RefKind[] = ["note", "task", "bookmark", "quote", "reminder"];
+const KIND_ORDER: RefKind[] = ["note", "task", "bookmark", "quote", "event"];
 
 /** One entry in the tag legend / filter, with how many pages carry it. */
 export type GraphTagLegendEntry = {
@@ -116,7 +116,7 @@ export function useNoteGraph(): NoteGraphData {
   );
   const { bookmarks } = useBookmarks();
   const { quotes } = useQuotes();
-  const { reminders } = useReminders();
+  const { events } = useEvents();
 
   return useMemo(() => {
     const tagsById = new Map(allTags.map((tag) => [tag.id, tag]));
@@ -145,7 +145,7 @@ export function useNoteGraph(): NoteGraphData {
       ...rootTasks.map((t) => ({ id: t.id, kind: "task" as RefKind, title: stripRefs(t.title ?? "") || "Untitled task", emoji: null, tagColor: kindColor("task") })),
       ...bookmarks.map((b) => ({ id: b.id, kind: "bookmark" as RefKind, title: b.title || b.url || "Untitled bookmark", emoji: null, tagColor: kindColor("bookmark") })),
       ...quotes.map((q) => ({ id: q.id, kind: "quote" as RefKind, title: stripRefs(q.text || "") || "Untitled quote", emoji: null, tagColor: kindColor("quote") })),
-      ...reminders.map((r) => ({ id: r.id, kind: "reminder" as RefKind, title: stripRefs(r.title || "") || "Untitled reminder", emoji: null, tagColor: kindColor("reminder") })),
+      ...events.map((e) => ({ id: e.id, kind: "event" as RefKind, title: stripRefs(e.title || "") || "Untitled event", emoji: null, tagColor: kindColor("event") })),
     ];
 
     // Resolve edges to node-id pairs; keep only those between known nodes.
@@ -204,5 +204,5 @@ export function useNoteGraph(): NoteGraphData {
       noteClusterTags,
       isLoading: isLoadingPages || isLoadingEdges || isLoadingTags,
     };
-  }, [pages, edgeRows, allTags, rootTasks, bookmarks, quotes, reminders, isLoadingPages, isLoadingEdges, isLoadingTags]);
+  }, [pages, edgeRows, allTags, rootTasks, bookmarks, quotes, events, isLoadingPages, isLoadingEdges, isLoadingTags]);
 }

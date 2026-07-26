@@ -21,6 +21,7 @@ export function useNotesLayoutState() {
     summary: true,
     references: true,
     attachments: true,
+    timeline: true,
   });
 
   useEffect(() => {

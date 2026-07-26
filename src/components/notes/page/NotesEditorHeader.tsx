@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, Copy, Ellipsis, Files, Keyboard, Link2, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Ellipsis, Files, Keyboard, Link2, Star, Timer, Trash2 } from "lucide-react";
 
 import { TagPillStrip } from "@/components/tags/TagPillStrip";
 import { TagSelector } from "@/components/tags/TagSelector";
@@ -13,6 +13,7 @@ import { Tag } from "@/lib/powersync/AppSchema";
 import { IconPicker } from "@/components/notes/IconPicker";
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { MarkdownCheatsheetDialog } from "@/components/notes/MarkdownCheatsheetDialog";
+import { EventComposeDialog } from "@/components/events/EventLogNow";
 
 import { type NoteTag } from "./types";
 
@@ -36,6 +37,7 @@ export function NotesEditorHeader({
   selectedTagIdsDraft,
   allTags,
   isLoadingTags,
+  pageId,
   onBack,
   onTitleChange,
   onCommitTitle,
@@ -56,6 +58,8 @@ export function NotesEditorHeader({
   selectedTagIdsDraft: string[];
   allTags: Tag[];
   isLoadingTags: boolean;
+  /** The open note's id — subject for a logged event. */
+  pageId: string;
   onBack: () => void;
   onTitleChange: (value: string) => void;
   onCommitTitle: () => void | Promise<void>;
@@ -67,6 +71,7 @@ export function NotesEditorHeader({
   onOpenDeleteDialog: () => void;
 }) {
   const [isCheatsheetOpen, setIsCheatsheetOpen] = useState(false);
+  const [isLogOpen, setIsLogOpen] = useState(false);
   const mobileHeaderChromeButtonClass = "inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-[color,background-color,box-shadow] duration-200 hover:bg-accent/60 hover:text-foreground hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)]";
   const visibleTags = useMemo(() => {
     // When draft is empty but editor content has tags, use those (pre-hydration)
@@ -134,6 +139,16 @@ export function NotesEditorHeader({
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem
                 onClick={() => {
+                  (document.activeElement as HTMLElement)?.blur?.();
+                  setIsLogOpen(true);
+                }}
+              >
+                <Timer className="h-4 w-4" />
+                Log an event
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
                   void onCopyDocument();
                 }}
               >
@@ -152,6 +167,7 @@ export function NotesEditorHeader({
             </DropdownMenuContent>
           </DropdownMenu>
           <MarkdownCheatsheetDialog open={isCheatsheetOpen} onOpenChange={setIsCheatsheetOpen} />
+          <EventComposeDialog subjectId={pageId} subjectKind="note" open={isLogOpen} onOpenChange={setIsLogOpen} />
         </div>
       </div>
 

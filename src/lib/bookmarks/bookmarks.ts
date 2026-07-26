@@ -2,6 +2,7 @@ import { LexoRank } from "lexorank";
 import { v4 as uuidv4 } from "uuid";
 
 import { deleteEntityEdges } from "@/lib/links/links";
+import { deleteSubjectOccurrences } from "@/lib/events/events";
 import { ensureSystemPage } from "@/lib/notes/notes";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
@@ -131,6 +132,7 @@ export async function setTags(id: string, tags: string[]): Promise<void> {
 export async function deleteBookmark(id: string): Promise<void> {
   await db.execute(`DELETE FROM blocks WHERE id = ?`, [id]);
   await deleteEntityEdges(id);
+  await deleteSubjectOccurrences(id);
 }
 
 async function readBookmarkContent(id: string): Promise<BookmarkContent | null> {

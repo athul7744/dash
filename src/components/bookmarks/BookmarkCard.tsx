@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, CheckCircle2, Circle, Copy, ExternalLink, Loader2, RefreshCw, Star, Tag as TagIcon, Trash2 } from "lucide-react";
+import { Check, CheckCircle2, Circle, Copy, Ellipsis, ExternalLink, Loader2, RefreshCw, Star, Tag as TagIcon, Trash2 } from "lucide-react";
 
 import { Favicon } from "@/components/tasks/Favicon";
+import { EventLogNow } from "@/components/events/EventLogNow";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LinkedFrom } from "@/components/links/LinkedFrom";
 import { RefField } from "@/components/links/RefField";
 import { TagSelector } from "@/components/tags/TagSelector";
@@ -122,6 +124,7 @@ export function BookmarkCard({
         </span>
 
         <div className="flex items-center gap-0.5">
+          <EventLogNow subjectId={bookmark.id} subjectKind="bookmark" variant="icon" />
           <TagSelector
             selectedTagIds={bookmark.tags}
             onSelectedTagIdsChange={(ids) => void setTags(bookmark.id, ids)}
@@ -129,15 +132,6 @@ export function BookmarkCard({
             triggerContent={<TagIcon className="h-4 w-4" />}
             triggerClassName={cn(ACTION_BTN, "text-muted-foreground hover:bg-accent hover:text-foreground")}
           />
-          <button
-            type="button"
-            onClick={() => void refetch()}
-            disabled={busy}
-            aria-label="Refetch details"
-            className={cn(ACTION_BTN, "text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-60")}
-          >
-            <RefreshCw className={cn("h-4 w-4", refetching && "animate-spin")} />
-          </button>
           <button
             type="button"
             onClick={() => void markRead(bookmark.id, bookmark.unread)}
@@ -162,14 +156,25 @@ export function BookmarkCard({
           >
             <Star className={cn("h-4 w-4", bookmark.favorite && "fill-current")} />
           </button>
-          <button
-            type="button"
-            onClick={() => void deleteBookmark(bookmark.id)}
-            aria-label="Delete bookmark"
-            className={cn(ACTION_BTN, "text-muted-foreground hover:bg-destructive/10 hover:text-destructive")}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="More actions"
+              className={cn(ACTION_BTN, "text-muted-foreground hover:bg-accent hover:text-foreground focus:outline-none")}
+            >
+              <Ellipsis className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => void refetch()} disabled={busy}>
+                <RefreshCw className={cn("h-4 w-4", refetching && "animate-spin")} />
+                Refetch details
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => void deleteBookmark(bookmark.id)}>
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

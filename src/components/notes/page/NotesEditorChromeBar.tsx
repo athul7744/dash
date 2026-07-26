@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, ChevronDown, ChevronUp, Copy, Ellipsis, Keyboard, Redo2, Star, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Copy, Ellipsis, Keyboard, Redo2, Star, Timer, Trash2, Undo2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MarkdownCheatsheetDialog } from "@/components/notes/MarkdownCheatsheetDialog";
+import { EventComposeDialog } from "@/components/events/EventLogNow";
 
 type TimestampInfo = { relative: string; absolute: string } | null;
 
@@ -17,6 +18,8 @@ type NotesEditorChromeBarProps = {
   showAppHeader: boolean;
   canUndo: boolean;
   canRedo: boolean;
+  /** The open note's id — subject for a logged event. */
+  pageId: string;
   onBack: () => void;
   onToggleTimestamp: () => void;
   onToggleAppHeader: () => void;
@@ -38,6 +41,7 @@ export function NotesEditorChromeBar({
   showAppHeader,
   canUndo,
   canRedo,
+  pageId,
   onBack,
   onToggleTimestamp,
   onToggleAppHeader,
@@ -48,6 +52,7 @@ export function NotesEditorChromeBar({
   onRedo,
 }: NotesEditorChromeBarProps) {
   const [isCheatsheetOpen, setIsCheatsheetOpen] = useState(false);
+  const [isLogOpen, setIsLogOpen] = useState(false);
   return (
     <div data-notes-chrome-bar className="hidden h-9 items-center sm:flex">
       <div className="mx-auto grid w-full max-w-3xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-1 md:gap-x-2">
@@ -117,6 +122,16 @@ export function NotesEditorChromeBar({
               <Ellipsis className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem
+                onClick={() => {
+                  (document.activeElement as HTMLElement)?.blur?.();
+                  setIsLogOpen(true);
+                }}
+              >
+                <Timer className="h-4 w-4" />
+                Log an event
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onCopyDocument}>
                 <Copy className="h-4 w-4" />
                 Copy document
@@ -146,6 +161,7 @@ export function NotesEditorChromeBar({
             </DropdownMenuContent>
           </DropdownMenu>
           <MarkdownCheatsheetDialog open={isCheatsheetOpen} onOpenChange={setIsCheatsheetOpen} />
+          <EventComposeDialog subjectId={pageId} subjectKind="note" open={isLogOpen} onOpenChange={setIsLogOpen} />
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@ import { GraphControls, GraphLegend } from "./GraphControls";
  * unlinked items collapse into a single cluster puck, expanded on click.
  * Reactive — it live-updates as items and links change.
  */
-export function NotesGraphView({ onOpenPage }: { onOpenPage: (id: string) => void }) {
+export function NotesGraphView({ onOpenPage, onExit }: { onOpenPage: (id: string) => void; onExit: () => void }) {
   const { nodes, links, clusters, tags, noteClusterTags, isLoading } = useNoteGraph();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -148,6 +148,7 @@ export function NotesGraphView({ onOpenPage }: { onOpenPage: (id: string) => voi
             focused={activeFocus != null}
             focusSummary={focusSummary}
             onCollapse={collapse}
+            onExit={onExit}
           />
           <GraphLegend tags={legendTags} hiddenTagIds={hiddenTagIds} onToggleTag={toggleTag} />
           {/* Overview stats — hidden while a cluster is open (the focus title covers it). */}

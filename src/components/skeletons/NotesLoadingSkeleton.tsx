@@ -1,7 +1,7 @@
 "use client";
 
 import { AppHeader } from "@/components/AppHeader";
-import { NotesPageSkeleton } from "@/components/notes/NotesPageSkeleton";
+import { NotesGraphSkeleton, NotesPageSkeleton } from "@/components/notes/NotesPageSkeleton";
 import { getApp } from "@/lib/shared/apps";
 
 const notesApp = getApp("notes");
@@ -10,11 +10,23 @@ const notesApp = getApp("notes");
  * Full-page notes skeleton. Shared by the route `loading.tsx` (navigation
  * fallback) and the cold-start boot skeleton so both look identical.
  *
- * `mode` mirrors the notes page's own two surfaces: "overview" (no page
- * selected, `/notes`) vs "editor" (`/notes/<id>`). The boot skeleton reads
- * the URL to pick; the navigation fallback defaults to the overview.
+ * `mode` mirrors the notes page's own surfaces: "overview" (`/notes`),
+ * "editor" (`/notes/<id>`), and "graph" (`/notes/graph`, which is chrome-less).
+ * The boot skeleton and loading fallback read the URL to pick.
  */
-export function NotesLoadingSkeleton({ mode = "overview" }: { mode?: "overview" | "editor" }) {
+export function NotesLoadingSkeleton({ mode = "overview" }: { mode?: "overview" | "editor" | "graph" }) {
+  if (mode === "graph") {
+    return (
+      <div className="flex h-full w-full min-w-0 flex-col overflow-hidden bg-background">
+        <main className="flex-1 overflow-hidden px-[var(--app-gutter-x)] py-3 sm:py-4 md:py-6">
+          <div className="mx-auto h-full min-h-0 max-w-[1600px]">
+            <NotesGraphSkeleton />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full w-full min-w-0 flex-col overflow-hidden bg-background">
       <AppHeader app={notesApp} />

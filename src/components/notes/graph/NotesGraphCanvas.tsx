@@ -13,7 +13,9 @@ import { nodeRadius, useForceSimulation, type SimLink, type SimNode } from "./us
 
 type Transform = { x: number; y: number; k: number };
 
-const MIN_ZOOM = 0.3;
+// Effectively no minimum — just a tiny epsilon so the scale can't hit 0 — so a
+// large graph can zoom all the way out until every element fits the viewport.
+const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 3;
 const CLICK_SLOP = 4; // px of movement below which a pointer-up counts as a click
 // The local "Connections" panel has too few nodes for degree-sizing to mean
@@ -152,7 +154,12 @@ export function NotesGraphCanvas({
   // Display metadata (color/emoji/title) read fresh from props by id, so tags
   // that resolve after the layout is built still recolor the nodes in place.
   const metaById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
-  const key = useMemo(() => nodes.map((node) => node.id).sort().join(","), [nodes]);
+  // Include clusters so the auto-fit re-runs when orphan clusters finish loading
+  // (they arrive after the connected core); otherwise late pucks sit off-screen.
+  const key = useMemo(
+    () => [...nodes.map((n) => n.id), ...clusters.map((c) => `${c.kind}:${c.count}`)].sort().join(","),
+    [nodes, clusters],
+  );
 
   // Cluster pucks: one disc per kind, placed on a ring around the core centre.
   const puckLayout = useMemo(() => {
@@ -249,7 +256,10 @@ export function NotesGraphCanvas({
     }
     if (minX === Infinity) return null;
     const gw = maxX - minX, gh = maxY - minY;
-    const k = Math.max(MIN_ZOOM, Math.min(variant === "mini" ? 1.4 : 2, Math.min(size.width / gw, size.height / gh)));
+    // Fit reveals every node; cap the max so a tiny graph doesn't blow up, and
+    // floor only at the epsilon MIN_ZOOM so large graphs frame fully.
+    const fit = Math.min(size.width / gw, size.height / gh);
+    const k = Math.max(MIN_ZOOM, Math.min(variant === "mini" ? 1.4 : 2, fit));
     return { k, x: (size.width - gw * k) / 2 - minX * k, y: (size.height - gh * k) / 2 - minY * k };
   }, [sim.nodes, puckLayout, size.width, size.height, variant]);
 

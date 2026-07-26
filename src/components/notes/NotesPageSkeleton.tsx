@@ -219,6 +219,57 @@ export function NotesDetailsRailSkeleton({ showHeader = true }: NotesDetailsRail
   );
 }
 
+/**
+ * Graph-surface skeleton — a dotted, full-bleed canvas with ghost nodes and the
+ * floating controls / legend / zoom placeholders, matching `NotesGraphView`
+ * (which has no app header of its own).
+ */
+export function NotesGraphSkeleton() {
+  return (
+    <div
+      className="relative h-full min-h-[420px] w-full overflow-hidden rounded-2xl border border-border/60 bg-[var(--graph-bg,var(--card))]"
+      style={{
+        backgroundImage: "radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 0)",
+        backgroundSize: "26px 26px",
+      }}
+    >
+      {/* Ghost nodes + cluster pucks, faintly pulsing. */}
+      <div className="absolute inset-0 animate-pulse">
+        <span className="absolute left-1/2 top-[22%] h-16 w-16 -translate-x-1/2 rounded-full bg-muted" />
+        <span className="absolute left-[26%] top-1/2 h-12 w-12 rounded-full bg-muted" />
+        <span className="absolute right-[24%] top-[48%] h-16 w-16 rounded-full bg-muted" />
+        <span className="absolute left-[45%] top-[64%] h-8 w-8 rounded-full bg-muted" />
+        <span className="absolute left-[53%] top-[75%] h-6 w-6 rounded-full bg-muted" />
+        <span className="absolute left-[40%] top-[80%] h-6 w-6 rounded-full bg-muted" />
+      </div>
+
+      {/* Controls panel (top-left). */}
+      <div className="absolute left-3 top-3 w-52 max-w-[46vw] space-y-3 rounded-xl border border-border/60 bg-popover/90 p-3 shadow-lg backdrop-blur-sm sm:left-4 sm:top-4 sm:w-56">
+        <Bone className="h-8 w-full rounded-lg" />
+        <div className="flex items-center justify-between"><Bone className="h-3.5 w-20" /><Bone className="h-5 w-9 rounded-full" /></div>
+        <div className="flex items-center justify-between"><Bone className="h-3.5 w-24" /><Bone className="h-5 w-9 rounded-full" /></div>
+        <div className="h-px bg-border" />
+        <Bone className="h-3.5 w-28" />
+        <Bone className="h-1.5 w-full rounded-full" />
+      </div>
+
+      {/* Legend (top-right). */}
+      <div className="absolute right-3 top-3 w-40 max-w-[42vw] space-y-2 rounded-xl border border-border/60 bg-popover/90 p-3 shadow-lg backdrop-blur-sm sm:right-4 sm:top-4 sm:w-44">
+        <Bone className="h-3 w-16" />
+        <div className="flex items-center gap-2"><Bone className="h-2.5 w-2.5 rounded-full" /><Bone className="h-3.5 w-20" /></div>
+        <div className="flex items-center gap-2"><Bone className="h-2.5 w-2.5 rounded-full" /><Bone className="h-3.5 w-14" /></div>
+      </div>
+
+      {/* Zoom controls (bottom-right). */}
+      <div className="absolute bottom-1 right-4 flex flex-col gap-1 rounded-xl border border-border/60 bg-popover/90 p-1 shadow-lg backdrop-blur-sm sm:bottom-4">
+        <Bone className="size-7 rounded-lg" />
+        <Bone className="size-7 rounded-lg" />
+        <Bone className="size-7 rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
 export function NotesPageSkeleton({ mode = "editor", showDesktopHeaderRow = true }: NotesPageSkeletonProps) {
   if (mode === "overview") {
     return (

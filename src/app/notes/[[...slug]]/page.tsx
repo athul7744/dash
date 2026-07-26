@@ -171,7 +171,7 @@ export default function NotesPage() {
 
       return hasChanged ? next : current;
     });
-  }, [tagDirectory]);
+  }, [tagDirectory, setTagDirectoryOpen]);
 
   const isLoading = isLoadingCounts || isLoadingRecentPages;
 
@@ -245,11 +245,10 @@ export default function NotesPage() {
 
       return nextState;
     });
-  }, [shellHandle?.isReady, selectedPageId]);
+  }, [shellHandle?.isReady, selectedPageId, setDetailsSectionOpen]);
 
   // ─── Navigation ─────────────────────────────────────────────────────────
   const {
-    editorPageTitle,
     currentPageTitle,
     appNavigationRef,
     openPageById,
@@ -464,10 +463,10 @@ export default function NotesPage() {
       onTouchStart={handleMobileEdgeSwipeStart}
       onTouchEnd={handleMobileEdgeSwipeEnd}
     >
-      {isDisplayingOverview || graphView || showEditorAppHeader ? (
+      {!graphView && (isDisplayingOverview || showEditorAppHeader) ? (
         <AppHeader
           app={notesApp}
-          mobileMenuItems={isDisplayingOverview && !graphView ? (
+          mobileMenuItems={isDisplayingOverview ? (
             <>
               <DropdownMenuItem onClick={() => setIsManageTagsOpen(true)}>
                 <span>Manage Tags</span>
@@ -479,16 +478,7 @@ export default function NotesPage() {
               </DropdownMenuItem>
             </>
           ) : undefined}
-          actions={graphView ? (
-            <button
-              type="button"
-              onClick={() => startTransition(() => { router.push("/notes"); })}
-              className={HEADER_ACTION_NEUTRAL}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Overview</span>
-            </button>
-          ) : isDisplayingOverview ? (
+          actions={isDisplayingOverview ? (
             <>
               <ManageTagsDialog />
               <ManageTagsDialog open={isManageTagsOpen} onOpenChange={setIsManageTagsOpen} hideTrigger />
@@ -526,7 +516,7 @@ export default function NotesPage() {
       )}>
         {graphView ? (
           <div className="mx-auto h-full min-h-0 max-w-[1600px]">
-            <NotesGraphView onOpenPage={(pageId) => openPageById(pageId)} />
+            <NotesGraphView onOpenPage={(pageId) => openPageById(pageId)} onExit={() => startTransition(() => { router.push("/notes"); })} />
           </div>
         ) : (
         <div className="mx-auto max-w-[1600px] space-y-4 sm:flex sm:h-full sm:min-h-0 sm:flex-col sm:space-y-0">

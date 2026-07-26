@@ -21,6 +21,7 @@ export function GraphControls({
   focused = false,
   focusSummary,
   onCollapse,
+  onExit,
 }: {
   searchQuery: string;
   onSearchChange: (value: string) => void;
@@ -33,6 +34,8 @@ export function GraphControls({
   focused?: boolean;
   focusSummary?: string;
   onCollapse?: () => void;
+  /** Leave the graph for the notes overview (the in-graph "back", desktop). */
+  onExit: () => void;
 }) {
   return (
     <div className="absolute left-3 top-3 w-52 max-w-[46vw] rounded-xl border border-border/60 bg-popover/90 p-3 shadow-lg backdrop-blur-sm sm:left-4 sm:top-4 sm:w-56">
@@ -47,7 +50,16 @@ export function GraphControls({
           </button>
           {focusSummary ? <p className="mt-1 px-1 text-[11px] text-muted-foreground">{focusSummary}</p> : null}
         </div>
-      ) : null}
+      ) : (
+        // The in-graph "back" — desktop only; mobile uses the bottom Overview fab.
+        <button
+          type="button"
+          onClick={onExit}
+          className="mb-2.5 hidden w-full items-center gap-1.5 rounded-lg px-1 py-1 text-[12.5px] font-semibold text-foreground hover:bg-muted/60 sm:flex"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Overview
+        </button>
+      )}
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />

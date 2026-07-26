@@ -44,9 +44,9 @@ export function AppBootSkeleton() {
   if (path.startsWith("/bookmarks")) return <BookmarksLoadingSkeleton />;
   if (path.startsWith("/events")) return <EventsLoadingSkeleton />;
   if (path.startsWith("/notes")) {
-    // `/notes/<id>` boots the editor skeleton; bare `/notes` and `/notes/graph`
-    // the overview.
-    const mode = /^\/notes\/.+/.test(path) && path !== "/notes/graph" ? "editor" : "overview";
+    // `/notes/graph` boots the graph skeleton, `/notes/<id>` the editor, bare
+    // `/notes` the overview.
+    const mode = path === "/notes/graph" ? "graph" : /^\/notes\/.+/.test(path) ? "editor" : "overview";
     return <NotesLoadingSkeleton mode={mode} />;
   }
   return <DashboardLoadingSkeleton />;

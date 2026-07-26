@@ -1,12 +1,12 @@
 # Dash.
 
-A personal productivity workspace that works offline and syncs across devices. Tasks, time tracking, notes, quotes, bookmarks, and recurring reminders — all in one place, and capturable from anywhere you can share a link or text.
+A personal productivity workspace that works offline and syncs across devices. Tasks, time tracking, notes, quotes, bookmarks, and events — all in one place, and capturable from anywhere you can share a link or text.
 
 ## What It Does
 
 ### Dashboard
 
-The home screen opens calm and centered: a rotating, time-of-day greeting and a search bar that opens a command palette across everything — every task, note, bookmark, quote, and reminder, plus jump-to-app and quick-create commands (⌘K anywhere). Beneath it sits a single contextual nudge that changes with the time of day and what you've actually done — the most relevant task in the morning, a reminder to log time if you've tracked nothing in the last couple of hours, your weekly journal in the evening, and a mood check-in at night. Scroll down and the greeting glides up into a slim top bar while the day's essentials fade in — today's tasks with quick-add, hours logged, and this week's journal to write in place. A row of apps sits at the bottom, one tap to each.
+The home screen opens calm and centered: a rotating, time-of-day greeting and a search bar that opens a command palette across everything — every task, note, bookmark, quote, and event, plus jump-to-app and quick-create commands (⌘K anywhere). Beneath it sits a single contextual nudge that changes with the time of day and what you've actually done — the most relevant task in the morning, a reminder to log time if you've tracked nothing in the last couple of hours, your weekly journal in the evening, and a mood check-in at night. Scroll down and the greeting glides up into a slim top bar while the day's essentials fade in — today's tasks with quick-add, hours logged, and this week's journal to write in place. A row of apps sits at the bottom, one tap to each.
 
 ### Tasks
 
@@ -24,7 +24,7 @@ Pages can have emoji icons, and headings stick while you scroll for easy orienta
 
 Navigate between linked pages with a breadcrumb trail that tracks your path. On desktop, hover a page link to see a peek preview; on mobile, long-press to preview before opening. Paste a URL and it becomes a link; hover (or tap) it for a small toolbar to open, copy, edit, or remove it.
 
-Linking isn't limited to notes. Type `[[` in any item — a task (or subtask), bookmark, quote, or reminder — to link it to any other item. Each link shows up as a backlink on the other side, and every linked item becomes a node in the notes graph, so the graph is a map of your whole workspace, not just your notes.
+Linking isn't limited to notes. Type `[[` in any item — a task (or subtask), bookmark, quote, or event — to link it to any other item. Each link shows up as a backlink on the other side, and every linked item becomes a node in the notes graph, so the graph is a map of your whole workspace, not just your notes.
 
 ### Quotes
 
@@ -34,9 +34,13 @@ Collect lines worth remembering — each with an optional author. Star your favo
 
 Save links to read or watch later. Titles are fetched automatically, the site's favicon is shown, and the platform (YouTube, Instagram, X, …) is recognized. Tag them (the same tags as Tasks), mark them read/unread, star them, and search or filter. One unread bookmark resurfaces on the dashboard each day to nudge you to revisit it.
 
-### Reminders
+### Events
 
-Set up recurring obligations once and let them add themselves. A reminder is a task template — title, link, tags, priority — plus a schedule (one-off, weekly, monthly, or yearly) and a lead time. Dash automatically creates the real task in your Tasks app that many days before each occurrence, so it shows up with everything filled in and a due date. It never stacks up: if the last one is still unfinished, the next won't be created until you clear it.
+Keep track of the recurring things in your life — and everything that happens to them. An event is anything you want a history for: a car that needs servicing, a plant to water, a friend you mean to call. Log what happened and when — with an optional word for the action ("Serviced", "Watered", "Called") that autocompletes from words you've used before — and Dash works out how often it usually happens, when it's due next, and whether it's overdue. A heatmap shows the rhythm at a glance.
+
+Add a schedule (one-off, weekly, monthly, yearly, or every N days) and an event doubles as a reminder: Dash creates a real task in your Tasks app a set number of days before each one is due, and logs the event as done when you complete that task. Leave the schedule off and it stays a pure log. It never stacks up — if the last task is still unfinished, the next won't be created until you clear it.
+
+Events don't have to stand alone. Hit "Log an event" on a note, bookmark, quote, or task and that thing grows its own timeline — every log shows both on the thing itself and in the shared Events feed, tagged with what it belongs to.
 
 ### Capture
 

@@ -9,7 +9,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/tracker/` — tracker-specific test entry points and notes about where tracker suites belong.
 - `tests/quotes/` — quotes-specific logic tests.
 - `tests/bookmarks/` — bookmarks-specific logic tests.
-- `tests/reminders/` — reminders recurrence-engine tests.
+- `tests/events/` — events recurrence-engine, action-vocabulary, and event/occurrence parse tests.
 - `tests/links/` — cross-app reference tests (the `[[label|kind:id]]` token grammar).
 - `tests/shared/` — reusable fixtures, builders, and assertions shared across app groups (incl. the universal-capture classifier).
 
@@ -122,10 +122,16 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/bookmarks/metadata.test.ts`
   Covers `parseMetadataHtml` (`src/lib/bookmarks/metadata.ts`): preferring `og:title` over `<title>`, entity decoding, description/image extraction in either attribute order, the `description` meta fallback, and empty output for missing tags / malformed HTML.
 
-## Current Reminders Suites
+## Current Events Suites
 
-- `tests/reminders/schedule.test.ts`
-  Covers the pure recurrence engine (`src/lib/reminders/schedule.ts`): `nextOccurrenceOnOrAfter` for once/weekly/monthly/yearly incl. month-length clamping (day 31 → Feb 28, Feb 29 → Feb 28 in a non-leap year) and past-`once` → null; `formatSchedule` summaries; and `dueOccurrence` (lead-window boundary, `lastMaterializedKey` suppression, advancing to the next occurrence).
+- `tests/events/schedule.test.ts`
+  Covers the pure recurrence engine (`src/lib/events/schedule.ts`): `nextOccurrenceOnOrAfter` for once/weekly/monthly/yearly incl. month-length clamping (day 31 → Feb 28, Feb 29 → Feb 28 in a non-leap year), past-`once` → null, and the `interval` anchor (relative to the last occurrence, or now when never done); `formatSchedule` summaries; and `dueOccurrence` (lead-window boundary, `lastMaterializedKey` suppression, advancing to the next occurrence, interval gap elapsing).
+
+- `tests/events/actions.test.ts`
+  Covers the pure action-vocabulary helpers (`src/lib/events/actions.ts`): `caseKey` normalization, `stemKey` inflection-collapsing with `-ss`/short-token guards, `editDistance`, `buildActionVocabulary` (dedupe by case-key, most-used surface form, stem-siblings kept separate), and `rankActionMatches` (exact / reuse / didYouMean buckets).
+
+- `tests/events/events.test.ts`
+  Covers `parseEventContent` (log-only default shape, valid vs malformed `interval` schedule), `parseOccurrenceContent` (fields + `subjectKind` default to `event`), and `computeThingStats` (empty stats, derived average gap / next-due, overdue against an explicit cadence).
 
 ## Current Tracker Suites
 

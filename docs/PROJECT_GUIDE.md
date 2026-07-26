@@ -20,9 +20,9 @@ Dash is an offline-first Next.js application with six apps under one shell:
 - `Notes` — a local-first outline editor built on pages, blocks, graph edges, and explicitly owned attachments
 - `Quotes` — a collection of quotes stored in the notes backend (a hidden `kind: "quote"` system page) with a favorites-weighted daily resurfacing on the dashboard
 - `Bookmarks` — saved links stored in the notes backend (a hidden `kind: "bookmark"` system page) with platform detection, server-fetched titles, tags, read/unread, and an unread-weighted daily "revisit"
-- `Reminders` — recurring task templates stored in the notes backend (a hidden `kind: "reminder"` system page) with a schedule + lead time; a client-side reconciler materializes a real Task before each occurrence (see [Reminders App Structure](#reminders-app-structure))
+- `Events` — a log of recurring "things" stored in the notes backend (a hidden `kind: "event"` system page): each event carries a dated occurrence history and an optional schedule + lead time, and a client-side reconciler materializes a real Task before each scheduled occurrence. Occurrences can attach to *any* entity, giving it a timeline (see [Events App Structure](#events-app-structure))
 
-Content enters through **universal capture**: the PWA share target (`/share`) and an in-app quick-capture modal both classify shared links/text and triage them into any app (see [Universal Capture](#universal-capture)). A global ⌘/Ctrl+K **command palette** searches all five entities and jumps between apps. Any entity can **link to any other** via inline `[[ ]]` references that surface as backlinks and in the notes graph (see [Cross-App Links & References](#cross-app-links--references)). Quotes, Bookmarks, and Reminders reuse the notes `pages`/`blocks` store via the system-page mechanism, so they add no new tables.
+Content enters through **universal capture**: the PWA share target (`/share`) and an in-app quick-capture modal both classify shared links/text and triage them into any app (see [Universal Capture](#universal-capture)). A global ⌘/Ctrl+K **command palette** searches all five entities and jumps between apps. Any entity can **link to any other** via inline `[[ ]]` references that surface as backlinks and in the notes graph (see [Cross-App Links & References](#cross-app-links--references)). Quotes, Bookmarks, and Events reuse the notes `pages`/`blocks` store via the system-page mechanism, so they add no new tables.
 
 Testing is organized separately under `tests/`, with app-group suites and shared helpers rather than colocated source tests.
 
@@ -88,12 +88,12 @@ Key runtime behavior:
 
 ### Route-level loading behavior
 
-- `src/app/{tasks,tracker,notes,quotes,bookmarks,reminders}/loading.tsx`
+- `src/app/{tasks,tracker,notes,quotes,bookmarks,events}/loading.tsx`
   - Route-level fallback for navigation into each app
   - Each renders the real header shell plus an app-specific skeleton from `src/components/skeletons/*` (shared with the cold-start boot skeleton)
 
 - `src/components/AppBootSkeleton.tsx`
-  - Cold-start fallback (shown by `powersync-provider` while the local DB opens) that picks the route-shaped skeleton by pathname (and `?view=`/`?page=` for tracker/notes), so a refresh boots into the matching skeleton with no blank gap
+  - Cold-start fallback (shown by `powersync-provider` while the local DB opens) that picks the route-shaped skeleton by pathname (`?view=` for the tracker; `/notes/graph` vs `/notes/<id>` vs bare `/notes` for the notes overview/editor/graph), so a refresh boots into the matching skeleton with no blank gap
 
 Important convention:
 
@@ -109,10 +109,10 @@ Important convention:
 - `src/app/share/page.tsx` — PWA share target → universal capture triage (see [Universal Capture](#universal-capture))
 - `src/app/tasks/page.tsx` — tasks dashboard
 - `src/app/tracker/page.tsx` — tracker dashboard
-- `src/app/notes/page.tsx` — notes dashboard shell
+- `src/app/notes/layout.tsx` + `src/app/notes/[[...slug]]/page.tsx` — the notes shell (path-based `/notes`, `/notes/<id>`, `/notes/graph`; see [Notes App Structure](#notes-app-structure))
 - `src/app/quotes/page.tsx` — quotes collection
 - `src/app/bookmarks/page.tsx` — bookmarks collection
-- `src/app/reminders/page.tsx` — reminders collection (recurring task templates; see [Reminders App Structure](#reminders-app-structure))
+- `src/app/events/page.tsx` + `src/app/events/[id]/page.tsx` — the events grid and single-subject detail (see [Events App Structure](#events-app-structure))
 - `src/app/api/bookmark-metadata/route.ts` — auth-gated, SSRF-guarded server proxy that fetches a URL's `<title>`/OG metadata (used by bookmarks + capture to prefill titles)
 
 ### Shared components
@@ -133,7 +133,7 @@ Important convention:
 - `src/components/dashboard/HeroAction.tsx` — the contextual nudge button (opens a task, scrolls to a section, or navigates)
 - `src/components/dashboard/MoodPicker.tsx` — a dot per configured mood (from the `moods` table) writing to `daily_ratings` (night hero + shared)
 - `src/components/command/CommandPaletteProvider.tsx` — the global ⌘/Ctrl+K command palette, mounted app-wide in the root layout. Fuzzy-searches all five entities and runs Go-to-app / Quick-capture / New-item commands; built on `SearchPopup`. Also listens for reference-chip open events (see [Cross-App Links & References](#cross-app-links--references))
-- `src/components/command/EntityPopup.tsx` — opens any task/bookmark/quote/reminder in a blurred modal by reusing that app's own card (looked up live by id; notes deep-link to `/notes?page=`). Used by the palette, the dashboard hero nudge, and reference-chip clicks
+- `src/components/command/EntityPopup.tsx` — opens any task/bookmark/quote/event in a blurred modal by reusing that app's own card (looked up live by id; notes deep-link to `/notes/<id>`). Used by the palette, the dashboard hero nudge, and reference-chip clicks
 - `src/components/dashboard/TodayTasks.tsx` / `TodayTracking.tsx` — borderless reveal widgets
 - `src/components/dashboard/DashboardQuote.tsx` / `DashboardBookmarks.tsx` — the daily "quote of the day" / "revisit" resurfacing cards (a `variant` renders either the compact dashboard tile or the larger hero atop `/quotes` and `/bookmarks`); render nothing until there's content
 - `src/components/dashboard/DashboardJournal.tsx` — embeds `WeeklyJournal` for the current week, editable in place
@@ -192,13 +192,13 @@ Important convention:
 - `src/lib/tasks/tags.ts` — tag creation helpers
 - `src/lib/quotes/quotes.ts` / `quotes/daily.ts` — quote CRUD over the `kind:"quote"` system page, and the favorites-weighted `pickDailyQuote`
 - `src/lib/bookmarks/bookmarks.ts` / `bookmarks/daily.ts` / `bookmarks/metadata.ts` / `bookmarks/fetch-metadata.ts` — bookmark CRUD over the `kind:"bookmark"` system page, the unread-weighted `pickDailyBookmark`, the pure `parseMetadataHtml` (used by the metadata route), and the client `refreshBookmarkTitle` wrapper
-- `src/lib/reminders/reminders.ts` / `reminders/schedule.ts` / `reminders/materialize.ts` — reminder CRUD over the `kind:"reminder"` system page, the pure recurrence engine, and the on-mount reconciler that materializes due reminders into Tasks (see [Reminders App Structure](#reminders-app-structure))
+- `src/lib/events/events.ts` / `events/schedule.ts` / `events/actions.ts` / `events/materialize.ts` — event + occurrence CRUD over the `kind:"event"` system page, the pure recurrence engine, the pure action-vocabulary helpers, and the on-mount reconciler that materializes due scheduled events into Tasks (see [Events App Structure](#events-app-structure))
 - `src/lib/tracker/activities.ts` — tracker activity palette and class maps
 - `src/lib/tracker/ratings.ts` — `setDailyRating` upsert (insert/update/clear) for the mood picker, shared by the dashboard
 - `src/lib/tracker/moods.ts` / `src/hooks/use-moods.ts` — the user-configurable, ordered mood scale (`moods` table): `DEFAULT_MOODS` seed, `moodByValue`/`moodHex`/`moodDotClass`, and `moodRange`/`moodTier` (good/bad-day classification computed from the scale's range). `daily_ratings.score` stores a mood's `value`.
 - `src/lib/tracker/day-keys.ts` — UTC-naive/local date-key helpers, incl. `recentNaiveWindow` for the "logged in the last 2h" check
 - `src/hooks/use-notes.ts` — local SQLite query hooks for note pages and blocks (excludes `properties.kind`-tagged system pages from Notes lists)
-- `src/hooks/use-quotes.ts` / `src/hooks/use-bookmarks.ts` / `src/hooks/use-reminders.ts` — live query hooks reading the quote/bookmark/reminder blocks off their system page (a "settled" latch keeps the empty state from flashing during the page-id → query swap); `use-reminders.ts` also exports `useReminderMaterializer`
+- `src/hooks/use-quotes.ts` / `src/hooks/use-bookmarks.ts` / `src/hooks/use-events.ts` — live query hooks reading the quote/bookmark/event blocks off their system page (a "settled" latch keeps the empty state from flashing during the page-id → query swap); `use-events.ts` also serves occurrences, per-subject aggregates, the action vocabulary, subject-label resolution, and `useEventMaterializer`
 - `src/lib/links/tokens.ts` / `links.ts` / `resolve.ts` — the cross-app link layer: the `[[label|kind:id]]` token grammar (`parseRefTokens`/`stripRefs`/`formatRefToken`/`refKindAccentVar`), the generic reader/writer over `edges` (`reconcileEntityRefs`/`replaceEdges`/`deleteEntityEdges`, serialized per source id), and the opaque-id → `{kind,label}` resolver. See [Cross-App Links & References](#cross-app-links--references)
 - `src/components/links/*` — `EntityRefNode` (shared inline chip Tiptap node), `RefField` (wraps a plain card field as a one-line rich editor hosting chips), `Backlinks` (inline inbound chips, notes rail), `LinkedFrom` (card "N linked" popover: local graph + linking-items list)
 - `src/hooks/use-links.ts` / `use-entity-search.ts` — reactive backlinks (`useBacklinks`) and the shared all-entity `[[` search (reuses each app's hooks; mount lazily)
@@ -233,21 +233,23 @@ Important convention:
 - `tests/tasks/*` — task-specific Vitest suites
 - `tests/tracker/*` — tracker-specific Vitest suites
 - `tests/quotes/*` / `tests/bookmarks/*` — quotes/bookmarks daily-pick + metadata suites
-- `tests/reminders/*` — the recurrence-engine suite (`schedule.ts`)
+- `tests/events/*` — the recurrence-engine (`schedule.ts`), action-vocabulary (`actions.ts`), and event/occurrence parse (`events.ts`) suites
 - `tests/links/*` — the cross-app reference token grammar (`tokens.ts`)
 - `tests/shared/*` — shared fixtures, builders, and assertions reused across app groups (incl. the capture classifier)
 - `tests/README.md` — current suite map and short descriptions of what each test file covers
 
 ### Notes App Structure
 
-Primary route:
+Routing (path-based, shell in the layout):
 
-- `src/app/notes/page.tsx`
+- URLs are path-based: `/notes` (overview), `/notes/<id>` (a note), `/notes/graph` (the graph) — no `?page=`/`?view=` query params or fallbacks. The route is an optional catch-all `src/app/notes/[[...slug]]/page.tsx`, but the page itself returns `null`.
+- The whole workspace UI lives in `src/components/notes/page/NotesWorkspace.tsx`, mounted by `src/app/notes/layout.tsx`. Because it sits in the **layout**, it persists across surface changes (overview ↔ note ↔ graph are just param changes) and, crucially, **above the route loading boundary** — so navigating between notes never unmounts and re-skeletons the pages rail. `loading.tsx` returns `null` for the same reason (a full-page skeleton there would flash over the persistent rail); a cold load is covered by `AppBootSkeleton`. `NotesWorkspace` derives its surface from `usePathname()`.
+- Two flash fixes ride on this: page cards navigate via the in-app transition (`selectPageOnClick` intercepts a plain left-click, letting cmd/ctrl/middle-click still open a new tab), and the details rail keeps its last content during a param swap (page-keyed adjust-during-render snapshot) so it doesn't blink data → skeleton → data.
 
 Responsibilities:
 
 - Registers the notes app in the shared shell and launcher.
-- Orchestrates overview, editor, and graph surfaces via `?page=` / `?view=graph` route state.
+- Orchestrates the overview, editor, and graph surfaces from the path (see Routing above).
 - Reads pages, blocks, backlinks, attachments, and mentions from local SQLite through `src/hooks/use-notes.ts`.
 - Resolves note page tag ids from `pages.properties.tags` through the shared `tags` table.
 - Supports custom page properties stored in `pages.properties.custom`, resolved against workspace-wide `property_definitions`.
@@ -274,7 +276,7 @@ Key modules:
   - Reference popup (opened from the editor's three-dot "Shortcuts" item) listing every markdown/keyboard shortcut, grouped and color-accented.
 
 - `src/components/notes/graph/*` + `src/hooks/use-note-graph.ts` + `src/lib/notes/graph.ts`
-  - A universal, Obsidian-style graph of the vault: **one node per item** — every note page plus any task/bookmark/quote/reminder that participates in a link (see [Cross-App Links & References](#cross-app-links--references)). `graph.ts` holds pure helpers (`buildGraph` builds an undirected, deduped, weighted node graph from resolved reference edges; `neighborhood` BFS; `isOrphan`); `use-note-graph.ts` is the reactive model — it resolves both endpoints of each `edges` row (`type IN ('ref','page_ref')`) to a node, colours notes by their first tag and other kinds by the app accent, and only surfaces non-note items that are actually linked. `useForceSimulation` wraps `d3-force`; `NotesGraphCanvas` renders SVG with pan/zoom, zoom-to-fit, node drag-to-pin, hover-neighbourhood highlight, and a Lucide kind-icon inside each node (the icon carries the accent colour; the node body follows the theme); clicking a node opens its target — notes open the page, other kinds open `EntityPopup`. `NotesGraphView` adds the controls (search, hide-orphans, tag filter, neighbour depth, and a **show-other-apps** toggle). `LocalGraphPanel` reuses the engine (mini variant, one uniform node size) in the details rail's Connections tab and behind each card's `LinkedFrom` popover. Node size scales with degree in the full graph only; the mini graph is uniform. Only resolved links exist as edges, so links to not-yet-created pages don't appear.
+  - A universal, Obsidian-style graph of the vault: **one node per item** — every note page plus any task/bookmark/quote/event that participates in a link (see [Cross-App Links & References](#cross-app-links--references)). `graph.ts` holds pure helpers (`buildGraph` builds an undirected, deduped, weighted node graph from resolved reference edges; `neighborhood` BFS; `isOrphan`); `use-note-graph.ts` is the reactive model — it resolves both endpoints of each `edges` row (`type IN ('ref','page_ref')`) to a node, colours notes by their first tag and other kinds by the app accent, surfaces linked items as nodes, and **collapses every unlinked item into one per-kind cluster** (`GraphCluster { kind, count, nodes }`) so an isolated node never litters the canvas — a cluster expands to its members when opened. `useForceSimulation` wraps `d3-force`; `NotesGraphCanvas` renders SVG with pan/zoom, **fit-to-all on load** (no minimum zoom, so a sparse graph still fills the viewport; re-fits when late clusters arrive), node drag-to-pin, hover-neighbourhood highlight, and a Lucide kind-icon inside each node (the icon carries the accent colour; the node body follows the theme); clicking a node opens its target — notes open the page, other kinds open `EntityPopup`. `NotesGraphView` adds the controls (search, hide-orphans, tag filter, neighbour depth, a **show-other-apps** toggle, and an in-graph "← Overview" exit since the graph hides the app chrome). `LocalGraphPanel` reuses the engine (mini variant, one uniform node size) in the details rail's Connections tab and behind each card's `LinkedFrom` popover. Node size scales with degree in the full graph only; the mini graph is uniform. Only resolved links exist as edges, so links to not-yet-created pages don't appear.
 
 - `src/components/notes/editor/TaskLineNode.ts` / `QueryBlockNode.tsx`
   - `taskLine` is a single checkbox line — each checklist item is its OWN block (`blockType: "task"`), no `taskList` wrapper. `queryBlock` is an atom NodeView rendering the existing `QueryBlockView`.
@@ -323,7 +325,7 @@ Additional notes editor behavior:
 
 Conventions:
 
-- Keep `src/app/notes/page.tsx` as the route orchestrator and state wiring layer.
+- Keep `src/components/notes/page/NotesWorkspace.tsx` (mounted by `notes/layout.tsx`) as the route orchestrator and state wiring layer; the `[[...slug]]` page/loading files stay empty.
 - Move reusable route-local UI and hooks into `src/components/notes/page/` before expanding the route file.
 - Keep editor-owned helpers alongside the editor when they are specific to note block behavior.
 - Attachments are owned by either a page or a block, never both.
@@ -350,7 +352,7 @@ Responsibilities and behavior:
 - **Hero collapse (Motion):** `useScroll` + `useTransform` map the container's raw `scrollY` (px) to a fade/scale on the hero and a fade-in of a compact greeting + search icon in the sticky top bar. Driven by raw `scrollY` (not a measured target) to avoid feedback from the hero's own transforms; bidirectional (reverses on scroll up).
 - **Reveal:** each section is wrapped in `motion/Reveal` (`whileInView`, once) with the container as `root`; reduced-motion renders them static.
 - **Contextual hero action:** `useHeroAction` gathers signals — pending/overdue/due-today tasks (and the most-relevant one), whether time was logged in the last 2h (`recentNaiveWindow`), whether mood was rated today, and whether this week's journal system page exists — and feeds the pure `chooseHeroAction` picker (`src/lib/dashboard/hero-action.ts`). At night it shows `MoodPicker`; otherwise a single `HeroAction` nudge (most-relevant task → task modal, plan → scroll to `#today-tasks`, track → `/tracker`, journal → scroll to `#weekly-journal`).
-- **Search:** the hero bar and the collapsed top-bar icon open the global **command palette** (`useCommandPalette()`; also ⌘/Ctrl+K anywhere), which searches all five entities and runs navigation/create/capture commands. Entity hits open in `EntityPopup` (notes deep-link to `/notes?page=`). See [Cross-App Links & References](#cross-app-links--references) for the shared entity search.
+- **Search:** the hero bar and the collapsed top-bar icon open the global **command palette** (`useCommandPalette()`; also ⌘/Ctrl+K anywhere), which searches all five entities and runs navigation/create/capture commands. Entity hits open in `EntityPopup` (notes deep-link to `/notes/<id>`). See [Cross-App Links & References](#cross-app-links--references) for the shared entity search.
 - **Journal:** `DashboardJournal` embeds the tracker's `WeeklyJournal` for the current week (same `systemPageId`), editable in place.
 - **Apps:** `AppsFab` is a fixed bottom strip of single-click app links over a blurred scrim; ordered bookmarks/tasks/tracker/notes/quotes and scroll-centered on Tracker so the middle app is reachable on launch.
 - **Capture:** a Capture button in the top bar (and ⌘/Ctrl+I) opens `QuickCapture` (see [Universal Capture](#universal-capture)).
@@ -502,12 +504,12 @@ All writes are local (offline-safe). The proxy (`src/proxy.ts`) preserves `/shar
 
 ## Cross-App Links & References
 
-Any entity can reference any other (task→bookmark, quote→note, reminder→task, note→anything, …) via inline `[[ ]]` chips. Everything is stored in the generic `edges` table (the same table that backs notes' `[[wikilinks]]`), so there are no new tables.
+Any entity can reference any other (task→bookmark, quote→note, event→note, note→anything, …) via inline `[[ ]]` chips. Everything is stored in the generic `edges` table (the same table that backs notes' `[[wikilinks]]`), so there are no new tables.
 
 - **Token grammar** — `src/lib/links/tokens.ts`. `[[label|kind:id]]` is an id-bound link to any entity (what new inserts produce); a bare `[[label]]` resolves by page title. `stripRefs(text)` returns the label-only text for any surface that shows the raw string without an editor (command palette, dashboard, lists, graph labels). `parseRefSegments` splits a string into text runs + id-bound chips for the editor.
 - **Edges** — `source_block_id → target_id`, both an entity id that may be a block id, a task id, or a page id (all uuids, globally unique). `type` is `page_ref` (note wikilink) or `ref` (id-bound); reference-consuming queries match `type IN ('ref','page_ref')`. `source_block_id` has no foreign key (a source may be a task, not only a block), so edge cleanup on entity delete is handled in app code (`deleteEntityEdges`, the block persister, `deleteNotePage`). Indexes on `edges(source_block_id)`, `edges(target_id)`, and `blocks(page_id, type)` keep linking and backlinks flat.
 - **Reconcile (single writer)** — `reconcileEntityRefs(sourceId, texts)` in `src/lib/links/links.ts` extracts tokens from the text a source owns and diff-writes its edge rows to match (deterministic uuidv5 ids; **serialized per source id** to avoid concurrent-insert races). Every source has exactly one reconcile call site, so nothing clobbers. **Tasks roll up to the root task**: a subtask's references attach to the parent task's id, as the deduped union of the root title + all subtask titles — a task + its subtasks is one graph node.
-- **Authoring** — `src/components/links/`. `EntityRefNode` is a shared inline atomic Tiptap node rendered as a chip (Lucide kind-icon + accent link-underlined label; click dispatches an open event). `RefField` wraps a plain card field as a one-line rich editor hosting those chips — string in / string out, so the card keeps its own (debounced) column persistence; supports `singleLine`, `clearOnCommit`, `maxLength`, `readOnly`. Used by the notes editor and the four block-app cards (task title + subtasks + the add-subtask composer, bookmark note, quote text, reminder title). The `[[` picker is `RefMenuLayer` backed by `useEntitySearch`.
+- **Authoring** — `src/components/links/`. `EntityRefNode` is a shared inline atomic Tiptap node rendered as a chip (Lucide kind-icon + accent link-underlined label; click dispatches an open event). `RefField` wraps a plain card field as a one-line rich editor hosting those chips — string in / string out, so the card keeps its own (debounced) column persistence; supports `singleLine`, `clearOnCommit`, `maxLength`, `readOnly`. Used by the notes editor and the four block-app cards (task title + subtasks + the add-subtask composer, bookmark note, quote text, event title). The `[[` picker is `RefMenuLayer` backed by `useEntitySearch`.
 - **Backlinks** — `src/hooks/use-links.ts` + `src/lib/links/resolve.ts`. `useBacklinks(id)` resolves every inbound edge to `{kind,id,label}` (deduped; note sources collapse block→page). `LinkedFrom` (the four cards) is a compact "N linked" popover with the local Connections graph + the linking-items list; `Backlinks` (notes rail) shows cross-app inbound chips inline while the rail's rich list keeps note→note. A reference chip anywhere dispatches an open event that `CommandPaletteProvider` handles (notes navigate; the four open in `EntityPopup`).
 - **Graph** — the notes graph is a universal one-node-per-item graph over these edges; see the notes graph module above.
 
@@ -519,16 +521,42 @@ Route: `src/app/quotes/page.tsx`. Quotes are `type:"quote"` blocks on one hidden
 
 Route: `src/app/bookmarks/page.tsx`. Bookmarks are `type:"bookmark"` blocks on one hidden system page (`kind:"bookmark"`, key `"library"`). `src/lib/bookmarks/bookmarks.ts` is the CRUD layer (content JSON holds `url/title/note/tags/favorite/unread/addedAt`; tag ids reuse the shared `tags` table), `src/hooks/use-bookmarks.ts` the live query, `BookmarkCard` the editable card (favicon, title, note, tags, read/unread, star, per-card refresh), and `DashboardBookmarks` the unread-weighted daily "revisit". Titles are fetched server-side via `/api/bookmark-metadata` (auth-gated + SSRF-guarded); a single omni-field on the page does both search and paste-to-add.
 
-## Reminders App Structure
+## Events App Structure
 
-Route: `src/app/reminders/page.tsx`. Reminders are `type:"reminder"` blocks on one hidden system page (`kind:"reminder"`, key `"schedules"`) — no schema change. Each block's content JSON holds a task template (`title/link/tags/priority`), a `schedule`, a `daysBefore` lead time, `active`, and materialization bookkeeping (`lastMaterializedKey`, `lastTaskId`).
+Routes: `src/app/events/page.tsx` (the grid) + `src/app/events/[id]/page.tsx` (single-subject detail). Events replaced the old Reminders app: it still schedules tasks, but its core is now an **occurrence log** — a dated history of things that happen — and an occurrence can attach to *any* entity, not just an event.
 
-- `src/lib/reminders/schedule.ts` — the pure, DB-free recurrence engine (like `capture.ts`, so tests don't load PowerSync): the `ReminderSchedule` union (`once`/`weekly`/`monthly`/`yearly`), `nextOccurrenceOnOrAfter` (local-day, month-length clamping), `formatSchedule`, and the `dueOccurrence` lead-window decision.
-- `src/lib/reminders/reminders.ts` — CRUD over the system page (mirrors `bookmarks.ts`), plus `markMaterialized` (deactivates a fired `once`).
-- `src/lib/reminders/materialize.ts` — `materializeDueReminders()`, the client-side reconciler. There is no server cron: it's fired fire-and-forget from a mount effect (`useReminderMaterializer` on the dashboard + `/reminders`). For each due occurrence it creates a Task via `createTask` using a **deterministic id** (`uuidv5(reminderId:occurrenceKey)`) so cross-device double-fires collapse to one row; `lastMaterializedKey` stops recreation after a task is resolved; a **pending-gate** (skip while the previous task is still `pending`) stops pile-up.
-- `src/hooks/use-reminders.ts` — the settle-latched live query + `useReminderMaterializer`. `src/components/reminders/ReminderCard.tsx` is the always-editable inline card (title + inline schedule builder + lead time + priority + tags, autosaving like `QuoteCard`) — no modal; "New reminder" creates a blank card that autofocuses.
+Two block types on one hidden system page (`kind:"event"`, key `"log"`, title "Events") — no schema change:
 
-`createTask` (`src/lib/tasks/create-task.ts`) takes an optional deterministic `id` for this.
+- **Event** (`type:"event"`) — a tracked "thing". Content JSON: `title/link/tags/priority`, an optional `schedule` (`null` = log-only, no task materialization), a `daysBefore` lead time, `defaultPlace`, an optional external subject (`subjectKind`/`subjectId`), `active`, and materialization bookkeeping (`lastMaterializedKey`/`lastTaskId`/`lastLoggedKey`).
+- **Occurrence** (`type:"occurrence"`) — one dated record ("Serviced · Jul 25"). Content JSON: `at` (ISO instant), `action` (the free "what happened" string), `place`, `note`, `source` (`manual`/`task`/`schedule`), and its subject (`subjectId` + a denormalized `subjectKind`).
+
+**Occurrences attach to any subject.** The subject id lives in `content.subjectId` (queried via the `OCCURRENCE_SUBJECT_SQL` expression), NOT `parent_block_id` — a subject may be a note page id or task id that the `blocks.parent_block_id` FK would reject, so occurrence rows keep `parent_block_id` NULL. An event with no `subjectId` is its own subject; set one (the "About…" picker) and the event's logs land on that other thing's timeline. Occurrences never write to the `edges` table and `RefKind` has no `occurrence`, so they stay out of backlinks/graph/search automatically.
+
+Files:
+
+- `src/lib/events/events.ts` — event + occurrence CRUD. `createEvent` (blank, log-only; accepts a caller-supplied `id` so navigation can beat the write and no empty card flashes first), `logOccurrence`/`updateOccurrence`/`deleteOccurrence`, `deleteEvent` (cascades the event's own occurrences), and `deleteSubjectOccurrences(subjectId)` — called from each app's delete path so a deleted note/bookmark/quote/task leaves no orphan logs (there is no shared cross-app delete chokepoint). Pure stats helpers (`computeThingStats`/`statsFromAggregate`/`formatDays`) derive last-done, average gap, expected cadence, overdue, and next-due.
+- `src/lib/events/schedule.ts` — the pure, DB-free recurrence engine (like `capture.ts`, so tests don't load PowerSync): the `EventSchedule` union (`once`/`weekly`/`monthly`/`yearly`/`interval`), `nextOccurrenceOnOrAfter` (local-calendar, month-length clamping; `interval` is anchored to the last occurrence so "every N days" self-corrects to when the thing actually happened), `formatSchedule`/`describeSchedule`, and the `dueOccurrence` lead-window decision.
+- `src/lib/events/actions.ts` — pure, DB-free helpers that keep the free-text `action` from fragmenting: `caseKey` (case/whitespace key → silent-snap + dedup), `stemKey` (inflection key → suggestions only), `editDistance`, `buildActionVocabulary`, and `rankActionMatches` (→ `exact`/`reuse`/`didYouMean` buckets). Stemming and fuzzy matching only *suggest*; the stored surface form is never rewritten, so a bad stem degrades a hint, never corrupts data.
+- `src/lib/events/materialize.ts` — `materializeDueEvents()`, the client-side reconciler (no server cron; fired fire-and-forget from `useEventMaterializer` on the dashboard + `/events`; idempotent, StrictMode-safe). Two jobs: **complete → log** (a scheduled task now `completed` records an occurrence at its completion time, closing the doing→record loop so cadence stays accurate and an `interval` advances) and **due → materialize** (turn a due schedule into a Task via a **deterministic** `uuidv5(eventId:occurrenceKey)` id, gated by `lastMaterializedKey` + a **pending-gate**). Both log to the *effective subject* = `subjectId ?? eventId`.
+- `src/hooks/use-events.ts` — live queries: `useEvents`/`useEvent`, `useOccurrences` (all, or one subject's), `useThingAggregates` (per-subject count/first/last computed in SQLite so the grid never materializes rows in JS), `useActionVocabulary`, `useSubjectLabels` (resolve subject ids → labels per kind for the cross-kind feed), and `useEventMaterializer`.
+
+Components (`src/components/events/`): `EventCard` (grid card) and `SubjectCard` (a non-event subject in the feed); `OccurrenceLog` (the timeline); `EventLogNow` (the "Log" Compose — opens as a Popover only on a desktop card, a Dialog everywhere else; hosts `ActionInput`); `ActionInput` (typeahead/dedup/fuzzy over the vocabulary — rendered as a positioned `div`, not a popover, so it can nest inside the Compose popover); `EventScheduleDialog` (schedule + lead time + priority + the optional "About…" subject picker); and `EventHeatmap`.
+
+**Logging from other apps:** a "Log an event" affordance lives on the notes details rail (`NotesDetailsRail`) and editor header, and on the bookmark/quote cards and task card — each passes its own `{subjectKind, subjectId}` to `EventLogNow`. The corresponding deletes wire `deleteSubjectOccurrences` into `bookmarks.ts`, `quotes.ts`, and `TaskCard`'s permanent-delete branch.
+
+`createTask` (`src/lib/tasks/create-task.ts`) takes an optional deterministic `id`, used by the materializer.
+
+## Using Events
+
+Every occurrence is one dated record — *what happened, when* — belonging to one subject; from that history Dash derives cadence, next-due, and overdue, and a schedule (if any) turns the same event into a task generator. The generic shapes:
+
+- **Pure log (no schedule).** Make an event "Call Mom" and hit Log each time with the action "Called". Dash shows how often you call and when you last did; no tasks are created (`schedule = null`).
+- **Self-correcting chore (`interval`).** "Service the car — every 6 months", lead 7 days. Seven days before it's due a task appears in Tasks; completing it logs a "Serviced" occurrence and the 6-month clock restarts from that date, not from the calendar.
+- **Calendar reminder.** "Pay rent — monthly on the 1st", lead 3 days → a task each month on the 28th.
+- **Log onto another thing.** On a note (or bookmark/quote/task), hit "Log an event" and type an action → the note grows its own timeline, and the entry also appears in the Events feed under the note's name (subject resolved by `useSubjectLabels`).
+- **Scheduled event *about* another thing.** Give an event an "About…" subject (say, the Car note): its reminder tasks still fire, but each completion logs onto the Car note's timeline instead of the event's own (effective subject = `subjectId ?? eventId`).
+
+Reusing an action word: typing an `action` autocompletes from words already used; a case/spacing match ("Serviced" vs "serviced") snaps together silently on commit, while a tense or typo ("Servicing", "Servcied") is offered as *did you mean* and never rewrites what you typed.
 
 ## Data And Write Flow
 
@@ -575,11 +603,11 @@ Important implementation notes:
 
 ## App Registry And Visual Identity
 
-- `src/lib/shared/apps.ts` is the central registry for each app's route, name, icon, and accent (`iconBg`/`iconText`/`hoverText`) — currently tasks/tracker/notes/quotes/bookmarks/reminders
+- `src/lib/shared/apps.ts` is the central registry for each app's route, name, icon, and accent (`iconBg`/`iconText`/`hoverText`) — currently tasks/tracker/notes/quotes/bookmarks/events
 - It also exports the shared top-bar button primitives `HEADER_ACTION_BASE` / `HEADER_ACTION_NEUTRAL`. Convention: each app header spends its accent on **one** primary action (the "New \<item\>" create button, via `app.accent.hoverText`); every other top-bar button uses `HEADER_ACTION_NEUTRAL` so headers stay calm and consistent across apps
 - The header, switcher, and mobile FAB shell all rely on this registry; adding an entry surfaces the app in `AppSwitcher` and `AppsFab` automatically (the dashboard bar order lives in `AppsFab`'s `DASHBOARD_ORDER`)
 - If a new app is added, start there first
-- **Reusing the notes backend:** Quotes, Bookmarks, and Reminders are feature-owned "system pages" (`src/lib/notes/system-pages.ts` — a `kind` tag + deterministic `uuidv5` id, hidden from `/notes`). This is the pattern for any app that wants storage/sync without a schema change; extend `SystemPageKind` and add a thin CRUD lib + hook (mirror `src/lib/quotes/`, `src/lib/bookmarks/`, or `src/lib/reminders/`).
+- **Reusing the notes backend:** Quotes, Bookmarks, and Events are feature-owned "system pages" (`src/lib/notes/system-pages.ts` — a `kind` tag + deterministic `uuidv5` id, hidden from `/notes`). This is the pattern for any app that wants storage/sync without a schema change; extend `SystemPageKind` and add a thin CRUD lib + hook (mirror `src/lib/quotes/`, `src/lib/bookmarks/`, or `src/lib/events/`).
 
 The notes app follows that same pattern, so new shell behavior should extend the shared primitives instead of introducing app-only chrome.
 
@@ -675,9 +703,9 @@ See [tests/README.md](../tests/README.md) for the current suite map.
 
 ### Project Organization
 
-- `src/app/` — App Router routes for launcher, tasks, tracker, notes, quotes, bookmarks, login, share-target, and the metadata API route
-- `src/components/` — shared shell UI plus app-specific task, tracker, notes, quotes, bookmarks, and capture components
-- `src/lib/shared/`, `src/lib/tasks/`, `src/lib/tracker/`, `src/lib/notes/`, `src/lib/quotes/`, `src/lib/bookmarks/` — helpers grouped by responsibility
+- `src/app/` — App Router routes for launcher, tasks, tracker, notes, quotes, bookmarks, events, login, share-target, and the metadata API route
+- `src/components/` — shared shell UI plus app-specific task, tracker, notes, quotes, bookmarks, events, and capture components
+- `src/lib/shared/`, `src/lib/tasks/`, `src/lib/tracker/`, `src/lib/notes/`, `src/lib/quotes/`, `src/lib/bookmarks/`, `src/lib/events/` — helpers grouped by responsibility
 - `src/lib/powersync/` — local SQLite schema, database bootstrap, and sync connector
 - `tests/` — Vitest suites grouped by app plus shared test helpers
 
@@ -685,9 +713,10 @@ Feature entry points:
 
 - `src/app/tasks/page.tsx` + `src/components/tasks/`
 - `src/app/tracker/page.tsx` + `src/components/tracker/`
-- `src/app/notes/page.tsx` + `src/components/notes/page/` + `src/components/notes/editor/`
+- `src/app/notes/layout.tsx` + `src/app/notes/[[...slug]]/` + `src/components/notes/page/` + `src/components/notes/editor/`
 - `src/app/quotes/page.tsx` + `src/components/quotes/` + `src/lib/quotes/`
 - `src/app/bookmarks/page.tsx` + `src/components/bookmarks/` + `src/lib/bookmarks/`
+- `src/app/events/` + `src/components/events/` + `src/lib/events/`
 - Capture: `src/app/share/page.tsx` + `src/components/capture/` + `src/lib/shared/capture*.ts`
 
 ## When To Update This Document

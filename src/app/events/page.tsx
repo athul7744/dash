@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { v4 as uuidv4 } from "uuid";
 import { format } from "date-fns";
 import { CalendarClock, MapPin, Plus, Search } from "lucide-react";
 
@@ -39,9 +40,12 @@ export default function EventsPage() {
   const [tab, setTab] = useState<Tab>("all");
   const [timelineQuery, setTimelineQuery] = useState("");
 
-  const addEvent = async () => {
-    const id = await createEvent();
+  // Navigate to the new event first (with a pre-generated id), then write it, so
+  // the list never flashes an empty card before the editor opens.
+  const addEvent = () => {
+    const id = uuidv4();
     router.push(`/events/${id}`);
+    void createEvent({ id });
   };
   useNewItemParam(addEvent, !isLoading);
 

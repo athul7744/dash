@@ -178,6 +178,9 @@ export function parseOccurrenceContent(raw: string | null | undefined): Occurren
 }
 
 export interface CreateEventInput {
+  /** Pre-generated block id — lets the caller navigate to the new event before
+      this write lands, so no empty card flashes in the list first. */
+  id?: string;
   title?: string;
   link?: string;
   tags?: string[];
@@ -195,7 +198,7 @@ export interface CreateEventInput {
 export async function createEvent(input: CreateEventInput = {}): Promise<string> {
   const pageId = await ensureEventsPage();
   const userId = await getCurrentUserId();
-  const id = uuidv4();
+  const id = input.id ?? uuidv4();
   const now = new Date().toISOString();
   const sortRank = await nextSortRank(pageId, EVENT_BLOCK_TYPE);
   const content: EventContent = {

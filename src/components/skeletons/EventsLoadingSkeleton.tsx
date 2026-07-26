@@ -3,13 +3,13 @@
 import { AppHeader } from "@/components/AppHeader";
 import { getApp } from "@/lib/shared/apps";
 
-const remindersApp = getApp("reminders");
+const eventsApp = getApp("events");
 
 function Bone({ className }: { className: string }) {
   return <div className={`animate-pulse rounded bg-muted ${className}`} />;
 }
 
-function ReminderCardBone() {
+function EventCardBone() {
   return (
     <div className="mb-5 break-inside-avoid rounded-2xl border border-border/65 bg-card/60 p-5 sm:p-6">
       <div className="flex items-start gap-3">
@@ -29,14 +29,14 @@ function ReminderCardBone() {
 }
 
 /**
- * Full-page reminders skeleton. Shared by the route `loading.tsx` (navigation
+ * Full-page events skeleton. Shared by the route `loading.tsx` (navigation
  * fallback) and the cold-start boot skeleton so both look identical. Mirrors
- * the /reminders page: sticky header, an intro line, then a card list.
+ * the /events page: sticky header, an intro line, then a card list.
  */
-export function RemindersLoadingSkeleton() {
+export function EventsLoadingSkeleton() {
   return (
     <>
-      <AppHeader app={remindersApp} />
+      <AppHeader app={eventsApp} />
       <div className="mx-auto max-w-7xl px-[var(--app-gutter-x)] py-8 pb-40">
         <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 py-6 sm:py-10">
           <Bone className="h-11 w-11 rounded-xl" />
@@ -50,12 +50,12 @@ export function RemindersLoadingSkeleton() {
         </div>
 
         <div className="columns-1 gap-5 md:columns-2 lg:columns-3">
-          <ReminderCardBone />
-          <ReminderCardBone />
-          <ReminderCardBone />
-          <ReminderCardBone />
-          <ReminderCardBone />
-          <ReminderCardBone />
+          <EventCardBone />
+          <EventCardBone />
+          <EventCardBone />
+          <EventCardBone />
+          <EventCardBone />
+          <EventCardBone />
         </div>
       </div>
     </>

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Reminders | Dash.",
-  icons: { icon: "/icon-reminders.svg" },
+  title: "Events | Dash.",
+  icons: { icon: "/icon-events.svg" },
 };
 
-export default function RemindersLayout({
+export default function EventsLayout({
   children,
 }: {
   children: React.ReactNode;

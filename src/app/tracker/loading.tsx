@@ -1,14 +1,8 @@
-"use client";
-
-import { usePathname } from "next/navigation";
-
-import { TrackerLoadingSkeleton } from "@/components/skeletons/TrackerLoadingSkeleton";
-
-// Now that the view is a path segment (/tracker/<view>), the route loading UI
-// can read it and show the matching skeleton — a client loading.tsx sees the
-// destination pathname during the transition (params aren't available here).
+// The tracker UI renders inside the persistent layout shell (TrackerWorkspace),
+// which shows its own view-scoped skeletons; a cold load is covered by
+// AppBootSkeleton. The route page is empty, so its loading boundary renders
+// nothing — this avoids a skeleton flashing over the persistent workspace when
+// switching views.
 export default function Loading() {
-  const seg = usePathname().split("/")[2];
-  const view = seg === "activity" || seg === "mood" ? seg : "week";
-  return <TrackerLoadingSkeleton view={view} />;
+  return null;
 }

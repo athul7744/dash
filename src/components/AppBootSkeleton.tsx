@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import { BookmarksLoadingSkeleton } from "@/components/skeletons/BookmarksLoadingSkeleton";
 import { DashboardLoadingSkeleton } from "@/components/skeletons/DashboardLoadingSkeleton";
@@ -14,31 +13,20 @@ import { TrackerLoadingSkeleton } from "@/components/skeletons/TrackerLoadingSke
 
 type TrackerView = "week" | "activity" | "mood";
 
-/** Reads `?view=` so a refresh on Activity/Mood boots into the matching skeleton. */
-function TrackerBoot() {
-  const view = (useSearchParams().get("view") as TrackerView) || "week";
-  return <TrackerLoadingSkeleton view={view} />;
-}
-
 /**
  * Cold-start fallback shown while the local PowerSync DB opens (see
- * PowerSyncProvider). Picks the route-shaped skeleton by pathname — and, for
- * tracker, by query param — so the boot screen matches the destination
+ * PowerSyncProvider). Picks the route-shaped skeleton by pathname — including
+ * the tracker/notes view segment — so the boot screen matches the destination
  * with no blank "Loading…" gap and no wrong-then-right skeleton swap.
- *
- * `useSearchParams` is wrapped in Suspense (Next requirement); its fallback is
- * the param-less default, which is also what each route's own `loading.tsx`
- * shows during navigation.
  */
 export function AppBootSkeleton() {
   const path = usePathname();
 
   if (path.startsWith("/tracker")) {
-    return (
-      <Suspense fallback={<TrackerLoadingSkeleton />}>
-        <TrackerBoot />
-      </Suspense>
-    );
+    // /tracker/<view>; bare /tracker (server-redirected to week) also lands here.
+    const seg = path.split("/")[2];
+    const view: TrackerView = seg === "activity" || seg === "mood" ? seg : "week";
+    return <TrackerLoadingSkeleton view={view} />;
   }
   if (path.startsWith("/tasks")) return <TasksLoadingSkeleton />;
   if (path.startsWith("/quotes")) return <QuotesLoadingSkeleton />;

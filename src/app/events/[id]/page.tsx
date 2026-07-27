@@ -101,7 +101,7 @@ function EventDetail({ event }: { event: EventItem }) {
         }
       />
 
-      <div className="mx-auto max-w-2xl px-[var(--app-gutter-x)] py-8 pb-40 lg:max-w-7xl">
+      <div className="skeleton-settle-in mx-auto max-w-2xl px-[var(--app-gutter-x)] py-8 pb-40 lg:max-w-7xl">
         <Link
           href="/events"
           className="mb-5 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -269,7 +269,7 @@ function SubjectDetail({ subjectId }: { subjectId: string }) {
     <>
       <AppHeader app={eventsApp} />
 
-      <div className="mx-auto max-w-2xl px-[var(--app-gutter-x)] py-8 pb-40 lg:max-w-7xl">
+      <div className="skeleton-settle-in mx-auto max-w-2xl px-[var(--app-gutter-x)] py-8 pb-40 lg:max-w-7xl">
         <Link
           href="/events"
           className="mb-5 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"

@@ -49,7 +49,7 @@ export default function QuotesPage() {
         }
       />
 
-      <div className="mx-auto max-w-7xl px-[var(--app-gutter-x)] py-8 pb-40">
+      <div className="skeleton-settle-in mx-auto max-w-7xl px-[var(--app-gutter-x)] py-8 pb-40">
         {quotes.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
             <div className="rounded-2xl bg-rose-500/10 p-3 dark:bg-rose-500/20">

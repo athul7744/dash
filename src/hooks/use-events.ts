@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@powersync/react";
 
 import { useCurrentUserId } from "@/hooks/use-current-user-id";
@@ -64,7 +64,17 @@ export function useOccurrences(opts: { thingId?: string; limit?: number } = {}):
   const sql = pageId
     ? `SELECT id, content FROM blocks WHERE ${where.join(" AND ")} ORDER BY json_extract(content, '$.at') DESC${limit ? ` LIMIT ${Math.max(1, Math.floor(limit))}` : ""}`
     : "SELECT id, content FROM blocks WHERE 1 = 0";
-  const { data = [], isLoading } = useQuery<OccurrenceRow>(sql, pageId ? args : []);
+  const { data = [], isLoading, isFetching } = useQuery<OccurrenceRow>(sql, pageId ? args : [], { reportFetching: true });
+
+  // Settle latch (mirrors useSystemPageBlocks): while the user id resolves,
+  // `pageId` is null and the query is the empty `WHERE 1 = 0` stub; and when it
+  // swaps to the real query, useQuery briefly reports the old empty result with
+  // isLoading=false before re-running. Both would read as "loaded, nothing here"
+  // and flash a "not found" on the subject-detail page. Stay loading until the
+  // real query has genuinely settled (not fetching); once settled, never flip
+  // back so live updates don't blank the view.
+  const [settled, setSettled] = useState(false);
+  if (!settled && pageId !== null && !isLoading && !isFetching) setSettled(true);
 
   const occurrences = useMemo<Occurrence[]>(
     () =>
@@ -74,7 +84,7 @@ export function useOccurrences(opts: { thingId?: string; limit?: number } = {}):
       }),
     [data],
   );
-  return { occurrences, isLoading };
+  return { occurrences, isLoading: !settled };
 }
 
 export type ThingAggregate = { count: number; firstAt: string | null; lastAt: string | null };

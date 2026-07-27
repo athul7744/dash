@@ -100,6 +100,10 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Skeleton loaders — sheen is the shimmer highlight (lighter than --muted);
+     glow is the aurora accent. See the .skeleton* utilities below. */
+  --skeleton-sheen: oklch(0.995 0 0);
+  --skeleton-glow: oklch(0.58 0.19 295 / 0.16);
 }
 
 @media (min-width: 768px) {
@@ -140,6 +144,8 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --skeleton-sheen: oklch(0.24 0 0);
+  --skeleton-glow: oklch(0.72 0.16 300 / 0.22);
 }
 
 /* ── Selectable display / heading font ──
@@ -259,6 +265,82 @@ body[data-display-font="bricolage"] {
 .animate-stagger > *:nth-child(8) { animation-delay: calc(var(--motion-stagger-step) * 7); }
 .animate-stagger > *:nth-child(9) { animation-delay: calc(var(--motion-stagger-step) * 8); }
 .animate-stagger > *:nth-child(10) { animation-delay: calc(var(--motion-stagger-step) * 9); }
+
+/* ── Skeleton loaders ──────────────────────────────────────────────────────
+   One vocabulary for every loading placeholder, all on the house easing curve.
+   `.skeleton`         — the default: a light band sweeps across the box (shimmer).
+   `.skeleton-static`  — a plain --muted box (bones inside a wave/aurora surface,
+                          so motion lives on the parent, not every child).
+   `.skeleton-wave`    — container: direct children breathe opacity in a top-down
+                          staggered wave (long scroll lists). Bones inside stay static.
+   `.skeleton-aurora`  — an accent glow drifts behind frosted placeholders (reserve
+                          for large canvases: tracker grid, dashboard, graph boot).
+   Reduced motion is handled by the global block below — all three fall to static. */
+@keyframes skeletonSweep {
+  from { background-position: 130% 0; }
+  to { background-position: -30% 0; }
+}
+@keyframes skeletonBreathe {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+@keyframes skeletonDrift {
+  from { transform: translate3d(-6%, -4%, 0) scale(1); }
+  to { transform: translate3d(8%, 6%, 0) scale(1.12); }
+}
+
+/* Radius is left to the caller (a rounded-* utility on the component) so it
+   stays overridable — this rule is unlayered and would otherwise beat them. */
+.skeleton {
+  background-color: var(--muted);
+  background-image: linear-gradient(100deg, transparent 30%, var(--skeleton-sheen) 50%, transparent 70%);
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: skeletonSweep 1.7s var(--motion-ease-standard) infinite;
+}
+
+.skeleton-wave > * {
+  animation: skeletonBreathe 1.8s ease-in-out infinite;
+}
+.skeleton-wave > *:nth-child(1) { animation-delay: calc(var(--motion-stagger-step) * 0); }
+.skeleton-wave > *:nth-child(2) { animation-delay: calc(var(--motion-stagger-step) * 2); }
+.skeleton-wave > *:nth-child(3) { animation-delay: calc(var(--motion-stagger-step) * 4); }
+.skeleton-wave > *:nth-child(4) { animation-delay: calc(var(--motion-stagger-step) * 6); }
+.skeleton-wave > *:nth-child(5) { animation-delay: calc(var(--motion-stagger-step) * 8); }
+.skeleton-wave > *:nth-child(6) { animation-delay: calc(var(--motion-stagger-step) * 10); }
+.skeleton-wave > *:nth-child(7) { animation-delay: calc(var(--motion-stagger-step) * 12); }
+.skeleton-wave > *:nth-child(8) { animation-delay: calc(var(--motion-stagger-step) * 14); }
+/* Bones nested inside a wave card (or anywhere in an aurora) don't shimmer —
+   the parent carries the motion. A bone that is itself a direct wave child
+   still breathes via the rule above. */
+.skeleton-wave > * .skeleton,
+.skeleton-aurora .skeleton {
+  background-image: none;
+  animation: none;
+}
+
+.skeleton-aurora {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--muted);
+  isolation: isolate;
+}
+.skeleton-aurora__glow {
+  position: absolute;
+  inset: -50% -25%;
+  z-index: -1;
+  filter: blur(38px);
+  pointer-events: none;
+  background:
+    radial-gradient(38% 42% at 25% 35%, var(--skeleton-glow) 0%, transparent 60%),
+    radial-gradient(34% 40% at 72% 60%, var(--skeleton-glow) 0%, transparent 62%);
+  animation: skeletonDrift 7s ease-in-out infinite alternate;
+}
+
+/* Skeleton→content handoff: content settles in when it replaces the skeleton. */
+.skeleton-settle-in {
+  animation: fadeSlideIn var(--motion-duration-slow) var(--motion-ease-standard) both;
+}
 
 /* Smooth all property transitions by default on interactive elements */
 .transition-smooth {

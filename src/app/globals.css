@@ -319,12 +319,11 @@ body[data-display-font="bricolage"] {
   animation: none;
 }
 
-.skeleton-aurora {
-  position: relative;
-  overflow: hidden;
-  background-color: var(--muted);
-  isolation: isolate;
-}
+/* `.skeleton-aurora` is only a marker (for the glow + the descendant reset
+   above). Its box styling — position/overflow/isolation/background — lives as
+   overridable utility defaults on the SkeletonAurora component, so a caller can
+   override them (e.g. the full-screen dashboard splash needs `absolute`, not
+   the default `relative`); an unlayered rule here would beat those utilities. */
 .skeleton-aurora__glow {
   position: absolute;
   inset: -50% -25%;

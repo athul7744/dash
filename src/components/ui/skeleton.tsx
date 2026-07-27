@@ -35,8 +35,11 @@ export function SkeletonWave({ className, ...props }: ComponentProps<"div">) {
  * layer itself, then `children` above it.
  */
 export function SkeletonAurora({ className, children, ...props }: ComponentProps<"div">) {
+  // Box styling is defaults (not in `.skeleton-aurora`) so callers can override
+  // via tailwind-merge — e.g. the full-screen dashboard splash passes `absolute
+  // inset-0` to override `relative`, and its own `bg-*` to override `bg-muted`.
   return (
-    <div className={cn("skeleton-aurora", className)} {...props}>
+    <div className={cn("skeleton-aurora relative isolate overflow-hidden bg-muted", className)} {...props}>
       <div className="skeleton-aurora__glow" aria-hidden />
       {children}
     </div>

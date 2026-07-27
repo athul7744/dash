@@ -13,7 +13,7 @@ import { SkeletonAurora } from "@/components/ui/skeleton";
  */
 export function DashboardLoadingSkeleton() {
   return (
-    <SkeletonAurora className="absolute inset-0 flex flex-col items-center justify-center gap-5">
+    <SkeletonAurora className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-background">
       <span className="animate-fade-slide-in font-heading text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
         Dash<span className="text-primary">.</span>
       </span>

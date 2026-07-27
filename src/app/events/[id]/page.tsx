@@ -115,7 +115,7 @@ function EventDetail({ event }: { event: EventItem }) {
             {/* ── hero ── */}
             <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-muted-foreground">
+            <div className="font-heading text-sm font-semibold text-muted-foreground">
               Event · {s ? "Scheduled" : "Log only"}
             </div>
             <RefField
@@ -136,7 +136,7 @@ function EventDetail({ event }: { event: EventItem }) {
               }}
               onCommit={commitTitle}
               onBlur={commitTitle}
-              className={cn("mt-1.5 w-full bg-transparent font-serif text-2xl font-semibold text-foreground", !event.active && "line-through")}
+              className={cn("mt-1.5 w-full bg-transparent font-heading text-2xl font-semibold text-foreground", !event.active && "line-through")}
             />
 
             <div className="mt-3 flex flex-wrap items-center gap-2.5 text-sm">
@@ -191,7 +191,7 @@ function EventDetail({ event }: { event: EventItem }) {
         {/* ── heatmap ── */}
         <div className="mt-6 rounded-xl border border-border/65 bg-card/50 p-4">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-[11px] font-semibold text-muted-foreground">A year of this</h2>
+            <h2 className="font-heading text-[11px] font-semibold text-muted-foreground">A year of this</h2>
             <span className="text-xs text-muted-foreground/60">{stats.count} occurrences</span>
           </div>
           <EventHeatmap dates={occurrences.map((o) => o.at)} />
@@ -202,7 +202,7 @@ function EventDetail({ event }: { event: EventItem }) {
           {/* ── RIGHT: the log ── */}
           <div className="mt-8 min-w-0 lg:mt-0">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-muted-foreground">Logs</h2>
+              <h2 className="font-heading text-sm font-semibold text-muted-foreground">Logs</h2>
               <EventLogNow subjectId={subjectId} subjectKind={subjectKind} defaultPlace={event.defaultPlace} placeSuggestions={placeSuggestions} />
             </div>
             <OccurrenceLog subjectId={subjectId} placeSuggestions={placeSuggestions} />
@@ -282,8 +282,8 @@ function SubjectDetail({ subjectId }: { subjectId: string }) {
           <div className="min-w-0">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-muted-foreground">{kindLabel} · Timeline</div>
-                <h1 className="mt-1.5 flex items-center gap-2 font-serif text-2xl font-semibold text-foreground">
+                <div className="font-heading text-sm font-semibold text-muted-foreground">{kindLabel} · Timeline</div>
+                <h1 className="mt-1.5 flex items-center gap-2 font-heading text-2xl font-semibold text-foreground">
                   <Icon className="h-5 w-5 shrink-0" style={{ color: refKindAccentVar(kind) }} />
                   <span className="min-w-0 truncate">{label || "Untitled"}</span>
                 </h1>
@@ -319,7 +319,7 @@ function SubjectDetail({ subjectId }: { subjectId: string }) {
 
             <div className="mt-6 rounded-xl border border-border/65 bg-card/50 p-4">
               <div className="flex items-baseline justify-between">
-                <h2 className="text-[11px] font-semibold text-muted-foreground">A year of this</h2>
+                <h2 className="font-heading text-[11px] font-semibold text-muted-foreground">A year of this</h2>
                 <span className="text-xs text-muted-foreground/60">{stats.count} occurrences</span>
               </div>
               <EventHeatmap dates={occurrences.map((o) => o.at)} />
@@ -329,7 +329,7 @@ function SubjectDetail({ subjectId }: { subjectId: string }) {
           {/* ── RIGHT: the log ── */}
           <div className="mt-8 min-w-0 lg:mt-0">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-muted-foreground">Logs</h2>
+              <h2 className="font-heading text-sm font-semibold text-muted-foreground">Logs</h2>
               <EventLogNow subjectId={subjectId} subjectKind={kind} placeSuggestions={placeSuggestions} />
             </div>
             <OccurrenceLog subjectId={subjectId} placeSuggestions={placeSuggestions} />

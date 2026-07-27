@@ -44,7 +44,7 @@ export const APPS: AppConfig[] = [
     id: "tracker",
     name: "Tracker",
     description: "Log time blocks on a 24-hour paint grid",
-    href: "/tracker",
+    href: "/tracker/week",
     icon: Clock,
     accent: {
       iconBg: "bg-teal-500/10 dark:bg-teal-500/20",

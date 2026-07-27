@@ -37,7 +37,7 @@ export function TodayTracking() {
         <p className="mt-1 font-serif text-sm text-muted-foreground">You haven&apos;t logged today.</p>
       ) : null}
 
-      <Link href="/tracker" className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
+      <Link href="/tracker/week" className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
         Open tracker
         <ArrowRight className="h-3 w-3" />
       </Link>

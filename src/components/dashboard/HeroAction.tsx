@@ -69,7 +69,7 @@ export function HeroAction({ kind, topTask }: { kind: ActionKind; topTask: TaskR
         scrollToId("today-tasks", "#dashboard-quick-add");
         break;
       case "track":
-        router.push("/tracker");
+        router.push("/tracker/week");
         break;
       case "journal":
         scrollToId("weekly-journal");

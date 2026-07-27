@@ -8,6 +8,7 @@ import { DashboardLoadingSkeleton } from "@/components/skeletons/DashboardLoadin
 import { NotesLoadingSkeleton } from "@/components/skeletons/NotesLoadingSkeleton";
 import { QuotesLoadingSkeleton } from "@/components/skeletons/QuotesLoadingSkeleton";
 import { EventsLoadingSkeleton } from "@/components/skeletons/EventsLoadingSkeleton";
+import { EventDetailLoadingSkeleton } from "@/components/skeletons/EventDetailLoadingSkeleton";
 import { TasksLoadingSkeleton } from "@/components/skeletons/TasksLoadingSkeleton";
 import { TrackerLoadingSkeleton } from "@/components/skeletons/TrackerLoadingSkeleton";
 
@@ -42,7 +43,10 @@ export function AppBootSkeleton() {
   if (path.startsWith("/tasks")) return <TasksLoadingSkeleton />;
   if (path.startsWith("/quotes")) return <QuotesLoadingSkeleton />;
   if (path.startsWith("/bookmarks")) return <BookmarksLoadingSkeleton />;
-  if (path.startsWith("/events")) return <EventsLoadingSkeleton />;
+  // `/events/<id>` boots the single-subject detail skeleton, bare `/events` the grid.
+  if (path.startsWith("/events")) {
+    return /^\/events\/.+/.test(path) ? <EventDetailLoadingSkeleton /> : <EventsLoadingSkeleton />;
+  }
   if (path.startsWith("/notes")) {
     // `/notes/graph` boots the graph skeleton, `/notes/<id>` the editor, bare
     // `/notes` the overview.

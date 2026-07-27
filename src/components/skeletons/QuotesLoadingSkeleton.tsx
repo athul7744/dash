@@ -1,25 +1,27 @@
 "use client";
 
 import { AppHeader } from "@/components/AppHeader";
+import { Skeleton, SkeletonWave } from "@/components/ui/skeleton";
 import { getApp } from "@/lib/shared/apps";
 
 const quotesApp = getApp("quotes");
 
-function Bone({ className }: { className: string }) {
-  return <div className={`animate-pulse rounded bg-muted ${className}`} />;
-}
-
 function QuoteCardBone({ lines = 2 }: { lines?: number }) {
   return (
     <div className="mb-5 break-inside-avoid rounded-2xl border border-border/65 bg-card/60 p-5 sm:p-6">
-      <div className="flex items-start gap-3">
-        <Bone className="h-7 w-4 shrink-0" />
-        <div className="min-w-0 flex-1 space-y-2 pr-16">
-          {Array.from({ length: lines }).map((_, i) => (
-            <Bone key={i} className={i === lines - 1 ? "h-5 w-4/5" : "h-5 w-full"} />
-          ))}
-          <Bone className="mt-2 h-3.5 w-28" />
+      {/* Header: glyph tile (left) + action buttons (right). */}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
+        <div className="flex items-center gap-0.5">
+          <Skeleton className="h-7 w-7 rounded-full" />
+          <Skeleton className="h-7 w-7 rounded-full" />
         </div>
+      </div>
+      <div className="space-y-2">
+        {Array.from({ length: lines }).map((_, i) => (
+          <Skeleton key={i} className={i === lines - 1 ? "h-5 w-4/5" : "h-5 w-full"} />
+        ))}
+        <Skeleton className="mt-2 h-3.5 w-28" />
       </div>
     </div>
   );
@@ -38,29 +40,31 @@ export function QuotesLoadingSkeleton() {
         {/* Centered daily hero */}
         <div className="mx-auto flex max-w-2xl flex-col items-center gap-4 py-6 sm:py-12">
           <div className="flex items-center gap-2">
-            <Bone className="h-3.5 w-3.5 rounded-full" />
-            <Bone className="h-3 w-28" />
+            <Skeleton className="h-3.5 w-3.5 rounded-full" />
+            <Skeleton className="h-3 w-28" />
           </div>
-          <Bone className="h-7 w-4/5" />
-          <Bone className="h-7 w-3/5" />
-          <Bone className="mt-2 h-4 w-28" />
+          {/* Large centered open-quote drop-cap glyph. */}
+          <Skeleton className="h-12 w-9" />
+          <Skeleton className="h-7 w-4/5" />
+          <Skeleton className="h-7 w-3/5" />
+          <Skeleton className="mt-2 h-4 w-28" />
         </div>
 
         {/* Section break */}
         <div className="mt-12 mb-6 flex items-baseline gap-3 sm:mt-16">
-          <Bone className="h-3 w-20" />
+          <Skeleton className="h-3 w-20" />
           <div className="h-px flex-1 bg-border/40" />
         </div>
 
         {/* Masonry */}
-        <div className="columns-1 gap-5 md:columns-2 lg:columns-3">
+        <SkeletonWave className="columns-1 gap-5 md:columns-2 lg:columns-3">
           <QuoteCardBone lines={2} />
           <QuoteCardBone lines={3} />
           <QuoteCardBone lines={2} />
           <QuoteCardBone lines={4} />
           <QuoteCardBone lines={2} />
           <QuoteCardBone lines={3} />
-        </div>
+        </SkeletonWave>
       </div>
     </>
   );

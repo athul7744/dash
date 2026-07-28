@@ -98,7 +98,7 @@ export function DashboardQuote({
         </div>
 
         <figure>
-          <blockquote className="whitespace-pre-line font-serif text-xl leading-relaxed text-foreground sm:text-2xl">
+          <blockquote className="whitespace-pre-line font-serif text-lg leading-relaxed text-foreground sm:text-xl">
             {stripRefs(current.text)}
           </blockquote>
           {current.author ? (

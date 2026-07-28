@@ -117,7 +117,7 @@ export function DashboardBookmarks({
             <Favicon url={current.url} className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-medium leading-snug text-foreground transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-400">
+            <p className="truncate text-base font-medium leading-snug text-foreground transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-400">
               {current.title}
             </p>
             <span className="mt-0.5 block truncate text-sm text-muted-foreground">{host}</span>

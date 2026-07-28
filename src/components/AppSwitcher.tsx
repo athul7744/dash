@@ -71,7 +71,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
     );
   }, [current, open, size]);
 
-  const popoverClassName = size === "fab" ? "w-56 p-1.5 mb-2" : "w-56 p-1.5";
+  const popoverClassName = size === "fab" ? "w-64 p-1.5 mb-2" : "w-64 p-1.5";
   const popoverSide = size === "fab" ? "top" : "bottom";
   const popoverAlign = size === "fab" ? "start" : "start";
 
@@ -85,57 +85,61 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
             <div className="text-xs font-medium text-muted-foreground">
               Switch app
             </div>
-            <div className="flex items-center gap-1">
-              {showLogViewer && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    setLogDialogOpen(true);
-                  }}
-                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  aria-label="Open logs"
-                  title="Open logs"
-                >
-                  <Logs className="h-3.5 w-3.5" />
-                </button>
-              )}
-              <Link
-                href="/"
-                onClick={() => setOpen(false)}
+            {showLogViewer && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setLogDialogOpen(true);
+                }}
                 className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                aria-label="Open dashboard"
-                title="Open dashboard"
+                aria-label="Open logs"
+                title="Open logs"
               >
-                <LayoutDashboard className="h-3.5 w-3.5" />
-              </Link>
-            </div>
+                <Logs className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-          {APPS.map((app) => {
-            const AppIcon = app.icon;
-            const isActive = current?.id === app.id;
-            return (
-              <Link
-                key={app.id}
-                href={app.href}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors",
-                  isActive
-                    ? "bg-accent font-medium"
-                    : "hover:bg-accent/50"
-                )}
-              >
-                <div className={cn("rounded-md p-1.5", app.accent.iconBg)}>
-                  <AppIcon className={cn("h-4 w-4", app.accent.iconText)} />
-                </div>
-                <span className="flex-1 font-heading font-semibold tracking-tight">
-                  {app.name}<span className={app.accent.iconText}>.</span>
-                </span>
-                {isActive && <Check className="h-4 w-4 text-muted-foreground" />}
-              </Link>
-            );
-          })}
+          <div className="grid grid-cols-2 gap-0.5">
+            {APPS.map((app) => {
+              const AppIcon = app.icon;
+              const isActive = current?.id === app.id;
+              return (
+                <Link
+                  key={app.id}
+                  href={app.href}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-center transition-colors",
+                    isActive ? "bg-accent font-medium" : "hover:bg-accent/50",
+                  )}
+                >
+                  <div className={cn("rounded-lg p-2", app.accent.iconBg)}>
+                    <AppIcon className={cn("h-6 w-6", app.accent.iconText)} />
+                  </div>
+                  <span className="font-heading text-sm font-semibold tracking-tight">
+                    {app.name}<span className={app.accent.iconText}>.</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="my-1 h-px bg-border/60" />
+          <Link
+            href="/"
+            onClick={() => setOpen(false)}
+            className={cn(
+              "flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors",
+              !current ? "bg-accent font-medium" : "hover:bg-accent/50",
+            )}
+          >
+            <div className="rounded-md bg-muted p-1.5">
+              <LayoutDashboard className="h-4 w-4 text-foreground" />
+            </div>
+            <span className="flex-1 font-heading font-semibold tracking-tight">Dashboard</span>
+            {!current && <Check className="h-4 w-4 text-muted-foreground" />}
+          </Link>
         </PopoverContent>
       </Popover>
 

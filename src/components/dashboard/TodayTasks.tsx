@@ -75,7 +75,7 @@ export function TodayTasks() {
 
   return (
     <section id="today-tasks" className="scroll-mt-20">
-      <div className={cn("mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.16em]", TASKS_APP.accent.iconText)}>
+      <div className={cn("mb-3 font-heading text-[0.7rem] font-semibold uppercase tracking-[0.16em]", TASKS_APP.accent.iconText)}>
         Today&apos;s tasks
       </div>
 

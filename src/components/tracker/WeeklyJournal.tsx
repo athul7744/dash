@@ -28,7 +28,7 @@ function formatWeekLabel(weekStart: Date): string {
  * Stays mounted across weeks (user id fetched once); the inner editor is keyed
  * by page id so it re-hydrates as the week changes.
  */
-export function WeeklyJournal({ weekStart }: { weekStart: Date }) {
+export function WeeklyJournal({ weekStart, bare = false }: { weekStart: Date; bare?: boolean }) {
   const weekKey = format(weekStart, "yyyy-MM-dd");
   const weekLabel = formatWeekLabel(weekStart);
 
@@ -55,13 +55,24 @@ export function WeeklyJournal({ weekStart }: { weekStart: Date }) {
   const isOpen = openedKey === weekKey;
   const showEditor = page?.id === pageId || isOpen;
 
+  // `bare` drops the card chrome + internal header so the journal drops into the
+  // dashboard's type-led ledger (the caller supplies its own accent label); the
+  // tracker keeps the full titled surface.
   return (
-    <div className="journal-surface mx-auto w-full max-w-3xl rounded-2xl border border-border/65 bg-gradient-to-b from-card/70 to-card/40 p-5 shadow-[0_12px_38px_-28px_rgba(0,0,0,0.45)] transition-smooth sm:p-7">
-      <div className="mb-4 flex items-baseline gap-2 border-b border-border/60 pb-3">
-        <NotebookPen className="h-4 w-4 shrink-0 translate-y-0.5 text-muted-foreground" />
-        <span className="font-serif text-lg text-foreground">Journal</span>
-        <span className="font-serif text-sm text-muted-foreground">· {weekLabel}</span>
-      </div>
+    <div
+      className={
+        bare
+          ? "journal-surface w-full"
+          : "journal-surface mx-auto w-full max-w-3xl rounded-2xl border border-border/65 bg-gradient-to-b from-card/70 to-card/40 p-5 shadow-[0_12px_38px_-28px_rgba(0,0,0,0.45)] transition-smooth sm:p-7"
+      }
+    >
+      {!bare ? (
+        <div className="mb-4 flex items-baseline gap-2 border-b border-border/60 pb-3">
+          <NotebookPen className="h-4 w-4 shrink-0 translate-y-0.5 text-muted-foreground" />
+          <span className="font-serif text-lg text-foreground">Journal</span>
+          <span className="font-serif text-sm text-muted-foreground">· {weekLabel}</span>
+        </div>
+      ) : null}
 
       {showEditor && pageId ? (
         <SingleBlockEditor

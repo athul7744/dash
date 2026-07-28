@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, ExternalLink, Shuffle } from "lucide-react";
 
 import { Favicon } from "@/components/tasks/Favicon";
+import { dispatchOpenEntity } from "@/components/links/EntityRefNode";
 import { Reveal } from "@/components/motion/Reveal";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { pickDailyBookmark } from "@/lib/bookmarks/daily";
@@ -103,11 +104,15 @@ export function DashboardBookmarks({
   return (
     <Reveal root={root}>
       <section id="revisit-bookmark" className="scroll-mt-20">
-        <div className={cn("mb-2.5 text-[0.7rem] font-semibold uppercase tracking-[0.16em]", BOOKMARKS_APP.accent.iconText)}>
+        <div className={cn("mb-2.5 font-heading text-[0.7rem] font-semibold uppercase tracking-[0.16em]", BOOKMARKS_APP.accent.iconText)}>
           Revisit
         </div>
 
-        <a href={current.url} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => dispatchOpenEntity("bookmark", current.id)}
+          className="group flex w-full items-center gap-3 text-left"
+        >
           <span className="shrink-0">
             <Favicon url={current.url} className="h-5 w-5" />
           </span>
@@ -115,12 +120,9 @@ export function DashboardBookmarks({
             <p className="truncate text-lg font-medium leading-snug text-foreground transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-400">
               {current.title}
             </p>
-            <span className="mt-0.5 inline-flex max-w-full items-center gap-1 text-sm text-muted-foreground">
-              <span className="truncate">{host}</span>
-              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-            </span>
+            <span className="mt-0.5 block truncate text-sm text-muted-foreground">{host}</span>
           </div>
-        </a>
+        </button>
 
         <div className="mt-4 flex items-center gap-4">
           {showAnotherButton}

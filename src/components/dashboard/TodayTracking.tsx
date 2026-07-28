@@ -24,7 +24,7 @@ export function TodayTracking() {
 
   return (
     <section>
-      <div className={cn("mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.16em]", TRACKER_APP.accent.iconText)}>
+      <div className={cn("mb-3 font-heading text-[0.7rem] font-semibold uppercase tracking-[0.16em]", TRACKER_APP.accent.iconText)}>
         Tracked today
       </div>
 

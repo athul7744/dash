@@ -93,7 +93,7 @@ export function DashboardQuote({
   return (
     <Reveal root={root}>
       <section id="quote-of-the-day" className="scroll-mt-20">
-        <div className={cn("mb-2.5 text-[0.7rem] font-semibold uppercase tracking-[0.16em]", QUOTES_APP.accent.iconText)}>
+        <div className={cn("mb-2.5 font-heading text-[0.7rem] font-semibold uppercase tracking-[0.16em]", QUOTES_APP.accent.iconText)}>
           Quote of the day
         </div>
 

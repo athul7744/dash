@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { addDays, format, isSameDay, startOfWeek } from "date-fns";
+import { addDays, format, isAfter, isSameDay, startOfDay, startOfWeek } from "date-fns";
 
 import { DailyJournalEntry } from "@/components/journal/DailyJournalEntry";
 import { journalDayKey, useJournalEntryDays } from "@/hooks/use-journal";
@@ -19,6 +19,7 @@ const DOW = ["M", "T", "W", "T", "F", "S", "S"];
  */
 export function DashboardJournal() {
   const [today] = useState(() => new Date());
+  const todayStart = useMemo(() => startOfDay(today), [today]);
   const weekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [today]);
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const entryDays = useJournalEntryDays(days);
@@ -39,15 +40,17 @@ export function DashboardJournal() {
           const sel = key === selKey;
           const has = entryDays.has(key);
           const dayIsToday = isSameDay(d, today);
+          const isFuture = isAfter(startOfDay(d), todayStart);
           return (
             <button
               key={key}
               type="button"
+              disabled={isFuture}
               onClick={() => setSelected(d)}
               aria-label={format(d, "EEEE, MMMM d")}
               className={cn(
                 "flex flex-1 flex-col items-center gap-1 rounded-lg border border-transparent py-1.5 transition-colors",
-                sel ? "bg-amber-500/10 dark:bg-amber-400/10" : "hover:bg-accent",
+                isFuture ? "cursor-default opacity-35" : sel ? "bg-amber-500/10 dark:bg-amber-400/10" : "hover:bg-accent",
                 dayIsToday && !sel && "border-amber-500/40 dark:border-amber-400/40",
               )}
             >
@@ -63,9 +66,11 @@ export function DashboardJournal() {
         })}
       </div>
 
-      <div className="mb-2 font-serif text-lg text-foreground">
-        {format(selected, "EEEE, MMMM d")}
-        {selectedIsToday ? <span className="ml-1.5 text-sm italic text-amber-600 dark:text-amber-400">Today</span> : null}
+      <div className="mb-2 flex items-baseline gap-2">
+        <span className="font-heading text-base font-semibold text-foreground">{format(selected, "EEEE, MMMM d")}</span>
+        {selectedIsToday ? (
+          <span className="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-amber-600 dark:text-amber-400">Today</span>
+        ) : null}
       </div>
 
       <DailyJournalEntry

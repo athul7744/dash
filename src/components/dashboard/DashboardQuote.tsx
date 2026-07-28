@@ -91,11 +91,13 @@ export function DashboardQuote({
   }
 
   return (
-    <Reveal root={root} className="mb-14">
+    <Reveal root={root}>
       <section id="quote-of-the-day" className="scroll-mt-20">
-        <div className="mb-3 flex items-center gap-2">{eyebrow}</div>
+        <div className={cn("mb-2.5 text-[0.7rem] font-semibold uppercase tracking-[0.16em]", QUOTES_APP.accent.iconText)}>
+          Quote of the day
+        </div>
 
-        <figure className="rounded-2xl border border-border/65 bg-card/50 p-6 sm:p-8">
+        <figure>
           <blockquote className="whitespace-pre-line font-serif text-xl leading-relaxed text-foreground sm:text-2xl">
             {stripRefs(current.text)}
           </blockquote>
@@ -104,7 +106,7 @@ export function DashboardQuote({
           ) : null}
         </figure>
 
-        <div className="mt-3 flex items-center gap-4">
+        <div className="mt-4 flex items-center gap-4">
           {quotes.length > 1 ? (
             <button
               type="button"

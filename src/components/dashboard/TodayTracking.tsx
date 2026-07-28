@@ -24,9 +24,8 @@ export function TodayTracking() {
 
   return (
     <section>
-      <div className="mb-3 flex items-center gap-2">
-        <TRACKER_APP.icon className={cn("h-3.5 w-3.5", TRACKER_APP.accent.iconText)} />
-        <span className="text-xs font-semibold uppercase tracking-[0.13em] text-muted-foreground">Today</span>
+      <div className={cn("mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.16em]", TRACKER_APP.accent.iconText)}>
+        Tracked today
       </div>
 
       <div className="flex items-baseline gap-1.5">

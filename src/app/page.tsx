@@ -103,19 +103,18 @@ export default function Home() {
         <DashboardHero greeting={greeting} subline={subline} date={date} onOpenSearch={openSearch} />
       </motion.div>
 
-      {/* Reveal — quiet, borderless, fades in as the hero merges to the top bar */}
-      <main className="mx-auto max-w-5xl snap-start px-[var(--app-gutter-x)] pt-8 pb-40">
+      {/* Reveal — a quiet, borderless "type-led" ledger: one narrow column,
+          each item a tiny accent label over its content, spaced not boxed. */}
+      <main className="mx-auto max-w-2xl snap-start space-y-12 px-[var(--app-gutter-x)] pt-8 pb-40">
         <DashboardQuote root={scrollRef} />
         <DashboardBookmarks root={scrollRef} />
-        <div className="grid gap-x-12 gap-y-10 md:grid-cols-2">
-          <Reveal root={scrollRef}>
-            <TodayTasks />
-          </Reveal>
-          <Reveal root={scrollRef}>
-            <TodayTracking />
-          </Reveal>
-        </div>
-        <Reveal root={scrollRef} className="mt-14">
+        <Reveal root={scrollRef}>
+          <TodayTasks />
+        </Reveal>
+        <Reveal root={scrollRef}>
+          <TodayTracking />
+        </Reveal>
+        <Reveal root={scrollRef}>
           <DashboardJournal />
         </Reveal>
       </main>

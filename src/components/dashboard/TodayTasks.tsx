@@ -75,12 +75,11 @@ export function TodayTasks() {
 
   return (
     <section id="today-tasks" className="scroll-mt-20">
-      <div className="mb-3 flex items-center gap-2">
-        <TASKS_APP.icon className={cn("h-3.5 w-3.5", TASKS_APP.accent.iconText)} />
-        <span className="text-xs font-semibold uppercase tracking-[0.13em] text-muted-foreground">Today&apos;s tasks</span>
+      <div className={cn("mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.16em]", TASKS_APP.accent.iconText)}>
+        Today&apos;s tasks
       </div>
 
-      <div className="mb-1 flex items-center gap-2 border-b border-border/50 py-1.5">
+      <div className="mb-1 flex items-center gap-2 py-1.5">
         <Plus className="h-4 w-4 shrink-0 text-muted-foreground/70" />
         <input
           id="dashboard-quick-add"
@@ -107,7 +106,7 @@ export function TodayTasks() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={reduce ? { opacity: 0 } : { opacity: 0, x: 8 }}
                 transition={{ duration: DURATION.base, ease: EASE.standard }}
-                className="flex items-center gap-2.5 border-b border-border/50 py-2 last:border-b-0"
+                className="flex items-center gap-2.5 py-1.5"
               >
                 <button
                   type="button"

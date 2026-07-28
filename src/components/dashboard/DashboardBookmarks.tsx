@@ -101,34 +101,28 @@ export function DashboardBookmarks({
   }
 
   return (
-    <Reveal root={root} className="mb-14">
+    <Reveal root={root}>
       <section id="revisit-bookmark" className="scroll-mt-20">
-        <div className="mb-3 flex items-center gap-2">{eyebrow}</div>
+        <div className={cn("mb-2.5 text-[0.7rem] font-semibold uppercase tracking-[0.16em]", BOOKMARKS_APP.accent.iconText)}>
+          Revisit
+        </div>
 
-        <a
-          href={current.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group flex items-start gap-3 rounded-2xl border border-border/65 bg-card/50 p-6 transition-colors hover:border-border sm:p-8"
-        >
-          <span className="mt-1 shrink-0">
+        <a href={current.url} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3">
+          <span className="shrink-0">
             <Favicon url={current.url} className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-lg font-medium leading-snug text-foreground group-hover:text-sky-600 dark:group-hover:text-sky-400">
+            <p className="truncate text-lg font-medium leading-snug text-foreground transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-400">
               {current.title}
             </p>
-            <span className="mt-1 inline-flex max-w-full items-center gap-1 text-sm text-muted-foreground">
+            <span className="mt-0.5 inline-flex max-w-full items-center gap-1 text-sm text-muted-foreground">
               <span className="truncate">{host}</span>
               <ExternalLink className="h-3.5 w-3.5 shrink-0" />
             </span>
-            {current.note ? (
-              <p className="mt-2 whitespace-pre-line text-sm text-muted-foreground/80">{current.note}</p>
-            ) : null}
           </div>
         </a>
 
-        <div className="mt-3 flex items-center gap-4">
+        <div className="mt-4 flex items-center gap-4">
           {showAnotherButton}
           {showAllLink ? (
             <Link

@@ -27,7 +27,8 @@ export interface HeroSignals {
   moodRatedToday: boolean;
   /** Whether yesterday's mood was rated (drives the late-night catch-up). */
   moodRatedYesterday: boolean;
-  journalWrittenThisWeek: boolean;
+  /** Whether today's journal page exists (the user has written today). */
+  journalWrittenToday: boolean;
 }
 
 const AFFINITY: Record<TimeOfDay, Record<ScoredKind, number>> = {
@@ -51,7 +52,7 @@ function isEligible(kind: ScoredKind, s: HeroSignals): boolean {
     case "track":
       return !s.loggedRecently;
     case "journal":
-      return !s.journalWrittenThisWeek;
+      return !s.journalWrittenToday;
     case "mood":
       return s.timeOfDay === "night" && !s.moodRatedToday;
   }

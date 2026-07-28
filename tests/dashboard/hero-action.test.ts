@@ -13,7 +13,7 @@ function signals(overrides: Partial<HeroSignals> = {}): HeroSignals {
     loggedRecently: true,
     moodRatedToday: true,
     moodRatedYesterday: true,
-    journalWrittenThisWeek: true,
+    journalWrittenToday: true,
     ...overrides,
   };
 }
@@ -41,13 +41,13 @@ describe("chooseHeroAction", () => {
 
   it("evening with an unwritten journal → journal", () => {
     expect(
-      chooseHeroAction(signals({ timeOfDay: "evening", journalWrittenThisWeek: false })),
+      chooseHeroAction(signals({ timeOfDay: "evening", journalWrittenToday: false })),
     ).toBe("journal");
   });
 
   it("evening with journal written + pending → task", () => {
     expect(
-      chooseHeroAction(signals({ timeOfDay: "evening", pendingCount: 1, journalWrittenThisWeek: true })),
+      chooseHeroAction(signals({ timeOfDay: "evening", pendingCount: 1, journalWrittenToday: true })),
     ).toBe("task");
   });
 
@@ -57,7 +57,7 @@ describe("chooseHeroAction", () => {
 
   it("night, mood rated but journal unwritten → journal", () => {
     expect(
-      chooseHeroAction(signals({ timeOfDay: "night", moodRatedToday: true, journalWrittenThisWeek: false })),
+      chooseHeroAction(signals({ timeOfDay: "night", moodRatedToday: true, journalWrittenToday: false })),
     ).toBe("journal");
   });
 

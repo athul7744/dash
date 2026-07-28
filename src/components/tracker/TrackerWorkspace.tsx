@@ -15,7 +15,7 @@ import { ManageActivitiesDialog } from "@/components/tracker/ManageActivitiesDia
 import { ManageMoodsDialog } from "@/components/tracker/ManageMoodsDialog";
 import { WeekNavigator, WeekNavigatorFab } from "@/components/tracker/WeekNavigator";
 import { WeekWidgets } from "@/components/tracker/widgets";
-import { WeeklyJournal } from "@/components/tracker/WeeklyJournal";
+import { WeekJournalDiary } from "@/components/journal/WeekJournalDiary";
 import { WeekViewSkeleton } from "@/components/tracker/WeekViewSkeleton";
 import { YearActivityGrid } from "@/components/tracker/YearActivityGrid";
 import { YearRatingGrid } from "@/components/tracker/YearRatingGrid";
@@ -635,7 +635,7 @@ export function TrackerWorkspace() {
                 </section>
 
                 <section className="mt-8 min-w-0 overflow-x-hidden pb-16 sm:pb-0 [touch-action:pan-y]">
-                  <WeeklyJournal weekStart={days[0]} />
+                  <WeekJournalDiary weekStart={days[0]} />
                 </section>
               </div>
             )}

@@ -159,7 +159,7 @@ function WidgetsSkeleton() {
   );
 }
 
-/** Placeholder for the WeeklyJournal card below the widgets. */
+/** Placeholder for the week journal diary below the widgets. */
 function WeeklyJournalSkeleton() {
   return (
     <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border/65 bg-gradient-to-b from-card/70 to-card/40 p-5 shadow-[0_12px_38px_-28px_rgba(0,0,0,0.45)] sm:p-7">

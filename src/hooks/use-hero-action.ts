@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@powersync/react";
-import { format, startOfWeek, subDays } from "date-fns";
+import { subDays } from "date-fns";
 
 import { useCurrentUserId } from "@/hooks/use-current-user-id";
 import { useNotePage } from "@/hooks/use-notes";
+import { journalDayKey } from "@/hooks/use-journal";
 import { chooseHeroAction, type HeroActionKind } from "@/lib/dashboard/hero-action";
 import { systemPageId } from "@/lib/notes/system-pages";
 import type { Task } from "@/lib/powersync/AppSchema";
@@ -56,10 +57,9 @@ export function useHeroAction(): {
     [yesterdayKey],
   );
 
-  // This week's journal system page (exists once the user has started writing).
+  // Today's journal system page (exists once the user has written today).
   const userId = useCurrentUserId();
-  const weekKey = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
-  const journalPageId = userId ? systemPageId(userId, "journal", weekKey) : null;
+  const journalPageId = userId ? systemPageId(userId, "journal", journalDayKey(now)) : null;
   const { page: journalPage, isLoading: journalLoading } = useNotePage(journalPageId);
 
   // Only "ready" once every signal has settled, so the hero can stay empty until
@@ -91,7 +91,7 @@ export function useHeroAction(): {
       moodRatedYesterday: yesterdayRatingRows.length > 0,
       // Assume written until the user id resolves, so we never wrongly nudge the
       // journal on first paint.
-      journalWrittenThisWeek: userId === null ? true : journalPage !== null,
+      journalWrittenToday: userId === null ? true : journalPage !== null,
     });
 
     return { kind, topTask: pending[0] ?? null, yesterdayKey, ready };

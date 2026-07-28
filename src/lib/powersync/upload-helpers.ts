@@ -29,8 +29,8 @@ export interface CollapsedBatch {
  *   - a PATCH for a row that ends the batch deleted is dropped
  *
  * Without this, a deterministic-id row deleted then re-created before upload
- * (e.g. an empty weekly-journal system page pruned on week change, then
- * reopened) would land in both maps; the connector's phase-ordered "all PUTs
+ * (e.g. an empty daily-journal system page pruned then reopened) would land in
+ * both maps; the connector's phase-ordered "all PUTs
  * then all DELETEs" execution then deletes the just-recreated row and orphans
  * its child blocks, violating blocks_page_id_fkey on the next upload.
  */

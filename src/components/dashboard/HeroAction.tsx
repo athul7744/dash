@@ -72,7 +72,7 @@ export function HeroAction({ kind, topTask }: { kind: ActionKind; topTask: TaskR
         router.push("/tracker/week");
         break;
       case "journal":
-        scrollToId("weekly-journal");
+        scrollToId("journal");
         break;
     }
   };

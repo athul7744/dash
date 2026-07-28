@@ -109,7 +109,7 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
     // Collapse the batch to one net op per (table, id), honouring op ORDER so a
     // deterministic-id row that is deleted then re-created (e.g. an empty
-    // weekly-journal system page pruned on week change, then reopened) is never
+    // daily-journal system page pruned then reopened) is never
     // both upserted and deleted in one batch (see collapseCrudOps).
     const { putOps, deleteOps, patchOps } = collapseCrudOps(
       batch.crud.map((op) => ({

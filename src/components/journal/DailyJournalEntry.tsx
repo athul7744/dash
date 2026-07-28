@@ -54,6 +54,7 @@ export function DailyJournalEntry({
           slashScope="dates"
           debounceMs={1000}
           ensurePage={ensurePage}
+          deleteWhenEmpty
         />
       ) : (
         <button

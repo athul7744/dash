@@ -57,6 +57,7 @@ export function useSingleBlockEditor({
   autoFocus = false,
   debounceMs,
   ensurePage,
+  deleteWhenEmpty = false,
 }: {
   pageId: string;
   blocks: NoteBlockRow[];
@@ -64,6 +65,7 @@ export function useSingleBlockEditor({
   autoFocus?: boolean;
   debounceMs?: number;
   ensurePage?: () => Promise<void>;
+  deleteWhenEmpty?: boolean;
 }): Editor | null {
   const rows = useMemo(() => blocks.map(toBlockDocumentRow), [blocks]);
 
@@ -234,6 +236,7 @@ export function useSingleBlockEditor({
       getDoc: () => editorRef.current?.getJSON() ?? { type: "doc", content: [] },
       debounceMs,
       ensurePage: ensurePageRef.current ? () => ensurePageRef.current!() : undefined,
+      deleteWhenEmpty,
       onPersisted: async () => {
         await db.execute(`UPDATE pages SET updated_at = ${SQL_UTC_NOW_EXPRESSION} WHERE id = ?`, [pageId]);
       },
@@ -245,7 +248,7 @@ export function useSingleBlockEditor({
       persister.dispose();
       persisterRef.current = null;
     };
-  }, [pageId, debounceMs, hydrate]);
+  }, [pageId, debounceMs, deleteWhenEmpty, hydrate]);
 
   // Schedule a debounced save on genuine edits only. Skip programmatic
   // transactions: the id-stamping pass (STAMP_META) and the remote-reconcile

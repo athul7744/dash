@@ -21,7 +21,7 @@ import { Selection } from "@tiptap/pm/state";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
-import { reconcileNoteBlockEdges } from "@/lib/notes/notes";
+import { deleteNotePage, reconcileNoteBlockEdges } from "@/lib/notes/notes";
 import { extractNoteText, normalizeNoteDocument, serializeNoteDocument } from "@/lib/notes/notes-content";
 
 import { assembleDoc, decomposeDoc, type BlockDocumentRow } from "./block-document";
@@ -38,6 +38,13 @@ export interface BlockPersisterConfig {
    * persists nothing. Must be idempotent.
    */
   ensurePage?: () => Promise<void>;
+  /**
+   * When the document becomes empty, delete the whole page instead of persisting
+   * a blank block. For lightweight, disposable surfaces like a daily journal:
+   * clearing an entry removes it (no orphan empty pages, and it sidesteps the
+   * delete-then-reinsert churn that can collide on ps_data ids).
+   */
+  deleteWhenEmpty?: boolean;
 }
 
 /** A document that is a single block with no text — the untouched starter. */
@@ -76,6 +83,7 @@ export class BlockDocumentPersister {
   private debounceMs: number;
   private onPersisted?: () => Promise<void> | void;
   private ensurePage?: () => Promise<void>;
+  private deleteWhenEmpty: boolean;
   private pageEnsured = false;
 
   /** Last state we believe is in the DB. Source of truth for the diff. */
@@ -98,6 +106,7 @@ export class BlockDocumentPersister {
     this.debounceMs = config.debounceMs ?? 10_000;
     this.onPersisted = config.onPersisted;
     this.ensurePage = config.ensurePage;
+    this.deleteWhenEmpty = config.deleteWhenEmpty ?? false;
     activePersisters.add(this);
   }
 
@@ -206,6 +215,18 @@ export class BlockDocumentPersister {
     // Ignore any block that still lacks a stable id (a transient empty starter
     // block before its real rows arrive) — never write "" as a uuid.
     const decomposed = decomposeDoc(this.getDoc()).filter((b) => b.blockId);
+
+    // Disposable surfaces (journal): an emptied entry deletes its page outright,
+    // rather than persisting a blank block or churning delete+reinsert (which can
+    // collide on ps_data ids). Only once there's something to remove.
+    if (this.deleteWhenEmpty && isEmptyDoc(decomposed) && (this.snapshot.size > 0 || this.pageEnsured)) {
+      await deleteNotePage(this.pageId);
+      this.snapshot = new Map();
+      this.pageEnsured = false;
+      await this.onPersisted?.();
+      return;
+    }
+
     const { writes, next } = diffBlocks(decomposed, this.snapshot);
     if (writes.length === 0) return;
 

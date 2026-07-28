@@ -39,6 +39,7 @@ export function SingleBlockEditor({
   slashScope = "all",
   debounceMs,
   ensurePage,
+  deleteWhenEmpty,
 }: {
   pageId: string;
   handlers?: SingleBlockEditorHandlers;
@@ -52,6 +53,8 @@ export function SingleBlockEditor({
   debounceMs?: number;
   /** Lazily create the page on first write (see BlockPersisterConfig.ensurePage). */
   ensurePage?: () => Promise<void>;
+  /** Delete the page when the doc is emptied (see BlockPersisterConfig.deleteWhenEmpty). */
+  deleteWhenEmpty?: boolean;
 }) {
   const { blocks, isLoading } = useNoteBlocks(pageId);
 
@@ -62,7 +65,7 @@ export function SingleBlockEditor({
       </div>
     );
   }
-  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} enableSlash={enableSlash} slashScope={slashScope} debounceMs={debounceMs} ensurePage={ensurePage} />;
+  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} enableSlash={enableSlash} slashScope={slashScope} debounceMs={debounceMs} ensurePage={ensurePage} deleteWhenEmpty={deleteWhenEmpty} />;
 }
 
 function SingleBlockEditorInner({
@@ -75,6 +78,7 @@ function SingleBlockEditorInner({
   slashScope,
   debounceMs,
   ensurePage,
+  deleteWhenEmpty,
 }: {
   pageId: string;
   blocks: NoteBlockRow[];
@@ -85,8 +89,9 @@ function SingleBlockEditorInner({
   slashScope: SlashScope;
   debounceMs?: number;
   ensurePage?: () => Promise<void>;
+  deleteWhenEmpty?: boolean;
 }) {
-  const editor = useSingleBlockEditor({ pageId, blocks, handlers, autoFocus, debounceMs, ensurePage });
+  const editor = useSingleBlockEditor({ pageId, blocks, handlers, autoFocus, debounceMs, ensurePage, deleteWhenEmpty });
   const surfaceRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {

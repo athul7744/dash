@@ -62,7 +62,10 @@ export function WeeklyJournal({ weekStart, bare = false }: { weekStart: Date; ba
     <div
       className={
         bare
-          ? "journal-surface w-full"
+          ? // Pull left by the block-grip gutter and pad it back, so the editor
+            // text lines up flush with the ledger's other rows while the hover
+            // grip keeps its 1.5rem margin (no notes-editor grid to host it here).
+            "journal-surface -ml-6 w-[calc(100%+1.5rem)] pl-6"
           : "journal-surface mx-auto w-full max-w-3xl rounded-2xl border border-border/65 bg-gradient-to-b from-card/70 to-card/40 p-5 shadow-[0_12px_38px_-28px_rgba(0,0,0,0.45)] transition-smooth sm:p-7"
       }
     >

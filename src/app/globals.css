@@ -799,6 +799,11 @@ body[data-display-font="bricolage"] {
   font-size: 1.02rem;
   line-height: 1.7;
 }
+/* Journal entries are short, so keep the block grip snug to the text instead of
+   the notes editor's wider grid gutter (its right edge meets the text at 0). */
+.journal-surface .note-block-grip {
+  left: -1.25rem;
+}
 
 /* Notes editor: a warmer, reading-oriented treatment for the writing app.
    Prose and lists get the serif reading face with comfortable leading;

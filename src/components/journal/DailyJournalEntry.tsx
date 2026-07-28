@@ -49,7 +49,7 @@ export function DailyJournalEntry({
   const showEditor = page?.id === pageId || opened;
 
   return (
-    <div className={cn("journal-surface", flush && "-ml-6 w-[calc(100%+1.5rem)] pl-6")}>
+    <div className={cn("journal-surface", flush && "-ml-5 w-[calc(100%+1.25rem)] pl-5")}>
       {showEditor && pageId ? (
         <SingleBlockEditor
           key={pageId}

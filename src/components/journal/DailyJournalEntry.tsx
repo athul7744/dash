@@ -9,7 +9,6 @@ import { useNotePage } from "@/hooks/use-notes";
 import { journalDayKey } from "@/hooks/use-journal";
 import { ensureSystemPage } from "@/lib/notes/notes";
 import { systemPageId } from "@/lib/notes/system-pages";
-import { cn } from "@/lib/shared/utils";
 
 /**
  * One day's journal entry, backed by a lazily-created "journal" system page
@@ -17,18 +16,15 @@ import { cn } from "@/lib/shared/utils";
  * on the first keystroke, so browsing empty days persists nothing.
  *
  * Shows the block editor once the day's page exists (or the user opens it);
- * otherwise a quiet serif prompt. `flush` pulls the editor left by the block
- * grip's gutter so its text lines up with a surrounding label (dashboard);
- * leave it off inside a laid-out row (the tracker diary).
+ * otherwise a quiet serif prompt. The editor text sits flush with its container
+ * (the `.journal-surface` rule zeroes the editor's grip-gutter padding).
  */
 export function DailyJournalEntry({
   date,
   placeholder = "Write about this day…",
-  flush = false,
 }: {
   date: Date;
   placeholder?: string;
-  flush?: boolean;
 }) {
   const dayKey = journalDayKey(date);
   const userId = useCurrentUserId();
@@ -49,7 +45,7 @@ export function DailyJournalEntry({
   const showEditor = page?.id === pageId || opened;
 
   return (
-    <div className={cn("journal-surface", flush && "-ml-5 w-[calc(100%+1.25rem)] pl-5")}>
+    <div className="journal-surface">
       {showEditor && pageId ? (
         <SingleBlockEditor
           key={pageId}

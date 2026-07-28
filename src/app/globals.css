@@ -798,11 +798,15 @@ body[data-display-font="bricolage"] {
   font-family: var(--font-serif), Georgia, serif;
   font-size: 1.02rem;
   line-height: 1.7;
+  /* Drop the editor's grip-gutter padding (the shared `pl-7`) so the text sits
+     flush with the journal's label / date. Also keeps filled entries aligned
+     with the empty prompt. */
+  padding-left: 0;
 }
-/* Journal entries are short, so keep the block grip snug to the text instead of
-   the notes editor's wider grid gutter (its right edge meets the text at 0). */
+/* Journals are simple writing surfaces — no per-block menu, so hide the grip
+   (and reclaim its gutter entirely). */
 .journal-surface .note-block-grip {
-  left: -1.25rem;
+  display: none;
 }
 
 /* Notes editor: a warmer, reading-oriented treatment for the writing app.

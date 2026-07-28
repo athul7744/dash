@@ -71,7 +71,6 @@ export function DashboardJournal() {
       <DailyJournalEntry
         key={selKey}
         date={selected}
-        flush
         placeholder={selectedIsToday ? "How did today go?" : "Write about this day…"}
       />
     </section>

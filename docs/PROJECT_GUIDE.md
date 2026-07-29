@@ -93,12 +93,16 @@ Key runtime behavior:
   - Each renders the real header shell plus an app-specific skeleton from `src/components/skeletons/*` (shared with the cold-start boot skeleton)
 
 - `src/components/AppBootSkeleton.tsx`
-  - Cold-start fallback (shown by `powersync-provider` while the local DB opens) that picks the route-shaped skeleton by pathname (`?view=` for the tracker; `/notes/graph` vs `/notes/<id>` vs bare `/notes` for the notes overview/editor/graph), so a refresh boots into the matching skeleton with no blank gap
+  - Cold-start fallback (shown by `powersync-provider` while the local DB opens) that picks the route-shaped skeleton by pathname (`/tracker/<view>` for the tracker; `/notes/graph` vs `/notes/<id>` vs bare `/notes` for the notes overview/editor/graph), so a refresh boots into the matching skeleton with no blank gap
+
+- `src/components/ui/skeleton.tsx`
+  - The one skeleton vocabulary: `Skeleton` (a shimmer bone — the default, for detail pages/editors), `SkeletonWave` (wraps a long scroll list; direct children breathe in a staggered top-down wave), and `SkeletonAurora` (a large canvas with an accent glow drifting behind frosted bones — tracker grid, dashboard splash, graph boot; used sparingly). Animation lives in `globals.css` (`.skeleton*`) and falls back to a static box under `prefers-reduced-motion`; content fades in over the skeleton it replaces (`.skeleton-settle-in`)
 
 Important convention:
 
 - The header is treated as stable app chrome, not data-dependent content.
 - Loading UI should generally appear below the real header when possible.
+- Every loading skeleton mirrors its real layout (desktop and mobile) so nothing shifts on handoff.
 
 ## Directory Map
 
@@ -108,7 +112,7 @@ Important convention:
 - `src/app/login/page.tsx` — login page
 - `src/app/share/page.tsx` — PWA share target → universal capture triage (see [Universal Capture](#universal-capture))
 - `src/app/tasks/page.tsx` — tasks dashboard
-- `src/app/tracker/page.tsx` — tracker dashboard
+- `src/app/tracker/page.tsx` + `src/app/tracker/[view]/page.tsx` — path-based tracker (`/tracker/<view>`, `week`/`activity`/`mood`; `/tracker` redirects to `/tracker/week`; see [Tracker App Structure](#tracker-app-structure))
 - `src/app/notes/layout.tsx` + `src/app/notes/[[...slug]]/page.tsx` — the notes shell (path-based `/notes`, `/notes/<id>`, `/notes/graph`; see [Notes App Structure](#notes-app-structure))
 - `src/app/quotes/page.tsx` — quotes collection
 - `src/app/bookmarks/page.tsx` — bookmarks collection
@@ -125,6 +129,7 @@ Important convention:
 - `src/components/ManageNamedColorItemsDialog.tsx`
 - `src/components/tags/*` — shared tag selection and pill-strip primitives used by tasks and notes
 - `src/components/motion/*` — the shared Motion primitives (see **Motion system** below): `Reveal` (scroll reveal), `FadeIn` (entrance wrapper), `AnimatedList` + `MotionListItem` (staggered enter/exit lists), `Presence` (hand-rolled popover enter/exit). All honor reduced-motion.
+- `src/components/journal/*` — the day journal, shared by the dashboard and the tracker: `DailyJournalEntry` (one day's inline editor over a lazily-created per-day page) and `WeekJournalDiary` (the tracker's week-of-days diary). See [Journal](#journal).
 
 ### Dashboard components
 
@@ -136,7 +141,7 @@ Important convention:
 - `src/components/command/EntityPopup.tsx` — opens any task/bookmark/quote/event in a blurred modal by reusing that app's own card (looked up live by id; notes deep-link to `/notes/<id>`). Used by the palette, the dashboard hero nudge, and reference-chip clicks
 - `src/components/dashboard/TodayTasks.tsx` / `TodayTracking.tsx` — borderless reveal widgets
 - `src/components/dashboard/DashboardQuote.tsx` / `DashboardBookmarks.tsx` — the daily "quote of the day" / "revisit" resurfacing cards (a `variant` renders either the compact dashboard tile or the larger hero atop `/quotes` and `/bookmarks`); render nothing until there's content
-- `src/components/dashboard/DashboardJournal.tsx` — embeds `WeeklyJournal` for the current week, editable in place
+- `src/components/dashboard/DashboardJournal.tsx` — this week's journal as a Mon–Sun day strip (dots mark days with an entry, future days disabled) over the selected day's inline editor; one page per day (see [Journal](#journal))
 - `src/components/dashboard/AppsFab.tsx` — bottom horizontal app strip (single-click nav) over a blurred scrim; a dashboard-specific order (bookmarks, tasks, tracker, notes, quotes) centered on Tracker, with the ends scroll-reachable on narrow screens
 - `src/components/capture/QuickCapture.tsx` — in-app capture modal (opened by the dashboard Capture button / ⌘/Ctrl+I); seeds `CaptureTriage` from the clipboard (see [Universal Capture](#universal-capture))
 
@@ -153,7 +158,6 @@ Important convention:
 - `src/components/tracker/TimeGrid.tsx`
 - `src/components/tracker/WeekNavigator.tsx`
 - `src/components/tracker/WeekViewSkeleton.tsx`
-- `src/components/tracker/WeeklyJournal.tsx`
 - `src/components/tracker/YearActivityGrid.tsx`
 - `src/components/tracker/YearRatingGrid.tsx`
 - `src/components/tracker/ManageActivitiesDialog.tsx`
@@ -285,7 +289,7 @@ Key modules:
   - Shared Tiptap building blocks reused by the single-document schema: reference decorations (`[[page refs]]` + `{date}` tokens) / date auto-format / markdown links / arrow replacement; `LinkOpenControls` (a plugin whose `view` manages one floating toolbar anchored to a link on hover/tap — open, copy, edit URL + text, unlink — since links don't open on click; fixed-positioned so it never reflows text and leaves no inline icons); markdown-typing input rules that create blocks — divider (`---`), image (`![alt](url)`), checkbox (`[]`/`[x]`), and block color (`!blue`/`!none`) — alongside the ones each node ships (headings, quote, code, math); inline (`$...$`) and block (`$$...$$`) math with KaTeX NodeViews; the slash command catalog (+ filter/group helpers, including `/math`, `/todo`, `/date`); the code block toolbar; and per-block background colors.
 
 - `src/lib/notes/editor/block-persister.ts`
-  - Debounced per-page persister: decomposes the doc to rows, diffs against the last-known set (churn-minimal ranks, net-zero writes, failure retention), reconciles per-block edges, and merges remote row changes back into the open doc with `addToHistory:false`. `flushAllBlockDocumentPersisters()` flushes on `beforeunload`.
+  - Debounced per-page persister: decomposes the doc to rows, diffs against the last-known set (churn-minimal ranks, net-zero writes, failure retention), reconciles per-block edges, and merges remote row changes back into the open doc with `addToHistory:false`. `flushAllBlockDocumentPersisters()` flushes on `beforeunload`. An optional `deleteWhenEmpty` deletes the whole page when the doc is emptied (the journal uses it so a cleared day leaves nothing behind).
   - All block content shares one shape — a normalized note document. Query blocks store their config inside a `queryBlock` node's attrs (via `src/lib/notes/query-block-content.ts`), so nothing special-cases query content.
 
 - `src/lib/notes/editor-document-helpers.ts`
@@ -351,9 +355,9 @@ Responsibilities and behavior:
 
 - **Hero collapse (Motion):** `useScroll` + `useTransform` map the container's raw `scrollY` (px) to a fade/scale on the hero and a fade-in of a compact greeting + search icon in the sticky top bar. Driven by raw `scrollY` (not a measured target) to avoid feedback from the hero's own transforms; bidirectional (reverses on scroll up).
 - **Reveal:** each section is wrapped in `motion/Reveal` (`whileInView`, once) with the container as `root`; reduced-motion renders them static.
-- **Contextual hero action:** `useHeroAction` gathers signals — pending/overdue/due-today tasks (and the most-relevant one), whether time was logged in the last 2h (`recentNaiveWindow`), whether mood was rated today, and whether this week's journal system page exists — and feeds the pure `chooseHeroAction` picker (`src/lib/dashboard/hero-action.ts`). At night it shows `MoodPicker`; otherwise a single `HeroAction` nudge (most-relevant task → task modal, plan → scroll to `#today-tasks`, track → `/tracker`, journal → scroll to `#weekly-journal`).
+- **Contextual hero action:** `useHeroAction` gathers signals — pending/overdue/due-today tasks (and the most-relevant one), whether time was logged in the last 2h (`recentNaiveWindow`), whether mood was rated today, and whether today's journal page exists — and feeds the pure `chooseHeroAction` picker (`src/lib/dashboard/hero-action.ts`). At night it shows `MoodPicker`; otherwise a single `HeroAction` nudge (most-relevant task → task modal, plan → scroll to `#today-tasks`, track → `/tracker`, journal → scroll to `#journal`).
 - **Search:** the hero bar and the collapsed top-bar icon open the global **command palette** (`useCommandPalette()`; also ⌘/Ctrl+K anywhere), which searches all five entities and runs navigation/create/capture commands. Entity hits open in `EntityPopup` (notes deep-link to `/notes/<id>`). See [Cross-App Links & References](#cross-app-links--references) for the shared entity search.
-- **Journal:** `DashboardJournal` embeds the tracker's `WeeklyJournal` for the current week (same `systemPageId`), editable in place.
+- **Journal:** `DashboardJournal` shows a Mon–Sun day strip over the selected day's inline `DailyJournalEntry` (one page per day; see [Journal](#journal)).
 - **Apps:** `AppsFab` is a fixed bottom strip of single-click app links over a blurred scrim; ordered bookmarks/tasks/tracker/notes/quotes and scroll-centered on Tracker so the middle app is reachable on launch.
 - **Capture:** a Capture button in the top bar (and ⌘/Ctrl+I) opens `QuickCapture` (see [Universal Capture](#universal-capture)).
 - Greeting text comes from `useGreeting` (one seed shared by hero + collapsed bar). There is no route restoration — the app always opens on the dashboard.
@@ -401,16 +405,16 @@ Tasks page loading model:
 
 ## Tracker App Structure
 
-Primary route:
+Routing (path-based, shell in the layout):
 
-- `src/app/tracker/page.tsx`
+- URLs are path segments: `/tracker/week`, `/tracker/activity`, `/tracker/mood`; `/tracker` redirects to `/tracker/week`. The `[view]` page and `loading.tsx` return `null`.
+- The whole tracker UI lives in `src/components/tracker/TrackerWorkspace.tsx`, mounted by `src/app/tracker/layout.tsx`. Because it sits in the **layout**, it persists across view changes and **above the route loading boundary**, so switching views never unmounts the shell or flashes a route skeleton. `TrackerWorkspace` reads the view from `usePathname()` and navigates by pushing the sibling path (a `pendingView` render-time guard keeps the tab switch instant). A cold load is covered by `AppBootSkeleton` (view-shaped by pathname). This mirrors the notes layout-hoist pattern.
 
 Responsibilities:
 
 - Loads activity types, time logs, and daily ratings from local SQLite
-- Manages three tracker views: `week`, `activity`, and `mood`
+- Serves three views: `week`, `activity`, and `mood`
 - Keeps optimistic in-memory overlays for time log and rating changes
-- Uses URL search params for the active tracker subview (`?view=...`)
 - Renders the shared header and a tracker-specific tab strip
 - Uses `ManageActivitiesDialog` for activity CRUD
 
@@ -443,17 +447,23 @@ Important child components:
   - Weekly analytics and summaries used below the grid
   - Widget semantics (productive/passive split, sleep stats) are driven by each activity's `category`, threaded from the page as a name→category map — never inferred from the activity name
 
-- `src/components/tracker/WeeklyJournal.tsx`
-  - Per-week journal rendered below the widgets in the Week view
-  - Each week maps to one notes "system page" (`kind: "journal"`, keyed by the Monday date via `systemPageId`), reusing the single-document editor (`SingleBlockEditor`)
-  - The page is created **lazily** — the editor's `ensurePage` materializes it on the first keystroke, so opening a week and typing nothing persists no page or block (no empty pages to prune, hence no create/delete churn against the sync queue). Journal pages are already hidden from the notes list/graph (the `kind IS NULL` filter)
-  - Stays mounted across weeks (user id fetched once); the inner editor is keyed by page id so it re-hydrates per week
+- `src/components/journal/WeekJournalDiary.tsx`
+  - The Week view's journal, below the widgets: the week's days-so-far threaded on a timeline, each a `DailyJournalEntry` (future days and entirely-future weeks are hidden). See [Journal](#journal).
 
 Tracker loading model:
 
-- Route navigation into `/tracker` uses `src/app/tracker/loading.tsx`
-- Within the page, `loadingActivities || loadingLogs` shows `WeekViewSkeleton` for the week view body
-- The shared header remains real chrome during route loading
+- `src/app/tracker/loading.tsx` returns `null` (the workspace lives above the boundary and shows its own view-scoped skeletons); cold loads use `AppBootSkeleton`.
+- Within the workspace, `loadingActivities || loadingLogs` shows `WeekViewSkeleton` for the week view body.
+- The shared header remains real chrome during loading.
+
+## Journal
+
+One journal per day, shared by the dashboard and the tracker Week view.
+
+- **Storage:** each day is one notes system page (`kind:"journal"`, key = the `yyyy-MM-dd` day (`journalDayKey`), id via `systemPageId`), edited with `SingleBlockEditor`. Journal pages are hidden from `/notes` and the graph (the `kind IS NULL` filter).
+- **Lazy, self-cleaning:** `ensurePage` materializes the page on the first keystroke and `deleteWhenEmpty` deletes it again if the day is cleared, so browsing or emptying days persists nothing.
+- **`DailyJournalEntry`** — one day's inline editor. The caller passes `hasEntry` from a single batched `useJournalEntryDays` query for the whole week, so a day with content mounts straight to the editor (over a compact loader) and an empty day shows a quiet prompt until opened — no per-entry query and no placeholder→skeleton→content flip. The entrance animation is off here because day-switching remounts the editor constantly.
+- **Surfaces:** `DashboardJournal` (a Mon–Sun day strip over the selected day) and `WeekJournalDiary` (the tracker's week-of-days diary). Both live in `src/components/journal/`; `src/hooks/use-journal.ts` holds `journalDayKey` and `useJournalEntryDays`.
 
 ## Shared Named-Color CRUD Pattern
 
@@ -523,7 +533,7 @@ Route: `src/app/bookmarks/page.tsx`. Bookmarks are `type:"bookmark"` blocks on o
 
 ## Events App Structure
 
-Routes: `src/app/events/page.tsx` (the grid) + `src/app/events/[id]/page.tsx` (single-subject detail). Events replaced the old Reminders app: it still schedules tasks, but its core is now an **occurrence log** — a dated history of things that happen — and an occurrence can attach to *any* entity, not just an event.
+Routes: `src/app/events/page.tsx` (the grid) + `src/app/events/[id]/page.tsx` (single-subject detail). The Events app is an **occurrence log** — a dated history of things that happen — that also schedules tasks. An occurrence can attach to *any* entity, not just an event.
 
 Two block types on one hidden system page (`kind:"event"`, key `"log"`, title "Events") — no schema change:
 
@@ -631,7 +641,7 @@ The type system has four roles, all wired through Tailwind v4 tokens in `src/app
 
 - **Body** — Inter (`font-sans`), the global default.
 - **Display / heading** — user-selectable (`font-heading` → `--font-heading`): Fraunces (default), Hanken Grotesk, Lora, or Bricolage Grotesque. Applied to wordmarks, page titles, section headers, dialog titles, tracker tabs, and tasks filter pills.
-- **Soft / reflective** — Lora (`font-serif`): the weekly journal, plus greetings/mottos and a few empty states.
+- **Soft / reflective** — Lora (`font-serif`): the journal, plus greetings/mottos and a few empty states.
 - **Mono** — Geist Mono (`font-mono`): notes code/query blocks, math inputs, log viewer.
 
 Tracker numerals additionally use `tabular-nums` so digits align in columns.
@@ -661,7 +671,7 @@ If you are debugging behavior in this repo, start from the narrowest owning surf
 - navigation or app shell issues: `AppHeader`, `AppSwitcher`, `MobileBottomFabs`, route `loading.tsx`
 - tasks editing issues: `TaskCard.tsx`, `TaskMetadataEditor.tsx`, `debounced-update.ts`
 - tag/activity dialog issues: `ManageNamedColorItemsDialog.tsx` first, then the wrapper dialog file
-- tracker week grid behavior: `tracker/page.tsx`, `TimeGrid.tsx`, `ActivityToolbar.tsx`
+- tracker week grid behavior: `TrackerWorkspace.tsx`, `TimeGrid.tsx`, `ActivityToolbar.tsx`
 - sync/bootstrap issues: `powersync-provider.tsx`, `src/lib/powersync/db.ts`, `SupabaseConnector.ts`
 - links / backlinks / references (`[[ ]]`, chips, graph nodes): `src/lib/links/*`, `src/components/links/*`, `RefMenuLayer.tsx`, `use-note-graph.ts` (see [Cross-App Links & References](#cross-app-links--references))
 - command palette / global search / ⌘K: `src/components/command/CommandPaletteProvider.tsx`
@@ -712,7 +722,7 @@ See [tests/README.md](../tests/README.md) for the current suite map.
 Feature entry points:
 
 - `src/app/tasks/page.tsx` + `src/components/tasks/`
-- `src/app/tracker/page.tsx` + `src/components/tracker/`
+- `src/app/tracker/layout.tsx` + `src/app/tracker/[view]/` + `src/components/tracker/`
 - `src/app/notes/layout.tsx` + `src/app/notes/[[...slug]]/` + `src/components/notes/page/` + `src/components/notes/editor/`
 - `src/app/quotes/page.tsx` + `src/components/quotes/` + `src/lib/quotes/`
 - `src/app/bookmarks/page.tsx` + `src/components/bookmarks/` + `src/lib/bookmarks/`

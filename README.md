@@ -6,7 +6,7 @@ A personal productivity workspace that works offline and syncs across devices. T
 
 ### Dashboard
 
-The home screen opens calm and centered: a rotating, time-of-day greeting and a search bar that opens a command palette across everything — every task, note, bookmark, quote, and event, plus jump-to-app and quick-create commands (⌘K anywhere). Beneath it sits a single contextual nudge that changes with the time of day and what you've actually done — the most relevant task in the morning, a reminder to log time if you've tracked nothing in the last couple of hours, your weekly journal in the evening, and a mood check-in at night. Scroll down and the greeting glides up into a slim top bar while the day's essentials fade in — today's tasks with quick-add, hours logged, and this week's journal to write in place. A row of apps sits at the bottom, one tap to each.
+The home screen opens calm and centered: a rotating, time-of-day greeting and a search bar that opens a command palette across everything — every task, note, bookmark, quote, and event, plus jump-to-app and quick-create commands (⌘K anywhere). Beneath it sits a single contextual nudge that changes with the time of day and what you've actually done — the most relevant task in the morning, a reminder to log time if you've tracked nothing in the last couple of hours, the day's journal in the evening, and a mood check-in at night. Scroll down and the greeting glides up into a slim top bar while the day's essentials fade in — today's tasks with quick-add, hours logged, and a week strip for the journal — a day open to write in place. A row of apps sits at the bottom, one tap to each.
 
 ### Tasks
 
@@ -14,7 +14,7 @@ Manage your to-do list with subtasks, tags, due dates, and priorities. Filter by
 
 ### Tracker
 
-Paint your week on a 7-day × 24-hour grid to log how you spend your time. Rate your mood each day. View yearly heatmaps to spot patterns over months. Weekly widgets break down your activity, sleep, and productivity at a glance. Each week also has its own journal — a serif writing space below the widgets for reflecting on how the week went.
+Paint your week on a 7-day × 24-hour grid to log how you spend your time. Rate your mood each day. View yearly heatmaps to spot patterns over months. Weekly widgets break down your activity, sleep, and productivity at a glance. Below the widgets, each day of the week gets its own journal entry — a serif writing space to reflect day by day.
 
 ### Notes
 

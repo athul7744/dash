@@ -58,7 +58,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
   Covers `systemPageId`: deterministic ids per `(userId, kind, key)`, matching an explicit uuidv5 over the documented name scheme, and v5 uuid format.
 
 - `tests/notes/graph.test.ts`
-  Covers the pure graph helpers (`src/lib/notes/graph.ts`) behind the (now universal, one-node-per-item) graph view: `buildGraph` building an undirected, deduped, weighted node graph from resolved entity→entity edges (self-links and edges to unknown nodes dropped; degree computed; `kind` carried onto nodes), `neighborhood` BFS to a depth, and `isOrphan`.
+  Covers the pure graph helpers (`src/lib/notes/graph.ts`) behind the universal one-node-per-item graph view: `buildGraph` building an undirected, deduped, weighted node graph from resolved entity→entity edges (self-links and edges to unknown nodes dropped; degree computed; `kind` carried onto nodes), `neighborhood` BFS to a depth, and `isOrphan`.
 
 ## Current Links Suites
 
@@ -78,7 +78,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `task-shortcut.dom.test.ts` — the `[]`/`[x]` markdown checkbox input rule converts a paragraph into a task block.
 - `markdown-block-shortcuts.dom.test.ts` — the divider (`---`), image (`![]()`), and block-color (`!blue`/`!none`) input rules, driven through a live editor.
 - `paste.dom.test.ts` — external multi-paragraph paste becomes well-formed blocks; copied blocks get fresh ids.
-- `markdown-paste.test.ts` — `markdownToBlockNodes` maps every markdown construct (headings, paragraphs, bullet/ordered/task lists incl. nesting, blockquotes, fenced code, thematic breaks, GFM tables, inline marks, hard breaks) to the right block/`taskLine` shape; `looksLikeMarkdown` + `clipboardMarkdown` detection/routing (prose left alone, structured HTML deferred to native paste); `isBareUrl` single-URL detection. Includes fixtures ported from the removed markdown-clipboard suite.
+- `markdown-paste.test.ts` — `markdownToBlockNodes` maps every markdown construct (headings, paragraphs, bullet/ordered/task lists incl. nesting, blockquotes, fenced code, thematic breaks, GFM tables, inline marks, hard breaks) to the right block/`taskLine` shape; `looksLikeMarkdown` + `clipboardMarkdown` detection/routing (prose left alone, structured HTML deferred to native paste); `isBareUrl` single-URL detection.
 - `markdown-paste.dom.test.ts` — parsed markdown inserts into a live editor as schema-valid nodes with zero frankenblocks, one content node per block, and freshly-stamped ids; the single inline-formatted paragraph merges into the current line; `pasteUrlAsLink` links a pasted bare URL (inserts linked text, normalizes bare domains, wraps a selection, and leaves no stored mark).
 - `reference-resolver.dom.test.ts` — `getResolvedPageReferenceAtPosition` resolves the `[[title]]` under the cursor.
 - `read-only-block-renderer.dom.test.tsx` — `ReadOnlyBlockRenderer` renders heading/paragraph/task blocks non-editably through the single-doc schema.

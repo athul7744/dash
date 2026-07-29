@@ -63,7 +63,7 @@ export function WeekJournalDiary({ weekStart }: { weekStart: Date }) {
                   has ? "bg-amber-500 dark:bg-amber-400" : "bg-muted-foreground/35",
                 )}
               />
-              <DailyJournalEntry date={d} placeholder={dayIsToday ? "How did today go?" : "Write about this day…"} />
+              <DailyJournalEntry date={d} hasEntry={has} placeholder={dayIsToday ? "How did today go?" : "Write about this day…"} />
             </div>
           );
         })}

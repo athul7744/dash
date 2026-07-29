@@ -14,7 +14,7 @@
  * chrome (undo/redo buttons) can drive the one native history timeline.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import type { Editor } from "@tiptap/core";
 import { EditorContent } from "@tiptap/react";
 
@@ -40,6 +40,8 @@ export function SingleBlockEditor({
   debounceMs,
   ensurePage,
   deleteWhenEmpty,
+  loadingFallback,
+  animateEntrance = true,
 }: {
   pageId: string;
   handlers?: SingleBlockEditorHandlers;
@@ -55,17 +57,19 @@ export function SingleBlockEditor({
   ensurePage?: () => Promise<void>;
   /** Delete the page when the doc is emptied (see BlockPersisterConfig.deleteWhenEmpty). */
   deleteWhenEmpty?: boolean;
+  /** Loading placeholder while blocks load; defaults to the full block-tree skeleton.
+   * The journal passes a compact one so short entries don't cause layout shift. */
+  loadingFallback?: ReactNode;
+  /** Fade/slide the editor in on mount. Off for the journal, whose day-switching
+   * remounts the editor constantly — the entrance would read as a jerky blink. */
+  animateEntrance?: boolean;
 }) {
   const { blocks, isLoading } = useNoteBlocks(pageId);
 
   if (isLoading) {
-    return (
-      <div className={SURFACE_CLASS}>
-        <NotesEditorBodySkeleton />
-      </div>
-    );
+    return <div className={SURFACE_CLASS}>{loadingFallback ?? <NotesEditorBodySkeleton />}</div>;
   }
-  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} enableSlash={enableSlash} slashScope={slashScope} debounceMs={debounceMs} ensurePage={ensurePage} deleteWhenEmpty={deleteWhenEmpty} />;
+  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} enableSlash={enableSlash} slashScope={slashScope} debounceMs={debounceMs} ensurePage={ensurePage} deleteWhenEmpty={deleteWhenEmpty} animateEntrance={animateEntrance} />;
 }
 
 function SingleBlockEditorInner({
@@ -79,6 +83,7 @@ function SingleBlockEditorInner({
   debounceMs,
   ensurePage,
   deleteWhenEmpty,
+  animateEntrance,
 }: {
   pageId: string;
   blocks: NoteBlockRow[];
@@ -90,6 +95,7 @@ function SingleBlockEditorInner({
   debounceMs?: number;
   ensurePage?: () => Promise<void>;
   deleteWhenEmpty?: boolean;
+  animateEntrance: boolean;
 }) {
   const editor = useSingleBlockEditor({ pageId, blocks, handlers, autoFocus, debounceMs, ensurePage, deleteWhenEmpty });
   const surfaceRef = useRef<HTMLDivElement | null>(null);
@@ -103,7 +109,7 @@ function SingleBlockEditorInner({
   // it never becomes the containing block for the `fixed`-positioned block menu.
   return (
     <div ref={surfaceRef} className={`group/note-editor relative ${SURFACE_CLASS}`}>
-      <div className="animate-fade-slide-in">
+      <div className={animateEntrance ? "animate-fade-slide-in" : undefined}>
         <EditorContent editor={editor} />
       </div>
       <BlockMenuLayer editor={editor} />

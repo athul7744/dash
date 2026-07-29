@@ -4,6 +4,7 @@ import { Calendar } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { WeekViewSkeleton, WeekNavigatorSkeleton } from "@/components/tracker/WeekViewSkeleton";
+import { YearActivitySummarySkeleton } from "@/components/tracker/YearActivityGrid";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getApp } from "@/lib/shared/apps";
 
@@ -45,35 +46,40 @@ function ActivityGridSkeleton() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border p-2">
-        <div className="overflow-x-auto">
-          <div className="w-max">
-            {/* Hour header */}
-            <div className="mb-1 flex gap-[3px] pl-[44px]">
-              {Array.from({ length: 24 }).map((_, h) => (
-                <div key={h} className="w-[11px] text-center text-[9px] text-muted-foreground/50">
-                  {h % 6 === 0 ? String(h).padStart(2, "0") : ""}
-                </div>
-              ))}
-            </div>
-            {/* Day rows */}
-            <div className="flex flex-col gap-[3px]">
-              {Array.from({ length: 42 }).map((_, row) => (
-                <div key={row} className="flex items-center gap-[3px]">
-                  <div className="w-[44px] pr-1">
-                    <Skeleton className="h-2.5 w-8" />
+      {/* Grid + summary panel, centered together (matches the view). */}
+      <div className="flex flex-col items-center gap-4 lg:flex-row lg:items-start lg:justify-center lg:gap-6">
+        <div className="rounded-xl border border-border p-2">
+          <div className="overflow-x-auto">
+            <div className="w-max">
+              {/* Hour header */}
+              <div className="mb-1 flex gap-[3px] pl-[44px]">
+                {Array.from({ length: 24 }).map((_, h) => (
+                  <div key={h} className="w-[11px] text-center text-[9px] text-muted-foreground/50">
+                    {h % 6 === 0 ? String(h).padStart(2, "0") : ""}
                   </div>
-                  {Array.from({ length: 24 }).map((_, h) => (
-                    <div
-                      key={h}
-                      className={`h-[11px] w-[11px] rounded-[3px] ${((row * 24 + h) * 13 + row) % 6 === 0 ? "bg-muted" : "bg-muted/30"}`}
-                    />
-                  ))}
-                </div>
-              ))}
+                ))}
+              </div>
+              {/* Day rows */}
+              <div className="flex flex-col gap-[3px]">
+                {Array.from({ length: 42 }).map((_, row) => (
+                  <div key={row} className="flex items-center gap-[3px]">
+                    <div className="w-[44px] pr-1">
+                      <Skeleton className="h-2.5 w-8" />
+                    </div>
+                    {Array.from({ length: 24 }).map((_, h) => (
+                      <div
+                        key={h}
+                        className={`h-[11px] w-[11px] rounded-[3px] ${((row * 24 + h) * 13 + row) % 6 === 0 ? "bg-muted" : "bg-muted/30"}`}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
+
+        <YearActivitySummarySkeleton />
       </div>
     </div>
   );

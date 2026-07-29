@@ -3,15 +3,26 @@
 import { useQuery } from "@powersync/react";
 import { AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { format, startOfYear, endOfYear, eachDayOfInterval, getMonth, isEqual, startOfDay } from "date-fns";
-import { Grid3X3 } from "lucide-react";
+import { format, startOfYear, endOfYear, eachDayOfInterval, getMonth, isEqual, startOfDay, differenceInCalendarDays } from "date-fns";
+import { BarChart3, Grid3X3 } from "lucide-react";
 import { cn } from "@/lib/shared/utils";
-import { getActivityDotClass } from "@/lib/tracker/activities";
+import { categoryToProductivityBucket, DEFAULT_ACTIVITY_CATEGORY, type ActivityCategory } from "@/lib/tracker/activities";
 import { TimeLog, ActivityType } from "@/lib/powersync/AppSchema";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { COLOR_HEX } from "./widgets/types";
-import { FilterPill } from "./FilterPill";
 import { DayPopover } from "./DayPopover";
 import { ActivityPillStrip } from "./ActivityPillStrip";
+
+type YearSummary = {
+  totalHours: number;
+  activities: { name: string; count: number; hex: string; percentage: number }[];
+  activeDays: number;
+  longestStreak: number;
+  elapsedDays: number;
+  avgPerDay: number;
+  focus: { productive: number; passive: number; other: number };
+};
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -95,6 +106,7 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -144,6 +156,11 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
 
   const colorMap = useMemo(
     () => Object.fromEntries(activityTypes.map((a) => [a.name, a.color ?? "teal"])),
+    [activityTypes]
+  );
+
+  const categoryMap = useMemo(
+    () => Object.fromEntries(activityTypes.map((a) => [a.name, (a.category as ActivityCategory) ?? DEFAULT_ACTIVITY_CATEGORY])) as Record<string, ActivityCategory>,
     [activityTypes]
   );
 
@@ -208,6 +225,62 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
     return { dateKey, totalHours, activities };
   }, [selectedDay, cellMap]);
 
+  // Year rollup for the side summary panel — reuses the already-built cellMap
+  // (each entry is one logged hour), so it costs one pass, no extra query.
+  const yearSummary = useMemo<YearSummary>(() => {
+    // Cells are keyed by UTC date/hour, so gate on a UTC "now" — future-dated
+    // logs (e.g. backfilled sleep) must not count toward any figure here.
+    const now = new Date();
+    const nowDate = now.toISOString().slice(0, 10);
+    const nowHour = now.getUTCHours();
+    const isElapsed = (dateKey: string, hour: number) =>
+      dateKey < nowDate || (dateKey === nowDate && hour <= nowHour);
+
+    const perActivity = new Map<string, { count: number; hex: string }>();
+    const activeDayKeys = new Set<string>();
+    let totalHours = 0;
+    for (const [key, cell] of cellMap) {
+      const [dateKey, hh] = key.split("|");
+      if (!isElapsed(dateKey, Number(hh))) continue;
+      totalHours += 1;
+      activeDayKeys.add(dateKey);
+      const cur = perActivity.get(cell.activity) ?? { count: 0, hex: COLOR_HEX[cell.color] || "#6b7280" };
+      cur.count += 1;
+      perActivity.set(cell.activity, cur);
+    }
+    const activities = Array.from(perActivity.entries())
+      .map(([name, v]) => ({ name, ...v, percentage: totalHours ? (v.count / totalHours) * 100 : 0 }))
+      .sort((a, b) => b.count - a.count);
+
+    // Productive / passive / other split from each activity's category.
+    const focus = { productive: 0, passive: 0, other: 0 };
+    for (const a of activities) {
+      focus[categoryToProductivityBucket(categoryMap[a.name] ?? DEFAULT_ACTIVITY_CATEGORY)] += a.count;
+    }
+
+    // Longest run of consecutive calendar days with any log.
+    const sortedDayTimes = Array.from(activeDayKeys).sort().map((d) => new Date(`${d}T00:00:00`).getTime());
+    let longestStreak = 0;
+    let run = 0;
+    let prev: number | null = null;
+    for (const t of sortedDayTimes) {
+      run = prev !== null && t - prev === 86_400_000 ? run + 1 : 1;
+      if (run > longestStreak) longestStreak = run;
+      prev = t;
+    }
+
+    // Elapsed window: never count the future. Past years count whole; the
+    // current year counts up to today (and today up to the current hour).
+    const thisYear = now.getFullYear();
+    let elapsedDays: number;
+    if (year > thisYear) elapsedDays = 0;
+    else if (year < thisYear) elapsedDays = eachDayOfInterval({ start: startOfYear(new Date(year, 0, 1)), end: endOfYear(new Date(year, 0, 1)) }).length;
+    else elapsedDays = differenceInCalendarDays(now, startOfYear(new Date(year, 0, 1))) + 1;
+    const avgPerDay = elapsedDays > 0 ? Math.round((totalHours / elapsedDays) * 10) / 10 : 0;
+
+    return { totalHours, activities, activeDays: activeDayKeys.size, longestStreak, elapsedDays, avgPerDay, focus };
+  }, [cellMap, categoryMap, year]);
+
   const gridMetrics = useMemo(() => getGridMetrics(containerWidth), [containerWidth]);
 
   if (loadingTypes || loadingLogs) {
@@ -232,9 +305,9 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
           </div>
         </div>
 
-        {/* Grid skeleton */}
-        <div className="flex-1">
-          <div className="mx-auto relative overflow-x-hidden overflow-y-auto overscroll-x-none [touch-action:pan-y]" style={{ width: gridMetrics.viewportWidth, height: gridMetrics.viewportHeight }}>
+        {/* Grid skeleton + summary panel, centered together (matches the view) */}
+        <div className="flex flex-col items-center gap-4 lg:flex-row lg:items-start lg:justify-center lg:gap-6">
+          <div className="relative overflow-x-hidden overflow-y-auto overscroll-x-none [touch-action:pan-y]" style={{ width: gridMetrics.viewportWidth, height: gridMetrics.viewportHeight }}>
             <div className="relative rounded-xl border border-border bg-card" style={{ width: gridMetrics.frameWidth }}>
               <table
                 className="border-separate border-spacing-0 text-[10px]"
@@ -281,6 +354,8 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
               </table>
             </div>
           </div>
+
+          <YearActivitySummarySkeleton />
         </div>
       </div>
     );
@@ -332,27 +407,63 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
         )}
       </AnimatePresence>
 
-      {/* Canvas Grid */}
-      <ActivityCanvas
-        allDays={allDays}
-        cellMap={cellMap}
-        activeFilter={activeFilter}
-        gridMetrics={gridMetrics}
-        selectedDay={selectedDay}
-        onDaySelect={(day, e) => {
-          setSelectedDay((prev) => {
-            const isSelected = prev && isEqual(startOfDay(day), startOfDay(prev));
-            if (isSelected) {
-              setPopoverPos(null);
-              return null;
-            }
-            const x = Math.min(e.clientX + 8, window.innerWidth - 256);
-            const y = Math.min(e.clientY - 20, window.innerHeight - 260);
-            setPopoverPos({ x: Math.max(8, x), y: Math.max(8, y) });
-            return day;
-          });
-        }}
-      />
+      {/* Canvas grid + the year summary as a side column on desktop. The grid
+          caps at ~540px, so the panel only fits alongside it at lg+; below that
+          the summary opens from a floating button (see below). The pair is
+          centered together on desktop. */}
+      <div className="flex flex-col items-center gap-4 lg:flex-row lg:items-start lg:justify-center lg:gap-6">
+        <ActivityCanvas
+          allDays={allDays}
+          cellMap={cellMap}
+          activeFilter={activeFilter}
+          gridMetrics={gridMetrics}
+          selectedDay={selectedDay}
+          onDaySelect={(day, e) => {
+            setSelectedDay((prev) => {
+              const isSelected = prev && isEqual(startOfDay(day), startOfDay(prev));
+              if (isSelected) {
+                setPopoverPos(null);
+                return null;
+              }
+              const x = Math.min(e.clientX + 8, window.innerWidth - 256);
+              const y = Math.min(e.clientY - 20, window.innerHeight - 260);
+              setPopoverPos({ x: Math.max(8, x), y: Math.max(8, y) });
+              return day;
+            });
+          }}
+        />
+
+        <aside className="hidden lg:block lg:w-80 lg:shrink-0">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <h3 className="mb-3 font-heading text-sm font-semibold text-foreground">This year</h3>
+            <YearSummaryContent summary={yearSummary} />
+          </div>
+        </aside>
+      </div>
+
+      {/* Below lg (mobile + tablet), the grid is too narrow to sit beside the
+          panel, so open the summary from a floating button into a dialog. */}
+      <button
+        type="button"
+        onClick={() => setSummaryOpen(true)}
+        aria-label="Year summary"
+        className={cn(
+          "fixed left-1/2 z-50 inline-flex size-12 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-lg transition-colors hover:bg-accent lg:hidden",
+          summaryOpen && "hidden",
+        )}
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+      >
+        <BarChart3 className="h-5 w-5" />
+      </button>
+
+      <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+        <DialogContent>
+          <DialogTitle className="pr-8 font-heading">This year · {year}</DialogTitle>
+          <div className="-mr-2 max-h-[70vh] overflow-y-auto pr-2">
+            <YearSummaryContent summary={yearSummary} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -395,7 +506,9 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
     };
     document.body.removeChild(tempEl);
     return colors;
-  }, [gridWidth]); // recompute on resize (theme may change with breakpoints)
+    // Recompute on resize (theme may change with breakpoints); gridWidth is the resize signal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridWidth]);
 
   // Draw the canvas (cells only, no labels)
   const drawCanvas = useCallback(() => {
@@ -549,7 +662,7 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
     <div className="animate-fade-slide-in" style={{ animationDelay: "40ms" }}>
       <div
         ref={frameRef}
-        className="relative mx-auto rounded-xl border border-border bg-card overflow-hidden"
+        className="relative rounded-xl border border-border bg-card overflow-hidden"
         style={{ width: gridMetrics.viewportWidth, height: viewportHeight }}
       >
         <div
@@ -619,6 +732,162 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
         )}
       </div>
     </div>
+  );
+}
+
+/** The year rollup body — shared by the desktop side panel and the mobile dialog.
+ * All figures cover the elapsed year only (see the `yearSummary` memo). */
+function YearSummaryContent({ summary }: { summary: YearSummary }) {
+  const { totalHours, activities, activeDays, longestStreak, avgPerDay, focus } = summary;
+
+  if (totalHours === 0) {
+    return <p className="text-sm text-muted-foreground">No activity logged yet.</p>;
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* At a glance */}
+      <div className="grid grid-cols-2 gap-2">
+        <SummaryStat label="Hours" value={totalHours} />
+        <SummaryStat label="Per day" value={avgPerDay} />
+        <SummaryStat label="Active days" value={activeDays} />
+        <SummaryStat label="Streak" value={longestStreak} />
+      </div>
+
+      {/* Activity mix — share of logged time */}
+      <section className="space-y-2">
+        <SectionLabel>Activity mix</SectionLabel>
+        <div className="flex items-center gap-4">
+          <ActivityDonut slices={activities} totalHours={totalHours} />
+          <ul className="min-w-0 flex-1 space-y-1.5">
+            {activities.slice(0, 6).map((a) => (
+              <li key={a.name} className="flex items-center gap-2 text-xs">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: a.hex }} />
+                <span className="min-w-0 flex-1 truncate text-foreground">{a.name}</span>
+                <span className="tabular-nums text-muted-foreground">{Math.round(a.percentage)}%</span>
+              </li>
+            ))}
+            {activities.length > 6 && (
+              <li className="pl-4 text-[0.7rem] text-muted-foreground">+{activities.length - 6} more</li>
+            )}
+          </ul>
+        </div>
+      </section>
+
+      {/* Focus — productive / rest / other */}
+      <FocusSection focus={focus} />
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return <h4 className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">{children}</h4>;
+}
+
+/** Desktop-only skeleton for the year-summary side panel (matches its shape:
+ * stat tiles, an activity-mix donut + legend, and the focus bar). */
+export function YearActivitySummarySkeleton() {
+  return (
+    <aside className="hidden w-80 shrink-0 lg:block">
+      <div className="space-y-5 rounded-xl border border-border bg-card p-4">
+        <Skeleton className="h-4 w-20" />
+        <div className="grid grid-cols-2 gap-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 rounded-lg" />
+          ))}
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-24 w-24 shrink-0 rounded-full" />
+            <div className="flex-1 space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-3 w-full" />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-2.5 w-full rounded-full" />
+          <div className="flex gap-3">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-3 w-14" />
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function SummaryStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg bg-muted/40 px-2 py-2 text-center">
+      <div className="font-heading text-lg font-semibold tabular-nums text-foreground">{value}</div>
+      <div className="text-[0.6rem] uppercase tracking-wide text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+/** Donut of activity share (percent of logged hours), total in the hole. */
+function ActivityDonut({ slices, totalHours }: { slices: YearSummary["activities"]; totalHours: number }) {
+  const r = 38;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg viewBox="0 0 100 100" className="h-24 w-24 shrink-0">
+      <circle cx={50} cy={50} r={r} fill="none" stroke="var(--muted)" strokeWidth={15} />
+      {slices.map((s, i) => {
+        const len = (s.percentage / 100) * c;
+        // Prefix sum of prior slices (n is small — the vocabulary of activities).
+        const startPct = slices.slice(0, i).reduce((sum, x) => sum + x.percentage, 0);
+        return (
+          <circle
+            key={s.name}
+            cx={50}
+            cy={50}
+            r={r}
+            fill="none"
+            stroke={s.hex}
+            strokeWidth={15}
+            strokeDasharray={`${len} ${c - len}`}
+            strokeDashoffset={-(startPct / 100) * c}
+            transform="rotate(-90 50 50)"
+          />
+        );
+      })}
+      <text x={50} y={49} textAnchor="middle" className="fill-foreground" style={{ fontSize: 15, fontWeight: 700 }}>{totalHours}</text>
+      <text x={50} y={61} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 7 }}>hours</text>
+    </svg>
+  );
+}
+
+/** Productive / rest / other as a segmented bar with percentages. */
+function FocusSection({ focus }: { focus: YearSummary["focus"] }) {
+  const total = focus.productive + focus.passive + focus.other;
+  if (total === 0) return null;
+  const parts = [
+    { key: "productive", label: "Productive", hours: focus.productive, cls: "bg-emerald-500" },
+    { key: "passive", label: "Rest", hours: focus.passive, cls: "bg-sky-500" },
+    { key: "other", label: "Other", hours: focus.other, cls: "bg-muted-foreground/50" },
+  ].filter((p) => p.hours > 0);
+  return (
+    <section className="space-y-2">
+      <SectionLabel>Focus</SectionLabel>
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full">
+        {parts.map((p) => (
+          <div key={p.key} className={p.cls} style={{ width: `${(p.hours / total) * 100}%` }} />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {parts.map((p) => (
+          <div key={p.key} className="flex items-center gap-1.5 text-[0.7rem]">
+            <span className={cn("h-2 w-2 rounded-full", p.cls)} />
+            <span className="text-foreground">{p.label}</span>
+            <span className="tabular-nums text-muted-foreground">{Math.round((p.hours / total) * 100)}%</span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

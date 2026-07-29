@@ -434,7 +434,7 @@ Important child components:
   - Shared skeleton for the week view body
 
 - `src/components/tracker/YearActivityGrid.tsx`
-  - Year heatmap for tracked activity
+  - Year heatmap for tracked activity (a 24h × 365-day canvas, capped ~540px wide). A year-summary panel fills the width beside it: at-a-glance stats (hours, per-day average, active days, streak), an activity-mix donut (share of logged time), and a productive/rest/other focus split — all over the **elapsed** year only (never the future). On desktop (`lg`) it's a side column and the grid + panel are centered together; below that a centered floating button opens it in a dialog. Its loading shape (`YearActivitySummarySkeleton`) is shared by the in-app and cold-boot skeletons.
 
 - `src/components/tracker/YearRatingGrid.tsx`
   - Year calendar heatmap for daily mood ratings

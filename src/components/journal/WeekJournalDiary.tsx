@@ -32,12 +32,12 @@ export function WeekJournalDiary({ weekStart }: { weekStart: Date }) {
   const rangeLabel = `${format(weekStart, "MMM d")} – ${format(last, isSameMonth(weekStart, last) ? "d" : "MMM d")}`;
 
   return (
-    <div className="journal-surface mx-auto w-full max-w-3xl rounded-2xl border border-border/65 bg-gradient-to-b from-card/70 to-card/40 p-5 shadow-[0_12px_38px_-28px_rgba(0,0,0,0.45)] transition-smooth sm:p-7">
+    <div className="journal-surface mx-auto w-full max-w-2xl rounded-2xl border border-border/65 bg-gradient-to-b from-card/70 to-card/40 p-4 shadow-[0_12px_38px_-28px_rgba(0,0,0,0.45)] transition-smooth">
       <WidgetHeader icon={NotebookPen} title="Journal" subtitle={rangeLabel} className="mb-3" />
 
       <div className="relative">
         {/* Diary spine threading the days. */}
-        <div className="pointer-events-none absolute bottom-3 left-[3.25rem] top-3 w-px bg-border/60" aria-hidden />
+        <div className="pointer-events-none absolute bottom-3 left-[2.75rem] top-3 w-px bg-border/60" aria-hidden />
         {days.map((d, i) => {
           const key = journalDayKey(d);
           const has = entryDays.has(key);
@@ -45,9 +45,9 @@ export function WeekJournalDiary({ weekStart }: { weekStart: Date }) {
           return (
             <div
               key={key}
-              className={cn("relative grid grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-6 py-3", i > 0 && "border-t border-border/40")}
+              className={cn("relative grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-5 py-3", i > 0 && "border-t border-border/40")}
             >
-              <div className="text-right">
+              <div>
                 <div className={cn("text-[0.6rem] font-bold uppercase tracking-wide", dayIsToday ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
                   {format(d, "EEE")}
                 </div>
@@ -59,7 +59,7 @@ export function WeekJournalDiary({ weekStart }: { weekStart: Date }) {
               <span
                 aria-hidden
                 className={cn(
-                  "absolute left-[3.25rem] top-[0.45rem] h-2 w-2 -translate-x-1/2 rounded-full ring-2 ring-[var(--color-card)]",
+                  "absolute left-[2.75rem] top-[0.45rem] h-2 w-2 -translate-x-1/2 rounded-full ring-2 ring-[var(--color-card)]",
                   has ? "bg-amber-500 dark:bg-amber-400" : "bg-muted-foreground/35",
                 )}
               />

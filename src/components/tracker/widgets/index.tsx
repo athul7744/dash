@@ -10,7 +10,7 @@ import { AnimatedWidget } from "./AnimatedWidget";
 
 export function WeekWidgets(props: WidgetProps) {
   return (
-    <div className="mx-auto max-w-2xl space-y-4 [touch-action:pan-y]">
+    <div className="space-y-4 [touch-action:pan-y]">
       {/* Row 1: Sleep + Mood */}
       <div className="grid grid-cols-2 gap-3">
         <AnimatedWidget delay={0}>

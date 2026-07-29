@@ -444,11 +444,11 @@ Important child components:
   - Each activity carries a `category` (`productive | neutral | rest | sleep`), editable per row, plus inline rename
 
 - `src/components/tracker/widgets/*`
-  - Weekly analytics and summaries used below the grid
+  - Weekly analytics and summaries. Below the full-width grid the Week view is a two-column region on desktop (`lg`): widgets on the left, the journal as a sticky column on the right; it stacks to one column on smaller screens.
   - Widget semantics (productive/passive split, sleep stats) are driven by each activity's `category`, threaded from the page as a name→category map — never inferred from the activity name
 
 - `src/components/journal/WeekJournalDiary.tsx`
-  - The Week view's journal, below the widgets: the week's days-so-far threaded on a timeline, each a `DailyJournalEntry` (future days and entirely-future weeks are hidden). See [Journal](#journal).
+  - The Week view's journal, in the right-hand column beside the widgets: the week's days-so-far threaded on a timeline, each a `DailyJournalEntry` (future days and entirely-future weeks are hidden). See [Journal](#journal).
 
 Tracker loading model:
 

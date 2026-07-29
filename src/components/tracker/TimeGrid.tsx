@@ -77,7 +77,7 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
                 Mood
               </th>
             )}
-            <th className={cn("sticky z-10 bg-muted px-3 py-2 text-left font-semibold text-muted-foreground min-w-[90px] border-r border-b border-border", ratings ? "left-[52px]" : "left-0")}>
+            <th className={cn("sticky z-10 bg-muted px-3 py-2 text-left font-semibold text-muted-foreground w-[120px] border-r border-b border-border", ratings ? "left-[52px]" : "left-0")}>
               Day
             </th>
             {HOURS.map((h) => (
@@ -129,7 +129,7 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
                     </Select>
                   </td>
                 )}
-                <td className={cn("sticky z-10 bg-muted px-3 py-2 font-medium text-muted-foreground whitespace-nowrap border-r border-border", ratings ? "left-[52px]" : "left-0")}>
+                <td className={cn("sticky z-10 bg-muted px-3 py-2 font-medium text-muted-foreground whitespace-nowrap w-[120px] border-r border-border", ratings ? "left-[52px]" : "left-0")}>
                   {format(day, "EEE, MMM d")}
                 </td>
                 {HOURS.map((h) => {
@@ -150,7 +150,7 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
                       onClick={() => onCellClick(day, h, cell)}
                       className={cn(
                         "border-l border-border cursor-pointer text-center select-none transition-colors",
-                        "h-9 w-11",
+                        "h-9 min-w-[44px]",
                         "hover:ring-2 hover:ring-primary/40 hover:z-10",
                         cellClasses ?? "hover:bg-accent/50"
                       )}

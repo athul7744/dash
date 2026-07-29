@@ -630,13 +630,17 @@ export function TrackerWorkspace() {
                   <TimeGrid days={days} data={mergedGridData} colorMap={activityColorMap} onCellClick={handleCellClick} ratings={mergedRatingsMap} onRate={handleRate} moods={moods} />
                 </section>
 
-                <section className="mt-4 min-w-0 overflow-x-hidden [touch-action:pan-y]">
-                  <WeekWidgets days={widgetData.days} data={widgetData.data} colorMap={activityColorMap} categoryMap={activityCategoryMap} ratings={widgetData.ratings} moods={moods} />
-                </section>
+                {/* Below the full-width grid: analytics on the left, the journal
+                    as a sticky readable column on the right (stacks on mobile). */}
+                <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] [touch-action:pan-y]">
+                  <section className="min-w-0 overflow-x-hidden">
+                    <WeekWidgets days={widgetData.days} data={widgetData.data} colorMap={activityColorMap} categoryMap={activityCategoryMap} ratings={widgetData.ratings} moods={moods} />
+                  </section>
 
-                <section className="mt-8 min-w-0 overflow-x-hidden pb-16 sm:pb-0 [touch-action:pan-y]">
-                  <WeekJournalDiary weekStart={days[0]} />
-                </section>
+                  <section className="min-w-0 pb-16 sm:pb-0 lg:sticky lg:top-4 lg:self-start">
+                    <WeekJournalDiary weekStart={days[0]} />
+                  </section>
+                </div>
               </div>
             )}
           </>

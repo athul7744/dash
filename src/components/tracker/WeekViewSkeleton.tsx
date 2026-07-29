@@ -45,7 +45,7 @@ function TimeGridSkeleton() {
               <th className="sticky left-0 z-10 bg-muted px-1 py-2 w-[52px] border-r border-b border-border">
                 <Skeleton className="h-3 w-8 mx-auto" />
               </th>
-              <th className="sticky left-[52px] z-10 bg-muted px-3 py-2 min-w-[90px] border-r border-b border-border">
+              <th className="sticky left-[52px] z-10 bg-muted px-3 py-2 w-[120px] border-r border-b border-border">
                 <Skeleton className="h-3 w-10" />
               </th>
               {Array.from({ length: 24 }).map((_, h) => (
@@ -61,11 +61,11 @@ function TimeGridSkeleton() {
                 <td className="sticky left-0 z-10 bg-muted px-1 py-1 border-r border-border w-[52px]">
                   <Skeleton className="h-4 w-4 rounded-full mx-auto" />
                 </td>
-                <td className="sticky left-[52px] z-10 bg-muted px-3 py-2 border-r border-border">
+                <td className="sticky left-[52px] z-10 bg-muted px-3 py-2 w-[120px] border-r border-border">
                   <Skeleton className="h-3 w-16" />
                 </td>
                 {Array.from({ length: 24 }).map((_, h) => (
-                  <td key={h} className="border-l border-border h-9 w-11">
+                  <td key={h} className="border-l border-border h-9 min-w-[44px]">
                     {/* randomly fill ~20% of cells */}
                     {((row * 24 + h) * 7 + row) % 5 === 0 && (
                       <Skeleton className="h-full w-full rounded-none" />
@@ -84,7 +84,7 @@ function TimeGridSkeleton() {
 /** Skeleton for the widgets section */
 function WidgetsSkeleton() {
   return (
-    <div className="space-y-4 max-w-2xl mx-auto">
+    <div className="space-y-4">
       {/* Row 1: two small cards */}
       <div className="grid grid-cols-2 gap-3">
         <div className="border border-border rounded-lg p-3 space-y-2">
@@ -195,12 +195,14 @@ export function WeekViewSkeleton() {
       <section>
         <TimeGridSkeleton />
       </section>
-      <section className="mt-4">
-        <WidgetsSkeleton />
-      </section>
-      <section className="mt-8">
-        <WeeklyJournalSkeleton />
-      </section>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        <section className="min-w-0">
+          <WidgetsSkeleton />
+        </section>
+        <section className="min-w-0 lg:sticky lg:top-4 lg:self-start">
+          <WeeklyJournalSkeleton />
+        </section>
+      </div>
     </>
   );
 }

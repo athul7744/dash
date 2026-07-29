@@ -96,7 +96,7 @@ Key runtime behavior:
   - Cold-start fallback (shown by `powersync-provider` while the local DB opens) that picks the route-shaped skeleton by pathname (`/tracker/<view>` for the tracker; `/notes/graph` vs `/notes/<id>` vs bare `/notes` for the notes overview/editor/graph), so a refresh boots into the matching skeleton with no blank gap
 
 - `src/components/ui/skeleton.tsx`
-  - The one skeleton vocabulary: `Skeleton` (a shimmer bone — the default, for detail pages/editors), `SkeletonWave` (wraps a long scroll list; direct children breathe in a staggered top-down wave), and `SkeletonAurora` (a large canvas with an accent glow drifting behind frosted bones — tracker grid, dashboard splash, graph boot; used sparingly). Animation lives in `globals.css` (`.skeleton*`) and falls back to a static box under `prefers-reduced-motion`; content fades in over the skeleton it replaces (`.skeleton-settle-in`)
+  - The one skeleton vocabulary: `Skeleton` (a shimmer bone — the default, for detail pages/editors) and `SkeletonWave` (wraps a long scroll list; direct children breathe in a staggered top-down wave). Animation lives in `globals.css` (`.skeleton*`) and falls back to a static box under `prefers-reduced-motion`; content fades in over the skeleton it replaces (`.skeleton-settle-in`)
 
 Important convention:
 

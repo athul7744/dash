@@ -1,4 +1,4 @@
-import { Skeleton, SkeletonAurora, SkeletonWave } from "@/components/ui/skeleton";
+import { Skeleton, SkeletonWave } from "@/components/ui/skeleton";
 
 type NotesPageSkeletonMode = "overview" | "editor";
 
@@ -242,16 +242,15 @@ export function NotesDetailsRailSkeleton({ showHeader = true }: NotesDetailsRail
 /**
  * Graph-surface skeleton — a dotted, full-bleed canvas with ghost nodes and the
  * floating controls / legend / zoom placeholders, matching `NotesGraphView`
- * (which has no app header of its own). The canvas + ghost nodes sit in a
- * `SkeletonAurora` (a drifting accent glow carries the motion); the floating
- * panels stay outside it so their `Skeleton` bones keep shimmering.
+ * (which has no app header of its own). The floating panels' `Skeleton` bones
+ * shimmer; the ghost nodes stay static.
  */
 export function NotesGraphSkeleton() {
   return (
     <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-2xl border border-border/60">
-      {/* Canvas + ghost nodes: static bones over a drifting glow. */}
-      <SkeletonAurora
-        className="absolute inset-0"
+      {/* Canvas + ghost nodes. */}
+      <div
+        className="absolute inset-0 bg-muted"
         style={{
           backgroundImage: "radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 0)",
           backgroundSize: "26px 26px",
@@ -263,7 +262,7 @@ export function NotesGraphSkeleton() {
         <span className="absolute left-[45%] top-[64%] h-8 w-8 rounded-full bg-muted-foreground/15" />
         <span className="absolute left-[53%] top-[75%] h-6 w-6 rounded-full bg-muted-foreground/15" />
         <span className="absolute left-[40%] top-[80%] h-6 w-6 rounded-full bg-muted-foreground/15" />
-      </SkeletonAurora>
+      </div>
 
       {/* Controls panel (top-left). */}
       <div className="absolute left-3 top-3 w-52 max-w-[46vw] space-y-3 rounded-xl border border-border/60 bg-popover/90 p-3 shadow-lg backdrop-blur-sm sm:left-4 sm:top-4 sm:w-56">

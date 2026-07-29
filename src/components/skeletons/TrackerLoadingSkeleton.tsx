@@ -4,7 +4,7 @@ import { Calendar } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { WeekViewSkeleton, WeekNavigatorSkeleton } from "@/components/tracker/WeekViewSkeleton";
-import { Skeleton, SkeletonAurora } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getApp } from "@/lib/shared/apps";
 
 const trackerApp = getApp("tracker");
@@ -45,7 +45,7 @@ function ActivityGridSkeleton() {
         </div>
       </div>
 
-      <SkeletonAurora className="rounded-xl border border-border p-2">
+      <div className="rounded-xl border border-border p-2">
         <div className="overflow-x-auto">
           <div className="w-max">
             {/* Hour header */}
@@ -74,7 +74,7 @@ function ActivityGridSkeleton() {
             </div>
           </div>
         </div>
-      </SkeletonAurora>
+      </div>
     </div>
   );
 }
@@ -94,7 +94,7 @@ function MoodGridSkeleton() {
           ))}
         </div>
       </div>
-      <SkeletonAurora className="grid grid-cols-2 gap-4 rounded-xl p-1 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 rounded-xl p-1 sm:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 12 }).map((_, m) => (
           <div key={m} className="rounded-xl border border-border bg-card/50 p-3">
             <Skeleton className="mx-auto mb-2 h-3.5 w-10" />
@@ -108,7 +108,7 @@ function MoodGridSkeleton() {
             </div>
           </div>
         ))}
-      </SkeletonAurora>
+      </div>
     </div>
   );
 }

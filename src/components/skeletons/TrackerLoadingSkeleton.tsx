@@ -4,7 +4,7 @@ import { Calendar } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { WeekViewSkeleton, WeekNavigatorSkeleton } from "@/components/tracker/WeekViewSkeleton";
-import { YearActivitySummarySkeleton } from "@/components/tracker/YearActivityGrid";
+import { ActivityYearInsightsSkeleton } from "@/components/tracker/year-insights";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getApp } from "@/lib/shared/apps";
 
@@ -79,7 +79,7 @@ function ActivityGridSkeleton() {
           </div>
         </div>
 
-        <YearActivitySummarySkeleton />
+        <ActivityYearInsightsSkeleton />
       </div>
     </div>
   );

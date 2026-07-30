@@ -14,10 +14,13 @@ import {
   isToday,
 } from "date-fns";
 import { cn } from "@/lib/shared/utils";
-import { Star } from "lucide-react";
+import { BarChart3, Star } from "lucide-react";
 import { DailyRating, TimeLog, ActivityType } from "@/lib/powersync/AppSchema";
 import { ACTIVITY_CELL_CLASSES } from "@/lib/tracker/activities";
 import { moodByValue, moodDotClass, moodHex, moodRange, type Mood } from "@/lib/tracker/moods";
+import { computeMoodYearInsights } from "@/lib/tracker/year-insights";
+import { MoodYearInsights } from "@/components/tracker/year-insights";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { COLOR_HEX } from "./widgets/types";
 import { FilterPill } from "./FilterPill";
 import { DayPopover } from "./DayPopover";
@@ -44,6 +47,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
   const [activeFilter, setActiveFilter] = useState<number | null>(null);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
+  const [insightsOpen, setInsightsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const yearStart = format(startOfYear(new Date(year, 0, 1)), "yyyy-MM-dd");
@@ -90,6 +94,15 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
     },
     [optimisticRatings, ratings, year]
   );
+
+  // Year mood rollups for the Insights dialog (future ratings excluded).
+  const moodInsights = useMemo(() => {
+    const clean = new Map<string, number>();
+    for (const [date, score] of ratingMap) {
+      if (date != null && score != null) clean.set(date, score);
+    }
+    return computeMoodYearInsights({ ratingMap: clean, moods, year, now: new Date() });
+  }, [ratingMap, moods, year]);
 
   const activityCellMap = useMemo(() => {
     const map = new Map<string, { activity: string; hex: string }>();
@@ -231,7 +244,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
 
   return (
       <div className={cn(YEAR_VIEW_SHELL_CLASS, "space-y-4")}>
-      {/* Header: year selector + pill legend */}
+      {/* Header: year selector + pill legend + insights */}
       <div className="flex items-center gap-3 md:gap-4 [touch-action:pan-y]">
         {headerLeft}
         <div className="min-w-0 flex flex-1 items-center gap-1.5 overflow-x-auto overscroll-y-none [touch-action:pan-x_pan-y]">
@@ -246,7 +259,39 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
             />
           ))}
         </div>
+        {/* Desktop trigger; on mobile/tablet the FAB below opens the same dialog. */}
+        <button
+          type="button"
+          onClick={() => setInsightsOpen(true)}
+          className="hidden shrink-0 items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:flex"
+        >
+          <BarChart3 className="h-3.5 w-3.5" />
+          Insights
+        </button>
       </div>
+
+      {/* Below lg, open the insights from a centered floating button (matches Activity). */}
+      <button
+        type="button"
+        onClick={() => setInsightsOpen(true)}
+        className={cn(
+          "fixed left-1/2 z-50 inline-flex h-12 -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-medium text-foreground shadow-lg transition-colors hover:bg-accent lg:hidden",
+          insightsOpen && "hidden",
+        )}
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+      >
+        <BarChart3 className="h-4 w-4" />
+        Insights
+      </button>
+
+      <Dialog open={insightsOpen} onOpenChange={setInsightsOpen}>
+        <DialogContent className="grid max-h-[85vh] grid-rows-[auto_minmax(0,1fr)]">
+          <DialogTitle className="pr-8 font-heading">Mood · {year}</DialogTitle>
+          <div className="min-h-0">
+            <MoodYearInsights insights={moodInsights} moods={moods} fill />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* CSS for animations + filter */}
       <style>{`

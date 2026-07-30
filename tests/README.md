@@ -141,6 +141,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/tracker/moods.test.ts`
   Covers the configurable mood-scale helpers (`src/lib/tracker/moods.ts`): `moodRange` (bounds + midpoint, empty fallback), `moodTier` (good/bad/neutral classified relative to the scale's range, for any scale length), and `moodByValue`.
 
+- `tests/tracker/year-insights.test.ts`
+  Covers the pure year rollups (`src/lib/tracker/year-insights.ts`): activity ranking + per-activity breakdown (monthly trend, weekday average, cadence, streak, peak month, recency) and the sleep-per-night rollup (by-month/weekday, avg, best/worst), UTC future-exclusion; mood average + coverage, monthly/weekday averages, per-mood-level breakdown (counts, streak, peak, recency), weekly-rhythm summary, local-date future-exclusion; empty/future-year cases.
+
 - `tests/tracker/activity-categories.test.ts`
   Covers `categoryToProductivityBucket` (`src/lib/tracker/activities.ts`): productive→productive, rest/sleep→passive, neutral/unknown/missing→other; and that `DEFAULT_ACTIVITIES` seed with valid categories.
 

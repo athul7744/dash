@@ -3,6 +3,8 @@
 import { useQuery } from "@powersync/react";
 import { AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useMounted } from "@/hooks/use-mounted";
 import { format, startOfYear, endOfYear, eachDayOfInterval, getMonth, isEqual, startOfDay } from "date-fns";
 import { BarChart3, Grid3X3 } from "lucide-react";
 import { cn } from "@/lib/shared/utils";
@@ -98,6 +100,9 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  // Portal the mobile FAB to <body> so it's fixed to the viewport (not the
+  // scrolling/animated view container) and lines up with the app-switcher FAB.
+  const mounted = useMounted();
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -388,19 +393,24 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
       </div>
 
       {/* Below lg (mobile + tablet), the grid is too narrow to sit beside the
-          panel, so open the summary from a floating button into a dialog. */}
-      <button
-        type="button"
-        onClick={() => setSummaryOpen(true)}
-        className={cn(
-          "fixed left-1/2 z-50 inline-flex h-12 -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-medium text-foreground shadow-lg transition-colors hover:bg-accent lg:hidden",
-          summaryOpen && "hidden",
+          panel, so open the summary from a floating button into a dialog.
+          Portalled to <body> so it's viewport-fixed (see `mounted` above). */}
+      {mounted &&
+        createPortal(
+          <button
+            type="button"
+            onClick={() => setSummaryOpen(true)}
+            className={cn(
+              "fixed left-1/2 z-50 inline-flex h-12 -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-medium text-foreground shadow-lg transition-colors hover:bg-accent lg:hidden",
+              summaryOpen && "hidden",
+            )}
+            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+          >
+            <BarChart3 className="h-4 w-4" />
+            Insights
+          </button>,
+          document.body,
         )}
-        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
-      >
-        <BarChart3 className="h-4 w-4" />
-        Insights
-      </button>
 
       <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
         <DialogContent className="grid max-h-[85vh] grid-rows-[auto_minmax(0,1fr)]">

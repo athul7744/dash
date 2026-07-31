@@ -3,6 +3,8 @@
 import { useQuery } from "@powersync/react";
 import { AnimatePresence } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useMounted } from "@/hooks/use-mounted";
 import {
   format,
   startOfYear,
@@ -48,6 +50,9 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
   const [insightsOpen, setInsightsOpen] = useState(false);
+  // Portal the mobile FAB to <body> so it's fixed to the viewport (not the
+  // scrolling/animated view container) and lines up with the app-switcher FAB.
+  const mounted = useMounted();
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const yearStart = format(startOfYear(new Date(year, 0, 1)), "yyyy-MM-dd");
@@ -259,30 +264,36 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
             />
           ))}
         </div>
-        {/* Desktop trigger; on mobile/tablet the FAB below opens the same dialog. */}
+        {/* Desktop trigger; on mobile/tablet the FAB below opens the same dialog.
+            Uses an inset ring (not a border) so its height matches the pills. */}
         <button
           type="button"
           onClick={() => setInsightsOpen(true)}
-          className="hidden shrink-0 items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:flex"
+          className="hidden shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-border transition-colors hover:bg-accent hover:text-foreground lg:flex"
         >
           <BarChart3 className="h-3.5 w-3.5" />
           Insights
         </button>
       </div>
 
-      {/* Below lg, open the insights from a centered floating button (matches Activity). */}
-      <button
-        type="button"
-        onClick={() => setInsightsOpen(true)}
-        className={cn(
-          "fixed left-1/2 z-50 inline-flex h-12 -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-medium text-foreground shadow-lg transition-colors hover:bg-accent lg:hidden",
-          insightsOpen && "hidden",
+      {/* Below lg, open the insights from a centered floating button (matches
+          Activity). Portalled to <body> so it's viewport-fixed (see `mounted`). */}
+      {mounted &&
+        createPortal(
+          <button
+            type="button"
+            onClick={() => setInsightsOpen(true)}
+            className={cn(
+              "fixed left-1/2 z-50 inline-flex h-12 -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-medium text-foreground shadow-lg transition-colors hover:bg-accent lg:hidden",
+              insightsOpen && "hidden",
+            )}
+            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+          >
+            <BarChart3 className="h-4 w-4" />
+            Insights
+          </button>,
+          document.body,
         )}
-        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
-      >
-        <BarChart3 className="h-4 w-4" />
-        Insights
-      </button>
 
       <Dialog open={insightsOpen} onOpenChange={setInsightsOpen}>
         <DialogContent className="grid max-h-[85vh] grid-rows-[auto_minmax(0,1fr)]">

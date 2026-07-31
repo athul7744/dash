@@ -51,7 +51,7 @@ function BarChart({
   // focusable — not just the coloured sliver. Hover and tap both drive the readout.
   return (
     <div>
-      <div className="flex h-13 items-end gap-[3px]" onMouseLeave={() => onHover(null)}>
+      <div className={cn("flex items-end gap-[3px]", variant === "week" ? "h-20" : "h-13")} onMouseLeave={() => onHover(null)}>
         {values.map((v, i) => (
           <button
             key={i}
@@ -364,7 +364,7 @@ function MoodAvgBars({
   const span = Math.max(1, hi - lo);
   return (
     <div>
-      <div className="flex h-13 items-end gap-[3px]" onMouseLeave={() => onHover(null)}>
+      <div className={cn("flex items-end gap-[3px]", variant === "week" ? "h-20" : "h-13")} onMouseLeave={() => onHover(null)}>
         {values.map((v, i) => {
           const has = v !== null;
           return (

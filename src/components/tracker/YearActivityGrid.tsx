@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@powersync/react";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMounted } from "@/hooks/use-mounted";
@@ -424,6 +424,17 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
   );
 }
 
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+/** A cell's opacity for a given filter: matches → 1, others dimmed, empty faint. */
+function cellFilterAlpha(hasHex: boolean, activity: string | undefined, filter: string | null): number {
+  if (!filter) return hasHex ? 1 : 0.1;
+  if (!hasHex) return 0.05;
+  return activity === filter ? 1 : 0.15;
+}
+
+const FILTER_ANIM_MS = 220;
+
 /** Canvas-based activity grid — renders 8,760 cells as pixels for smooth scroll/filter */
 function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedDay, onDaySelect }: {
   allDays: Date[];
@@ -438,6 +449,14 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const hoveredRowRef = useRef<number | null>(null);
   const needsRedrawRef = useRef(false);
+  const reduceMotion = useReducedMotion();
+  // Filter selection is crossfaded on the canvas (cheap: one redraw loop, no DOM
+  // transitions). `from`/`to` hold the previous and current filter; `progress`
+  // eases 0→1 across the change, interpolating each cell's alpha.
+  const fromFilterRef = useRef<string | null>(activeFilter);
+  const toFilterRef = useRef<string | null>(activeFilter);
+  const filterProgressRef = useRef(1);
+  const filterRafRef = useRef<number | null>(null);
   const { cellRadius, cellSize, cellStride, frameInset, gridWidth, labelColWidth, viewportHeight } = gridMetrics;
   const gridHeight = Math.round(allDays.length * cellStride);
   // Resolve theme colors (cached, only recomputes when grid dimensions change)
@@ -500,38 +519,75 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
         ctx.fillRect(0, y, gridWidth, cellStride);
       }
 
-      // Cells
+      // Cells. Alpha is crossfaded between the previous and current filter so
+      // selecting/clearing an activity dims smoothly instead of snapping.
+      const fromF = fromFilterRef.current;
+      const toF = toFilterRef.current;
+      const p = filterProgressRef.current;
       for (let h = 0; h < 24; h++) {
         const key = `${dateKey}|${String(h).padStart(2, "0")}`;
         const cell = cellMap.get(key);
         const x = h * cellStride;
         const hex = cell ? COLOR_HEX[cell.color] || "#6b7280" : undefined;
+        const hasHex = !!hex;
+        const activity = cell?.activity;
 
-        if (!hex) {
-          ctx.globalAlpha = activeFilter ? 0.05 : 0.1;
-          ctx.fillStyle = mutedBg;
-          roundRect(ctx, x, y, cellSize, cellSize, cellRadius);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        } else {
-          let targetAlpha = 1;
-          if (activeFilter) {
-            targetAlpha = cell!.activity === activeFilter ? 1 : 0.15;
-          }
-          ctx.globalAlpha = targetAlpha;
-          ctx.fillStyle = hex;
-          roundRect(ctx, x, y, cellSize, cellSize, cellRadius);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        }
+        const aTo = cellFilterAlpha(hasHex, activity, toF);
+        ctx.globalAlpha = p >= 1 ? aTo : lerp(cellFilterAlpha(hasHex, activity, fromF), aTo, p);
+        ctx.fillStyle = hasHex ? hex! : mutedBg;
+        roundRect(ctx, x, y, cellSize, cellSize, cellRadius);
+        ctx.fill();
+        ctx.globalAlpha = 1;
       }
     }
-  }, [allDays, cellMap, activeFilter, selectedDay, gridWidth, gridHeight, cellRadius, cellSize, cellStride, themeColors]);
+  }, [allDays, cellMap, selectedDay, gridWidth, gridHeight, cellRadius, cellSize, cellStride, themeColors]);
 
-  // Redraw immediately when inputs change
+  // Redraw immediately when data/dimensions change (filter is animated below).
   useEffect(() => {
     drawCanvas();
   }, [drawCanvas]);
+
+  // Animate the filter change: ease `progress` 0→1 over one short rAF loop,
+  // redrawing the canvas each frame. One loop over the whole grid is far cheaper
+  // than transitioning hundreds of DOM cells, so it stays smooth on mobile.
+  useEffect(() => {
+    const fromF = toFilterRef.current; // the currently-displayed filter
+    toFilterRef.current = activeFilter;
+    if (filterRafRef.current) {
+      cancelAnimationFrame(filterRafRef.current);
+      filterRafRef.current = null;
+    }
+    // No change (e.g. first mount) or reduced motion → settle instantly.
+    if (fromF === activeFilter || reduceMotion) {
+      fromFilterRef.current = activeFilter;
+      filterProgressRef.current = 1;
+      drawCanvas();
+      return;
+    }
+    fromFilterRef.current = fromF;
+    filterProgressRef.current = 0;
+    // Start the clock on the first real frame (not now) — otherwise the first
+    // rAF fires ~16–50ms late and, with an eased curve, the opening frame would
+    // pop ~20% in instead of starting from the current state.
+    let start: number | null = null;
+    const tick = (now: number) => {
+      if (start === null) start = now;
+      const t = Math.min(1, (now - start) / FILTER_ANIM_MS);
+      filterProgressRef.current = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      drawCanvas();
+      if (t < 1) {
+        filterRafRef.current = requestAnimationFrame(tick);
+      } else {
+        filterProgressRef.current = 1;
+        fromFilterRef.current = activeFilter;
+        filterRafRef.current = null;
+      }
+    };
+    filterRafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (filterRafRef.current) cancelAnimationFrame(filterRafRef.current);
+    };
+  }, [activeFilter, reduceMotion, drawCanvas]);
 
   // Redraw on hover change without triggering React state churn
   const scheduleHoverRedraw = useCallback(() => {

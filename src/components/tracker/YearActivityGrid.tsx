@@ -446,6 +446,7 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const hoveredRowRef = useRef<number | null>(null);
   const needsRedrawRef = useRef(false);
@@ -485,8 +486,10 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gridWidth]);
 
-  // Draw the canvas (cells only, no labels)
-  const drawCanvas = useCallback(() => {
+  // Draw the canvas (cells only, no labels). `range` limits the redraw to a band
+  // of rows — used while animating a filter so only the on-screen rows repaint
+  // each frame (off-screen rows are settled by a full redraw when it lands).
+  const drawCanvas = useCallback((range?: { start: number; end: number }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dpr = window.devicePixelRatio || 1;
@@ -499,14 +502,21 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
     }
     const ctx = canvas.getContext("2d")!;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, gridWidth, gridHeight);
+
+    const startRow = range ? Math.max(0, range.start) : 0;
+    const endRow = range ? Math.min(allDays.length, range.end) : allDays.length;
+    if (range) {
+      ctx.clearRect(0, startRow * cellStride, gridWidth, (endRow - startRow) * cellStride);
+    } else {
+      ctx.clearRect(0, 0, gridWidth, gridHeight);
+    }
 
     const { fgHighlight, fgHover, mutedBg } = themeColors;
 
     const selectedDateKey = selectedDay ? format(selectedDay, "yyyy-MM-dd") : null;
     const hoveredRow = hoveredRowRef.current;
 
-    for (let row = 0; row < allDays.length; row++) {
+    for (let row = startRow; row < endRow; row++) {
       const day = allDays[row];
       const dateKey = format(day, "yyyy-MM-dd");
       const y = row * cellStride;
@@ -542,6 +552,15 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
     }
   }, [allDays, cellMap, selectedDay, gridWidth, gridHeight, cellRadius, cellSize, cellStride, themeColors]);
 
+  // The band of rows currently on screen (+2 buffer), for partial redraws.
+  const getVisibleRange = useCallback(() => {
+    const el = scrollRef.current;
+    const scrollTop = el ? el.scrollTop : 0;
+    const clientH = el ? el.clientHeight : viewportHeight;
+    const top = scrollTop - HEADER_HEIGHT;
+    return { start: Math.floor(top / cellStride) - 2, end: Math.ceil((top + clientH) / cellStride) + 2 };
+  }, [cellStride, viewportHeight]);
+
   // Redraw immediately when data/dimensions change (filter is animated below).
   useEffect(() => {
     drawCanvas();
@@ -574,20 +593,22 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
       if (start === null) start = now;
       const t = Math.min(1, (now - start) / FILTER_ANIM_MS);
       filterProgressRef.current = 1 - Math.pow(1 - t, 3); // easeOutCubic
-      drawCanvas();
       if (t < 1) {
+        // Only repaint on-screen rows each frame — the heavy part on mobile.
+        drawCanvas(getVisibleRange());
         filterRafRef.current = requestAnimationFrame(tick);
       } else {
         filterProgressRef.current = 1;
         fromFilterRef.current = activeFilter;
         filterRafRef.current = null;
+        drawCanvas(); // full redraw settles the off-screen rows too
       }
     };
     filterRafRef.current = requestAnimationFrame(tick);
     return () => {
       if (filterRafRef.current) cancelAnimationFrame(filterRafRef.current);
     };
-  }, [activeFilter, reduceMotion, drawCanvas]);
+  }, [activeFilter, reduceMotion, drawCanvas, getVisibleRange]);
 
   // Redraw on hover change without triggering React state churn
   const scheduleHoverRedraw = useCallback(() => {
@@ -678,6 +699,7 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
         style={{ width: gridMetrics.viewportWidth, height: viewportHeight }}
       >
         <div
+          ref={scrollRef}
           className="relative h-full overflow-x-hidden overflow-y-auto overscroll-x-none [touch-action:pan-y]"
           onMouseLeave={() => { setTooltip(null); hoveredRowRef.current = null; scheduleHoverRedraw(); }}
         >

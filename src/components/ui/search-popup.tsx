@@ -29,6 +29,12 @@ type SearchPopupProps = {
   overlayClassName?: string
   disableDefaultAnimation?: boolean
   closeAnimationMs?: number
+  /** Ref to the underlying text input (for caret control). */
+  inputRef?: React.Ref<HTMLInputElement>
+  /** Key handler on the input (e.g. custom backspace for filter chips). */
+  onInputKeyDown?: React.KeyboardEventHandler<HTMLInputElement>
+  /** Node rendered inside the input row, before the text (e.g. a filter chip). */
+  inputPrefix?: React.ReactNode
 }
 
 function SearchPopup({
@@ -47,6 +53,9 @@ function SearchPopup({
   overlayClassName,
   disableDefaultAnimation,
   closeAnimationMs = SEARCH_POPUP_CLOSE_ANIMATION_MS,
+  inputRef,
+  onInputKeyDown,
+  inputPrefix,
 }: SearchPopupProps) {
   const [anchorRect, setAnchorRect] = React.useState<AnchorRect | null>(null)
 
@@ -134,8 +143,11 @@ function SearchPopup({
     >
       <Command shouldFilter={false} className="rounded-none! bg-transparent p-0">
         <CommandInput
+          ref={inputRef}
           value={query}
           onValueChange={onQueryChange}
+          onKeyDown={onInputKeyDown}
+          leadingSlot={inputPrefix}
           placeholder={placeholder}
           className="h-10 text-[15px]"
         />

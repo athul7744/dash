@@ -2,18 +2,25 @@
 
 /**
  * All-entity search for the `[[` reference picker: matches notes, tasks,
- * bookmarks, quotes, and reminders against a query and returns a flat, capped,
- * ordered list. Reuses each app's existing hooks. Mount it lazily (only while
- * the picker is open) so the underlying reactive queries stay idle otherwise.
+ * bookmarks, quotes, and events against a query and returns a flat, capped,
+ * ordered list.
+ *
+ * When the FTS5 index is ready it runs a ranked, full-text query (finds text
+ * inside note bodies, not just titles). Until then — or if FTS5 is unavailable —
+ * it falls back to the original in-JS substring match over each app's hooks, so
+ * the picker always works. Mount it lazily (only while the picker is open).
  */
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@powersync/react";
 
 import { useAllNotePages } from "@/hooks/use-notes";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useEvents } from "@/hooks/use-events";
+import { useSearchIndexReady } from "@/hooks/use-search-index";
+import { searchEntities } from "@/lib/search/query";
+import { stripHighlight } from "@/lib/search/match-query";
 import { stripRefs, type RefKind } from "@/lib/links/tokens";
 import type { Task } from "@/lib/powersync/AppSchema";
 import { getLinkHost } from "@/lib/tasks/tasks";
@@ -22,7 +29,7 @@ export type EntitySearchResult = {
   kind: RefKind;
   id: string;
   label: string;
-  /** Optional secondary line (host, author, …). */
+  /** Optional secondary line (host, author, matching snippet…). */
   sublabel?: string;
 };
 
@@ -35,8 +42,10 @@ const PER_KIND = 6;
  * @param excludeId an entity id to omit (the source itself — no self-links)
  */
 export function useEntitySearch(query: string, excludeId?: string | null): EntitySearchResult[] {
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
+  const ready = useSearchIndexReady();
 
+  // --- JS fallback (also covers the pre-ready window) ---
   const { data: allTasks = [] } = useQuery<TaskRow>(
     "SELECT id, title FROM tasks WHERE state != 'trashed' AND parent_id IS NULL ORDER BY updated_at DESC",
   );
@@ -45,8 +54,9 @@ export function useEntitySearch(query: string, excludeId?: string | null): Entit
   const { quotes } = useQuotes();
   const { events } = useEvents();
 
-  return useMemo(() => {
-    const match = (haystack: string) => (q ? haystack.toLowerCase().includes(q) : true);
+  const fallback = useMemo(() => {
+    const needle = q.toLowerCase();
+    const match = (haystack: string) => (needle ? haystack.toLowerCase().includes(needle) : true);
     const take = <T,>(items: T[]) => items.slice(0, PER_KIND);
 
     const notes: EntitySearchResult[] = take(
@@ -55,14 +65,12 @@ export function useEntitySearch(query: string, excludeId?: string | null): Entit
         .map((p) => ({ kind: "note" as const, id: p.id, label: (p.title || "Untitled page").trim() }))
         .filter((r) => match(r.label)),
     );
-
     const tasks: EntitySearchResult[] = take(
       allTasks
         .filter((t) => t.id !== excludeId)
         .map((t) => ({ kind: "task" as const, id: t.id, label: stripRefs(t.title || "") || "Untitled task" }))
         .filter((r) => match(r.label)),
     );
-
     const bookmarkHits: EntitySearchResult[] = take(
       bookmarks
         .filter((b) => b.id !== excludeId)
@@ -74,7 +82,6 @@ export function useEntitySearch(query: string, excludeId?: string | null): Entit
           sublabel: getLinkHost(b.url) || undefined,
         })),
     );
-
     const quoteHits: EntitySearchResult[] = take(
       quotes
         .filter((qt) => qt.id !== excludeId)
@@ -86,7 +93,6 @@ export function useEntitySearch(query: string, excludeId?: string | null): Entit
           sublabel: qt.author || undefined,
         })),
     );
-
     const eventHits: EntitySearchResult[] = take(
       events
         .filter((e) => e.id !== excludeId)
@@ -96,4 +102,34 @@ export function useEntitySearch(query: string, excludeId?: string | null): Entit
 
     return [...notes, ...tasks, ...bookmarkHits, ...quoteHits, ...eventHits];
   }, [q, excludeId, pages, allTasks, bookmarks, quotes, events]);
+
+  // --- FTS path (ranked, full-text; only when the index is ready) ---
+  const [ftsResults, setFtsResults] = useState<EntitySearchResult[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (!ready || !q) {
+        if (!cancelled) setFtsResults([]);
+        return;
+      }
+      const hits = await searchEntities(q, { excludeId, perKind: PER_KIND });
+      if (!cancelled) {
+        setFtsResults(
+          hits.map((h) => ({
+            kind: h.kind,
+            id: h.id,
+            label: stripHighlight(h.title),
+            sublabel: h.snippet ? stripHighlight(h.snippet) : undefined,
+          })),
+        );
+      }
+    }, q ? 120 : 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [ready, q, excludeId]);
+
+  // Ready + typing → ranked FTS. Empty query or not-yet-built → the fallback list.
+  return ready && q ? ftsResults : fallback;
 }

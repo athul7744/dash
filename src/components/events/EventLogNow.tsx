@@ -2,14 +2,14 @@
 
 import { useId, useState } from "react";
 import { format, isToday, isYesterday, subDays } from "date-fns";
-import { ChevronDown, Clock, MapPin, Plus, StickyNote } from "lucide-react";
+import { Check, ChevronDown, Clock, MapPin, Plus, StickyNote } from "lucide-react";
 
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ActionInput } from "@/components/events/ActionInput";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { logOccurrence } from "@/lib/events/events";
+import { logOccurrence, updateOccurrence, type Occurrence } from "@/lib/events/events";
 import type { RefKind } from "@/lib/links/tokens";
 import { cn } from "@/lib/shared/utils";
 
@@ -102,10 +102,14 @@ export function EventLogNow({ subjectId, subjectKind = "event", defaultPlace = "
         <PopoverContent align="start" className="w-80 p-0">
           <ComposeForm
             key={seq}
-            subjectId={subjectId}
-            subjectKind={subjectKind}
-            defaultPlace={defaultPlace}
+            title="New entry"
+            submitLabel="Log"
+            footerLabel="logs to this timeline"
+            initial={{ place: defaultPlace }}
             placeSuggestions={placeSuggestions}
+            onSubmit={({ action, at, place, note }) =>
+              void logOccurrence(subjectId, { at, action, place, note, source: "manual", subjectKind })
+            }
             onDone={() => setOpen(false)}
           />
         </PopoverContent>
@@ -148,10 +152,58 @@ export function EventComposeDialog({
         <DialogTitle className="sr-only">Log an event</DialogTitle>
         {open ? (
           <ComposeForm
-            subjectId={subjectId}
-            subjectKind={subjectKind}
-            defaultPlace={defaultPlace}
+            title="New entry"
+            submitLabel="Log"
+            footerLabel="logs to this timeline"
+            initial={{ place: defaultPlace }}
             placeSuggestions={placeSuggestions}
+            onSubmit={({ action, at, place, note }) =>
+              void logOccurrence(subjectId, { at, action, place, note, source: "manual", subjectKind })
+            }
+            onDone={() => onOpenChange(false)}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Edit an existing occurrence in the same centered Compose dialog as "add". */
+export function EventEditDialog({
+  occurrence,
+  placeSuggestions = [],
+  open,
+  onOpenChange,
+}: {
+  occurrence: Occurrence | null;
+  placeSuggestions?: string[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton={false} className="w-80 max-w-[calc(100%-2rem)] gap-0 p-0">
+        <DialogTitle className="sr-only">Edit entry</DialogTitle>
+        {open && occurrence ? (
+          <ComposeForm
+            title="Edit entry"
+            submitLabel="Save"
+            submitIcon={Check}
+            initial={{
+              action: occurrence.action,
+              at: occurrence.at ? new Date(occurrence.at) : null,
+              place: occurrence.place,
+              note: occurrence.note,
+            }}
+            placeSuggestions={placeSuggestions}
+            onSubmit={({ action, at, place, note }) =>
+              void updateOccurrence(occurrence.id, {
+                at: at.toISOString(),
+                action: action.trim(),
+                place: place.trim(),
+                note: note.trim(),
+              })
+            }
             onDone={() => onOpenChange(false)}
           />
         ) : null}
@@ -162,23 +214,35 @@ export function EventComposeDialog({
 
 type Rel = "now" | "morning" | "yesterday" | "lastweek" | null;
 
-/** Compose: action-first, now-first (date + time), place/note optional. */
+/** Compose: action-first, date + time editable, place/note optional. Shared by add + edit. */
 function ComposeForm({
-  subjectId,
-  subjectKind,
-  defaultPlace,
+  initial,
   placeSuggestions,
+  title,
+  submitLabel,
+  submitIcon: SubmitIcon = Plus,
+  footerLabel,
+  onSubmit,
   onDone,
-}: Required<Pick<LogProps, "subjectId" | "subjectKind" | "defaultPlace" | "placeSuggestions">> & { onDone: () => void }) {
-  const opened = new Date();
-  const [action, setAction] = useState("");
-  const [date, setDate] = useState<Date>(opened);
-  const [hours, setHours] = useState(opened.getHours());
-  const [minutes, setMinutes] = useState(opened.getMinutes());
-  const [place, setPlace] = useState(defaultPlace);
-  const [note, setNote] = useState("");
+}: {
+  initial?: { action?: string; at?: Date | null; place?: string; note?: string };
+  placeSuggestions: string[];
+  title: string;
+  submitLabel: string;
+  submitIcon?: React.ElementType;
+  footerLabel?: string;
+  onSubmit: (v: { action: string; at: Date; place: string; note: string }) => void;
+  onDone: () => void;
+}) {
+  const seed = initial?.at ?? new Date();
+  const [action, setAction] = useState(initial?.action ?? "");
+  const [date, setDate] = useState<Date>(seed);
+  const [hours, setHours] = useState(seed.getHours());
+  const [minutes, setMinutes] = useState(seed.getMinutes());
+  const [place, setPlace] = useState(initial?.place ?? "");
+  const [note, setNote] = useState(initial?.note ?? "");
   const [whenOpen, setWhenOpen] = useState(false);
-  const [rel, setRel] = useState<Rel>("now");
+  const [rel, setRel] = useState<Rel>(initial?.at ? null : "now");
   const placeListId = useId();
 
   const combined = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes);
@@ -186,18 +250,53 @@ function ComposeForm({
 
   const h12 = ((hours + 11) % 12) + 1;
   const ampm = hours < 12 ? "AM" : "PM";
-  const setH12 = (n: number) => {
-    const nn = Math.min(12, Math.max(1, n || 12)) % 12;
-    setHours(ampm === "PM" ? nn + 12 : nn);
-    setRel(null);
-  };
+
+  // Uncommitted text while a field is focused (null = show the formatted value).
+  // Lets you clear and retype freely without every keystroke snapping to a
+  // clamped default; we commit live only when already in range, clamp on blur.
+  const [hourDraft, setHourDraft] = useState<string | null>(null);
+  const [minDraft, setMinDraft] = useState<string | null>(null);
+
   const setAmPm = (ap: "AM" | "PM") => {
     setHours((ap === "PM" ? (hours % 12) + 12 : hours % 12) % 24);
     setRel(null);
   };
-  const setMin = (n: number) => {
-    setMinutes(Math.min(59, Math.max(0, n || 0)));
-    setRel(null);
+  const editHour = (raw: string) => {
+    const digits = raw.replace(/\D/g, "").slice(0, 2);
+    setHourDraft(digits);
+    const n = parseInt(digits, 10);
+    if (n >= 1 && n <= 12) {
+      setHours(ampm === "PM" ? (n % 12) + 12 : n % 12);
+      setRel(null);
+    }
+  };
+  const commitHour = () => {
+    if (hourDraft === null) return;
+    const n = parseInt(hourDraft, 10);
+    if (!Number.isNaN(n)) {
+      const nn = Math.min(12, Math.max(1, n)) % 12;
+      setHours(ampm === "PM" ? nn + 12 : nn);
+      setRel(null);
+    }
+    setHourDraft(null);
+  };
+  const editMin = (raw: string) => {
+    const digits = raw.replace(/\D/g, "").slice(0, 2);
+    setMinDraft(digits);
+    const n = parseInt(digits, 10);
+    if (n >= 0 && n <= 59) {
+      setMinutes(n);
+      setRel(null);
+    }
+  };
+  const commitMin = () => {
+    if (minDraft === null) return;
+    const n = parseInt(minDraft, 10);
+    if (!Number.isNaN(n)) {
+      setMinutes(Math.min(59, Math.max(0, n)));
+      setRel(null);
+    }
+    setMinDraft(null);
   };
 
   const applyRel = (r: Rel) => {
@@ -219,7 +318,7 @@ function ComposeForm({
   };
 
   const submit = () => {
-    void logOccurrence(subjectId, { at: combined, action, place, note, source: "manual", subjectKind });
+    onSubmit({ action, at: combined, place, note });
     onDone();
   };
 
@@ -233,7 +332,7 @@ function ComposeForm({
   return (
     <div>
       <div className="px-4 pb-3 pt-4">
-        <div className="text-xs font-semibold text-muted-foreground/70">New entry</div>
+        <div className="text-xs font-semibold text-muted-foreground/70">{title}</div>
 
         <div className="py-2.5">
           <ActionInput value={action} onChange={setAction} variant="plain" placeholder="What happened?" autoFocus />
@@ -292,8 +391,11 @@ function ComposeForm({
               </span>
               <div className="ml-auto inline-flex items-center gap-0.5 rounded-lg border border-border px-1.5 py-1">
                 <input
-                  value={String(h12).padStart(2, "0")}
-                  onChange={(e) => setH12(parseInt(e.target.value.replace(/\D/g, ""), 10))}
+                  value={hourDraft ?? String(h12).padStart(2, "0")}
+                  onChange={(e) => editHour(e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  onBlur={commitHour}
+                  onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                   inputMode="numeric"
                   maxLength={2}
                   aria-label="Hour"
@@ -301,8 +403,11 @@ function ComposeForm({
                 />
                 <span className="text-muted-foreground/70">:</span>
                 <input
-                  value={String(minutes).padStart(2, "0")}
-                  onChange={(e) => setMin(parseInt(e.target.value.replace(/\D/g, ""), 10))}
+                  value={minDraft ?? String(minutes).padStart(2, "0")}
+                  onChange={(e) => editMin(e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  onBlur={commitMin}
+                  onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                   inputMode="numeric"
                   maxLength={2}
                   aria-label="Minute"
@@ -354,13 +459,13 @@ function ComposeForm({
       </div>
 
       <div className="flex items-center gap-2 border-t border-border px-4 py-3">
-        <span className="text-[11.5px] text-muted-foreground/70">logs to this timeline</span>
+        {footerLabel ? <span className="text-[11.5px] text-muted-foreground/70">{footerLabel}</span> : null}
         <button
           type="button"
           onClick={submit}
           className="ml-auto inline-flex items-center gap-1.5 rounded-[10px] bg-violet-600 px-4 py-2 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 dark:bg-violet-500"
         >
-          <Plus className="h-3.5 w-3.5" /> Log
+          <SubmitIcon className="h-3.5 w-3.5" /> {submitLabel}
         </button>
       </div>
     </div>

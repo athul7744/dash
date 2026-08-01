@@ -10,6 +10,10 @@ export function PowerSyncProvider({ children }: { children: React.ReactNode }) {
   const [localReady, setLocalReady] = useState(false);
 
   useEffect(() => {
+    // Ask the browser to keep local storage (SQLite + search index) from being
+    // evicted under pressure. Best-effort; the search index rebuilds if wiped.
+    navigator.storage?.persist?.().catch(() => {});
+
     // Phase 1: Open local DB (fast, ~50ms) → render UI with cached data
     initLocal()
       .then(() => {

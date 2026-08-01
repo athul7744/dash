@@ -2,6 +2,7 @@ import { PowerSyncDatabase } from '@powersync/web';
 import { AppSchema } from './AppSchema';
 import { SupabaseConnector } from './SupabaseConnector';
 import { logger as log } from '../shared/logger';
+import { ensureSearchIndex, primeSearchIndexLocal, buildSearchIndexAfterSync, resetSearchIndex } from '../search/search-index';
 
 export const db = new PowerSyncDatabase({
   schema: AppSchema,
@@ -20,6 +21,9 @@ export const initLocal = async () => {
   log.info("Initializing local SQLite database...");
   await db.init();
   log.info("Local database ready");
+  // Open the local search index and catch up any offline edits (never blocks UI).
+  await ensureSearchIndex();
+  void primeSearchIndexLocal();
 };
 
 /** Phase 2: Connect to PowerSync cloud — runs in background, doesn't block UI. */
@@ -33,6 +37,8 @@ export const connectCloud = async () => {
     retryDelayMs: 5000
   });
   log.info("Cloud connection established");
+  // Build the search index once after the first sync, then keep it live.
+  void buildSearchIndexAfterSync();
 };
 
 /** Disconnect and reconnect to PowerSync cloud. */
@@ -48,6 +54,9 @@ export const reconnectCloud = async () => {
 export const resetLocalDatabase = async () => {
   if (typeof window === 'undefined') return;
   log.info("Resetting local database...");
+  // Drop the search index while the DB is still open — it's not PowerSync-managed,
+  // so disconnectAndClear leaves it behind and the rebuild would otherwise be skipped.
+  await resetSearchIndex();
   // Disconnect from cloud sync
   await db.disconnect();
   log.info("Disconnected from cloud");

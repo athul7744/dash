@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { format } from "date-fns";
@@ -12,13 +12,35 @@ import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { EventCard } from "@/components/events/EventCard";
 import { SubjectCard } from "@/components/events/SubjectCard";
 import { EventsLoadingSkeleton } from "@/components/skeletons/EventsLoadingSkeleton";
-import { useEvents, useEventMaterializer, useOccurrences, useSubjectLabels, useThingAggregates } from "@/hooks/use-events";
+import { useEvents, useEventMaterializer, useOccurrences, useSubjectLabels, useThingAggregates, useAllOccurrenceSubjects } from "@/hooks/use-events";
 import { useNewItemParam } from "@/hooks/use-new-item-param";
+import { useSearchIndexReady } from "@/hooks/use-search-index";
+import { searchOccurrences } from "@/lib/search/occurrences";
+import { markLike, toHighlightSegments } from "@/lib/search/match-query";
 import { dispatchOpenEntity } from "@/components/links/EntityRefNode";
 import { statsFromAggregate, createEvent } from "@/lib/events/events";
 import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { refKindAccentVar, type RefKind } from "@/lib/links/tokens";
 import { formatRelativeTime, cn } from "@/lib/shared/utils";
+
+type TimelineRow = { id: string; thingId: string; subjectKind: RefKind; at: string; action: string; title: string; place: string; note: string };
+
+/** Render text that may carry search-highlight markers. */
+function HL({ text, className }: { text: string; className?: string }) {
+  return (
+    <span className={className}>
+      {toHighlightSegments(text).map((seg, i) =>
+        seg.hit ? (
+          <mark key={i} className="rounded-[3px] bg-violet-500/15 px-0.5 text-violet-700 dark:text-violet-300">
+            {seg.text}
+          </mark>
+        ) : (
+          <span key={i}>{seg.text}</span>
+        ),
+      )}
+    </span>
+  );
+}
 
 const eventsApp = getApp("events");
 type Tab = "all" | "scheduled" | "overdue" | "timeline";
@@ -56,8 +78,11 @@ export default function EventsPage() {
     return [...set].sort();
   }, [occurrences, events]);
 
-  const subjects = useMemo(() => occurrences.map((o) => ({ id: o.thingId, kind: o.subjectKind })), [occurrences]);
+  // Resolve labels for ALL subjects (full history), so timeline search can match
+  // by name beyond the recency window the browse view loads.
+  const subjects = useAllOccurrenceSubjects();
   const subjectLabels = useSubjectLabels(subjects);
+  const searchReady = useSearchIndexReady();
 
   // Cards = standalone events + every other entity you've logged against
   // (notes/bookmarks/tasks/quotes), overdue-first, plus the tab filter.
@@ -94,12 +119,63 @@ export default function EventsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [events, aggregates, occurrences, subjectLabels, tab]);
 
-  const timeline = useMemo(() => {
+  // Browse / fallback rows from the loaded recency window (in-JS substring match).
+  const fallbackRows = useMemo<TimelineRow[]>(() => {
     const q = timelineQuery.trim().toLowerCase();
-    const rows = occurrences
-      .map((o) => ({ ...o, title: subjectLabels.get(o.thingId) ?? "Untitled" }))
-      .filter((o) => (q ? `${o.action} ${o.title} ${o.place} ${o.note}`.toLowerCase().includes(q) : true));
-    const groups = new Map<string, typeof rows>();
+    return occurrences
+      .map((o) => ({
+        id: o.id,
+        thingId: o.thingId,
+        subjectKind: o.subjectKind,
+        at: o.at,
+        action: o.action,
+        title: subjectLabels.get(o.thingId) ?? "Untitled",
+        place: o.place,
+        note: o.note,
+      }))
+      .filter((r) => (q ? `${r.action} ${r.title} ${r.place} ${r.note}`.toLowerCase().includes(q) : true));
+  }, [occurrences, subjectLabels, timelineQuery]);
+
+  // Full-history FTS search (when the index is ready) — covers everything, not
+  // just the loaded window, and highlights matches.
+  const [ftsRows, setFtsRows] = useState<TimelineRow[] | null>(null);
+  useEffect(() => {
+    const q = timelineQuery.trim();
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (!q || !searchReady) {
+        if (!cancelled) setFtsRows(null);
+        return;
+      }
+      const lower = q.toLowerCase();
+      const titleThingIds = subjects
+        .filter((s) => (subjectLabels.get(s.id) ?? "").toLowerCase().includes(lower))
+        .map((s) => s.id);
+      const hits = await searchOccurrences(q, { titleThingIds, limit: 300 });
+      if (cancelled) return;
+      setFtsRows(
+        hits.map((h) => ({
+          id: h.occId,
+          thingId: h.thingId,
+          subjectKind: h.thingKind,
+          at: h.at,
+          action: h.action,
+          title: markLike(subjectLabels.get(h.thingId) ?? "Untitled", q),
+          place: h.place,
+          note: h.note,
+        })),
+      );
+    }, 140);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [timelineQuery, searchReady, subjects, subjectLabels]);
+
+  const timeline = useMemo(() => {
+    const useFts = searchReady && timelineQuery.trim().length > 0 && ftsRows !== null;
+    const rows = useFts ? ftsRows! : fallbackRows;
+    const groups = new Map<string, TimelineRow[]>();
     for (const r of rows) {
       const key = r.at ? format(new Date(r.at), "PP") : "—";
       const arr = groups.get(key) ?? [];
@@ -107,7 +183,7 @@ export default function EventsPage() {
       groups.set(key, arr);
     }
     return [...groups.entries()];
-  }, [occurrences, subjectLabels, timelineQuery]);
+  }, [searchReady, timelineQuery, ftsRows, fallbackRows]);
 
   if (isLoading) return <EventsLoadingSkeleton />;
 
@@ -205,23 +281,23 @@ export default function EventsPage() {
                             const SubjectIcon = getApp(`${o.subjectKind}s`).icon;
                             return (
                             <li key={o.id} className="flex items-center gap-2 text-sm">
-                              {o.action ? <span className="shrink-0 font-medium text-foreground">{o.action}</span> : null}
+                              {o.action ? <HL text={o.action} className="shrink-0 font-medium text-foreground" /> : null}
                               <button
                                 type="button"
                                 onClick={() => dispatchOpenEntity(o.subjectKind, o.thingId)}
                                 className="inline-flex min-w-0 max-w-full items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
                               >
                                 <SubjectIcon className="h-3 w-3 shrink-0" style={{ color: refKindAccentVar(o.subjectKind) }} />
-                                <span className="min-w-0 truncate">{o.title}</span>
+                                <HL text={o.title} className="min-w-0 truncate" />
                               </button>
                               {o.at ? <span className="shrink-0 text-xs text-muted-foreground/70">{formatRelativeTime(new Date(o.at))}</span> : null}
                               {o.place ? (
                                 <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
                                   <MapPin className="h-3 w-3" />
-                                  {o.place}
+                                  <HL text={o.place} />
                                 </span>
                               ) : null}
-                              {o.note ? <span className="min-w-0 flex-1 truncate text-xs italic text-muted-foreground">{o.note}</span> : null}
+                              {o.note ? <HL text={o.note} className="min-w-0 flex-1 truncate text-xs italic text-muted-foreground" /> : null}
                             </li>
                             );
                           })}

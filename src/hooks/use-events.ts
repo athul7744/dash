@@ -87,6 +87,31 @@ export function useOccurrences(opts: { thingId?: string; limit?: number } = {}):
   return { occurrences, isLoading: !settled };
 }
 
+const OCCURRENCE_KINDS = new Set<string>(["note", "task", "bookmark", "quote", "event"]);
+
+/**
+ * Every distinct subject that has occurrences, with its kind — the full set (not
+ * a recency window), so timeline search can resolve labels across all history.
+ */
+export function useAllOccurrenceSubjects(): { id: string; kind: RefKind }[] {
+  const userId = useCurrentUserId();
+  const pageId = userId ? systemPageId(userId, "event", EVENTS_KEY) : null;
+  const { data = [] } = useQuery<{ id: string | null; kind: string | null }>(
+    pageId
+      ? `SELECT DISTINCT ${OCCURRENCE_SUBJECT_SQL} AS id, json_extract(content, '$.subjectKind') AS kind
+         FROM blocks WHERE page_id = ? AND type = ?`
+      : "SELECT NULL AS id, NULL AS kind WHERE 1 = 0",
+    pageId ? [pageId, OCCURRENCE_BLOCK_TYPE] : [],
+  );
+  return useMemo(
+    () =>
+      data
+        .filter((r): r is { id: string; kind: string | null } => !!r.id)
+        .map((r) => ({ id: r.id, kind: (OCCURRENCE_KINDS.has(r.kind ?? "") ? r.kind : "event") as RefKind })),
+    [data],
+  );
+}
+
 export type ThingAggregate = { count: number; firstAt: string | null; lastAt: string | null };
 
 /**

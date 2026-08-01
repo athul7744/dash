@@ -11,6 +11,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/bookmarks/` — bookmarks-specific logic tests.
 - `tests/events/` — events recurrence-engine, action-vocabulary, and event/occurrence parse tests.
 - `tests/links/` — cross-app reference tests (the `[[label|kind:id]]` token grammar).
+- `tests/search/` — search text derivation and the pure query grammar / fuzzy / highlight helpers.
 - `tests/shared/` — reusable fixtures, builders, and assertions shared across app groups (incl. the universal-capture classifier).
 
 ## Current Notes Suites
@@ -132,6 +133,14 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 
 - `tests/events/events.test.ts`
   Covers `parseEventContent` (log-only default shape, valid vs malformed `interval` schedule), `parseOccurrenceContent` (fields + `subjectKind` default to `event`), and `computeThingStats` (empty stats, derived average gap / next-due, overdue against an explicit cadence).
+
+## Current Search Suites
+
+- `tests/search/derive-text.test.ts`
+  Covers the per-kind text derivation (`src/lib/search/derive-text.ts`): task ref-stripping + tags/link aux, note-page title + aggregated body, bookmark host fallback + url/host/tags aux, quote text/author, event title/tags, and occurrence subject + action/place/note extraction.
+
+- `tests/search/match-query.test.ts`
+  Covers the pure query layer (`src/lib/search/match-query.ts`): `toMatchQuery` prefixing + operator stripping, `escapeLike`, the highlight marker helpers (`toHighlightSegments`/`stripHighlight`/`markLike`), `parseSearchQuery` (`kind:` filters incl. aliases, `"exact phrases"`, unknown-kind passthrough), `buildMatch` (phrase adjacency + term prefixing), and the fuzzy matcher (`levenshtein`, `fuzzyThreshold`, `fuzzyMatchTitle` with prefix-as-exact and threshold rejection).
 
 ## Current Tracker Suites
 

@@ -22,7 +22,7 @@ Dash is an offline-first Next.js application with six apps under one shell:
 - `Bookmarks` — saved links stored in the notes backend (a hidden `kind: "bookmark"` system page) with platform detection, server-fetched titles, tags, read/unread, and an unread-weighted daily "revisit"
 - `Events` — a log of recurring "things" stored in the notes backend (a hidden `kind: "event"` system page): each event carries a dated occurrence history and an optional schedule + lead time, and a client-side reconciler materializes a real Task before each scheduled occurrence. Occurrences can attach to *any* entity, giving it a timeline (see [Events App Structure](#events-app-structure))
 
-Content enters through **universal capture**: the PWA share target (`/share`) and an in-app quick-capture modal both classify shared links/text and triage them into any app (see [Universal Capture](#universal-capture)). A global ⌘/Ctrl+K **command palette** searches all five entities and jumps between apps. Any entity can **link to any other** via inline `[[ ]]` references that surface as backlinks and in the notes graph (see [Cross-App Links & References](#cross-app-links--references)). Quotes, Bookmarks, and Events reuse the notes `pages`/`blocks` store via the system-page mechanism, so they add no new tables.
+Content enters through **universal capture**: the PWA share target (`/share`) and an in-app quick-capture modal both classify shared links/text and triage them into any app (see [Universal Capture](#universal-capture)). A global ⌘/Ctrl+K **command palette** runs ranked, full-text search across all five entities — including the text inside notes — and jumps between apps (see [Search](#search)). Any entity can **link to any other** via inline `[[ ]]` references that surface as backlinks and in the notes graph (see [Cross-App Links & References](#cross-app-links--references)). Quotes, Bookmarks, and Events reuse the notes `pages`/`blocks` store via the system-page mechanism, so they add no new synced tables (search maintains a local-only index, never synced).
 
 Testing is organized separately under `tests/`, with app-group suites and shared helpers rather than colocated source tests.
 
@@ -67,6 +67,7 @@ Key runtime behavior:
   - Shared sticky header used by app pages
   - Renders differently on mobile and desktop
   - Handles theme toggle, sync indicator, logout, and mobile overflow menu
+  - Hosts `SearchIndexProgressBar` — a hairline bar on the header's bottom edge, shown only while the search index is building (see [Search](#search))
 
 - `src/components/AppSwitcher.tsx`
   - App-to-app switcher used in the shell
@@ -80,10 +81,11 @@ Key runtime behavior:
 - `src/components/SyncIndicator.tsx`
   - Displays PowerSync connection/upload/download state
   - Used in the header so sync state is always visible
+  - Its status popover also surfaces the search index state (`idle`/`building N/M`/`ready`/`unavailable`)
 
 - `src/components/SettingsDialog.tsx`
   - Responsive settings surface (centered dialog on desktop, bottom drawer on mobile)
-  - Sections: Account, Appearance (theme), Display font, Notifications (web push), Data (reset local data)
+  - Sections: Account, Appearance (theme), Display font, Notifications (web push), Data (reset local data — confirming closes both dialogs at once, then wipes the local DB + search index and re-syncs in the background)
   - The Display font section uses `useDisplayFont` (see [Typography](#typography-and-display-font))
 
 ### Route-level loading behavior
@@ -137,7 +139,7 @@ Important convention:
 - `src/components/dashboard/DashboardGreeting.tsx` — presentational greeting: the date as a small serif eyebrow above the greeting (centered stack)
 - `src/components/dashboard/HeroAction.tsx` — the contextual nudge button (opens a task, scrolls to a section, or navigates)
 - `src/components/dashboard/MoodPicker.tsx` — a dot per configured mood (from the `moods` table) writing to `daily_ratings` (night hero + shared)
-- `src/components/command/CommandPaletteProvider.tsx` — the global ⌘/Ctrl+K command palette, mounted app-wide in the root layout. Fuzzy-searches all five entities and runs Go-to-app / Quick-capture / New-item commands; built on `SearchPopup`. Also listens for reference-chip open events (see [Cross-App Links & References](#cross-app-links--references))
+- `src/components/command/CommandPaletteProvider.tsx` — the global ⌘/Ctrl+K command palette, mounted app-wide in the root layout. Runs ranked full-text search across all five entities (via `searchEntities`, see [Search](#search)) — with match highlighting and note-body snippets — and runs Go-to-app / Quick-capture / New-item commands; built on `SearchPopup`. A `kind:` filter renders as a removable chip in the input (backspace deletes the value to the colon, then the chip); a "Filter by kind" group teaches and applies it. Also listens for reference-chip open events (see [Cross-App Links & References](#cross-app-links--references))
 - `src/components/command/EntityPopup.tsx` — opens any task/bookmark/quote/event in a blurred modal by reusing that app's own card (looked up live by id; notes deep-link to `/notes/<id>`). Used by the palette, the dashboard hero nudge, and reference-chip clicks
 - `src/components/dashboard/TodayTasks.tsx` / `TodayTracking.tsx` — borderless reveal widgets
 - `src/components/dashboard/DashboardQuote.tsx` / `DashboardBookmarks.tsx` — the daily "quote of the day" / "revisit" resurfacing cards (a `variant` renders either the compact dashboard tile or the larger hero atop `/quotes` and `/bookmarks`); render nothing until there's content
@@ -206,7 +208,9 @@ Important convention:
 - `src/hooks/use-quotes.ts` / `src/hooks/use-bookmarks.ts` / `src/hooks/use-events.ts` — live query hooks reading the quote/bookmark/event blocks off their system page (a "settled" latch keeps the empty state from flashing during the page-id → query swap); `use-events.ts` also serves occurrences, per-subject aggregates, the action vocabulary, subject-label resolution, and `useEventMaterializer`
 - `src/lib/links/tokens.ts` / `links.ts` / `resolve.ts` — the cross-app link layer: the `[[label|kind:id]]` token grammar (`parseRefTokens`/`stripRefs`/`formatRefToken`/`refKindAccentVar`), the generic reader/writer over `edges` (`reconcileEntityRefs`/`replaceEdges`/`deleteEntityEdges`, serialized per source id), and the opaque-id → `{kind,label}` resolver. See [Cross-App Links & References](#cross-app-links--references)
 - `src/components/links/*` — `EntityRefNode` (shared inline chip Tiptap node), `RefField` (wraps a plain card field as a one-line rich editor hosting chips), `Backlinks` (inline inbound chips, notes rail), `LinkedFrom` (card "N linked" popover: local graph + linking-items list)
-- `src/hooks/use-links.ts` / `use-entity-search.ts` — reactive backlinks (`useBacklinks`) and the shared all-entity `[[` search (reuses each app's hooks; mount lazily)
+- `src/hooks/use-links.ts` / `use-entity-search.ts` — reactive backlinks (`useBacklinks`) and the shared all-entity `[[` search. `useEntitySearch` runs the ranked FTS query when the index is ready and falls back to the in-JS per-app match otherwise (see [Search](#search))
+- `src/lib/search/*` + `src/hooks/use-search-index.ts` — the local full-text search layer: `derive-text.ts` (pure per-kind → `{title,body,aux}` derivation), `search-index.ts` (the FTS5 engine — probe, DDL, watermark reconcile, backfill, progress store), `query.ts` (`searchEntities` — the ranked query API for ⌘K + `[[`), `match-query.ts` (pure query parser + fuzzy + highlight helpers), `occurrences.ts` (`searchOccurrences` for the events timeline). `use-search-index.ts` binds the progress store to React. See [Search](#search)
+- `src/components/SearchIndexProgressBar.tsx` — the one-time build indicator on the app header (renders nothing when idle)
 - `src/hooks/use-derived-state.ts` — `useDerivedState(source, transform)`: local editable state that re-syncs from a prop via adjust-during-render (the endorsed alternative to a setState-in-effect), used by `TaskCard`
 - `src/hooks/use-autosize-textarea.ts` — grows a textarea to fit its content, recomputing on width/masonry-column changes (quote + bookmark cards)
 - `src/hooks/use-display-font.ts` — reads/writes the selected display font via `useSyncExternalStore` + `localStorage`, applying it to `<body data-display-font>`
@@ -229,7 +233,7 @@ Important convention:
 ### PowerSync integration
 
 - `src/lib/powersync/AppSchema.ts` — local schema definition
-- `src/lib/powersync/db.ts` — database instance, init, connect, reconnect, reset
+- `src/lib/powersync/db.ts` — database instance and lifecycle: `initLocal` (opens local SQLite, then ensures + primes the search index), `connectCloud`, `reconnectCloud`, `resetLocalDatabase` (drops the search index so it rebuilds)
 - `src/lib/powersync/SupabaseConnector.ts` — sync connector implementation
 
 ### Tests
@@ -240,6 +244,7 @@ Important convention:
 - `tests/quotes/*` / `tests/bookmarks/*` — quotes/bookmarks daily-pick + metadata suites
 - `tests/events/*` — the recurrence-engine (`schedule.ts`), action-vocabulary (`actions.ts`), and event/occurrence parse (`events.ts`) suites
 - `tests/links/*` — the cross-app reference token grammar (`tokens.ts`)
+- `tests/search/*` — search text derivation (`derive-text.ts`) and the pure query grammar / fuzzy / highlight helpers (`match-query.ts`)
 - `tests/shared/*` — shared fixtures, builders, and assertions reused across app groups (incl. the capture classifier)
 - `tests/README.md` — current suite map and short descriptions of what each test file covers
 
@@ -524,6 +529,24 @@ Any entity can reference any other (task→bookmark, quote→note, event→note,
 - **Backlinks** — `src/hooks/use-links.ts` + `src/lib/links/resolve.ts`. `useBacklinks(id)` resolves every inbound edge to `{kind,id,label}` (deduped; note sources collapse block→page). `LinkedFrom` (the four cards) is a compact "N linked" popover with the local Connections graph + the linking-items list; `Backlinks` (notes rail) shows cross-app inbound chips inline while the rail's rich list keeps note→note. A reference chip anywhere dispatches an open event that `CommandPaletteProvider` handles (notes navigate; the four open in `EntityPopup`).
 - **Graph** — the notes graph is a universal one-node-per-item graph over these edges; see the notes graph module above.
 
+## Search
+
+Full-text search over every app is backed by **SQLite FTS5**, run in the same browser-local database. The whole layer lives in `src/lib/search/` with the React binding in `src/hooks/use-search-index.ts`.
+
+**The index is a local-only, disposable cache.** It is never synced (not part of `AppSchema`), and `resetLocalDatabase` or a browser eviction wipes it. Every path tolerates it being empty or missing and rebuilds — so eviction, a schema bump, and a reset are all non-events. Three local tables:
+
+- `search_index` (fts5) — one row per navigable entity: `kind, entity_id` (UNINDEXED) + `title, body, aux`. Covers note pages, top-level tasks, and bookmark/quote/event blocks. bm25 weights title ≫ body > aux.
+- `occurrence_index` (fts5) — one row per logged occurrence: `occ_id, thing_id, thing_kind, at` (UNINDEXED) + `action, place, note`. Feeds the events Timeline only — occurrences stay out of ⌘K.
+- `search_meta` — `schema_version`, `watermark`, `backfill_done`, `backfill_cursor`.
+
+**One reconciler is the sole maintainer.** `search-index.ts` registers a single `db.onChangeWithCallback({tables:['pages','blocks','tasks']})` watcher; there are no per-write or per-delete hooks. It fires for both local edits and synced remote writes, so a watermark-based pass (upsert rows whose `updated_at` moved past the stored watermark, then prune orphans by anti-join against the live source rows) covers inserts, updates, and deletes from any source. Note bodies can't be extracted in SQL (nested ProseMirror JSON), so `derive-text.ts` derives them in JS via `extractNoteText`; every note edit bumps the owning page's `updated_at` (`touchNotePage` / the persister's `onPersisted`), so a page-level watermark catches block adds/edits/deletes. Writes are serialized through one promise chain.
+
+**Lifecycle** (`src/lib/powersync/db.ts`): `initLocal` calls `ensureSearchIndex()` (probe FTS5, create tables, read build state; on a `schema_version` mismatch it clears and forces a rebuild) then `primeSearchIndexLocal()` — which starts the reconciler and **builds immediately on local open** (a returning user's data is already local from prior syncs, so a wiped or version-bumped index rebuilds on the next launch with no manual reset). A first-ever user starts empty; the reconciler indexes rows as the first sync streams them in, and `buildSearchIndexAfterSync()` is the backstop. The backfill is batched, resumable (a persisted cursor), and reports progress through a small external store — surfaced as `SearchIndexProgressBar` on the header and a line in the sync popover.
+
+**Query API** (`query.ts` + the pure `match-query.ts`): `searchEntities(query, {kinds?, limit?, perKind?, excludeId?})` parses the input into a `kind:` filter, `"exact phrases"`, and free terms (`parseSearchQuery`), builds an FTS MATCH (`buildMatch` — phrases locked to adjacency, terms prefix-matched), ranks by bm25, and returns hits with `highlight()`/`snippet()` markers. A 1-char query falls back to `LIKE`; when exact/prefix finds nothing, a bounded edit-distance pass (`fuzzyMatchTitle`) recovers typos. Highlight markers are private-use sentinels that surfaces split with `toHighlightSegments` (or strip with `stripHighlight`). Everything in `match-query.ts` is pure and unit-tested (`tests/search/`). `occurrences.ts` mirrors this for the timeline (`searchOccurrences`), matching text via FTS and subject-name matches via ids the caller resolves.
+
+**Surfaces & fallback:** ⌘K (`CommandPaletteProvider`) and the `[[` picker (`useEntitySearch`) both call `searchEntities`; the events Timeline calls `searchOccurrences`. Each keeps its prior in-JS substring match as a live fallback and switches to FTS once `isSearchIndexReady()` (exposed to React as `useSearchIndexReady()`) — so search always works, including before the first build and if FTS5 were unavailable.
+
 ## Quotes App Structure
 
 Route: `src/app/quotes/page.tsx`. Quotes are `type:"quote"` blocks on one hidden system page (`kind:"quote"`, key `"library"`) — no schema change. `src/lib/quotes/quotes.ts` is the CRUD layer, `src/hooks/use-quotes.ts` the live query, `QuoteCard` the editable card (masonry list), and `DashboardQuote` the favorites-weighted daily "quote of the day" (dashboard tile + `variant="hero"` atop `/quotes`).
@@ -541,7 +564,7 @@ Two block types on one hidden system page (`kind:"event"`, key `"log"`, title "E
 - **Event** (`type:"event"`) — a tracked "thing". Content JSON: `title/link/tags/priority`, an optional `schedule` (`null` = log-only, no task materialization), a `daysBefore` lead time, `defaultPlace`, an optional external subject (`subjectKind`/`subjectId`), `active`, and materialization bookkeeping (`lastMaterializedKey`/`lastTaskId`/`lastLoggedKey`).
 - **Occurrence** (`type:"occurrence"`) — one dated record ("Serviced · Jul 25"). Content JSON: `at` (ISO instant), `action` (the free "what happened" string), `place`, `note`, `source` (`manual`/`task`/`schedule`), and its subject (`subjectId` + a denormalized `subjectKind`).
 
-**Occurrences attach to any subject.** The subject id lives in `content.subjectId` (queried via the `OCCURRENCE_SUBJECT_SQL` expression), NOT `parent_block_id` — a subject may be a note page id or task id that the `blocks.parent_block_id` FK would reject, so occurrence rows keep `parent_block_id` NULL. An event with no `subjectId` is its own subject; set one (the "About…" picker) and the event's logs land on that other thing's timeline. Occurrences never write to the `edges` table and `RefKind` has no `occurrence`, so they stay out of backlinks/graph/search automatically.
+**Occurrences attach to any subject.** The subject id lives in `content.subjectId` (queried via the `OCCURRENCE_SUBJECT_SQL` expression), NOT `parent_block_id` — a subject may be a note page id or task id that the `blocks.parent_block_id` FK would reject, so occurrence rows keep `parent_block_id` NULL. An event with no `subjectId` is its own subject; set one (the "About…" picker) and the event's logs land on that other thing's timeline. Occurrences never write to the `edges` table and `RefKind` has no `occurrence`, so they stay out of backlinks, the graph, and the global ⌘K palette. They are searchable only in the events **Timeline**, through a dedicated local `occurrence_index` (see [Search](#search)).
 
 Files:
 
@@ -549,7 +572,9 @@ Files:
 - `src/lib/events/schedule.ts` — the pure, DB-free recurrence engine (like `capture.ts`, so tests don't load PowerSync): the `EventSchedule` union (`once`/`weekly`/`monthly`/`yearly`/`interval`), `nextOccurrenceOnOrAfter` (local-calendar, month-length clamping; `interval` is anchored to the last occurrence so "every N days" self-corrects to when the thing actually happened), `formatSchedule`/`describeSchedule`, and the `dueOccurrence` lead-window decision.
 - `src/lib/events/actions.ts` — pure, DB-free helpers that keep the free-text `action` from fragmenting: `caseKey` (case/whitespace key → silent-snap + dedup), `stemKey` (inflection key → suggestions only), `editDistance`, `buildActionVocabulary`, and `rankActionMatches` (→ `exact`/`reuse`/`didYouMean` buckets). Stemming and fuzzy matching only *suggest*; the stored surface form is never rewritten, so a bad stem degrades a hint, never corrupts data.
 - `src/lib/events/materialize.ts` — `materializeDueEvents()`, the client-side reconciler (no server cron; fired fire-and-forget from `useEventMaterializer` on the dashboard + `/events`; idempotent, StrictMode-safe). Two jobs: **complete → log** (a scheduled task now `completed` records an occurrence at its completion time, closing the doing→record loop so cadence stays accurate and an `interval` advances) and **due → materialize** (turn a due schedule into a Task via a **deterministic** `uuidv5(eventId:occurrenceKey)` id, gated by `lastMaterializedKey` + a **pending-gate**). Both log to the *effective subject* = `subjectId ?? eventId`.
-- `src/hooks/use-events.ts` — live queries: `useEvents`/`useEvent`, `useOccurrences` (all, or one subject's), `useThingAggregates` (per-subject count/first/last computed in SQLite so the grid never materializes rows in JS), `useActionVocabulary`, `useSubjectLabels` (resolve subject ids → labels per kind for the cross-kind feed), and `useEventMaterializer`.
+- `src/hooks/use-events.ts` — live queries: `useEvents`/`useEvent`, `useOccurrences` (all, or one subject's), `useThingAggregates` (per-subject count/first/last computed in SQLite so the grid never materializes rows in JS), `useActionVocabulary`, `useSubjectLabels` (resolve subject ids → labels per kind for the cross-kind feed), `useAllOccurrenceSubjects` (every distinct subject + kind, so the Timeline resolves labels across all history for name matching), and `useEventMaterializer`.
+
+The **Timeline** view (`src/app/events/page.tsx`) searches the full occurrence history via `searchOccurrences` (`src/lib/search/occurrences.ts`): FTS over action/place/note plus every occurrence of a subject whose name matched, ranked and highlighted. Before the index is ready it falls back to an in-JS substring filter over the loaded window.
 
 Components (`src/components/events/`): `EventCard` (grid card) and `SubjectCard` (a non-event subject in the feed); `OccurrenceLog` (the timeline); `EventLogNow` (the "Log" Compose — opens as a Popover only on a desktop card, a Dialog everywhere else; hosts `ActionInput`); `ActionInput` (typeahead/dedup/fuzzy over the vocabulary — rendered as a positioned `div`, not a popover, so it can nest inside the Compose popover); `EventScheduleDialog` (schedule + lead time + priority + the optional "About…" subject picker); and `EventHeatmap`.
 
@@ -656,9 +681,9 @@ Display-font switching:
 
 ## PowerSync
 
-- `src/components/powersync-provider.tsx` intentionally waits only for local init before rendering the app
+- `src/components/powersync-provider.tsx` intentionally waits only for local init before rendering the app (and requests persistent storage via `navigator.storage.persist()` so the local DB + search index resist eviction)
 - Cloud sync happens after the app is already usable
-- `src/lib/powersync/db.ts` exposes `initLocal()`, `connectCloud()`, `reconnectCloud()`, and `resetLocalDatabase()`
+- `src/lib/powersync/db.ts` exposes `initLocal()`, `connectCloud()`, `reconnectCloud()`, and `resetLocalDatabase()`; `initLocal` also opens the local search index and builds it if needed (see [Search](#search))
 
 This is one of the most important architectural choices in the codebase:
 
@@ -675,7 +700,8 @@ If you are debugging behavior in this repo, start from the narrowest owning surf
 - tracker week grid behavior: `TrackerWorkspace.tsx`, `TimeGrid.tsx`, `ActivityToolbar.tsx`
 - sync/bootstrap issues: `powersync-provider.tsx`, `src/lib/powersync/db.ts`, `SupabaseConnector.ts`
 - links / backlinks / references (`[[ ]]`, chips, graph nodes): `src/lib/links/*`, `src/components/links/*`, `RefMenuLayer.tsx`, `use-note-graph.ts` (see [Cross-App Links & References](#cross-app-links--references))
-- command palette / global search / ⌘K: `src/components/command/CommandPaletteProvider.tsx`
+- command palette / global search / ⌘K: `src/components/command/CommandPaletteProvider.tsx` (UI), `src/lib/search/*` (index + query; see [Search](#search))
+- search index not building / stale results: `src/lib/search/search-index.ts` and its wiring in `src/lib/powersync/db.ts`
 
 A few repo-specific patterns matter repeatedly:
 
@@ -703,6 +729,7 @@ Vitest is split between fast node-based suites and a jsdom integration layer for
 - `tests/notes/` — notes-specific tests
 - `tests/tasks/` — task-specific tests
 - `tests/tracker/` — tracker-specific tests
+- `tests/search/` — search text derivation + the pure query/fuzzy/highlight helpers
 - `tests/shared/` — reusable fixtures, builders, and assertions shared across app groups
 
 Primary commands:

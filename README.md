@@ -6,7 +6,7 @@ A personal productivity workspace that works offline and syncs across devices. T
 
 ### Dashboard
 
-The home screen opens calm and centered: a rotating, time-of-day greeting and a search bar that opens a command palette across everything — every task, note, bookmark, quote, and event, plus jump-to-app and quick-create commands (⌘K anywhere). Beneath it sits a single contextual nudge that changes with the time of day and what you've actually done — the most relevant task in the morning, a reminder to log time if you've tracked nothing in the last couple of hours, the day's journal in the evening, and a mood check-in at night. Scroll down and the greeting glides up into a slim top bar while the day's essentials fade in — today's tasks with quick-add, hours logged, and a week strip for the journal — a day open to write in place. A row of apps sits at the bottom, one tap to each.
+The home screen opens calm and centered: a rotating, time-of-day greeting and a search bar that opens a command palette across everything — every task, note, bookmark, quote, and event, plus jump-to-app and quick-create commands (⌘K anywhere). Search reads full text, including the words inside your notes, ranks the best matches first, and highlights why each one matched. Type a few letters and it fills in the rest; a small typo still finds the thing. Narrow to one app with `kind:note` (a chip you can also pick from a list), wrap a phrase in quotes for an exact match, and it all works offline. Beneath it sits a single contextual nudge that changes with the time of day and what you've actually done — the most relevant task in the morning, a reminder to log time if you've tracked nothing in the last couple of hours, the day's journal in the evening, and a mood check-in at night. Scroll down and the greeting glides up into a slim top bar while the day's essentials fade in — today's tasks with quick-add, hours logged, and a week strip for the journal — a day open to write in place. A row of apps sits at the bottom, one tap to each.
 
 ### Tasks
 
@@ -40,7 +40,7 @@ Keep track of the recurring things in your life — and everything that happens 
 
 Add a schedule (one-off, weekly, monthly, yearly, or every N days) and an event doubles as a reminder: Dash creates a real task in your Tasks app a set number of days before each one is due, and logs the event as done when you complete that task. Leave the schedule off and it stays a pure log. It never stacks up — if the last task is still unfinished, the next won't be created until you clear it.
 
-Events don't have to stand alone. Hit "Log an event" on a note, bookmark, quote, or task and that thing grows its own timeline — every log shows both on the thing itself and in the shared Events feed, tagged with what it belongs to.
+Events don't have to stand alone. Hit "Log an event" on a note, bookmark, quote, or task and that thing grows its own timeline — every log shows both on the thing itself and in the shared Events feed, tagged with what it belongs to. The Timeline view searches your whole history — by action, place, note, or the name of the thing — with matches highlighted.
 
 ### Capture
 

@@ -93,7 +93,7 @@ function SettingsBody({ open, onClose }: { open: boolean; onClose: () => void })
       <AppearanceSection />
       <DisplayFontSection />
       <NotificationsSection open={open} />
-      <DataSection />
+      <DataSection onClose={onClose} />
     </div>
   );
 }
@@ -296,7 +296,7 @@ function NotificationsSection({ open }: { open: boolean }) {
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
-function DataSection() {
+function DataSection({ onClose }: { onClose: () => void }) {
   const [showReset, setShowReset] = useState(false);
 
   return (
@@ -310,7 +310,7 @@ function DataSection() {
         <DatabaseZap className="h-4 w-4" />
         Reset local data
       </Button>
-      <ResetLocalDataDialog open={showReset} onOpenChange={setShowReset} />
+      <ResetLocalDataDialog open={showReset} onOpenChange={setShowReset} onConfirmed={onClose} />
     </SettingsSection>
   );
 }

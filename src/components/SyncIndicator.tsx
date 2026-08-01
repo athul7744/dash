@@ -2,6 +2,7 @@
 
 import { useStatus } from "@powersync/react";
 import { useState, useEffect, useRef } from "react";
+import { useSearchIndexProgress } from "@/hooks/use-search-index";
 import { useRelativeTimeTick } from "@/hooks/use-relative-time-tick";
 import { cn, formatRelativeTime } from "@/lib/shared/utils";
 import { WifiOff, RefreshCw } from "lucide-react";
@@ -40,6 +41,7 @@ function useCalmFlag(active: boolean, appearAfter = 350, holdFor = 1000): boolea
 
 export function SyncIndicator() {
   const status = useStatus();
+  const searchIndex = useSearchIndexProgress();
   useRelativeTimeTick(30000);
 
   const isConnected = status.connected;
@@ -65,6 +67,11 @@ export function SyncIndicator() {
 
   // Raw, un-smoothed status for debugging — this updates live even when the
   // calmed indicator above shows no visible change.
+  const searchIndexValue =
+    searchIndex.status === "building" && searchIndex.total > 0
+      ? `building ${searchIndex.done}/${searchIndex.total}`
+      : searchIndex.status;
+
   const rawStatus: Array<[string, string]> = [
     ["connected", String(status.connected)],
     ["connecting", String(status.connecting)],
@@ -72,6 +79,7 @@ export function SyncIndicator() {
     ["uploading", String(status.dataFlowStatus?.uploading ?? false)],
     ["downloading", String(status.dataFlowStatus?.downloading ?? false)],
     ["lastSyncedAt", lastSyncedAt ? lastSyncedAt.toISOString() : "—"],
+    ["searchIndex", searchIndexValue],
   ];
 
   let dotColor = "bg-emerald-500";
@@ -122,6 +130,11 @@ export function SyncIndicator() {
             {lastSyncedAt && (
               <p className="text-[11px] text-muted-foreground/70 ml-4">
                 Last synced {formatRelativeTime(lastSyncedAt)}
+              </p>
+            )}
+            {searchIndex.status === "building" && (
+              <p className="ml-4 text-[11px] text-violet-600 dark:text-violet-400">
+                Indexing search…{searchIndex.total > 0 ? ` ${searchIndex.done}/${searchIndex.total}` : ""}
               </p>
             )}
           </div>

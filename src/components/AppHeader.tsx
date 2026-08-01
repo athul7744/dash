@@ -5,6 +5,7 @@ import { Settings, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SyncIndicator } from "@/components/SyncIndicator";
+import { SearchIndexProgressBar } from "@/components/SearchIndexProgressBar";
 import { AppSwitcher } from "@/components/AppSwitcher";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { type AppConfig } from "@/lib/shared/apps";
@@ -95,6 +96,9 @@ export function AppHeader({ app, actions, mobileMenuItems, children }: AppHeader
 
         {/* Optional sub-header content (filters, etc.) */}
         {children}
+
+        {/* One-time search-index build indicator (renders nothing when idle). */}
+        <SearchIndexProgressBar />
       </header>
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />

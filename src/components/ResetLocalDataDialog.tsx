@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,21 +16,20 @@ import { logger } from "@/lib/shared/logger";
 interface ResetLocalDataDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called after confirming, so the parent can close the Settings surface too. */
+  onConfirmed?: () => void;
 }
 
-export function ResetLocalDataDialog({ open, onOpenChange }: ResetLocalDataDialogProps) {
-  const [isResetting, setIsResetting] = useState(false);
-
-  const handleReset = async () => {
-    setIsResetting(true);
-    try {
-      await resetLocalDatabase();
-    } catch (err) {
-      logger.error("Failed to reset local database:", err);
-    } finally {
-      setIsResetting(false);
-      onOpenChange(false);
-    }
+export function ResetLocalDataDialog({ open, onOpenChange, onConfirmed }: ResetLocalDataDialogProps) {
+  const handleReset = () => {
+    // Close both dialogs first, then run the reset. The clear + re-init is a
+    // heavy main-thread op — deferring a tick lets the close paint before it
+    // starts. Progress then shows via the sync indicator + search-index bar.
+    onOpenChange(false);
+    onConfirmed?.();
+    setTimeout(() => {
+      resetLocalDatabase().catch((err) => logger.error("Failed to reset local database:", err));
+    }, 0);
   };
 
   return (
@@ -45,20 +42,12 @@ export function ResetLocalDataDialog({ open, onOpenChange }: ResetLocalDataDialo
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isResetting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleReset}
-            disabled={isResetting}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isResetting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Resetting...
-              </>
-            ) : (
-              "Reset & Re-sync"
-            )}
+            Reset &amp; Re-sync
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

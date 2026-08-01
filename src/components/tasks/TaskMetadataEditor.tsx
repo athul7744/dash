@@ -42,7 +42,6 @@ export function TaskMetadataEditor({
   density = "compact",
   dueDateFormat = "PPP",
   className,
-  selectedTagsClassName,
   showTags = true,
 }: TaskMetadataEditorProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);

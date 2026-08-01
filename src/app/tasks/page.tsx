@@ -1,10 +1,10 @@
 "use client";
 
-import { usePowerSync, useQuery } from '@powersync/react';
+import { useQuery } from '@powersync/react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Plus, CheckCircle2, Filter, Tag as TagIcon, X, ChevronLeft, ChevronRight, ListTodo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Task, Tag } from '@/lib/powersync/AppSchema';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { ManageTagsDialog } from '@/components/tasks/ManageTagsDialog';
@@ -25,7 +25,6 @@ import { hasPendingWrites, flushAllUpdates } from "@/lib/shared/debounced-update
 const tasksApp = getApp("tasks");
 
 export default function Home() {
-  const db = usePowerSync();
   const reduce = useReducedMotion();
 
   // Warn user and flush pending writes if they try to leave during debounce window

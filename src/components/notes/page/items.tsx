@@ -12,7 +12,6 @@ export function NavigationPageLink({
   page,
   selectedPageId,
   onSelectPage,
-  showTags = true,
   trailing,
   className,
 }: {

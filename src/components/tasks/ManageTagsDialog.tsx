@@ -51,7 +51,6 @@ export function ManageTagsDialog({ children, open, onOpenChange, hideTrigger = f
         icon: TagIcon,
         label: "Tags",
       }}
-      children={children}
       open={open}
       onOpenChange={onOpenChange}
       hideTrigger={hideTrigger}
@@ -60,6 +59,8 @@ export function ManageTagsDialog({ children, open, onOpenChange, hideTrigger = f
       onCreate={handleCreateTag}
       onDelete={handleDeleteTag}
       onUpdateColor={handleUpdateTagColor}
-    />
+    >
+      {children}
+    </ManageNamedColorItemsDialog>
   );
 }

@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { Calendar as CalendarIcon, Check, ChevronDown, Columns3, Globe, Hash, Plus, Trash2, Type, X } from "lucide-react";
-import { v4 as uuidv4 } from "uuid";
 
 import {
   AlertDialog,
@@ -35,7 +34,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/shared/utils";
 import { HEADER_ACTION_NEUTRAL } from "@/lib/shared/apps";
 
 import {

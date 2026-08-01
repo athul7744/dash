@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, type Dispatch, type SetStateAction } from "react";
+import { type Dispatch, type SetStateAction } from "react";
 
 import type { NoteBlockRow, NotePageRow } from "@/hooks/use-notes";
 import { extractNoteText } from "@/lib/notes/notes-content";
@@ -14,8 +14,6 @@ import {
 
 import type { NormalizedNotePage, NoteTag } from "./types";
 import { parseProperties } from "./utils";
-
-type FocusTarget = { blockId: string; placement: "start" | "end" } | null;
 
 type PagePropertiesRecord = Record<string, null | boolean | number | string | unknown[] | Record<string, unknown>>;
 
@@ -51,7 +49,6 @@ export function useNotePageActions({
   activePageEmoji,
   summaryDraft,
   selectedTagIdsDraft,
-  displayBlocks,
   orderedVisibleBlockIds,
   selectedBlockMap,
   setPageTitleDraft,

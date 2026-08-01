@@ -8,7 +8,7 @@ export type { PageNavEntry } from "@/lib/notes/page-nav-stack";
 const STORAGE_KEY = "notes-nav-stack";
 
 let stack: PageNavEntry[] = [];
-let listeners = new Set<() => void>();
+const listeners = new Set<() => void>();
 
 function emit() {
   listeners.forEach((l) => l());

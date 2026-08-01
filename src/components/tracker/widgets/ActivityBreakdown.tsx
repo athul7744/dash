@@ -5,7 +5,7 @@ import { format, isAfter, startOfDay } from "date-fns";
 import { cn } from "@/lib/shared/utils";
 import { List, Moon, PieChart } from "lucide-react";
 import { WidgetProps, COLOR_HEX } from "./types";
-import { WidgetHeader, ToggleButton, WheelOverlay, HatchedEmpty } from "./shared";
+import { WidgetHeader, ToggleButton, WheelOverlay } from "./shared";
 
 export function ActivityBreakdown({ days, data, colorMap, categoryMap }: WidgetProps) {
   const [excludeSleep, setExcludeSleep] = useState(false);
@@ -106,7 +106,7 @@ export function ActivityBreakdown({ days, data, colorMap, categoryMap }: WidgetP
             viewBox="0 0 100 100"
             className={cn("h-52 w-52 sm:h-60 sm:w-60 transition-all duration-300 ease-in-out", showList && "blur-sm opacity-40")}
           >
-            {piePaths.map((path, i) => (
+            {piePaths.map((path) => (
               <path
                 key={path.name}
                 d={path.d}

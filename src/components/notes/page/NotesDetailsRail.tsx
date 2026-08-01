@@ -13,7 +13,7 @@ import { DetailsRailCardSkeleton, DetailsSection, PageIcon } from "./ui";
 import { Backlinks } from "@/components/links/Backlinks";
 import { LocalGraphPanel } from "@/components/notes/graph/LocalGraphPanel";
 import { OccurrenceLog } from "@/components/events/OccurrenceLog";
-import type { NoteTag, OutlineEntry } from "./types";
+import type { OutlineEntry } from "./types";
 
 // ---------------------------------------------------------------------------
 // Summary section — shows text by default, textarea on click

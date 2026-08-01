@@ -40,6 +40,9 @@ export function Favicon({ url, className }: FaviconProps) {
   }
 
   return (
+    // Favicons are 16px icons from arbitrary third-party hosts with runtime
+    // fallback — next/image (domain config, optimizer cost) buys nothing here.
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={candidates[state.index]}
       alt=""

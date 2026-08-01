@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Clock3, Hash, PanelLeftClose, Star, Tags } from "lucide-react";
+import { ChevronDown, Clock3, PanelLeftClose, Star, Tags } from "lucide-react";
 
 import { NotesNavigationRailSkeleton } from "@/components/notes/NotesPageSkeleton";
 import { Button } from "@/components/ui/button";

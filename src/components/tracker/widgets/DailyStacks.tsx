@@ -82,7 +82,7 @@ export function DailyStacks({ days, data, colorMap, categoryMap }: WidgetProps) 
                 </svg>
               ) : d.total > 0 ? (
                 <div className="w-full flex flex-col-reverse rounded-sm overflow-hidden" style={{ height: `${(d.total / 24) * 100}%`, minHeight: "6px", transition: "height 0.3s ease-in-out" }}>
-                  {d.segments.map((seg, si) => (
+                  {d.segments.map((seg) => (
                     <div
                       key={seg.name}
                       style={{ backgroundColor: seg.color, height: `${(seg.hours / d.total) * 100}%`, transition: "height 0.3s ease-in-out" }}

@@ -7,9 +7,11 @@ import { BookmarkCard } from "@/components/bookmarks/BookmarkCard";
 import { QuoteCard } from "@/components/quotes/QuoteCard";
 import { EventCard } from "@/components/events/EventCard";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { useEntityTags } from "@/hooks/use-entity-tags";
+import { type ThingAggregate } from "@/hooks/use-events";
 import { parseBookmarkContent, type Bookmark } from "@/lib/bookmarks/bookmarks";
 import { parseQuoteContent, type Quote } from "@/lib/quotes/quotes";
-import { parseEventContent, type EventItem } from "@/lib/events/events";
+import { parseEventContent, OCCURRENCE_BLOCK_TYPE, OCCURRENCE_SUBJECT_SQL, type EventItem } from "@/lib/events/events";
 import type { Task, Tag } from "@/lib/powersync/AppSchema";
 import { cn } from "@/lib/shared/utils";
 
@@ -72,6 +74,27 @@ export function EntityPopup({
   const blockRow = blockRows[0];
   const ready = isTask ? Boolean(taskRow) : isBlock ? Boolean(blockRow) : false;
 
+  // Tags (task/bookmark/event) — the same batched lookup the list pages use; the
+  // card seeds its optimistic state from this. Quotes carry no tags.
+  const tagsMap = useEntityTags(item ? [item.id] : []);
+  const itemTagIds = item ? tagsMap.get(item.id) ?? [] : [];
+
+  // Event occurrence aggregate (count / first / last), keyed on the effective
+  // subject — an event that tracks another thing logs onto that subject's id.
+  // Without it the card's stats read 0 / "Never logged".
+  const eventSubjectId =
+    item?.kind === "event" && blockRow ? parseEventContent(blockRow.content).subjectId ?? item.id : null;
+  const { data: aggRows = [] } = useQuery<{ n: number; first: string | null; last: string | null }>(
+    eventSubjectId
+      ? `SELECT COUNT(*) AS n, MIN(json_extract(content, '$.at')) AS first, MAX(json_extract(content, '$.at')) AS last
+         FROM blocks WHERE type = ? AND ${OCCURRENCE_SUBJECT_SQL} = ?`
+      : "SELECT 0 AS n, NULL AS first, NULL AS last WHERE 0",
+    eventSubjectId ? [OCCURRENCE_BLOCK_TYPE, eventSubjectId] : [],
+  );
+  const eventAgg: ThingAggregate | undefined = aggRows[0]
+    ? { count: aggRows[0].n, firstAt: aggRows[0].first, lastAt: aggRows[0].last, kind: "event" }
+    : undefined;
+
   return (
     <Dialog open={item !== null} onOpenChange={onOpenChange}>
       {item && ready ? (
@@ -86,13 +109,13 @@ export function EntityPopup({
               blurred overlay — same as sitting on the page. Radius matches the card. */}
           <div className={cn("w-full bg-background", item.kind === "task" ? "rounded-xl" : "rounded-2xl")}>
             {item.kind === "task" ? (
-              <TaskCard task={taskRow!} subtasks={subtasks} />
+              <TaskCard task={taskRow!} subtasks={subtasks} tagIds={itemTagIds} />
             ) : item.kind === "bookmark" ? (
-              <BookmarkCard bookmark={toBookmark(blockRow!)} allTags={allTags} />
+              <BookmarkCard bookmark={toBookmark(blockRow!)} allTags={allTags} tagIds={itemTagIds} />
             ) : item.kind === "quote" ? (
               <QuoteCard quote={toQuote(blockRow!)} />
             ) : (
-              <EventCard event={toEvent(blockRow!)} />
+              <EventCard event={toEvent(blockRow!)} aggregate={eventAgg} tagIds={itemTagIds} />
             )}
           </div>
           <button

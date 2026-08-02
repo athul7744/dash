@@ -58,3 +58,6 @@ next-env.d.ts
 /supabase/*
 !/supabase/functions/
 CLAUDE.md
+
+# fallow tool cache
+.fallow/

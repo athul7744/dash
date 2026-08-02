@@ -13,7 +13,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@powersync/react";
-import { Plus, X, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, X, Zap } from "lucide-react";
 
 import { useSearchIndexReady } from "@/hooks/use-search-index";
 import { searchEntities, type SearchHit } from "@/lib/search/query";
@@ -47,6 +47,12 @@ const KIND_OPTIONS = [
   { kind: "quote", appId: "quotes", label: "Quotes" },
   { kind: "event", appId: "events", label: "Events" },
 ] as const;
+
+/** kind → app label, for the "Show all N in <App>" overflow rows. */
+const KIND_LABEL: Record<string, string> = Object.fromEntries(KIND_OPTIONS.map((o) => [o.kind, o.label]));
+
+/** Stable empty set — the collapsed state and the reset both point at this. */
+const EMPTY_KINDS: Set<string> = new Set();
 
 /** Matches a `kind:`/`type:`/`k:` token being typed at the end of the query. */
 const KIND_TOKEN_RE = /(?:^|\s)(?:kind|type|k):(\w*)$/i;
@@ -377,7 +383,7 @@ function CommandPaletteResults({
         if (!cancelled) setHits([]);
         return;
       }
-      const r = await searchEntities(deferredQuery, { limit: 60 });
+      const r = await searchEntities(deferredQuery, { limit: 250 });
       if (!cancelled) setHits(r);
     }, 120);
     return () => {
@@ -385,6 +391,18 @@ function CommandPaletteResults({
       clearTimeout(timer);
     };
   }, [useFts, deferredQuery]);
+
+  // Per-kind "Show all" expansion, tagged with the query it belongs to so a new
+  // query collapses everything back to MAX_RESULTS without an effect.
+  const [expandState, setExpandState] = useState<{ q: string; kinds: Set<string> }>({ q: "", kinds: EMPTY_KINDS });
+  const expanded = expandState.q === deferredQuery ? expandState.kinds : EMPTY_KINDS;
+  const toggleExpand = (kind: string) =>
+    setExpandState((prev) => {
+      const kinds = new Set(prev.q === deferredQuery ? prev.kinds : []);
+      if (kinds.has(kind)) kinds.delete(kind);
+      else kinds.add(kind);
+      return { q: deferredQuery, kinds };
+    });
 
   // --- kind: filter discovery/completion ---
   // Empty query → show all kinds (discovery). Typing `kind:foo` → show matches to
@@ -417,42 +435,60 @@ function CommandPaletteResults({
     for (const h of hits) (ids[h.kind] ??= []).push(h.id);
     return ids;
   }, [hits]);
+  // Full ranked/filtered list per kind (uncapped); the render slices to
+  // MAX_RESULTS unless the kind is expanded via its "Show all" row.
   const orderBy = <T extends { id: string }>(kind: string, items: T[]): T[] => {
     const byId = new Map(items.map((it) => [it.id, it]));
     return (rankedByKind[kind] ?? [])
       .map((id) => byId.get(id))
-      .filter((x): x is T => Boolean(x))
-      .slice(0, MAX_RESULTS);
+      .filter((x): x is T => Boolean(x));
   };
+  const capFor = (kind: string, items: unknown[]) => (expanded.has(kind) ? items.length : MAX_RESULTS);
 
   // --- Entity results (FTS-ranked when ready, else in-JS substring match) ---
   const tasks = useFts
     ? orderBy("task", allTasks)
     : hasQuery
-      ? allTasks.filter((t) => (t.title ?? "").toLowerCase().includes(q)).slice(0, MAX_RESULTS)
+      ? allTasks.filter((t) => (t.title ?? "").toLowerCase().includes(q))
       : [];
   const notes = useFts
     ? orderBy("note", allNormalizedPages)
     : hasQuery
-      ? filteredSearchPages.slice(0, MAX_RESULTS)
+      ? filteredSearchPages
       : [];
   const bookmarkHits = useFts
     ? orderBy("bookmark", bookmarks)
     : hasQuery
-      ? bookmarks
-          .filter((b) => `${b.title} ${b.note} ${b.url} ${getLinkHost(b.url) ?? ""} ${b.tags.join(" ")}`.toLowerCase().includes(q))
-          .slice(0, MAX_RESULTS)
+      ? bookmarks.filter((b) => `${b.title} ${b.note} ${b.url} ${getLinkHost(b.url) ?? ""} ${b.tags.join(" ")}`.toLowerCase().includes(q))
       : [];
   const quoteHits = useFts
     ? orderBy("quote", quotes)
     : hasQuery
-      ? quotes.filter((qt) => `${qt.text} ${qt.author}`.toLowerCase().includes(q)).slice(0, MAX_RESULTS)
+      ? quotes.filter((qt) => `${qt.text} ${qt.author}`.toLowerCase().includes(q))
       : [];
   const eventHits = useFts
     ? orderBy("event", events)
     : hasQuery
-      ? events.filter((e) => `${e.title} ${e.tags.join(" ")}`.toLowerCase().includes(q)).slice(0, MAX_RESULTS)
+      ? events.filter((e) => `${e.title} ${e.tags.join(" ")}`.toLowerCase().includes(q))
       : [];
+
+  // "Show all N in <App>" / "Show less" toggle, shown when a kind overflows the cap.
+  const overflowRow = (kind: string, total: number) =>
+    total > MAX_RESULTS ? (
+      <CommandItem
+        key={`more:${kind}`}
+        value={`more:${kind}`}
+        onSelect={() => toggleExpand(kind)}
+        className="items-center gap-3 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground"
+      >
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center">
+          {expanded.has(kind) ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          {expanded.has(kind) ? "Show less" : `Show all ${total} in ${KIND_LABEL[kind]}`}
+        </span>
+      </CommandItem>
+    ) : null;
 
   const nothing =
     !(showKinds && kindOptions.length > 0) &&
@@ -545,9 +581,9 @@ function CommandPaletteResults({
 
       {tasks.length > 0 ? (
         <CommandGroup heading="Tasks">
-          {tasks.map((task) => {
+          {tasks.slice(0, capFor("task", tasks)).map((task) => {
             const info = getDueDateInfo(task.due_date ? new Date(task.due_date) : undefined);
-            const showChip = info.show && (info.label === "Overdue" || info.label === "Due Today");
+            const showChip = info.show && task.state !== "completed" && (info.label === "Overdue" || info.label === "Due Today");
             return (
               <CommandItem
                 key={task.id}
@@ -565,12 +601,13 @@ function CommandPaletteResults({
               </CommandItem>
             );
           })}
+          {overflowRow("task", tasks.length)}
         </CommandGroup>
       ) : null}
 
       {notes.length > 0 ? (
         <CommandGroup heading="Notes">
-          {notes.map((page) => (
+          {notes.slice(0, capFor("note", notes)).map((page) => (
             <CommandItem
               key={page.id}
               value={`note:${page.id}`}
@@ -592,12 +629,13 @@ function CommandPaletteResults({
               </div>
             </CommandItem>
           ))}
+          {overflowRow("note", notes.length)}
         </CommandGroup>
       ) : null}
 
       {bookmarkHits.length > 0 ? (
         <CommandGroup heading="Bookmarks">
-          {bookmarkHits.map((b) => (
+          {bookmarkHits.slice(0, capFor("bookmark", bookmarkHits)).map((b) => (
             <CommandItem
               key={b.id}
               value={`bookmark:${b.id}`}
@@ -619,12 +657,13 @@ function CommandPaletteResults({
               </div>
             </CommandItem>
           ))}
+          {overflowRow("bookmark", bookmarkHits.length)}
         </CommandGroup>
       ) : null}
 
       {quoteHits.length > 0 ? (
         <CommandGroup heading="Quotes">
-          {quoteHits.map((qt) => (
+          {quoteHits.slice(0, capFor("quote", quoteHits)).map((qt) => (
             <CommandItem
               key={qt.id}
               value={`quote:${qt.id}`}
@@ -638,12 +677,13 @@ function CommandPaletteResults({
               </div>
             </CommandItem>
           ))}
+          {overflowRow("quote", quoteHits.length)}
         </CommandGroup>
       ) : null}
 
       {eventHits.length > 0 ? (
         <CommandGroup heading="Events">
-          {eventHits.map((e) => (
+          {eventHits.slice(0, capFor("event", eventHits)).map((e) => (
             <CommandItem
               key={e.id}
               value={`event:${e.id}`}
@@ -656,6 +696,7 @@ function CommandPaletteResults({
               </span>
             </CommandItem>
           ))}
+          {overflowRow("event", eventHits.length)}
         </CommandGroup>
       ) : null}
     </>

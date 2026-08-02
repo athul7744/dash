@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { ArrowLeft, CalendarClock, Pencil, Plus, Tag as TagIcon, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarClock, Check, ListPlus, Pencil, Plus, Tag as TagIcon, Trash2 } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
@@ -20,6 +20,7 @@ import { TagSelector } from "@/components/tags/TagSelector";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { useEntityTags, useOptimisticTagIds } from "@/hooks/use-entity-tags";
 import { useEvent, useEventMaterializer, useOccurrences, useSubjectLabels, useThingAggregates } from "@/hooks/use-events";
+import { generateTaskForEvent } from "@/lib/events/materialize";
 import { statsFromAggregate, deleteEvent, formatDays, updateEvent, type EventItem } from "@/lib/events/events";
 import { describeSchedule, nextOccurrenceOnOrAfter } from "@/lib/events/schedule";
 import { reconcileEntityRefs } from "@/lib/links/links";
@@ -50,6 +51,7 @@ function EventDetail({ event }: { event: EventItem }) {
   const aggregates = useThingAggregates();
   const { occurrences } = useOccurrences({ thingId: subjectId, limit: 400 });
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [taskAdded, setTaskAdded] = useState(false);
   const [title, setTitle] = useState(event.title);
   const { focusedRef, schedule, flush } = useDebouncedSave();
   // Tags live in entity_tags; seed local optimistic state from the batched lookup.
@@ -80,6 +82,13 @@ function EventDetail({ event }: { event: EventItem }) {
   const removeEvent = () => {
     void deleteEvent(event.id);
     router.push("/events");
+  };
+
+  const genTask = async () => {
+    const taskId = await generateTaskForEvent(event.id);
+    if (!taskId) return;
+    setTaskAdded(true);
+    setTimeout(() => setTaskAdded(false), 2000);
   };
 
   return (
@@ -177,6 +186,15 @@ function EventDetail({ event }: { event: EventItem }) {
           <p className="min-w-0 flex-1 text-sm text-muted-foreground">
             {describeSchedule({ schedule: s, daysBefore: event.daysBefore, active: event.active }, next)}
           </p>
+          <button
+            type="button"
+            onClick={() => void genTask()}
+            title="Add a one-off task to your task list for this event"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+          >
+            {taskAdded ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <ListPlus className="h-3.5 w-3.5" />}
+            {taskAdded ? "Task added" : "Generate task"}
+          </button>
           <button
             type="button"
             onClick={() => setScheduleOpen(true)}

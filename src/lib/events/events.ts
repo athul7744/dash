@@ -270,6 +270,19 @@ export async function markLogged(id: string, key: string): Promise<void> {
   await writeEventContent(id, { ...current, lastLoggedKey: key });
 }
 
+/**
+ * Point the complete→log slot at a manually generated task (see
+ * `generateTaskForEvent`). Unlike `markMaterialized` it never deactivates a
+ * `once` event — an ad-hoc task shouldn't retire the schedule. The `manual:`
+ * key prefix keeps the completion log firing (it differs from `lastLoggedKey`)
+ * and tells the reconciler to log that completion as source "task", not "schedule".
+ */
+export async function markTaskGenerated(id: string, taskId: string): Promise<void> {
+  const current = await readEventContent(id);
+  if (!current) return;
+  await writeEventContent(id, { ...current, lastTaskId: taskId, lastMaterializedKey: `manual:${taskId}` });
+}
+
 export async function deleteEvent(id: string): Promise<void> {
   await db.execute(`DELETE FROM blocks WHERE id = ? OR (type = ? AND ${OCCURRENCE_SUBJECT_SQL} = ?)`, [id, OCCURRENCE_BLOCK_TYPE, id]);
   await deleteEntityEdges(id);

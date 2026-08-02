@@ -8,13 +8,52 @@ import {
   logOccurrence,
   markLogged,
   markMaterialized,
+  markTaskGenerated,
   parseEventContent,
   EVENT_BLOCK_TYPE,
   EVENTS_KEY,
   OCCURRENCE_BLOCK_TYPE,
   OCCURRENCE_SUBJECT_SQL,
+  type OccurrenceSource,
 } from "@/lib/events/events";
 import { createTask } from "@/lib/tasks/create-task";
+
+/** An event's tag ids — membership lives in `entity_tags`, not `content.tags`. */
+async function eventTagIds(eventId: string): Promise<string[]> {
+  const rows = await db.getAll<{ tag_id: string }>(
+    `SELECT tag_id FROM entity_tags WHERE entity_id = ? AND entity_kind = 'event'`,
+    [eventId],
+  );
+  return rows.map((r) => r.tag_id);
+}
+
+/**
+ * Manually spawn a one-off task from an event, on demand — the user-fired
+ * counterpart to the scheduler. Copies the event's title / link / tags / priority
+ * (due today) and wires the task into the same complete→log slot the reconciler
+ * watches, so finishing it logs an occurrence (source "task"), exactly like a
+ * scheduled task. Works for log-only events too. Returns the new task id, or null
+ * if the event is missing or untitled.
+ */
+export async function generateTaskForEvent(eventId: string): Promise<string | null> {
+  const row = await db.getOptional<{ content: string | null }>(
+    `SELECT content FROM blocks WHERE id = ? AND type = ? LIMIT 1`,
+    [eventId, EVENT_BLOCK_TYPE],
+  );
+  if (!row) return null;
+  const thing = parseEventContent(row.content);
+  if (!thing.title.trim()) return null;
+
+  const taskId = await createTask({
+    title: thing.title,
+    link: thing.link || null,
+    dueDate: new Date(),
+    tags: await eventTagIds(eventId),
+    priority: thing.priority,
+  });
+  await markTaskGenerated(eventId, taskId);
+  return taskId;
+}
 
 /**
  * Client-side reconciler for scheduled Events. Fired on mount (dashboard +
@@ -59,7 +98,10 @@ export async function materializeDueEvents(): Promise<number> {
         [thing.lastTaskId],
       );
       if (task?.state === "completed") {
-        await logOccurrence(subjectId, { at: task.updated_at ?? now.toISOString(), source: "schedule", subjectKind });
+        // A `manual:` key marks an ad-hoc (user-generated) task — log it as
+        // source "task"; a scheduled task logs as "schedule".
+        const source: OccurrenceSource = thing.lastMaterializedKey.startsWith("manual:") ? "task" : "schedule";
+        await logOccurrence(subjectId, { at: task.updated_at ?? now.toISOString(), source, subjectKind });
         await markLogged(row.id, thing.lastMaterializedKey);
       }
     }
@@ -101,7 +143,7 @@ export async function materializeDueEvents(): Promise<number> {
         title: thing.title,
         link: thing.link || null,
         dueDate: due.occurrence,
-        tags: thing.tags,
+        tags: await eventTagIds(row.id),
         priority: thing.priority,
       });
       created += 1;

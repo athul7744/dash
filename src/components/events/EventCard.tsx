@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarClock, Ellipsis, History, Pause, Play, Tag as TagIcon, Trash2 } from "lucide-react";
+import { CalendarClock, Ellipsis, History, ListPlus, Pause, Play, Tag as TagIcon, Trash2 } from "lucide-react";
 
 import { EventLogNow } from "@/components/events/EventLogNow";
 import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
@@ -9,6 +9,7 @@ import { TagSelector } from "@/components/tags/TagSelector";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { type ThingAggregate } from "@/hooks/use-events";
 import { useOptimisticTagIds } from "@/hooks/use-entity-tags";
+import { generateTaskForEvent } from "@/lib/events/materialize";
 import { statsFromAggregate, deleteEvent, toggleActive, updateEvent, type EventItem } from "@/lib/events/events";
 import { describeSchedule, nextOccurrenceOnOrAfter } from "@/lib/events/schedule";
 import { stripRefs } from "@/lib/links/tokens";
@@ -94,7 +95,11 @@ export function EventCard({
               <DropdownMenuTrigger aria-label="More actions" className={cn(HEADER_BTN, "focus:outline-none")}>
                 <Ellipsis className="h-4 w-4" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={() => void generateTaskForEvent(event.id)}>
+                  <ListPlus className="h-4 w-4" />
+                  Generate task
+                </DropdownMenuItem>
                 <DropdownMenuItem variant="destructive" onClick={() => void deleteEvent(event.id)}>
                   <Trash2 className="h-4 w-4" />
                   Delete

@@ -50,10 +50,10 @@ type OccurrenceRow = { id: string; content: string | null };
  * Live occurrence log, newest first — all of them, or one thing's (`thingId`),
  * capped by `limit` for the paginated timeline / per-thing detail.
  */
-export function useOccurrences(opts: { thingId?: string; limit?: number } = {}): { occurrences: Occurrence[]; isLoading: boolean } {
+export function useOccurrences(opts: { thingId?: string; limit?: number; enabled?: boolean } = {}): { occurrences: Occurrence[]; isLoading: boolean } {
   const userId = useCurrentUserId();
-  const pageId = userId ? systemPageId(userId, "event", EVENTS_KEY) : null;
-  const { thingId, limit } = opts;
+  const { thingId, limit, enabled = true } = opts;
+  const pageId = enabled && userId ? systemPageId(userId, "event", EVENTS_KEY) : null;
 
   const where = ["page_id = ?", "type = ?"];
   const args: (string | number)[] = [pageId ?? "", OCCURRENCE_BLOCK_TYPE];
@@ -93,9 +93,9 @@ const OCCURRENCE_KINDS = new Set<string>(["note", "task", "bookmark", "quote", "
  * Every distinct subject that has occurrences, with its kind — the full set (not
  * a recency window), so timeline search can resolve labels across all history.
  */
-export function useAllOccurrenceSubjects(): { id: string; kind: RefKind }[] {
+export function useAllOccurrenceSubjects(enabled = true): { id: string; kind: RefKind }[] {
   const userId = useCurrentUserId();
-  const pageId = userId ? systemPageId(userId, "event", EVENTS_KEY) : null;
+  const pageId = enabled && userId ? systemPageId(userId, "event", EVENTS_KEY) : null;
   const { data = [] } = useQuery<{ id: string | null; kind: string | null }>(
     pageId
       ? `SELECT DISTINCT ${OCCURRENCE_SUBJECT_SQL} AS id, json_extract(content, '$.subjectKind') AS kind
@@ -112,27 +112,52 @@ export function useAllOccurrenceSubjects(): { id: string; kind: RefKind }[] {
   );
 }
 
-export type ThingAggregate = { count: number; firstAt: string | null; lastAt: string | null };
+export type ThingAggregate = { count: number; firstAt: string | null; lastAt: string | null; kind: RefKind };
 
 /**
- * Per-thing occurrence aggregate (count / first / last), done entirely in SQLite
- * so the card list never materializes the occurrence rows in JS. Keyed by thing id.
+ * Per-thing occurrence aggregate (count / first / last / subject kind), done
+ * entirely in SQLite so the card list never materializes the occurrence rows in
+ * JS. Keyed by thing id — one scan that also yields every subject and its kind,
+ * so the browse view needs no separate distinct-subject query.
  */
 export function useThingAggregates(): Map<string, ThingAggregate> {
   const userId = useCurrentUserId();
   const pageId = userId ? systemPageId(userId, "event", EVENTS_KEY) : null;
-  const { data = [] } = useQuery<{ thing: string; n: number; first: string | null; last: string | null }>(
+  const { data = [] } = useQuery<{ thing: string; n: number; first: string | null; last: string | null; kind: string | null }>(
     pageId
-      ? `SELECT ${OCCURRENCE_SUBJECT_SQL} AS thing, COUNT(*) AS n, MIN(json_extract(content, '$.at')) AS first, MAX(json_extract(content, '$.at')) AS last
+      ? `SELECT ${OCCURRENCE_SUBJECT_SQL} AS thing, COUNT(*) AS n, MIN(json_extract(content, '$.at')) AS first, MAX(json_extract(content, '$.at')) AS last, MAX(json_extract(content, '$.subjectKind')) AS kind
          FROM blocks WHERE page_id = ? AND type = ? GROUP BY ${OCCURRENCE_SUBJECT_SQL}`
-      : "SELECT NULL AS thing, 0 AS n, NULL AS first, NULL AS last WHERE 1 = 0",
+      : "SELECT NULL AS thing, 0 AS n, NULL AS first, NULL AS last, NULL AS kind WHERE 1 = 0",
     pageId ? [pageId, OCCURRENCE_BLOCK_TYPE] : [],
   );
   return useMemo(() => {
     const map = new Map<string, ThingAggregate>();
-    for (const r of data) if (r.thing) map.set(r.thing, { count: r.n, firstAt: r.first, lastAt: r.last });
+    for (const r of data)
+      if (r.thing)
+        map.set(r.thing, {
+          count: r.n,
+          firstAt: r.first,
+          lastAt: r.last,
+          kind: (OCCURRENCE_KINDS.has(r.kind ?? "") ? r.kind : "event") as RefKind,
+        });
     return map;
   }, [data]);
+}
+
+/** Distinct occurrence places (non-empty), for the log form's place typeahead —
+ * a small SQL result, not the whole occurrence log parsed in JS. */
+export function usePlaceSuggestions(): string[] {
+  const userId = useCurrentUserId();
+  const pageId = userId ? systemPageId(userId, "event", EVENTS_KEY) : null;
+  const { data = [] } = useQuery<{ place: string | null }>(
+    pageId
+      ? `SELECT DISTINCT json_extract(content, '$.place') AS place
+         FROM blocks WHERE page_id = ? AND type = ?
+           AND json_extract(content, '$.place') IS NOT NULL AND json_extract(content, '$.place') <> ''`
+      : "SELECT NULL AS place WHERE 1 = 0",
+    pageId ? [pageId, OCCURRENCE_BLOCK_TYPE] : [],
+  );
+  return useMemo(() => data.map((r) => r.place).filter((x): x is string => !!x), [data]);
 }
 
 /**

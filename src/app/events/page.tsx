@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { format } from "date-fns";
-import { CalendarClock, MapPin, Plus, Search } from "lucide-react";
+import { CalendarClock, Loader2, MapPin, Plus, Search } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { CollectionHeading } from "@/components/CollectionHeading";
@@ -12,8 +12,9 @@ import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { EventCard } from "@/components/events/EventCard";
 import { SubjectCard } from "@/components/events/SubjectCard";
 import { EventsLoadingSkeleton } from "@/components/skeletons/EventsLoadingSkeleton";
-import { useEvents, useEventMaterializer, useOccurrences, useSubjectLabels, useThingAggregates, useAllOccurrenceSubjects } from "@/hooks/use-events";
+import { useEvents, useEventMaterializer, useOccurrences, useSubjectLabels, useThingAggregates, useAllOccurrenceSubjects, usePlaceSuggestions } from "@/hooks/use-events";
 import { useNewItemParam } from "@/hooks/use-new-item-param";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useSearchIndexReady } from "@/hooks/use-search-index";
 import { searchOccurrences } from "@/lib/search/occurrences";
 import { markLike, toHighlightSegments } from "@/lib/search/match-query";
@@ -51,16 +52,21 @@ const TABS: Array<{ value: Tab; label: string }> = [
   { value: "timeline", label: "Timeline" },
 ];
 const HEADING: Record<Exclude<Tab, "timeline">, string> = { all: "All events", scheduled: "Scheduled", overdue: "Overdue" };
+const PAGE_SIZE = 24;
 
 export default function EventsPage() {
   const router = useRouter();
   const { events, isLoading } = useEvents();
   const aggregates = useThingAggregates();
-  const { occurrences } = useOccurrences({ limit: 500 });
   useEventMaterializer();
 
   const [tab, setTab] = useState<Tab>("all");
   const [timelineQuery, setTimelineQuery] = useState("");
+  const searchReady = useSearchIndexReady();
+
+  // Occurrence rows feed only the timeline tab's browse/fallback list; the browse
+  // cards derive everything from the SQL aggregate, so don't load 500 rows here.
+  const { occurrences } = useOccurrences({ limit: 500, enabled: tab === "timeline" });
 
   // Navigate to the new event first (with a pre-generated id), then write it, so
   // the list never flashes an empty card before the editor opens.
@@ -71,18 +77,13 @@ export default function EventsPage() {
   };
   useNewItemParam(addEvent, !isLoading);
 
+  // Distinct places from SQL (+ each event's default place) — no occurrence rows in JS.
+  const occPlaces = usePlaceSuggestions();
   const placeSuggestions = useMemo(() => {
-    const set = new Set<string>();
-    for (const o of occurrences) if (o.place) set.add(o.place);
+    const set = new Set<string>(occPlaces);
     for (const e of events) if (e.defaultPlace) set.add(e.defaultPlace);
     return [...set].sort();
-  }, [occurrences, events]);
-
-  // Resolve labels for ALL subjects (full history), so timeline search can match
-  // by name beyond the recency window the browse view loads.
-  const subjects = useAllOccurrenceSubjects();
-  const subjectLabels = useSubjectLabels(subjects);
-  const searchReady = useSearchIndexReady();
+  }, [occPlaces, events]);
 
   // Cards = standalone events + every other entity you've logged against
   // (notes/bookmarks/tasks/quotes), overdue-first, plus the tab filter.
@@ -99,15 +100,14 @@ export default function EventsPage() {
       return { type: "event" as const, key: e.id, event: e, agg, scheduled: e.schedule != null, overdue: stats.overdue, lastMs: stats.lastAt ? Date.parse(stats.lastAt) : 0 };
     });
 
-    // Distinct non-event subjects that carry occurrences — excluding any that an
-    // event already represents, so a Phase-D "about X" event isn't shown twice.
-    const seen = new Map<string, RefKind>();
-    for (const o of occurrences) if (o.thingId && !eventSubjectIds.has(o.thingId) && !seen.has(o.thingId)) seen.set(o.thingId, o.subjectKind);
-    const subjectRows = [...seen.entries()].map(([id, kind]) => {
-      const agg = aggregates.get(id);
-      const stats = statsFromAggregate(agg, null, now);
-      return { type: "subject" as const, key: id, subjectId: id, subjectKind: kind, label: subjectLabels.get(id) ?? "", agg, scheduled: false, overdue: stats.overdue, lastMs: stats.lastAt ? Date.parse(stats.lastAt) : 0 };
-    });
+    // Non-event subjects that carry occurrences come straight from the SQL
+    // aggregate (id + kind + stats), excluding any an event already represents.
+    const subjectRows = [...aggregates.entries()]
+      .filter(([id]) => !eventSubjectIds.has(id))
+      .map(([id, agg]) => {
+        const stats = statsFromAggregate(agg, null, now);
+        return { type: "subject" as const, key: id, subjectId: id, subjectKind: agg.kind, agg, scheduled: false, overdue: stats.overdue, lastMs: stats.lastAt ? Date.parse(stats.lastAt) : 0 };
+      });
 
     const all = [...eventRows, ...subjectRows].filter((c) => {
       if (tab === "scheduled") return c.scheduled;
@@ -117,7 +117,28 @@ export default function EventsPage() {
     all.sort((a, b) => Number(b.overdue) - Number(a.overdue) || b.lastMs - a.lastMs);
     return all;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, aggregates, occurrences, subjectLabels, tab]);
+  }, [events, aggregates, tab]);
+
+  // The cards are a JS-computed, overdue-first union (no SQL sort key), so window
+  // the render instead of the query: grow on scroll, reset when the tab changes.
+  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
+  const [prevTab, setPrevTab] = useState(tab);
+  if (prevTab !== tab) {
+    setPrevTab(tab);
+    setLoadedCount(PAGE_SIZE);
+  }
+  const visibleCards = useMemo(() => cards.slice(0, loadedCount), [cards, loadedCount]);
+  const hasMoreCards = visibleCards.length < cards.length;
+  const cardsSentinelRef = useInfiniteScroll(() => setLoadedCount((n) => n + PAGE_SIZE), hasMoreCards);
+
+  // Subject labels: only the visible cards on browse; all subjects (for name
+  // search) on the timeline tab — so browse never resolves every subject's label.
+  const timelineSubjects = useAllOccurrenceSubjects(tab === "timeline");
+  const visibleSubjectRefs = useMemo(
+    () => visibleCards.flatMap((c) => (c.type === "subject" ? [{ id: c.subjectId, kind: c.subjectKind }] : [])),
+    [visibleCards],
+  );
+  const subjectLabels = useSubjectLabels(tab === "timeline" ? timelineSubjects : visibleSubjectRefs);
 
   // Browse / fallback rows from the loaded recency window (in-JS substring match).
   const fallbackRows = useMemo<TimelineRow[]>(() => {
@@ -148,7 +169,7 @@ export default function EventsPage() {
         return;
       }
       const lower = q.toLowerCase();
-      const titleThingIds = subjects
+      const titleThingIds = timelineSubjects
         .filter((s) => (subjectLabels.get(s.id) ?? "").toLowerCase().includes(lower))
         .map((s) => s.id);
       const hits = await searchOccurrences(q, { titleThingIds, limit: 300 });
@@ -170,7 +191,7 @@ export default function EventsPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [timelineQuery, searchReady, subjects, subjectLabels]);
+  }, [timelineQuery, searchReady, timelineSubjects, subjectLabels]);
 
   const timeline = useMemo(() => {
     const useFts = searchReady && timelineQuery.trim().length > 0 && ftsRows !== null;
@@ -246,17 +267,25 @@ export default function EventsPage() {
               <>
                 <CollectionHeading label={HEADING[tab]} count={cards.length} className="mt-6 mb-6" />
 
+                {/* content-visibility keeps off-screen cards from costing layout/paint. */}
                 <div className="columns-1 gap-5 md:columns-2 lg:columns-3">
-                  {cards.map((c) => (
-                    <div key={c.key} className="mb-5 break-inside-avoid">
+                  {visibleCards.map((c) => (
+                    <div key={c.key} className="mb-5 break-inside-avoid [content-visibility:auto] [contain-intrinsic-size:auto_220px]">
                       {c.type === "event" ? (
                         <EventCard event={c.event} aggregate={c.agg} placeSuggestions={placeSuggestions} />
                       ) : (
-                        <SubjectCard subjectId={c.subjectId} subjectKind={c.subjectKind} label={c.label} aggregate={c.agg} placeSuggestions={placeSuggestions} />
+                        <SubjectCard subjectId={c.subjectId} subjectKind={c.subjectKind} label={subjectLabels.get(c.subjectId) ?? ""} aggregate={c.agg} placeSuggestions={placeSuggestions} />
                       )}
                     </div>
                   ))}
                 </div>
+
+                {hasMoreCards ? (
+                  <div ref={cardsSentinelRef} className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading more…
+                  </div>
+                ) : null}
               </>
             ) : (
               <div className="mx-auto mt-6 max-w-2xl">

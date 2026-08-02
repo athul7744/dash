@@ -69,8 +69,23 @@ export async function generateTaskForEvent(eventId: string): Promise<string | nu
  *     task is still open). Log-only things (`schedule == null`) are skipped.
  *
  * Returns the number of tasks created.
+ *
+ * Serialized: concurrent calls (React StrictMode double-invokes the effect, and
+ * the dashboard + /events can both fire it) coalesce onto one in-flight run.
+ * Without this the read-then-write branches race — two passes double-log a
+ * completion, and both `INSERT` the same deterministic task id (UNIQUE failure).
  */
-export async function materializeDueEvents(): Promise<number> {
+let inFlight: Promise<number> | null = null;
+
+export function materializeDueEvents(): Promise<number> {
+  if (inFlight) return inFlight;
+  inFlight = runMaterialize().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function runMaterialize(): Promise<number> {
   const userId = await getCurrentUserId();
   if (!userId) return 0;
 
@@ -101,7 +116,10 @@ export async function materializeDueEvents(): Promise<number> {
         // A `manual:` key marks an ad-hoc (user-generated) task — log it as
         // source "task"; a scheduled task logs as "schedule".
         const source: OccurrenceSource = thing.lastMaterializedKey.startsWith("manual:") ? "task" : "schedule";
-        await logOccurrence(subjectId, { at: task.updated_at ?? now.toISOString(), source, subjectKind });
+        // Deterministic id: a duplicate pass writes the same row (INSERT OR IGNORE),
+        // so the completion can never be double-logged.
+        const occId = uuidv5(`${subjectId}:log:${thing.lastMaterializedKey}`, SYSTEM_PAGE_NAMESPACE);
+        await logOccurrence(subjectId, { id: occId, at: task.updated_at ?? now.toISOString(), source, subjectKind });
         await markLogged(row.id, thing.lastMaterializedKey);
       }
     }

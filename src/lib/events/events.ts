@@ -299,13 +299,16 @@ export interface LogOccurrenceInput {
   source?: OccurrenceSource;
   /** Kind of the subject entity (defaults to "event" — a standalone tracked thing). */
   subjectKind?: RefKind;
+  /** Optional deterministic id — an auto-log derives one per (subject, key) so a
+      concurrent or replayed reconciler pass can't double-log (INSERT OR IGNORE). */
+  id?: string;
 }
 
 /** Record that a thing happened. Returns the occurrence block id. */
 export async function logOccurrence(thingId: string, input: LogOccurrenceInput = {}): Promise<string> {
   const pageId = await ensureEventsPage();
   const userId = await getCurrentUserId();
-  const id = uuidv4();
+  const id = input.id ?? uuidv4();
   const nowIso = new Date().toISOString();
   const at = input.at ? (input.at instanceof Date ? input.at.toISOString() : input.at) : nowIso;
   const sortRank = await nextSortRank(pageId, OCCURRENCE_BLOCK_TYPE);
@@ -320,8 +323,9 @@ export async function logOccurrence(thingId: string, input: LogOccurrenceInput =
   };
   // parent_block_id stays NULL: the subject may be a note/task (not a block), so
   // the blocks_parent_block_id_fkey would reject it. Subject lives in content.
+  // OR IGNORE: a caller-supplied deterministic id makes a replayed auto-log a no-op.
   await db.execute(
-    `INSERT INTO blocks (id, user_id, page_id, parent_block_id, type, content, sort_rank, updated_at)
+    `INSERT OR IGNORE INTO blocks (id, user_id, page_id, parent_block_id, type, content, sort_rank, updated_at)
      VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`,
     [id, userId, pageId, OCCURRENCE_BLOCK_TYPE, JSON.stringify(content), sortRank, nowIso],
   );

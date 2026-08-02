@@ -46,3 +46,44 @@ export function useSystemPageBlocks<T>(
   const items = useMemo(() => data.map(parse), [data, parse]);
   return { items, isLoading: !settled };
 }
+
+const COUNT_EMPTY = "SELECT 0 AS c WHERE 0";
+
+/**
+ * Paginated variant of {@link useSystemPageBlocks}: loads only a `limit`-sized
+ * window (the DB does the paging — the whole list never lands in JS) plus a
+ * `total` for the matching rows, so the caller can drive infinite scroll. An
+ * optional `where` fragment (with `whereArgs`) filters in SQL — pass it so the
+ * filter runs before the LIMIT, not on an already-truncated window.
+ */
+export function useSystemPageBlocksPaged<T>(
+  kind: SystemPageKind,
+  key: string,
+  blockType: string,
+  parse: (row: SystemPageBlockRow) => T,
+  opts: { limit: number; where?: string; whereArgs?: (string | number)[] },
+): { items: T[]; total: number; isLoading: boolean } {
+  const userId = useCurrentUserId();
+  const pageId = userId ? systemPageId(userId, kind, key) : null;
+  const filter = opts.where ? ` AND (${opts.where})` : "";
+  const whereArgs = opts.whereArgs ?? [];
+
+  const listQuery = pageId
+    ? `SELECT id, content, sort_rank FROM blocks WHERE page_id = ? AND type = ?${filter} ORDER BY sort_rank ASC LIMIT ?`
+    : EMPTY_QUERY;
+  const listArgs = pageId ? [pageId, blockType, ...whereArgs, opts.limit] : [];
+  const { data = [], isLoading, isFetching } = useQuery<SystemPageBlockRow>(listQuery, listArgs, { reportFetching: true });
+
+  const { data: countRows = [] } = useQuery<{ c: number }>(
+    pageId ? `SELECT COUNT(*) AS c FROM blocks WHERE page_id = ? AND type = ?${filter}` : COUNT_EMPTY,
+    pageId ? [pageId, blockType, ...whereArgs] : [],
+  );
+
+  const [settled, setSettled] = useState(false);
+  if (!settled && pageId !== null && !isLoading && !isFetching) {
+    setSettled(true);
+  }
+
+  const items = useMemo(() => data.map(parse), [data, parse]);
+  return { items, total: countRows[0]?.c ?? 0, isLoading: !settled };
+}

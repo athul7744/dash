@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Quote as QuoteIcon } from "lucide-react";
+import { Loader2, Plus, Quote as QuoteIcon } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { CollectionHeading } from "@/components/CollectionHeading";
@@ -9,17 +9,23 @@ import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { DashboardQuote } from "@/components/dashboard/DashboardQuote";
 import { QuoteCard } from "@/components/quotes/QuoteCard";
 import { QuotesLoadingSkeleton } from "@/components/skeletons/QuotesLoadingSkeleton";
-import { useQuotes } from "@/hooks/use-quotes";
+import { useQuotesPage } from "@/hooks/use-quotes";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { createQuote } from "@/lib/quotes/quotes";
 import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 
 const quotesApp = getApp("quotes");
+const PAGE_SIZE = 24;
 
 export default function QuotesPage() {
-  const { quotes, isLoading } = useQuotes();
+  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
+  const { quotes, total, isLoading } = useQuotesPage(loadedCount);
   const [justCreatedId, setJustCreatedId] = useState<string | null>(null);
+
+  const hasMore = quotes.length < total;
+  const sentinelRef = useInfiniteScroll(() => setLoadedCount((n) => n + PAGE_SIZE), hasMore && !isLoading);
 
   const addQuote = async () => {
     const id = await createQuote();
@@ -50,7 +56,7 @@ export default function QuotesPage() {
       />
 
       <div className="skeleton-settle-in mx-auto max-w-7xl px-[var(--app-gutter-x)] py-8 pb-40">
-        {quotes.length === 0 ? (
+        {total === 0 ? (
           <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
             <div className="rounded-2xl bg-rose-500/10 p-3 dark:bg-rose-500/20">
               <QuoteIcon className="h-6 w-6 text-rose-600 dark:text-rose-400" />
@@ -75,16 +81,26 @@ export default function QuotesPage() {
             <DashboardQuote variant="hero" showAllLink={false} />
 
             {/* Section break: the collection reads as a distinct zone from the daily hero. */}
-            <CollectionHeading label="All quotes" count={quotes.length} className="mt-12 mb-6 sm:mt-16" />
+            <CollectionHeading label="All quotes" count={total} className="mt-12 mb-6 sm:mt-16" />
 
-            {/* Masonry — variable-height cards pack tightly into columns. */}
+            {/* Masonry — variable-height cards pack tightly into columns. content-visibility
+                keeps off-screen cards from costing layout/paint, so the DOM stays flat. */}
             <div className="columns-1 gap-5 md:columns-2 lg:columns-3">
               {quotes.map((quote) => (
-                <div key={quote.id} className="mb-5 break-inside-avoid">
+                <div key={quote.id} className="mb-5 break-inside-avoid [content-visibility:auto] [contain-intrinsic-size:auto_180px]">
                   <QuoteCard quote={quote} autoFocus={quote.id === justCreatedId} />
                 </div>
               ))}
             </div>
+
+            {hasMore ? (
+              <div ref={sentinelRef} className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading more…
+              </div>
+            ) : total > PAGE_SIZE ? (
+              <div className="py-8 text-center text-xs text-muted-foreground/70">All {total} quotes loaded</div>
+            ) : null}
           </>
         )}
       </div>

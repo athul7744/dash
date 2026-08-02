@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useQuery } from "@powersync/react";
-import { Bookmark as BookmarkIcon, Plus, Search, X } from "lucide-react";
+import { Bookmark as BookmarkIcon, Loader2, Plus, Search, X } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { CollectionHeading } from "@/components/CollectionHeading";
@@ -10,7 +10,8 @@ import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { BookmarkCard } from "@/components/bookmarks/BookmarkCard";
 import { DashboardBookmarks } from "@/components/dashboard/DashboardBookmarks";
 import { BookmarksLoadingSkeleton } from "@/components/skeletons/BookmarksLoadingSkeleton";
-import { useBookmarks } from "@/hooks/use-bookmarks";
+import { useBookmarksPage, useBookmarkFacets } from "@/hooks/use-bookmarks";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { createBookmark } from "@/lib/bookmarks/bookmarks";
 import { refreshBookmarkTitle } from "@/lib/bookmarks/fetch-metadata";
@@ -18,9 +19,9 @@ import { Tag } from "@/lib/powersync/AppSchema";
 import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 import { getTagColorClasses } from "@/lib/tasks/colors";
-import { getLinkHost } from "@/lib/tasks/tasks";
 
 const bookmarksApp = getApp("bookmarks");
+const PAGE_SIZE = 24;
 
 /**
  * A single-token URL test for the omni-field: a scheme, a `www.`, or a
@@ -33,7 +34,6 @@ function looksLikeUrl(text: string): boolean {
 }
 
 export default function BookmarksPage() {
-  const { bookmarks, isLoading } = useBookmarks();
   const { data: allTags = [] } = useQuery<Tag>("SELECT id, name, color FROM tags");
   // One field does both: type to search, paste/type a link + Enter to add.
   const [query, setQuery] = useState("");
@@ -44,6 +44,29 @@ export default function BookmarksPage() {
 
   const trimmed = query.trim();
   const urlToAdd = looksLikeUrl(trimmed) ? trimmed : null;
+
+  // A link-in-progress isn't a search term. Defer so we don't re-query per keystroke.
+  const searchTerm = useDeferredValue(urlToAdd ? "" : trimmed);
+
+  // Grand total + used tags span ALL bookmarks; the list below is a window.
+  const { total: grandTotal, usedTagIds } = useBookmarkFacets();
+
+  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
+  // Reset the window whenever the filter changes (adjust-during-render).
+  const filterKey = `${filterTagIds.join()}|${searchTerm}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey);
+    setLoadedCount(PAGE_SIZE);
+  }
+
+  const { bookmarks, total: matchTotal, isLoading } = useBookmarksPage({
+    limit: loadedCount,
+    tagIds: filterTagIds,
+    search: searchTerm,
+  });
+  const hasMore = bookmarks.length < matchTotal;
+  const sentinelRef = useInfiniteScroll(() => setLoadedCount((n) => n + PAGE_SIZE), hasMore && !isLoading);
 
   const addBookmark = async () => {
     if (!urlToAdd) return;
@@ -60,27 +83,8 @@ export default function BookmarksPage() {
   // Command-palette "New bookmark" (?new=1) focuses the add field on arrival.
   useNewItemParam(focusInput, !isLoading);
 
-  // Tags that are actually used, for a compact filter row.
-  const usedTags = useMemo(() => {
-    const used = new Set(bookmarks.flatMap((b) => b.tags));
-    return allTags.filter((t) => used.has(t.id));
-  }, [allTags, bookmarks]);
-
-  const filtered = useMemo(() => {
-    // A link-in-progress isn't a search term, so don't filter it away.
-    const q = looksLikeUrl(query.trim()) ? "" : query.trim().toLowerCase();
-    return bookmarks.filter((b) => {
-      if (filterTagIds.length > 0 && !b.tags.some((t) => filterTagIds.includes(t))) return false;
-      if (!q) return true;
-      const host = getLinkHost(b.url) ?? "";
-      return (
-        b.title.toLowerCase().includes(q) ||
-        b.note.toLowerCase().includes(q) ||
-        b.url.toLowerCase().includes(q) ||
-        host.toLowerCase().includes(q)
-      );
-    });
-  }, [bookmarks, query, filterTagIds]);
+  // Tags that are actually used (across all bookmarks), for a compact filter row.
+  const usedTags = useMemo(() => allTags.filter((t) => usedTagIds.has(t.id)), [allTags, usedTagIds]);
 
   const toggleFilterTag = (id: string) =>
     setFilterTagIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
@@ -147,7 +151,7 @@ export default function BookmarksPage() {
       />
 
       <div className="skeleton-settle-in mx-auto max-w-7xl px-[var(--app-gutter-x)] py-8 pb-40">
-        {bookmarks.length === 0 ? (
+        {grandTotal === 0 ? (
           <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
             <div className="rounded-2xl bg-sky-500/10 p-3 dark:bg-sky-500/20">
               <BookmarkIcon className="h-6 w-6 text-sky-600 dark:text-sky-400" />
@@ -165,7 +169,7 @@ export default function BookmarksPage() {
             <DashboardBookmarks variant="hero" showAllLink={false} />
 
             {/* Section break: the collection reads as a distinct zone from the daily hero. */}
-            <CollectionHeading label="All bookmarks" count={bookmarks.length} className="mt-12 mb-6 sm:mt-16" />
+            <CollectionHeading label="All bookmarks" count={grandTotal} className="mt-12 mb-6 sm:mt-16" />
 
             <div className="mb-8">
               {omniField}
@@ -194,20 +198,32 @@ export default function BookmarksPage() {
               ) : null}
             </div>
 
-            {filtered.length === 0 ? (
+            {matchTotal === 0 ? (
               <p className="py-16 text-center text-sm text-muted-foreground">No bookmarks match.</p>
             ) : (
-              <div className="columns-1 gap-5 md:columns-2 lg:columns-3">
-                {filtered.map((bookmark) => (
-                  <div key={bookmark.id} className="mb-5 break-inside-avoid">
-                    <BookmarkCard
-                      bookmark={bookmark}
-                      loading={fetchingIds.includes(bookmark.id)}
-                      allTags={allTags}
-                    />
+              <>
+                {/* content-visibility keeps off-screen cards from costing layout/paint. */}
+                <div className="columns-1 gap-5 md:columns-2 lg:columns-3">
+                  {bookmarks.map((bookmark) => (
+                    <div key={bookmark.id} className="mb-5 break-inside-avoid [content-visibility:auto] [contain-intrinsic-size:auto_200px]">
+                      <BookmarkCard
+                        bookmark={bookmark}
+                        loading={fetchingIds.includes(bookmark.id)}
+                        allTags={allTags}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {hasMore ? (
+                  <div ref={sentinelRef} className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading more…
                   </div>
-                ))}
-              </div>
+                ) : matchTotal > PAGE_SIZE ? (
+                  <div className="py-8 text-center text-xs text-muted-foreground/70">All {matchTotal} bookmarks loaded</div>
+                ) : null}
+              </>
             )}
           </>
         )}

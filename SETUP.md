@@ -368,7 +368,7 @@ streams:
 
 This needs to stay aligned with the tables created in the Supabase SQL Editor. If you add or rename synced tables later, update both the publication and the PowerSync stream queries together.
 
-The `tags` table is shared by tasks and notes. Tasks store selected tag ids in `tasks.tags`, while notes store selected tag ids in `pages.properties.tags` alongside other page metadata such as emoji and favorite state.
+The `tags` table holds tag definitions (name, color). Tag membership is normalized in `entity_tags` — one row per `(entity_id, tag_id)` with an `entity_kind` (`task` | `bookmark` | `event` | `note`) — the single source of truth for tags across every app, and the join behind cross-app "everything under a tag" queries.
 
 Attachment ownership is explicit: each attachment belongs to either a page or a block. Use page-owned attachments for page-level assets like cover images, and block-owned attachments for embedded files inside note content.
 

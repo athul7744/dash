@@ -16,6 +16,7 @@ import { useQuery } from "@powersync/react";
 import { ChevronDown, ChevronUp, Plus, X, Zap } from "lucide-react";
 
 import { useSearchIndexReady } from "@/hooks/use-search-index";
+import { useEntitiesByTag } from "@/hooks/use-entity-tags";
 import { searchEntities, type SearchHit } from "@/lib/search/query";
 import { parseSearchQuery, toHighlightSegments } from "@/lib/search/match-query";
 
@@ -30,11 +31,12 @@ import { useAllNotePages } from "@/hooks/use-notes";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useEvents } from "@/hooks/use-events";
-import type { Task } from "@/lib/powersync/AppSchema";
+import type { Task, Tag } from "@/lib/powersync/AppSchema";
 import { APPS, getApp } from "@/lib/shared/apps";
 import { stripRefs } from "@/lib/links/tokens";
 import { cn } from "@/lib/shared/utils";
 import { getDueDateInfo, getLinkHost } from "@/lib/tasks/tasks";
+import { getTagDotClass } from "@/lib/tasks/colors";
 
 type TaskRow = Task & { id: string };
 const MAX_RESULTS = 8;
@@ -56,6 +58,11 @@ const EMPTY_KINDS: Set<string> = new Set();
 
 /** Matches a `kind:`/`type:`/`k:` token being typed at the end of the query. */
 const KIND_TOKEN_RE = /(?:^|\s)(?:kind|type|k):(\w*)$/i;
+
+/** Matches a `tag:` token being typed at the end (before it's committed with a space). */
+const TAG_TOKEN_RE = /(?:^|\s)tag:([^\s]*)$/i;
+/** Matches a committed `tag:<name> ` prefix (name then a space). */
+const TAG_COMMITTED_RE = /(?:^|\s)tag:([^\s]+)\s/i;
 
 /** Aliases accepted as a committed filter chip (canonical kind on the right). */
 const CHIP_KIND_ALIASES: Record<string, string> = {
@@ -353,6 +360,19 @@ function CommandPaletteResults({
   const { bookmarks } = useBookmarks();
   const { quotes } = useQuotes();
   const { events } = useEvents();
+  const { data: allTags = [] } = useQuery<Tag>("SELECT id, name, color FROM tags ORDER BY name ASC");
+
+  // --- tag: filter (cross-app "everything under a tag") ---
+  const tagToken = query.match(TAG_TOKEN_RE); // being typed → show completions
+  const committedTagName = query.match(TAG_COMMITTED_RE)?.[1] ?? null;
+  const activeTag = committedTagName
+    ? allTags.find((t) => (t.name ?? "").toLowerCase() === committedTagName.toLowerCase())
+    : undefined;
+  const activeTagId = activeTag?.id ?? null;
+  const tagEntities = useEntitiesByTag(activeTagId);
+  const tagSet = useMemo(() => new Set(tagEntities.map((e) => e.entity_id)), [tagEntities]);
+  // Free text after the tag token, for narrowing within the tag.
+  const tagText = committedTagName ? query.replace(TAG_COMMITTED_RE, " ").trim().toLowerCase() : "";
 
   // --- Commands ---
   const matchCmd = (label: string) => !hasQuery || label.toLowerCase().includes(q);
@@ -374,7 +394,8 @@ function CommandPaletteResults({
 
   // --- FTS ranked hits (when the index is ready) ---
   const searchReady = useSearchIndexReady();
-  const useFts = searchReady && hasQuery;
+  // The tag filter takes over result selection, so skip FTS while it's active/typing.
+  const useFts = searchReady && hasQuery && !activeTagId && !tagToken;
   const [hits, setHits] = useState<SearchHit[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -421,6 +442,13 @@ function CommandPaletteResults({
   };
   const activeKindLabels = parsed.kinds.map((k) => KIND_OPTIONS.find((o) => o.kind === k)?.label ?? k);
 
+  // tag: completion — matching tag names to pick while typing `tag:…`.
+  const tagPartial = (tagToken?.[1] ?? "").toLowerCase();
+  const tagOptions = tagToken
+    ? allTags.filter((t) => (t.name ?? "").toLowerCase().startsWith(tagPartial)).slice(0, 8)
+    : [];
+  const applyTag = (name: string) => onSetQuery(query.replace(TAG_TOKEN_RE, `tag:${name} `));
+
   const hitById = useMemo(() => new Map(hits.map((h) => [h.id, h])), [hits]);
   // Highlighted title node (falls back to plain text when not FTS / no hit).
   const hlTitle = (id: string, fallback: string) => {
@@ -445,32 +473,47 @@ function CommandPaletteResults({
   };
   const capFor = (kind: string, items: unknown[]) => (expanded.has(kind) ? items.length : MAX_RESULTS);
 
-  // --- Entity results (FTS-ranked when ready, else in-JS substring match) ---
-  const tasks = useFts
-    ? orderBy("task", allTasks)
-    : hasQuery
-      ? allTasks.filter((t) => (t.title ?? "").toLowerCase().includes(q))
-      : [];
-  const notes = useFts
-    ? orderBy("note", allNormalizedPages)
-    : hasQuery
-      ? filteredSearchPages
-      : [];
-  const bookmarkHits = useFts
-    ? orderBy("bookmark", bookmarks)
-    : hasQuery
-      ? bookmarks.filter((b) => `${b.title} ${b.note} ${b.url} ${getLinkHost(b.url) ?? ""} ${b.tags.join(" ")}`.toLowerCase().includes(q))
-      : [];
-  const quoteHits = useFts
-    ? orderBy("quote", quotes)
-    : hasQuery
-      ? quotes.filter((qt) => `${qt.text} ${qt.author}`.toLowerCase().includes(q))
-      : [];
-  const eventHits = useFts
-    ? orderBy("event", events)
-    : hasQuery
-      ? events.filter((e) => `${e.title} ${e.tags.join(" ")}`.toLowerCase().includes(q))
-      : [];
+  // When a tag is active: filter each app's loaded rows to that tag's entities,
+  // then narrow by any free text after the token.
+  const inTag = <T extends { id: string }>(items: T[], text: (it: T) => string): T[] =>
+    items.filter((it) => tagSet.has(it.id) && (!tagText || text(it).toLowerCase().includes(tagText)));
+
+  // --- Entity results (tag filter → FTS-ranked → in-JS substring match) ---
+  const tasks = activeTagId
+    ? inTag(allTasks, (t) => t.title ?? "")
+    : useFts
+      ? orderBy("task", allTasks)
+      : hasQuery
+        ? allTasks.filter((t) => (t.title ?? "").toLowerCase().includes(q))
+        : [];
+  const notes = activeTagId
+    ? inTag(allNormalizedPages, (p) => p.title ?? "")
+    : useFts
+      ? orderBy("note", allNormalizedPages)
+      : hasQuery
+        ? filteredSearchPages
+        : [];
+  const bookmarkHits = activeTagId
+    ? inTag(bookmarks, (b) => `${b.title} ${b.note} ${b.url}`)
+    : useFts
+      ? orderBy("bookmark", bookmarks)
+      : hasQuery
+        ? bookmarks.filter((b) => `${b.title} ${b.note} ${b.url} ${getLinkHost(b.url) ?? ""} ${b.tags.join(" ")}`.toLowerCase().includes(q))
+        : [];
+  const quoteHits = activeTagId
+    ? [] // quotes carry no tags
+    : useFts
+      ? orderBy("quote", quotes)
+      : hasQuery
+        ? quotes.filter((qt) => `${qt.text} ${qt.author}`.toLowerCase().includes(q))
+        : [];
+  const eventHits = activeTagId
+    ? inTag(events, (e) => e.title ?? "")
+    : useFts
+      ? orderBy("event", events)
+      : hasQuery
+        ? events.filter((e) => `${e.title} ${e.tags.join(" ")}`.toLowerCase().includes(q))
+        : [];
 
   // "Show all N in <App>" / "Show less" toggle, shown when a kind overflows the cap.
   const overflowRow = (kind: string, total: number) =>
@@ -492,6 +535,7 @@ function CommandPaletteResults({
 
   const nothing =
     !(showKinds && kindOptions.length > 0) &&
+    tagOptions.length === 0 &&
     actionCmds.length === 0 &&
     navCmds.length === 0 &&
     createCmds.length === 0 &&
@@ -521,6 +565,30 @@ function CommandPaletteResults({
 
       {kindOnly ? (
         <p className="px-3 pb-1 pt-2 text-xs text-muted-foreground">Type to search {activeKindLabels.join(" / ")}…</p>
+      ) : null}
+
+      {tagOptions.length > 0 ? (
+        <CommandGroup heading="Filter by tag">
+          {tagOptions.map((t) => (
+            <CommandItem
+              key={`tag:${t.id}`}
+              value={`tag:${t.id}`}
+              onSelect={() => applyTag(t.name ?? "")}
+              className="items-center gap-3 rounded-lg px-3 py-2"
+            >
+              <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", getTagDotClass(t.color || "slate"))} />
+              <span className="min-w-0 flex-1 truncate text-sm text-foreground">{t.name}</span>
+              <CommandShortcut className="font-mono text-[11px] tracking-tight">tag:{t.name}</CommandShortcut>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      ) : null}
+
+      {activeTagId ? (
+        <p className="px-3 pb-1 pt-2 text-xs text-muted-foreground">
+          Everything tagged <span className="font-medium text-foreground">{activeTag?.name}</span>
+          {tagText ? " · type to narrow" : ""}
+        </p>
       ) : null}
 
       {showKinds && kindOptions.length > 0 ? (

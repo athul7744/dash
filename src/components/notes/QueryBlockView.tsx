@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/shared/utils";
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { usePropertyDefinitions } from "@/hooks/use-property-definitions";
+import { useEntityTags } from "@/hooks/use-entity-tags";
 import type { Tag as TagRecord } from "@/lib/powersync/AppSchema";
 import type { QueryBlockConfig, QueryFilterCondition, QuerySortConfig } from "@/lib/notes/query-block";
 import { BUILT_IN_PROPERTIES, OPERATORS_BY_TYPE } from "@/lib/notes/query-block";
@@ -158,6 +159,8 @@ export function QueryBlockView({
 
   const { sql, params } = useMemo(() => buildQuerySQL(config, definitions), [config, definitions]);
   const { data: results = [] } = useQuery<QueryResultRow>(sql, params);
+  // Tags for the result pages, batched from entity_tags for the tags column.
+  const rowTags = useEntityTags(useMemo(() => results.map((r) => r.id), [results]));
 
   const columns = config.columns ?? [];
 
@@ -306,6 +309,7 @@ export function QueryBlockView({
                           properties={props}
                           definitions={definitions}
                           allTags={allTags}
+                          tagIds={rowTags.get(row.id) ?? []}
                         />
                       </div>
                     ))}

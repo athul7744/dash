@@ -7,7 +7,8 @@ import { useAllNotePages } from "@/hooks/use-notes";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useEvents } from "@/hooks/use-events";
-import { parseProperties, parseStoredTagIds, normalizePageEmoji } from "@/components/notes/page/utils";
+import { parseProperties, normalizePageEmoji } from "@/components/notes/page/utils";
+import { useEntityTags } from "@/hooks/use-entity-tags";
 import { buildGraph, type GraphNode, type NoteGraph, type PageEdgeRow } from "@/lib/notes/graph";
 import { refTypeSql } from "@/lib/links/links";
 import { stripRefs, REF_KIND_HUE, type RefKind } from "@/lib/links/tokens";
@@ -117,6 +118,7 @@ export function useNoteGraph(): NoteGraphData {
   const { bookmarks } = useBookmarks();
   const { quotes } = useQuotes();
   const { events } = useEvents();
+  const pageTags = useEntityTags(useMemo(() => pages.map((p) => p.id), [pages]));
 
   return useMemo(() => {
     const tagsById = new Map(allTags.map((tag) => [tag.id, tag]));
@@ -125,7 +127,7 @@ export function useNoteGraph(): NoteGraphData {
     const pageTagId = new Map<string, string | null>();
     const noteInputs = pages.map((page) => {
       const props = parseProperties(page.properties);
-      const tagIds = parseStoredTagIds(props?.tags);
+      const tagIds = pageTags.get(page.id) ?? [];
       const tagId = tagIds.find((id) => tagsById.has(id)) ?? null;
       pageTagId.set(page.id, tagId);
       const tag = tagId ? tagsById.get(tagId) : null;
@@ -204,5 +206,5 @@ export function useNoteGraph(): NoteGraphData {
       noteClusterTags,
       isLoading: isLoadingPages || isLoadingEdges || isLoadingTags,
     };
-  }, [pages, edgeRows, allTags, rootTasks, bookmarks, quotes, events, isLoadingPages, isLoadingEdges, isLoadingTags]);
+  }, [pages, pageTags, edgeRows, allTags, rootTasks, bookmarks, quotes, events, isLoadingPages, isLoadingEdges, isLoadingTags]);
 }

@@ -20,6 +20,7 @@ import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { TasksContentSkeleton, TasksFilterRowSkeleton } from "../../components/tasks/TasksPageSkeleton";
 import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { useNewItemParam } from "@/hooks/use-new-item-param";
+import { useEntityTags } from "@/hooks/use-entity-tags";
 import { hasPendingWrites, flushAllUpdates } from "@/lib/shared/debounced-update";
 
 const tasksApp = getApp("tasks");
@@ -71,9 +72,11 @@ export default function Home() {
     parentConditions.push(`priority IN (${filterPriorities.map(() => '?').join(',')})`);
     filterArgs.push(...filterPriorities);
   }
+  // Tag filter via the indexed entity_tags join (AND semantics: a task must
+  // carry every selected tag — one membership subquery per tag).
   filterTags.forEach(tagId => {
-    parentConditions.push(`tags LIKE ?`);
-    filterArgs.push(`%"${tagId}"%`);
+    parentConditions.push(`id IN (SELECT entity_id FROM entity_tags WHERE entity_kind = 'task' AND tag_id = ?)`);
+    filterArgs.push(tagId);
   });
 
   const whereClause = parentConditions.join(' AND ');
@@ -145,6 +148,9 @@ export default function Home() {
 
   // Subtasks grouped by parent (scoped query, so only loaded parents' children).
   const getSubtasks = (parentId: string) => subtaskRows.filter(t => t.parent_id === parentId);
+
+  // Tags for the visible parent cards, batched into one query (entity_tags).
+  const taskTags = useEntityTags(topLevelTasks.map((t) => t.id));
 
   // Infinite scroll — grow the window when the sentinel nears the viewport.
   const mainRef = useRef<HTMLElement | null>(null);
@@ -378,6 +384,7 @@ export default function Home() {
                         <TaskCard
                           task={task}
                           subtasks={isDraft ? [] : getSubtasks(task.id)}
+                          tagIds={taskTags.get(task.id) ?? []}
                           isNew={isDraft}
                           onNewCancel={() => handleCancelNewTask(task.id)}
                         />

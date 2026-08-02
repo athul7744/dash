@@ -4,11 +4,12 @@ import { useQuery } from "@powersync/react";
 import { useMemo } from "react";
 
 import type { NotePageRow } from "@/hooks/use-notes";
+import { useEntityTags } from "@/hooks/use-entity-tags";
 import { normalizeNotePageTitle } from "@/lib/notes/notes";
 import type { Tag } from "@/lib/powersync/AppSchema";
 
 import { type NormalizedNotePage, type TagDirectoryEntry } from "./types";
-import { getPageDescription, normalizePageEmoji, parseProperties, parseStoredTagIds, resolveNoteTags } from "./utils";
+import { getPageDescription, normalizePageEmoji, parseProperties, resolveNoteTags } from "./utils";
 
 type UseNotesPageDerivedStateParams = {
   allPages: NotePageRow[];
@@ -18,10 +19,14 @@ type UseNotesPageDerivedStateParams = {
   pageSearchQuery: string;
 };
 
-function normalizePages(pages: NotePageRow[], availableTags: Tag[]): NormalizedNotePage[] {
+function normalizePages(
+  pages: NotePageRow[],
+  availableTags: Tag[],
+  tagsByPage: Map<string, string[]>,
+): NormalizedNotePage[] {
   return pages.map((page) => {
     const properties = parseProperties(page.properties);
-    const tags = resolveNoteTags(parseStoredTagIds(properties.tags), availableTags);
+    const tags = resolveNoteTags(tagsByPage.get(page.id) ?? [], availableTags);
 
     return {
       ...page,
@@ -40,14 +45,21 @@ export function useNotesPageDerivedState({
 }: UseNotesPageDerivedStateParams) {
   const { data: availableTags = [] } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
 
+  // Tag membership for every page in view, batched from entity_tags.
+  const pageIds = useMemo(
+    () => [...new Set([...allPages, ...recentPages, ...favoritePageRows].map((p) => p.id))],
+    [allPages, recentPages, favoritePageRows]
+  );
+  const tagsByPage = useEntityTags(pageIds);
+
   const normalizedPages = useMemo<NormalizedNotePage[]>(
-    () => normalizePages(recentPages, availableTags),
-    [availableTags, recentPages]
+    () => normalizePages(recentPages, availableTags, tagsByPage),
+    [availableTags, recentPages, tagsByPage]
   );
 
   const allNormalizedPages = useMemo<NormalizedNotePage[]>(
-    () => normalizePages(allPages, availableTags),
-    [allPages, availableTags]
+    () => normalizePages(allPages, availableTags, tagsByPage),
+    [allPages, availableTags, tagsByPage]
   );
 
   const notePageTitles = useMemo(() => {
@@ -121,8 +133,8 @@ export function useNotesPageDerivedState({
   // All favorites, sourced from a dedicated query so they are not capped by the
   // recent-pages window (see useFavoriteNotePages).
   const favoritePages = useMemo<NormalizedNotePage[]>(
-    () => normalizePages(favoritePageRows, availableTags),
-    [availableTags, favoritePageRows]
+    () => normalizePages(favoritePageRows, availableTags, tagsByPage),
+    [availableTags, favoritePageRows, tagsByPage]
   );
 
   const tagDirectory = useMemo<TagDirectoryEntry[]>(() => {

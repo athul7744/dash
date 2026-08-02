@@ -8,6 +8,7 @@ import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
 import { TagSelector } from "@/components/tags/TagSelector";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { type ThingAggregate } from "@/hooks/use-events";
+import { useDerivedState } from "@/hooks/use-derived-state";
 import { statsFromAggregate, deleteEvent, toggleActive, updateEvent, type EventItem } from "@/lib/events/events";
 import { describeSchedule, nextOccurrenceOnOrAfter } from "@/lib/events/schedule";
 import { stripRefs } from "@/lib/links/tokens";
@@ -27,11 +28,16 @@ export function EventCard({
   event,
   aggregate,
   placeSuggestions = [],
+  tagIds = [],
 }: {
   event: EventItem;
   aggregate?: ThingAggregate;
   placeSuggestions?: string[];
+  /** Tag ids from entity_tags (batched by the list); membership's source of truth. */
+  tagIds?: string[];
 }) {
+  // Seeded from entity_tags via a stable joined key; setter drives optimistic edits.
+  const [selectedTagIds, setSelectedTagIds] = useDerivedState(tagIds.join(","), (k) => (k ? k.split(",") : []));
   const s = event.schedule;
   const today = new Date();
   const cadenceDays = s?.freq === "interval" ? s.days : null;
@@ -75,8 +81,11 @@ export function EventCard({
               </button>
             ) : null}
             <TagSelector
-              selectedTagIds={event.tags}
-              onSelectedTagIdsChange={(ids) => void updateEvent(event.id, { tags: ids })}
+              selectedTagIds={selectedTagIds}
+              onSelectedTagIdsChange={(ids) => {
+                setSelectedTagIds(ids);
+                void updateEvent(event.id, { tags: ids });
+              }}
               showSelectedTags={false}
               triggerContent={<TagIcon className="h-4 w-4" />}
               triggerClassName={HEADER_BTN}
@@ -122,7 +131,7 @@ export function EventCard({
           <span>{describeSchedule({ schedule: s, daysBefore: event.daysBefore, active: event.active }, next)}</span>
         </p>
 
-        <SelectedTagPills tagIds={event.tags} className="mt-3" />
+        <SelectedTagPills tagIds={selectedTagIds} className="mt-3" />
 
         <p className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground/70">
           <History className="h-3.5 w-3.5" />

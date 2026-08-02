@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useDerivedState } from "@/hooks/use-derived-state";
 import { Check, CheckCircle2, Circle, Copy, Ellipsis, ExternalLink, Loader2, RefreshCw, Star, Tag as TagIcon, Trash2 } from "lucide-react";
 
 import { Favicon } from "@/components/tasks/Favicon";
@@ -40,6 +41,7 @@ export function BookmarkCard({
   autoFocus = false,
   loading = false,
   allTags,
+  tagIds = [],
 }: {
   bookmark: Bookmark;
   autoFocus?: boolean;
@@ -47,6 +49,8 @@ export function BookmarkCard({
   loading?: boolean;
   /** All tags, for resolving this bookmark's tag ids to names/colors. */
   allTags: Tag[];
+  /** Tag ids from entity_tags (batched by the list); membership's source of truth. */
+  tagIds?: string[];
 }) {
   const [title, setTitle] = useState(bookmark.title);
   const [note, setNote] = useState(bookmark.note);
@@ -58,7 +62,9 @@ export function BookmarkCard({
 
   const host = getLinkHost(bookmark.url) ?? bookmark.url;
   const busy = loading || refetching;
-  const selectedTags = bookmark.tags
+  // Seeded from entity_tags via a stable joined key; setter drives optimistic edits.
+  const [selectedTagIds, setSelectedTagIds] = useDerivedState(tagIds.join(","), (k) => (k ? k.split(",") : []));
+  const selectedTags = selectedTagIds
     .map((id) => allTags.find((t) => t.id === id))
     .filter((t): t is Tag => Boolean(t));
 
@@ -126,8 +132,11 @@ export function BookmarkCard({
         <div className="flex items-center gap-0.5">
           <EventLogNow subjectId={bookmark.id} subjectKind="bookmark" variant="icon" inCard />
           <TagSelector
-            selectedTagIds={bookmark.tags}
-            onSelectedTagIdsChange={(ids) => void setTags(bookmark.id, ids)}
+            selectedTagIds={selectedTagIds}
+            onSelectedTagIdsChange={(ids) => {
+              setSelectedTagIds(ids);
+              void setTags(bookmark.id, ids);
+            }}
             showSelectedTags={false}
             triggerContent={<TagIcon className="h-4 w-4" />}
             triggerClassName={cn(ACTION_BTN, "text-muted-foreground hover:bg-accent hover:text-foreground")}

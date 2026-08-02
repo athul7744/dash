@@ -2,6 +2,7 @@ import { LexoRank } from "lexorank";
 import { v4 as uuidv4 } from "uuid";
 
 import { deleteEntityEdges } from "@/lib/links/links";
+import { setEntityTags, deleteEntityTags } from "@/lib/tags/entity-tags";
 import { ensureSystemPage } from "@/lib/notes/notes";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
@@ -204,7 +205,7 @@ export async function createEvent(input: CreateEventInput = {}): Promise<string>
   const content: EventContent = {
     title: input.title?.trim() ?? "",
     link: input.link?.trim() ?? "",
-    tags: input.tags ?? [],
+    tags: [], // dormant — membership lives in entity_tags
     priority: input.priority ?? "medium",
     schedule: input.schedule ?? null,
     daysBefore: input.daysBefore != null ? Math.max(0, Math.floor(input.daysBefore)) : 3,
@@ -222,6 +223,7 @@ export async function createEvent(input: CreateEventInput = {}): Promise<string>
      VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`,
     [id, userId, pageId, EVENT_BLOCK_TYPE, JSON.stringify(content), sortRank, now],
   );
+  if (input.tags?.length) await setEntityTags(id, "event", input.tags);
   return id;
 }
 
@@ -230,9 +232,13 @@ export async function updateEvent(
   id: string,
   patch: Partial<Pick<EventContent, "title" | "link" | "tags" | "priority" | "schedule" | "daysBefore" | "defaultPlace" | "subjectKind" | "subjectId">>,
 ): Promise<void> {
+  // Tags live in entity_tags, not content.
+  if (patch.tags !== undefined) await setEntityTags(id, "event", patch.tags);
+  const { tags: _ignored, ...contentPatch } = patch;
+  if (Object.keys(contentPatch).length === 0) return;
   const current = await readEventContent(id);
   if (!current) return;
-  await writeEventContent(id, { ...current, ...patch });
+  await writeEventContent(id, { ...current, ...contentPatch });
 }
 
 /** Flip a thing's active flag (pausing stops materialization). */
@@ -267,6 +273,7 @@ export async function markLogged(id: string, key: string): Promise<void> {
 export async function deleteEvent(id: string): Promise<void> {
   await db.execute(`DELETE FROM blocks WHERE id = ? OR (type = ? AND ${OCCURRENCE_SUBJECT_SQL} = ?)`, [id, OCCURRENCE_BLOCK_TYPE, id]);
   await deleteEntityEdges(id);
+  await deleteEntityTags(id);
 }
 
 // ─── Occurrences ─────────────────────────────────────────────────────────────

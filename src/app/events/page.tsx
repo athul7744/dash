@@ -15,6 +15,7 @@ import { EventsLoadingSkeleton } from "@/components/skeletons/EventsLoadingSkele
 import { useEvents, useEventMaterializer, useOccurrences, useSubjectLabels, useThingAggregates, useAllOccurrenceSubjects, usePlaceSuggestions } from "@/hooks/use-events";
 import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
+import { useEntityTags } from "@/hooks/use-entity-tags";
 import { useSearchIndexReady } from "@/hooks/use-search-index";
 import { searchOccurrences } from "@/lib/search/occurrences";
 import { markLike, toHighlightSegments } from "@/lib/search/match-query";
@@ -139,6 +140,9 @@ export default function EventsPage() {
     [visibleCards],
   );
   const subjectLabels = useSubjectLabels(tab === "timeline" ? timelineSubjects : visibleSubjectRefs);
+
+  // Tags for the visible event cards, batched (entity_tags). Subject cards have none.
+  const eventTags = useEntityTags(useMemo(() => visibleCards.flatMap((c) => (c.type === "event" ? [c.event.id] : [])), [visibleCards]));
 
   // Browse / fallback rows from the loaded recency window (in-JS substring match).
   const fallbackRows = useMemo<TimelineRow[]>(() => {
@@ -272,7 +276,7 @@ export default function EventsPage() {
                   {visibleCards.map((c) => (
                     <div key={c.key} className="mb-5 break-inside-avoid [content-visibility:auto] [contain-intrinsic-size:auto_220px]">
                       {c.type === "event" ? (
-                        <EventCard event={c.event} aggregate={c.agg} placeSuggestions={placeSuggestions} />
+                        <EventCard event={c.event} aggregate={c.agg} placeSuggestions={placeSuggestions} tagIds={eventTags.get(c.event.id) ?? []} />
                       ) : (
                         <SubjectCard subjectId={c.subjectId} subjectKind={c.subjectKind} label={subjectLabels.get(c.subjectId) ?? ""} aggregate={c.agg} placeSuggestions={placeSuggestions} />
                       )}

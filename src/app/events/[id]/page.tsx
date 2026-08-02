@@ -18,6 +18,8 @@ import { RefField } from "@/components/links/RefField";
 import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
 import { TagSelector } from "@/components/tags/TagSelector";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
+import { useDerivedState } from "@/hooks/use-derived-state";
+import { useEntityTags } from "@/hooks/use-entity-tags";
 import { useEvent, useEventMaterializer, useOccurrences, useSubjectLabels, useThingAggregates } from "@/hooks/use-events";
 import { statsFromAggregate, deleteEvent, formatDays, updateEvent, type EventItem } from "@/lib/events/events";
 import { describeSchedule, nextOccurrenceOnOrAfter } from "@/lib/events/schedule";
@@ -51,6 +53,9 @@ function EventDetail({ event }: { event: EventItem }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [title, setTitle] = useState(event.title);
   const { focusedRef, schedule, flush } = useDebouncedSave();
+  // Tags live in entity_tags; seed local optimistic state from the batched lookup.
+  const entityTags = useEntityTags(useMemo(() => [event.id], [event.id]));
+  const [selectedTagIds, setSelectedTagIds] = useDerivedState((entityTags.get(event.id) ?? []).join(","), (k) => (k ? k.split(",") : []));
 
   const placeSuggestions = useMemo(() => {
     const set = new Set<string>();
@@ -153,14 +158,17 @@ function EventDetail({ event }: { event: EventItem }) {
                 <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400">Overdue</span>
               ) : null}
               <TagSelector
-                selectedTagIds={event.tags}
-                onSelectedTagIdsChange={(ids) => void updateEvent(event.id, { tags: ids })}
+                selectedTagIds={selectedTagIds}
+                onSelectedTagIdsChange={(ids) => {
+                  setSelectedTagIds(ids);
+                  void updateEvent(event.id, { tags: ids });
+                }}
                 showSelectedTags={false}
                 triggerContent={<TagIcon className="h-3.5 w-3.5" />}
                 triggerClassName="grid h-7 w-7 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               />
             </div>
-            <SelectedTagPills tagIds={event.tags} className="mt-2.5" />
+            <SelectedTagPills tagIds={selectedTagIds} className="mt-2.5" />
           </div>
         </div>
 

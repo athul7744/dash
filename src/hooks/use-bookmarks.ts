@@ -39,8 +39,9 @@ export function useBookmarksPage(opts: { limit: number; tagIds: string[]; search
   const args: (string | number)[] = [];
 
   if (opts.tagIds.length > 0) {
-    conds.push(`(${opts.tagIds.map(() => "content LIKE ?").join(" OR ")})`);
-    args.push(...opts.tagIds.map((id) => `%"${id}"%`));
+    // Match-any via the indexed entity_tags join.
+    conds.push(`id IN (SELECT entity_id FROM entity_tags WHERE entity_kind = 'bookmark' AND tag_id IN (${opts.tagIds.map(() => "?").join(",")}))`);
+    args.push(...opts.tagIds);
   }
   const search = opts.search.trim();
   if (search) {
@@ -117,10 +118,7 @@ export function useBookmarkFacets(): { total: number; usedTagIds: Set<string> } 
     pageId ? [pageId, BOOKMARK_BLOCK_TYPE] : [],
   );
   const { data: tagRows = [] } = useQuery<{ id: string | null }>(
-    pageId
-      ? "SELECT DISTINCT je.value AS id FROM blocks, json_each(COALESCE(json_extract(content,'$.tags'),'[]')) je WHERE page_id = ? AND type = ?"
-      : "SELECT NULL AS id WHERE 0",
-    pageId ? [pageId, BOOKMARK_BLOCK_TYPE] : [],
+    "SELECT DISTINCT tag_id AS id FROM entity_tags WHERE entity_kind = 'bookmark'",
   );
 
   const usedTagIds = useMemo(

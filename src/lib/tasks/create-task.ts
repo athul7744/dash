@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
+import { setEntityTags } from "@/lib/tags/entity-tags";
 
 export interface CreateTaskInput {
   title: string;
@@ -24,8 +25,9 @@ export async function createTask(input: CreateTaskInput): Promise<string> {
   const userId = await getCurrentUserId();
   const now = new Date().toISOString();
   await db.execute(
+    // tags column is dormant (membership lives in entity_tags); kept for now.
     `INSERT INTO tasks (id, user_id, title, priority, link, state, due_date, tags, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, 'pending', ?, '[]', ?, ?)`,
     [
       id,
       userId,
@@ -33,10 +35,10 @@ export async function createTask(input: CreateTaskInput): Promise<string> {
       input.priority ?? "medium",
       input.link?.trim() || null,
       input.dueDate ? input.dueDate.toISOString() : null,
-      JSON.stringify(input.tags ?? []),
       now,
       now,
     ],
   );
+  if (input.tags?.length) await setEntityTags(id, "task", input.tags);
   return id;
 }

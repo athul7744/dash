@@ -9,6 +9,7 @@ import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { TagPillStrip } from "@/components/tags/TagPillStrip";
 import { popoverPresence } from "@/lib/shared/motion";
 import { useNoteBlocks } from "@/hooks/use-notes";
+import { useEntityTags } from "@/hooks/use-entity-tags";
 import type { Tag as TagRecord } from "@/lib/powersync/AppSchema";
 import { ReadOnlyBlockRenderer } from "./ReadOnlyBlockRenderer";
 import type { PeekTarget } from "./usePagePeek";
@@ -49,12 +50,14 @@ export function PagePeekPopover({
 
   const properties = useMemo(() => parseProperties(page?.properties ?? null), [page?.properties]);
   const emoji = (properties.emoji as string) ?? null;
+  const pageId = page?.id;
+  const pageTags = useEntityTags(useMemo(() => (pageId ? [pageId] : []), [pageId]));
   const resolvedTags = useMemo(() => {
-    const tagIds: string[] = Array.isArray(properties.tags) ? properties.tags : [];
+    const tagIds = pageId ? pageTags.get(pageId) ?? [] : [];
     return tagIds
       .map((id) => allTags.find((t) => t.id === id))
       .filter(Boolean) as (TagRecord & { id: string; name: string; color: string })[];
-  }, [properties.tags, allTags]);
+  }, [pageId, pageTags, allTags]);
 
 
   // Position is derived from the anchor rect + viewport — compute it during

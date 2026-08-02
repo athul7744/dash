@@ -18,6 +18,7 @@ import type { PropertyDefinitionRow } from "@/hooks/use-property-definitions";
 import type { Tag as TagRecord } from "@/lib/powersync/AppSchema";
 import { updateNotePageProperties } from "@/lib/notes/notes";
 import type { JsonValue } from "@/lib/notes/notes";
+import { setEntityTags } from "@/lib/tags/entity-tags";
 import { parseCustomPropertyValues, updatePropertyDefinitionConfig } from "@/lib/notes/properties";
 import { useOptimisticValue } from "@/hooks/use-optimistic-value";
 import { getPropertyType } from "./query-block-sql";
@@ -25,20 +26,18 @@ import { getOptionBadgeStyle } from "./query-block-helpers";
 
 function InlineTagsCell({
   pageId,
-  pageProperties,
+  tagIds: upstreamTagIds,
   allTags,
 }: {
   pageId: string;
-  pageProperties: Record<string, unknown>;
+  tagIds: string[];
   allTags: (TagRecord & { id: string })[];
 }) {
-  const upstreamTagIds: string[] = Array.isArray(pageProperties.tags) ? (pageProperties.tags as string[]) : [];
-
   const [tagIds, setOptimisticTagIds] = useOptimisticValue<string[]>(upstreamTagIds);
 
   const handleChange = (nextTagIds: string[]) => {
     setOptimisticTagIds(nextTagIds);
-    updateNotePageProperties(pageId, { ...pageProperties, tags: nextTagIds } as Record<string, JsonValue>);
+    void setEntityTags(pageId, "note", nextTagIds);
   };
 
   const resolvedTags = tagIds
@@ -262,6 +261,7 @@ export function InlineCellValue({
   properties,
   definitions,
   allTags,
+  tagIds = [],
 }: {
   pageId: string;
   propertyId: string;
@@ -269,6 +269,7 @@ export function InlineCellValue({
   properties: Record<string, unknown>;
   definitions: PropertyDefinitionRow[];
   allTags: (TagRecord & { id: string })[];
+  tagIds?: string[];
 }) {
   const propType = getPropertyType(propertyId, definitions);
 
@@ -286,7 +287,7 @@ export function InlineCellValue({
   }
 
   if (propertyId === "__tags__") {
-    return <InlineTagsCell pageId={pageId} pageProperties={properties} allTags={allTags} />;
+    return <InlineTagsCell pageId={pageId} tagIds={tagIds} allTags={allTags} />;
   }
 
   const updateValue = (nextValue: unknown) => {

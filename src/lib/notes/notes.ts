@@ -173,6 +173,7 @@ export async function deleteNotePage(pageId: string) {
     await tx.execute(`DELETE FROM attachments WHERE page_id = ?`, [pageId]);
     await tx.execute(`DELETE FROM edges WHERE source_block_id IN (SELECT id FROM blocks WHERE page_id = ?)`, [pageId]);
     await tx.execute(`DELETE FROM edges WHERE target_id = ? AND ${REF_TYPE_SQL}`, [pageId]);
+    await tx.execute(`DELETE FROM entity_tags WHERE entity_id = ?`, [pageId]);
     // Event occurrences logged against this note (they live on the events page,
     // keyed by content.subjectId — not caught by the page-scoped block delete
     // above). Literal SQL avoids a notes↔events import cycle.

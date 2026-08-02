@@ -77,30 +77,27 @@ function buildFilterClause(filter: QueryFilterCondition, definitions: PropertyDe
   if (propertyId === "__title__") col = "title";
   else if (propertyId === "__created_at__") col = "created_at";
   else if (propertyId === "__tags__") {
-    // Tags are stored as a JSON array in properties.tags
+    // Tag membership lives in entity_tags (entity_kind = 'note'), keyed by page id.
+    const memberOf = (n: number) =>
+      `id IN (SELECT entity_id FROM entity_tags WHERE entity_kind = 'note' AND tag_id IN (${Array(n).fill("?").join(",")}))`;
+    const hasAnyTag = `id IN (SELECT entity_id FROM entity_tags WHERE entity_kind = 'note')`;
     switch (operator) {
       case "is_any":
         if (Array.isArray(value) && value.length > 0) {
-          const conditions = value.map(() => `json_extract(properties, '$.tags') LIKE ?`);
-          value.forEach((v) => params.push(`%${JSON.stringify(v).slice(1, -1)}%`));
-          return `(${conditions.join(" OR ")})`;
+          value.forEach((v) => params.push(v));
+          return memberOf(value.length);
         }
         return null;
       case "is_none":
         if (Array.isArray(value) && value.length > 0) {
-          // A page with no tags at all also excludes every tag (NULL NOT LIKE is
-          // NULL, not true, so it must be spelled out).
-          const conditions = value.map(
-            () => `(json_extract(properties, '$.tags') IS NULL OR json_extract(properties, '$.tags') NOT LIKE ?)`,
-          );
-          value.forEach((v) => params.push(`%${JSON.stringify(v).slice(1, -1)}%`));
-          return `(${conditions.join(" AND ")})`;
+          value.forEach((v) => params.push(v));
+          return `id NOT IN (SELECT entity_id FROM entity_tags WHERE entity_kind = 'note' AND tag_id IN (${Array(value.length).fill("?").join(",")}))`;
         }
         return null;
       case "is_empty":
-        return `(json_extract(properties, '$.tags') IS NULL OR json_extract(properties, '$.tags') = '[]')`;
+        return `id NOT IN (SELECT entity_id FROM entity_tags WHERE entity_kind = 'note')`;
       case "is_not_empty":
-        return `(json_extract(properties, '$.tags') IS NOT NULL AND json_extract(properties, '$.tags') != '[]')`;
+        return hasAnyTag;
       default:
         return null;
     }

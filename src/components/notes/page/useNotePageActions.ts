@@ -3,6 +3,7 @@
 import { type Dispatch, type SetStateAction } from "react";
 
 import type { NoteBlockRow, NotePageRow } from "@/hooks/use-notes";
+import { setEntityTags } from "@/lib/tags/entity-tags";
 import { extractNoteText } from "@/lib/notes/notes-content";
 import {
   deleteNotePage,
@@ -68,10 +69,11 @@ export function useNotePageActions({
 
     const nextTags = [...new Set(nextTagIds.map((tagId) => tagId.trim()).filter(Boolean))];
 
+    // Tags live in entity_tags; other page properties stay in the JSON blob.
+    void setEntityTags(selectedPageId, "note", nextTags);
     updateNotePageProperties(selectedPageId, {
       ...(selectedPageProperties as PagePropertiesRecord),
       summary: nextSummary,
-      tags: nextTags,
       emoji: nextEmoji,
     });
   };

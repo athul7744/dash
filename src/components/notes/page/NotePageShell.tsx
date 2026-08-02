@@ -16,13 +16,15 @@ import {
 } from "@/hooks/use-notes";
 import { usePropertyDefinitions } from "@/hooks/use-property-definitions";
 import { useSettledTimestamp } from "@/hooks/use-settled-timestamp";
+import { useEntityTags } from "@/hooks/use-entity-tags";
+import { useDerivedState } from "@/hooks/use-derived-state";
 import type { Tag } from "@/lib/powersync/AppSchema";
 
 import { NotesEditorContent } from "./NotesEditorContent";
 import { NotesEditorMainSkeleton } from "@/components/notes/NotesPageSkeleton";
 import { buildNoteBlockTree, flattenNoteBlockTree } from "@/lib/notes/notes-tree";
 import { useNotePageActions } from "./useNotePageActions";
-import { buildOutlineEntries, formatTimestampLabel, normalizePageEmoji, parseProperties, parseStoredTagIds, resolveNoteTags } from "./utils";
+import { buildOutlineEntries, formatTimestampLabel, normalizePageEmoji, parseProperties, resolveNoteTags } from "./utils";
 import type { NormalizedNotePage, OutlineEntry } from "./types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -66,9 +68,10 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     () => parseProperties(page?.properties ?? null),
     [page?.properties]
   );
+  const entityTags = useEntityTags(useMemo(() => (pageId ? [pageId] : []), [pageId]));
   const pageTagIds = useMemo(
-    () => parseStoredTagIds(pageProperties.tags),
-    [pageProperties.tags]
+    () => (pageId ? entityTags.get(pageId) ?? [] : []),
+    [entityTags, pageId]
   );
   const pageTags = useMemo(
     () => resolveNoteTags(pageTagIds, availableTags),
@@ -89,7 +92,9 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   const [pageEmojiDraft, setPageEmojiDraft] = useState<string | null | undefined>(undefined);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState("");
-  const [selectedTagIdsDraft, setSelectedTagIdsDraft] = useState<string[]>([]);
+  // Seeded from entity_tags via a stable joined key (resyncs on page switch and
+  // when membership lands); the setter drives optimistic edits.
+  const [selectedTagIdsDraft, setSelectedTagIdsDraft] = useDerivedState(pageTagIds.join(","), (k) => (k ? k.split(",") : []));
   const [isDeletingPage, setIsDeletingPage] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -105,7 +110,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     setPageTitleError(null);
     setPageEmojiDraft(undefined);
     setSummaryDraft(pageSummary ?? "");
-    setSelectedTagIdsDraft(pageTagIds);
   }, [page?.id, pageId]);
 
   // Reset drafts when switching pages (before new data arrives)
@@ -117,7 +121,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     setPageTitleError(null);
     setPageEmojiDraft(undefined);
     setSummaryDraft("");
-    setSelectedTagIdsDraft([]);
   }, [pageId]);
 
   // Emoji draft reconciliation

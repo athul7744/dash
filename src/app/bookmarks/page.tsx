@@ -12,6 +12,7 @@ import { DashboardBookmarks } from "@/components/dashboard/DashboardBookmarks";
 import { BookmarksLoadingSkeleton } from "@/components/skeletons/BookmarksLoadingSkeleton";
 import { useBookmarksPage, useBookmarkFacets, useBookmarkSearch } from "@/hooks/use-bookmarks";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
+import { useEntityTags } from "@/hooks/use-entity-tags";
 import { useSearchIndexReady } from "@/hooks/use-search-index";
 import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { createBookmark } from "@/lib/bookmarks/bookmarks";
@@ -70,9 +71,10 @@ export default function BookmarksPage() {
   const search = useBookmarkSearch(searchTerm, searching);
 
   // FTS results are ranked + tag-filtered + windowed in JS (bounded set); browse
-  // is already windowed + counted in SQL.
+  // filters tags in SQL. The tag filter for search uses entity_tags (batched).
+  const searchTags = useEntityTags(searching && filterTagIds.length > 0 ? search.results.map((b) => b.id) : []);
   const ranked = searching && filterTagIds.length > 0
-    ? search.results.filter((b) => b.tags.some((t) => filterTagIds.includes(t)))
+    ? search.results.filter((b) => (searchTags.get(b.id) ?? []).some((t) => filterTagIds.includes(t)))
     : search.results;
   const matchTotal = searching ? ranked.length : browse.total;
   const bookmarks = searching ? ranked.slice(0, loadedCount) : browse.bookmarks;
@@ -80,6 +82,9 @@ export default function BookmarksPage() {
 
   const hasMore = bookmarks.length < matchTotal;
   const sentinelRef = useInfiniteScroll(() => setLoadedCount((n) => n + PAGE_SIZE), hasMore && !resultsLoading);
+
+  // Tags for the visible cards, batched into one query (entity_tags).
+  const bookmarkTags = useEntityTags(bookmarks.map((b) => b.id));
 
   const addBookmark = async () => {
     if (!urlToAdd) return;
@@ -229,6 +234,7 @@ export default function BookmarksPage() {
                         bookmark={bookmark}
                         loading={fetchingIds.includes(bookmark.id)}
                         allTags={allTags}
+                        tagIds={bookmarkTags.get(bookmark.id) ?? []}
                       />
                     </div>
                   ))}

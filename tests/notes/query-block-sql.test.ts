@@ -37,9 +37,24 @@ describe("buildQuerySQL filter correctness", () => {
     expect(params).toEqual([20]);
   });
 
-  it("tags is_none includes untagged pages", () => {
-    const { sql } = build([{ propertyId: "__tags__", operator: "is_none", value: ["t1"] }]);
-    expect(sql).toContain("$.tags') IS NULL OR");
-    expect(sql).toContain("NOT LIKE ?");
+  it("tags is_any matches membership in entity_tags", () => {
+    const { sql, params } = build([{ propertyId: "__tags__", operator: "is_any", value: ["t1", "t2"] }]);
+    expect(sql).toContain("id IN (SELECT entity_id FROM entity_tags WHERE entity_kind = 'note' AND tag_id IN (?,?))");
+    expect(params).toEqual(expect.arrayContaining(["t1", "t2"]));
+  });
+
+  it("tags is_none excludes tagged pages (untagged pages pass via NOT IN)", () => {
+    const { sql, params } = build([{ propertyId: "__tags__", operator: "is_none", value: ["t1"] }]);
+    expect(sql).toContain("id NOT IN (SELECT entity_id FROM entity_tags WHERE entity_kind = 'note' AND tag_id IN (?))");
+    expect(params).toContain("t1");
+  });
+
+  it("tags is_empty / is_not_empty use entity_tags membership", () => {
+    expect(build([{ propertyId: "__tags__", operator: "is_empty", value: null }]).sql).toContain(
+      "id NOT IN (SELECT entity_id FROM entity_tags WHERE entity_kind = 'note')",
+    );
+    expect(build([{ propertyId: "__tags__", operator: "is_not_empty", value: null }]).sql).toContain(
+      "id IN (SELECT entity_id FROM entity_tags WHERE entity_kind = 'note')",
+    );
   });
 });

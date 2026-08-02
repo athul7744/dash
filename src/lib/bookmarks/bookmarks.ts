@@ -2,6 +2,7 @@ import { LexoRank } from "lexorank";
 import { v4 as uuidv4 } from "uuid";
 
 import { deleteEntityEdges } from "@/lib/links/links";
+import { setEntityTags, deleteEntityTags } from "@/lib/tags/entity-tags";
 import { deleteSubjectOccurrences } from "@/lib/events/events";
 import { ensureSystemPage } from "@/lib/notes/notes";
 import { db } from "@/lib/powersync/db";
@@ -83,7 +84,7 @@ export async function createBookmark(
     url,
     title: input.title?.trim() || getLinkHost(url) || url,
     note: input.note ?? "",
-    tags: input.tags ?? [],
+    tags: [], // dormant — membership lives in entity_tags
     favorite: false,
     unread: true,
     addedAt: now,
@@ -93,6 +94,7 @@ export async function createBookmark(
      VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`,
     [id, userId, pageId, BOOKMARK_BLOCK_TYPE, JSON.stringify(content), sortRank, now],
   );
+  if (input.tags?.length) await setEntityTags(id, "bookmark", input.tags);
   return id;
 }
 
@@ -101,10 +103,14 @@ export async function updateBookmark(
   id: string,
   patch: Partial<Pick<BookmarkContent, "url" | "title" | "note" | "tags">>,
 ): Promise<void> {
+  // Tags live in entity_tags, not content.
+  if (patch.tags !== undefined) await setEntityTags(id, "bookmark", patch.tags);
+  const { tags: _ignored, ...contentPatch } = patch;
+  if (Object.keys(contentPatch).length === 0) return;
   const current = await readBookmarkContent(id);
   if (!current) return;
-  const next: BookmarkContent = { ...current, ...patch };
-  if (patch.url !== undefined) next.url = normalizeUrl(patch.url);
+  const next: BookmarkContent = { ...current, ...contentPatch };
+  if (contentPatch.url !== undefined) next.url = normalizeUrl(contentPatch.url);
   await writeBookmarkContent(id, next);
 }
 
@@ -122,17 +128,16 @@ export async function markRead(id: string, read: boolean): Promise<void> {
   await writeBookmarkContent(id, { ...current, unread: !read });
 }
 
-/** Replace a bookmark's tag id list. */
+/** Replace a bookmark's tag id list (stored in entity_tags). */
 export async function setTags(id: string, tags: string[]): Promise<void> {
-  const current = await readBookmarkContent(id);
-  if (!current) return;
-  await writeBookmarkContent(id, { ...current, tags });
+  await setEntityTags(id, "bookmark", tags);
 }
 
 export async function deleteBookmark(id: string): Promise<void> {
   await db.execute(`DELETE FROM blocks WHERE id = ?`, [id]);
   await deleteEntityEdges(id);
   await deleteSubjectOccurrences(id);
+  await deleteEntityTags(id);
 }
 
 async function readBookmarkContent(id: string): Promise<BookmarkContent | null> {

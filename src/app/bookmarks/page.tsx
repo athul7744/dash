@@ -10,8 +10,9 @@ import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { BookmarkCard } from "@/components/bookmarks/BookmarkCard";
 import { DashboardBookmarks } from "@/components/dashboard/DashboardBookmarks";
 import { BookmarksLoadingSkeleton } from "@/components/skeletons/BookmarksLoadingSkeleton";
-import { useBookmarksPage, useBookmarkFacets } from "@/hooks/use-bookmarks";
+import { useBookmarksPage, useBookmarkFacets, useBookmarkSearch } from "@/hooks/use-bookmarks";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
+import { useSearchIndexReady } from "@/hooks/use-search-index";
 import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { createBookmark } from "@/lib/bookmarks/bookmarks";
 import { refreshBookmarkTitle } from "@/lib/bookmarks/fetch-metadata";
@@ -48,6 +49,11 @@ export default function BookmarksPage() {
   // A link-in-progress isn't a search term. Defer so we don't re-query per keystroke.
   const searchTerm = useDeferredValue(urlToAdd ? "" : trimmed);
 
+  // Use the ranked FTS index when it's built and there's a term; otherwise the
+  // browse path handles it (sort_rank window, or SQL LIKE as the FTS fallback).
+  const searchReady = useSearchIndexReady();
+  const searching = searchReady && searchTerm.trim().length > 0;
+
   // Grand total + used tags span ALL bookmarks; the list below is a window.
   const { total: grandTotal, usedTagIds } = useBookmarkFacets();
 
@@ -60,13 +66,20 @@ export default function BookmarksPage() {
     setLoadedCount(PAGE_SIZE);
   }
 
-  const { bookmarks, total: matchTotal, isLoading } = useBookmarksPage({
-    limit: loadedCount,
-    tagIds: filterTagIds,
-    search: searchTerm,
-  });
+  const browse = useBookmarksPage({ limit: loadedCount, tagIds: filterTagIds, search: searching ? "" : searchTerm });
+  const search = useBookmarkSearch(searchTerm, searching);
+
+  // FTS results are ranked + tag-filtered + windowed in JS (bounded set); browse
+  // is already windowed + counted in SQL.
+  const ranked = searching && filterTagIds.length > 0
+    ? search.results.filter((b) => b.tags.some((t) => filterTagIds.includes(t)))
+    : search.results;
+  const matchTotal = searching ? ranked.length : browse.total;
+  const bookmarks = searching ? ranked.slice(0, loadedCount) : browse.bookmarks;
+  const resultsLoading = searching && search.isLoading;
+
   const hasMore = bookmarks.length < matchTotal;
-  const sentinelRef = useInfiniteScroll(() => setLoadedCount((n) => n + PAGE_SIZE), hasMore && !isLoading);
+  const sentinelRef = useInfiniteScroll(() => setLoadedCount((n) => n + PAGE_SIZE), hasMore && !resultsLoading);
 
   const addBookmark = async () => {
     if (!urlToAdd) return;
@@ -81,7 +94,7 @@ export default function BookmarksPage() {
   const focusInput = () => inputRef.current?.focus();
 
   // Command-palette "New bookmark" (?new=1) focuses the add field on arrival.
-  useNewItemParam(focusInput, !isLoading);
+  useNewItemParam(focusInput, !browse.isLoading);
 
   // Tags that are actually used (across all bookmarks), for a compact filter row.
   const usedTags = useMemo(() => allTags.filter((t) => usedTagIds.has(t.id)), [allTags, usedTagIds]);
@@ -132,7 +145,7 @@ export default function BookmarksPage() {
 
   // Show the route skeleton until the first real result lands, so there's no
   // blank gap or empty-state flash between the boot skeleton and content.
-  if (isLoading) return <BookmarksLoadingSkeleton />;
+  if (browse.isLoading) return <BookmarksLoadingSkeleton />;
 
   return (
     <>
@@ -199,7 +212,13 @@ export default function BookmarksPage() {
             </div>
 
             {matchTotal === 0 ? (
-              <p className="py-16 text-center text-sm text-muted-foreground">No bookmarks match.</p>
+              resultsLoading ? (
+                <div className="flex justify-center py-16">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <p className="py-16 text-center text-sm text-muted-foreground">No bookmarks match.</p>
+              )
             ) : (
               <>
                 {/* content-visibility keeps off-screen cards from costing layout/paint. */}

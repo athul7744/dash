@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@powersync/react";
 
 import { useSystemPageBlocks, useSystemPageBlocksPaged, type SystemPageBlockRow } from "@/hooks/use-system-page-blocks";
 import { useCurrentUserId } from "@/hooks/use-current-user-id";
 import { systemPageId } from "@/lib/notes/system-pages";
+import { searchEntities } from "@/lib/search/query";
 import {
   BOOKMARK_BLOCK_TYPE,
   BOOKMARKS_KEY,
@@ -55,6 +56,54 @@ export function useBookmarksPage(opts: { limit: number; tagIds: string[]; search
     whereArgs: args,
   });
   return { bookmarks: items, total, isLoading };
+}
+
+/**
+ * Ranked full-text bookmark search via the FTS5 index (typo-tolerant, prefix,
+ * relevance-ordered). Returns the full matched bookmarks in rank order; the
+ * caller applies any tag filter and windows the result. `enabled` gates it —
+ * pass `isSearchIndexReady() && term` and fall back to {@link useBookmarksPage}'s
+ * SQL `LIKE` when it's false. Runs the search imperatively (debounced), then
+ * hydrates full rows reactively so cards stay live.
+ */
+export function useBookmarkSearch(query: string, enabled: boolean): { results: Bookmark[]; isLoading: boolean } {
+  const [ids, setIds] = useState<string[]>([]);
+  const [settled, setSettled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (!enabled) {
+        if (!cancelled) {
+          setIds([]);
+          setSettled(false);
+        }
+        return;
+      }
+      const hits = await searchEntities(query, { kinds: ["bookmark"], limit: 500 });
+      if (cancelled) return;
+      setIds(hits.map((h) => h.id));
+      setSettled(true);
+    }, enabled ? 120 : 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [enabled, query]);
+
+  const { data = [] } = useQuery<SystemPageBlockRow>(
+    ids.length
+      ? `SELECT id, content, sort_rank FROM blocks WHERE id IN (${ids.map(() => "?").join(",")})`
+      : "SELECT id, content, sort_rank FROM blocks WHERE 1 = 0",
+    ids,
+  );
+
+  const results = useMemo(() => {
+    const byId = new Map(data.map((r) => [r.id, toBookmark(r)]));
+    return ids.map((id) => byId.get(id)).filter((b): b is Bookmark => !!b);
+  }, [ids, data]);
+
+  return { results, isLoading: enabled && !settled };
 }
 
 /** Grand total + the set of tag ids actually used, for the filter row — computed

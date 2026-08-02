@@ -42,7 +42,6 @@ CREATE TABLE public.tasks (
   parent_id UUID REFERENCES public.tasks(id) ON DELETE CASCADE,
   title TEXT,
   due_date TEXT,
-  tags TEXT DEFAULT '[]',
   priority TEXT DEFAULT 'medium',
   link TEXT,
   state TEXT DEFAULT 'pending',

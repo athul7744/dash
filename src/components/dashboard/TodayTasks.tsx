@@ -67,9 +67,9 @@ export function TodayTasks() {
     const userId = await getCurrentUserId();
     const now = new Date().toISOString();
     await db.execute(
-      `INSERT INTO tasks (id, user_id, title, priority, link, state, due_date, tags, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
-      [uuidv4(), userId, value, "medium", null, null, "[]", now, now],
+      `INSERT INTO tasks (id, user_id, title, priority, link, state, due_date, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+      [uuidv4(), userId, value, "medium", null, null, now, now],
     );
   };
 

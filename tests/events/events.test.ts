@@ -16,7 +16,6 @@ describe("parseEventContent", () => {
     expect(c.active).toBe(true);
     expect(c.daysBefore).toBe(3);
     expect(c.defaultPlace).toBe("");
-    expect(c.tags).toEqual([]);
   });
 
   it("keeps a valid interval schedule and tolerates a malformed one", () => {

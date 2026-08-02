@@ -96,7 +96,7 @@ export function useEntitySearch(query: string, excludeId?: string | null): Entit
     const eventHits: EntitySearchResult[] = take(
       events
         .filter((e) => e.id !== excludeId)
-        .filter((e) => match(`${e.title} ${e.tags.join(" ")}`))
+        .filter((e) => match(`${e.title}`))
         .map((e) => ({ kind: "event" as const, id: e.id, label: stripRefs(e.title || "") || "Untitled event" })),
     );
 

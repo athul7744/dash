@@ -129,7 +129,6 @@ export default function Home() {
       link: "",
       state: "pending",
       due_date: "",
-      tags: "[]",
     } as Task;
     setNewTasks(prev => [tempTask, ...prev]);
     // Drafts always render at the top, so no need to move the scroll window.

@@ -467,7 +467,7 @@ function CommandPaletteResults({
     : useFts
       ? orderBy("bookmark", bookmarks)
       : hasQuery
-        ? bookmarks.filter((b) => `${b.title} ${b.note} ${b.url} ${getLinkHost(b.url) ?? ""} ${b.tags.join(" ")}`.toLowerCase().includes(q))
+        ? bookmarks.filter((b) => `${b.title} ${b.note} ${b.url} ${getLinkHost(b.url) ?? ""}`.toLowerCase().includes(q))
         : [];
   const quoteHits = activeTagId
     ? [] // quotes carry no tags
@@ -481,7 +481,7 @@ function CommandPaletteResults({
     : useFts
       ? orderBy("event", events)
       : hasQuery
-        ? events.filter((e) => `${e.title} ${e.tags.join(" ")}`.toLowerCase().includes(q))
+        ? events.filter((e) => `${e.title}`.toLowerCase().includes(q))
         : [];
 
   // "Show all N in <App>" / "Show less" toggle, shown when a kind overflows the cap.

@@ -9,7 +9,6 @@ function bookmark(id: string, unread = false): Bookmark {
     url: `https://example.com/${id}`,
     title: `b-${id}`,
     note: "",
-    tags: [],
     favorite: false,
     unread,
     addedAt: "",

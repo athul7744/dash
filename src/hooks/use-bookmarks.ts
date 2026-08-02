@@ -15,8 +15,8 @@ import {
 } from "@/lib/bookmarks/bookmarks";
 
 function toBookmark(row: SystemPageBlockRow): Bookmark {
-  const { url, title, note, tags, favorite, unread, addedAt } = parseBookmarkContent(row.content);
-  return { id: row.id, url, title, note, tags, favorite, unread, addedAt, sortRank: row.sort_rank ?? "" };
+  const { url, title, note, favorite, unread, addedAt } = parseBookmarkContent(row.content);
+  return { id: row.id, url, title, note, favorite, unread, addedAt, sortRank: row.sort_rank ?? "" };
 }
 
 /** Live list of bookmarks, ordered by sort_rank. */

@@ -39,7 +39,6 @@ export interface EventItem {
   id: string;
   title: string;
   link: string;
-  tags: string[];
   priority: EventPriority;
   /** Optional expected cadence. `null` = log-only (no scheduling / materialization). */
   schedule: EventSchedule | null;
@@ -123,7 +122,6 @@ export function parseEventContent(raw: string | null | undefined): EventContent 
   const fallback: EventContent = {
     title: "",
     link: "",
-    tags: [],
     priority: "medium",
     schedule: null,
     daysBefore: 3,
@@ -141,7 +139,6 @@ export function parseEventContent(raw: string | null | undefined): EventContent 
     return {
       title: typeof parsed.title === "string" ? parsed.title : "",
       link: typeof parsed.link === "string" ? parsed.link : "",
-      tags: Array.isArray(parsed.tags) ? parsed.tags.filter((t): t is string => typeof t === "string") : [],
       priority: PRIORITIES.includes(parsed.priority as EventPriority) ? (parsed.priority as EventPriority) : "medium",
       schedule: isSchedule(parsed.schedule) ? parsed.schedule : null,
       daysBefore: typeof parsed.daysBefore === "number" && parsed.daysBefore >= 0 ? Math.floor(parsed.daysBefore) : 3,
@@ -205,7 +202,6 @@ export async function createEvent(input: CreateEventInput = {}): Promise<string>
   const content: EventContent = {
     title: input.title?.trim() ?? "",
     link: input.link?.trim() ?? "",
-    tags: [], // dormant — membership lives in entity_tags
     priority: input.priority ?? "medium",
     schedule: input.schedule ?? null,
     daysBefore: input.daysBefore != null ? Math.max(0, Math.floor(input.daysBefore)) : 3,
@@ -230,9 +226,9 @@ export async function createEvent(input: CreateEventInput = {}): Promise<string>
 /** Overwrite a thing's editable fields (materialization bookkeeping untouched). */
 export async function updateEvent(
   id: string,
-  patch: Partial<Pick<EventContent, "title" | "link" | "tags" | "priority" | "schedule" | "daysBefore" | "defaultPlace" | "subjectKind" | "subjectId">>,
+  patch: Partial<Pick<EventContent, "title" | "link" | "priority" | "schedule" | "daysBefore" | "defaultPlace" | "subjectKind" | "subjectId">> & { tags?: string[] },
 ): Promise<void> {
-  // Tags live in entity_tags, not content.
+  // Tags live in entity_tags.
   if (patch.tags !== undefined) await setEntityTags(id, "event", patch.tags);
   const { tags: _ignored, ...contentPatch } = patch;
   if (Object.keys(contentPatch).length === 0) return;

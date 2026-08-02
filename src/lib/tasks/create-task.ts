@@ -25,9 +25,8 @@ export async function createTask(input: CreateTaskInput): Promise<string> {
   const userId = await getCurrentUserId();
   const now = new Date().toISOString();
   await db.execute(
-    // tags column is dormant (membership lives in entity_tags); kept for now.
-    `INSERT INTO tasks (id, user_id, title, priority, link, state, due_date, tags, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'pending', ?, '[]', ?, ?)`,
+    `INSERT INTO tasks (id, user_id, title, priority, link, state, due_date, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
     [
       id,
       userId,

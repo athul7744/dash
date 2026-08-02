@@ -5,7 +5,6 @@ export const tasksTable = new Table({
   parent_id: column.text,
   title: column.text,
   due_date: column.text,
-  tags: column.text, // stored as JSON array string
   priority: column.text,
   link: column.text,
   state: column.text,

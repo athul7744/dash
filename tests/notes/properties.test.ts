@@ -71,14 +71,13 @@ describe("parseJsonColumns", () => {
     expect(result.properties).toEqual({ already: "parsed" });
   });
 
-  it("parses tasks.tags column", () => {
+  it("passes tasks rows through untouched (no JSON columns)", () => {
     const result = parseJsonColumns("tasks", {
       title: "My Task",
-      tags: '["tag1","tag2"]',
+      priority: "medium",
     });
 
-    expect(result.tags).toEqual(["tag1", "tag2"]);
-    expect(result.title).toBe("My Task");
+    expect(result).toEqual({ title: "My Task", priority: "medium" });
   });
 
   it("parses blocks.content column", () => {

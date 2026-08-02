@@ -43,7 +43,6 @@ function orderTables(tables: string[], preferredOrder: string[]) {
 
 /** Columns that are JSONB in Supabase but stored as TEXT in PowerSync. */
 export const JSON_COLUMNS: Record<string, Set<string>> = {
-  tasks: new Set(['tags']),
   pages: new Set(['properties']),
   blocks: new Set(['content']),
   property_definitions: new Set(['config']),

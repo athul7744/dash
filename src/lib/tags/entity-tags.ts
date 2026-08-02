@@ -1,8 +1,7 @@
 /**
  * The tag-membership layer over the `entity_tags` table — the single source of
  * truth for which tags an entity carries, across tasks, bookmarks, events, and
- * notes. Replaces the old JSON tag arrays (tasks.tags, blocks.content.tags,
- * pages.properties.tags).
+ * notes (quotes carry no tags).
  *
  * `setEntityTags` is the single writer: given an entity id and the full set of
  * tag ids it should carry, it makes the rows match (diff-based, deterministic

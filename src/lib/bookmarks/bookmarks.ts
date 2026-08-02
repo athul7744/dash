@@ -13,12 +13,12 @@ import { getLinkHost, normalizeUrl } from "@/lib/tasks/tasks";
 /**
  * Bookmarks are stored in the notes backend as one feature-owned "system page"
  * (kind "bookmark") whose blocks are the bookmarks — each a `type="bookmark"`
- * block whose `content` is JSON `{ url, title, note, tags, favorite, unread,
- * addedAt }`. System pages are hidden from every /notes listing, so bookmarks
- * never leak into the notes app. Mirrors the Quotes app (no schema migration).
+ * block whose `content` is JSON `{ url, title, note, favorite, unread, addedAt }`.
+ * System pages are hidden from every /notes listing, so bookmarks never leak into
+ * the notes app. Mirrors the Quotes app (no schema migration).
  *
- * Tag ids live inside the content JSON (blocks have no `tags` column), so tag
- * filtering happens client-side over the parsed list — fine at personal scale.
+ * Tag membership lives in the `entity_tags` table (see `setEntityTags`);
+ * filtering is an indexed join on that table.
  */
 
 export const BOOKMARKS_KEY = "library";
@@ -29,7 +29,6 @@ export interface Bookmark {
   url: string;
   title: string;
   note: string;
-  tags: string[];
   favorite: boolean;
   unread: boolean;
   addedAt: string;
@@ -41,7 +40,6 @@ interface BookmarkContent {
   url: string;
   title: string;
   note: string;
-  tags: string[];
   favorite: boolean;
   unread: boolean;
   addedAt: string;
@@ -60,13 +58,12 @@ export function parseBookmarkContent(raw: string | null | undefined): BookmarkCo
       url: typeof parsed.url === "string" ? parsed.url : "",
       title: typeof parsed.title === "string" ? parsed.title : "",
       note: typeof parsed.note === "string" ? parsed.note : "",
-      tags: Array.isArray(parsed.tags) ? parsed.tags.filter((t): t is string => typeof t === "string") : [],
       favorite: parsed.favorite === true,
       unread: parsed.unread !== false,
       addedAt: typeof parsed.addedAt === "string" ? parsed.addedAt : "",
     };
   } catch {
-    return { url: "", title: "", note: "", tags: [], favorite: false, unread: true, addedAt: "" };
+    return { url: "", title: "", note: "", favorite: false, unread: true, addedAt: "" };
   }
 }
 
@@ -84,7 +81,6 @@ export async function createBookmark(
     url,
     title: input.title?.trim() || getLinkHost(url) || url,
     note: input.note ?? "",
-    tags: [], // dormant — membership lives in entity_tags
     favorite: false,
     unread: true,
     addedAt: now,
@@ -101,9 +97,9 @@ export async function createBookmark(
 /** Overwrite a bookmark's editable fields (favorite/unread/addedAt unchanged). */
 export async function updateBookmark(
   id: string,
-  patch: Partial<Pick<BookmarkContent, "url" | "title" | "note" | "tags">>,
+  patch: Partial<Pick<BookmarkContent, "url" | "title" | "note">> & { tags?: string[] },
 ): Promise<void> {
-  // Tags live in entity_tags, not content.
+  // Tags live in entity_tags.
   if (patch.tags !== undefined) await setEntityTags(id, "bookmark", patch.tags);
   const { tags: _ignored, ...contentPatch } = patch;
   if (Object.keys(contentPatch).length === 0) return;

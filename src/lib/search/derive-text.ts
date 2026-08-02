@@ -19,39 +19,32 @@ export type SearchDoc = { kind: RefKind; id: string; title: string; body: string
 /** Block kinds that live on a system page and map 1:1 to a search entity. */
 export type BlockEntityKind = "bookmark" | "quote" | "event";
 
-function parseTags(raw: string | null | undefined): string[] {
-  try {
-    const parsed = JSON.parse(raw ?? "[]");
-    return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
 const join = (parts: Array<string | null | undefined>) => parts.filter(Boolean).join(" ").trim();
 
-export function deriveTask(row: { id: string; title: string | null; tags: string | null; link: string | null }): SearchDoc {
+// `tagNames` is a pre-joined string of the entity's tag names (from entity_tags);
+// the reconciler resolves it and passes it in so this stays pure/DB-free.
+export function deriveTask(row: { id: string; title: string | null; link: string | null }, tagNames = ""): SearchDoc {
   return {
     kind: "task",
     id: row.id,
     title: stripRefs(row.title ?? "") || "Untitled task",
     body: "",
-    aux: join([parseTags(row.tags).join(" "), row.link]),
+    aux: join([tagNames, row.link]),
   };
 }
 
 /** A note page's searchable text = its title + every note block's plain text. */
-export function deriveNotePage(page: { id: string; title: string | null }, blockContents: Array<string | null>): SearchDoc {
+export function deriveNotePage(page: { id: string; title: string | null }, blockContents: Array<string | null>, tagNames = ""): SearchDoc {
   return {
     kind: "note",
     id: page.id,
     title: (page.title ?? "").trim() || "Untitled page",
     body: join(blockContents.map((c) => extractNoteText(c))),
-    aux: "",
+    aux: tagNames,
   };
 }
 
-export function deriveBlockEntity(kind: BlockEntityKind, row: { id: string; content: string | null }): SearchDoc {
+export function deriveBlockEntity(kind: BlockEntityKind, row: { id: string; content: string | null }, tagNames = ""): SearchDoc {
   switch (kind) {
     case "bookmark": {
       const b = parseBookmarkContent(row.content);
@@ -61,7 +54,7 @@ export function deriveBlockEntity(kind: BlockEntityKind, row: { id: string; cont
         id: row.id,
         title: b.title || host || b.url || "Untitled bookmark",
         body: b.note,
-        aux: join([b.url, host, b.tags.join(" ")]),
+        aux: join([b.url, host, tagNames]),
       };
     }
     case "quote": {
@@ -81,7 +74,7 @@ export function deriveBlockEntity(kind: BlockEntityKind, row: { id: string; cont
         id: row.id,
         title: stripRefs(e.title ?? "") || "Untitled event",
         body: "",
-        aux: e.tags.join(" "),
+        aux: tagNames,
       };
     }
   }

@@ -13,9 +13,19 @@ import { v5 as uuidv5 } from "uuid";
 
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
+import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 import type { DbContext } from "@/lib/links/links";
 
 export type TagEntityKind = "task" | "bookmark" | "event" | "note";
+
+/** The table whose `updated_at` we bump so a tag change rides the search
+ * reconciler's watermark (tag rows themselves have no updated_at). */
+const ENTITY_TABLE: Record<TagEntityKind, string> = {
+  task: "tasks",
+  bookmark: "blocks",
+  event: "blocks",
+  note: "pages",
+};
 
 /** Namespace for deterministic entity_tags ids (kept stable — do not change). */
 export const TAG_LINK_NAMESPACE = "2f1c6a90-7b54-4e2a-9c83-8d5a1e4b7f60";
@@ -65,22 +75,33 @@ async function setEntityTagsInner(entityId: string, kind: TagEntityKind, tagIds:
     else existingByTag.set(row.tag_id, row.id);
   }
 
+  let changed = duplicateIds.length > 0;
   for (const dupId of duplicateIds) {
     await ctx.execute("DELETE FROM entity_tags WHERE id = ?", [dupId]);
   }
   for (const [tagId, rowId] of existingByTag) {
-    if (!desired.has(tagId)) await ctx.execute("DELETE FROM entity_tags WHERE id = ?", [rowId]);
+    if (!desired.has(tagId)) {
+      await ctx.execute("DELETE FROM entity_tags WHERE id = ?", [rowId]);
+      changed = true;
+    }
   }
 
   const toInsert = [...desired].filter(([tagId]) => !existingByTag.has(tagId));
-  if (toInsert.length === 0) return;
+  if (toInsert.length > 0) {
+    changed = true;
+    const userId = await getCurrentUserId();
+    for (const [tagId, rowId] of toInsert) {
+      await ctx.execute(
+        "INSERT INTO entity_tags (id, user_id, entity_id, entity_kind, tag_id) VALUES (?, ?, ?, ?, ?)",
+        [rowId, userId, entityId, kind, tagId],
+      );
+    }
+  }
 
-  const userId = await getCurrentUserId();
-  for (const [tagId, rowId] of toInsert) {
-    await ctx.execute(
-      "INSERT INTO entity_tags (id, user_id, entity_id, entity_kind, tag_id) VALUES (?, ?, ?, ?, ?)",
-      [rowId, userId, entityId, kind, tagId],
-    );
+  // Bump the owning row so the search reconciler (watermark on updated_at)
+  // re-derives this entity's tag aux — tag rows carry no updated_at of their own.
+  if (changed) {
+    await ctx.execute(`UPDATE ${ENTITY_TABLE[kind]} SET updated_at = ${SQL_UTC_NOW_EXPRESSION} WHERE id = ?`, [entityId]);
   }
 }
 

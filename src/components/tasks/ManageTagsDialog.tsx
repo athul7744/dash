@@ -6,6 +6,7 @@ import { Tag } from "@/lib/powersync/AppSchema";
 import { cancelExecute, debouncedExecute } from "@/lib/shared/debounced-update";
 import { TAG_COLORS, getTagColorClasses, getTagDotClass } from "@/lib/tasks/colors";
 import { createTag } from "@/lib/tasks/tags";
+import { deleteTagLinks } from "@/lib/tags/entity-tags";
 
 interface ManageTagsDialogProps {
   children?: React.ReactNode;
@@ -22,6 +23,8 @@ export function ManageTagsDialog({ children, open, onOpenChange, hideTrigger = f
     cancelExecute(id);
     cancelExecute(`tag-color:${id}`);
     await db.execute(`DELETE FROM tags WHERE id = ?`, [id]);
+    // Drop the tag's memberships too (the server FK also cascades).
+    await deleteTagLinks(id);
   };
 
   const handleCreateTag = async ({ id, name, color }: ManagedColorDraft) => {

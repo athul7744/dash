@@ -96,9 +96,28 @@ const SYS_BLOCK_JOIN =
 const OCC_JOIN =
   "blocks b JOIN pages p ON p.id = b.page_id WHERE json_extract(p.properties, '$.kind') = 'event' AND b.type = 'occurrence'";
 
-type TaskRow = { id: string; title: string | null; tags: string | null; link: string | null };
+type TaskRow = { id: string; title: string | null; link: string | null };
 type BlockRow = { id: string; content: string | null; kind: BlockEntityKind };
 type PageRow = { id: string; title: string | null };
+
+/** Space-joined tag names per entity, resolved from entity_tags → tags. Fed into
+ * the derive functions so aux is searchable by tag name. */
+async function tagNamesByEntity(ids: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (ids.length === 0) return map;
+  const rows = await db.getAll<{ entity_id: string; name: string | null }>(
+    `SELECT et.entity_id AS entity_id, t.name AS name
+     FROM entity_tags et JOIN tags t ON t.id = et.tag_id
+     WHERE et.entity_id IN (${ids.map(() => "?").join(",")})`,
+    ids,
+  );
+  for (const r of rows) {
+    if (!r.entity_id || !r.name) continue;
+    const cur = map.get(r.entity_id);
+    map.set(r.entity_id, cur ? `${cur} ${r.name}` : r.name);
+  }
+  return map;
+}
 
 async function getMeta(key: string): Promise<string | null> {
   const row = await db.getOptional<{ value: string }>("SELECT value FROM search_meta WHERE key = ?", [key]);
@@ -225,7 +244,7 @@ async function reconcileNow(): Promise<void> {
   const w = (await getMeta("watermark")) ?? "";
 
   const tasks = await db.getAll<TaskRow>(
-    `SELECT id, title, tags, link FROM tasks WHERE ${TASK_FILTER} AND updated_at > ?`,
+    `SELECT id, title, link FROM tasks WHERE ${TASK_FILTER} AND updated_at > ?`,
     [w],
   );
   const blocks = await db.getAll<BlockRow>(
@@ -244,11 +263,12 @@ async function reconcileNow(): Promise<void> {
     [w],
   );
 
+  const tagNames = await tagNamesByEntity([...tasks, ...blocks, ...pages].map((r) => r.id));
   const docs: SearchDoc[] = [
-    ...tasks.map(deriveTask),
-    ...blocks.map((b) => deriveBlockEntity(b.kind, b)),
+    ...tasks.map((t) => deriveTask(t, tagNames.get(t.id) ?? "")),
+    ...blocks.map((b) => deriveBlockEntity(b.kind, b, tagNames.get(b.id) ?? "")),
   ];
-  for (const p of pages) docs.push(deriveNotePage(p, await noteBlockContents(p.id)));
+  for (const p of pages) docs.push(deriveNotePage(p, await noteBlockContents(p.id), tagNames.get(p.id) ?? ""));
 
   const newW = await maxUpdatedAt();
   await db.writeTransaction(async (tx) => {
@@ -278,15 +298,17 @@ async function backfill(): Promise<void> {
     emit({ status: "building", done, total });
 
     // Tasks + system blocks are light — one query, one write each.
-    const tasks = await db.getAll<TaskRow>(`SELECT id, title, tags, link FROM tasks WHERE ${TASK_FILTER}`);
-    await db.writeTransaction((tx) => upsertDocs(tx, tasks.map(deriveTask)));
+    const tasks = await db.getAll<TaskRow>(`SELECT id, title, link FROM tasks WHERE ${TASK_FILTER}`);
+    const taskTags = await tagNamesByEntity(tasks.map((t) => t.id));
+    await db.writeTransaction((tx) => upsertDocs(tx, tasks.map((t) => deriveTask(t, taskTags.get(t.id) ?? ""))));
     done += tasks.length;
     emit({ done });
 
     const blocks = await db.getAll<BlockRow>(
       `SELECT b.id AS id, b.content AS content, json_extract(p.properties, '$.kind') AS kind FROM ${SYS_BLOCK_JOIN}`,
     );
-    await db.writeTransaction((tx) => upsertDocs(tx, blocks.map((b) => deriveBlockEntity(b.kind, b))));
+    const blockTags = await tagNamesByEntity(blocks.map((b) => b.id));
+    await db.writeTransaction((tx) => upsertDocs(tx, blocks.map((b) => deriveBlockEntity(b.kind, b, blockTags.get(b.id) ?? ""))));
     done += blocks.length;
     emit({ done });
 
@@ -301,8 +323,9 @@ async function backfill(): Promise<void> {
         [NOTE_BATCH, offset],
       );
       if (pageRows.length === 0) break;
+      const pageTags = await tagNamesByEntity(pageRows.map((p) => p.id));
       const docs: SearchDoc[] = [];
-      for (const p of pageRows) docs.push(deriveNotePage(p, await noteBlockContents(p.id)));
+      for (const p of pageRows) docs.push(deriveNotePage(p, await noteBlockContents(p.id), pageTags.get(p.id) ?? ""));
       await db.writeTransaction((tx) => upsertDocs(tx, docs));
       offset += pageRows.length;
       done += pageRows.length;

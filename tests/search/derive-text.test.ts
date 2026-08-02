@@ -5,21 +5,23 @@ export {};
 import { deriveBlockEntity, deriveNotePage, deriveOccurrence, deriveTask } from "@/lib/search/derive-text";
 
 describe("deriveTask", () => {
-  it("strips ref tokens from the title and folds tags + link into aux", () => {
-    const doc = deriveTask({
-      id: "t1",
-      title: "Call [[Alice|note:abc]] about the deal",
-      tags: JSON.stringify(["work", "urgent"]),
-      link: "https://example.com",
-    });
+  it("strips ref tokens from the title and folds tag names + link into aux", () => {
+    const doc = deriveTask(
+      {
+        id: "t1",
+        title: "Call [[Alice|note:abc]] about the deal",
+        link: "https://example.com",
+      },
+      "work urgent",
+    );
     expect(doc).toMatchObject({ kind: "task", id: "t1", body: "" });
     expect(doc.title).toBe("Call Alice about the deal");
     expect(doc.aux).toContain("work urgent");
     expect(doc.aux).toContain("https://example.com");
   });
 
-  it("tolerates malformed tags and empty title", () => {
-    const doc = deriveTask({ id: "t2", title: null, tags: "not json", link: null });
+  it("empty tags + title fall back cleanly", () => {
+    const doc = deriveTask({ id: "t2", title: null, link: null });
     expect(doc.title).toBe("Untitled task");
     expect(doc.aux).toBe("");
   });
@@ -46,15 +48,16 @@ describe("deriveNotePage", () => {
 });
 
 describe("deriveBlockEntity", () => {
-  it("bookmark: title falls back to host, url + host + tags in aux", () => {
-    const doc = deriveBlockEntity("bookmark", {
-      id: "b1",
-      content: JSON.stringify({ url: "https://news.example.com/story", title: "", note: "read later", tags: ["x"] }),
-    });
+  it("bookmark: title falls back to host, url + host + tag names in aux", () => {
+    const doc = deriveBlockEntity(
+      "bookmark",
+      { id: "b1", content: JSON.stringify({ url: "https://news.example.com/story", title: "", note: "read later" }) },
+      "reading",
+    );
     expect(doc.title).toBe("news.example.com");
     expect(doc.body).toBe("read later");
     expect(doc.aux).toContain("news.example.com");
-    expect(doc.aux).toContain("x");
+    expect(doc.aux).toContain("reading");
   });
 
   it("quote: text becomes title + body, author is aux", () => {
@@ -75,11 +78,12 @@ describe("deriveBlockEntity", () => {
     expect(doc).toEqual({ occId: "o1", thingId: "s1", thingKind: "event", at: "2026-01-02T09:00:00Z", action: "ran", place: "park", note: "5k" });
   });
 
-  it("event: title stripped of refs, tags in aux", () => {
-    const doc = deriveBlockEntity("event", {
-      id: "e1",
-      content: JSON.stringify({ title: "Gym [[Yoga|note:abc]]", tags: ["health"] }),
-    });
+  it("event: title stripped of refs, tag names in aux", () => {
+    const doc = deriveBlockEntity(
+      "event",
+      { id: "e1", content: JSON.stringify({ title: "Gym [[Yoga|note:abc]]" }) },
+      "health",
+    );
     expect(doc.title).toBe("Gym Yoga");
     expect(doc.aux).toBe("health");
   });

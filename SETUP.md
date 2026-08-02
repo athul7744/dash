@@ -138,6 +138,20 @@ CREATE TABLE public.edges (
   UNIQUE (source_block_id, target_id, type)
 );
 
+-- Normalized tag membership (any entity → tag), the single source of truth for
+-- tags across tasks, bookmarks, events, and notes. `entity_id` is a global uuid
+-- (task, block, or page id); `entity_kind` is denormalized for filtering and the
+-- cross-app "under a tag" view. Tag deletes cascade via the tag_id FK; entity
+-- deletes are cleaned up in app code.
+CREATE TABLE public.entity_tags (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  entity_id UUID NOT NULL,
+  entity_kind TEXT NOT NULL,
+  tag_id UUID NOT NULL REFERENCES public.tags(id) ON DELETE CASCADE,
+  UNIQUE (entity_id, tag_id)
+);
+
 -- Notes attachments table
 CREATE TABLE public.attachments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -172,6 +186,7 @@ ALTER TABLE public.moods ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.edges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.entity_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attachments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.property_definitions ENABLE ROW LEVEL SECURITY;
 
@@ -211,6 +226,10 @@ CREATE POLICY "Users can CRUD own edges" ON public.edges
   FOR ALL USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Users can CRUD own entity_tags" ON public.entity_tags
+  FOR ALL USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
 CREATE POLICY "Users can CRUD own attachments" ON public.attachments
   FOR ALL USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
@@ -225,6 +244,8 @@ CREATE INDEX idx_pages_user_title ON pages (user_id, title);
 CREATE INDEX idx_blocks_page_sort_rank ON blocks (page_id, sort_rank);
 CREATE INDEX idx_blocks_parent ON blocks (parent_block_id);
 CREATE INDEX idx_edges_target_type ON edges (user_id, target_id, type);
+CREATE INDEX idx_entity_tags_tag ON entity_tags (user_id, tag_id);
+CREATE INDEX idx_entity_tags_entity ON entity_tags (entity_id);
 CREATE INDEX idx_attachments_page ON attachments (page_id) WHERE page_id IS NOT NULL;
 CREATE INDEX idx_attachments_block ON attachments (block_id) WHERE block_id IS NOT NULL;
 CREATE INDEX idx_attachments_user_path ON attachments (user_id, file_path);
@@ -233,11 +254,11 @@ CREATE INDEX idx_attachments_user_path ON attachments (user_id, file_path);
 GRANT SELECT, INSERT, UPDATE, DELETE ON
   public.tasks, public.tags, public.time_logs, public.activity_types,
   public.daily_ratings, public.moods, public.pages, public.blocks, public.edges,
-  public.attachments, public.property_definitions
+  public.entity_tags, public.attachments, public.property_definitions
 TO authenticated;
 
 -- Publication for PowerSync replication
-CREATE PUBLICATION powersync FOR TABLE public.tasks, public.tags, public.time_logs, public.activity_types, public.daily_ratings, public.moods, public.pages, public.blocks, public.edges, public.attachments, public.property_definitions;
+CREATE PUBLICATION powersync FOR TABLE public.tasks, public.tags, public.time_logs, public.activity_types, public.daily_ratings, public.moods, public.pages, public.blocks, public.edges, public.entity_tags, public.attachments, public.property_definitions;
 ```
 
 ### Push notifications schema (optional)
@@ -337,6 +358,7 @@ streams:
       - SELECT * FROM pages WHERE pages.user_id = auth.user_id()
       - SELECT * FROM blocks WHERE blocks.user_id = auth.user_id()
       - SELECT * FROM edges WHERE edges.user_id = auth.user_id()
+      - SELECT * FROM entity_tags WHERE entity_tags.user_id = auth.user_id()
       - SELECT * FROM attachments WHERE attachments.user_id = auth.user_id()
       - SELECT * FROM tasks WHERE tasks.user_id = auth.user_id()
       - SELECT * FROM time_logs WHERE time_logs.user_id = auth.user_id()

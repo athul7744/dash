@@ -84,6 +84,17 @@ export const edgesTable = new Table(
   { indexes: { source: ['source_block_id'], target: ['target_id'] } }
 );
 
+export const entityTagsTable = new Table(
+  {
+    user_id: column.text,
+    entity_id: column.text, // a task, block, or page id (all global uuids)
+    entity_kind: column.text, // 'task' | 'bookmark' | 'event' | 'note'
+    tag_id: column.text
+  },
+  // "entities under a tag" (WHERE tag_id = ?) and "tags of an entity" (WHERE entity_id = ?).
+  { indexes: { by_tag: ['tag_id'], by_entity: ['entity_id'] } }
+);
+
 export const attachmentsTable = new Table({
   user_id: column.text,
   page_id: column.text,
@@ -110,6 +121,7 @@ export const AppSchema = new Schema({
   pages: pagesTable,
   blocks: blocksTable,
   edges: edgesTable,
+  entity_tags: entityTagsTable,
   attachments: attachmentsTable,
   property_definitions: propertyDefinitionsTable
 });
@@ -122,5 +134,6 @@ export type ActivityType = Database['activity_types'];
 export type DailyRating = Database['daily_ratings'];
 export type PageRecord = Database['pages'];
 export type BlockRecord = Database['blocks'];
+export type EntityTagRecord = Database['entity_tags'];
 export type AttachmentRecord = Database['attachments'];
 export type PropertyDefinitionRecord = Database['property_definitions'];

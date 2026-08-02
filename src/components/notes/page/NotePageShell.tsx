@@ -16,8 +16,7 @@ import {
 } from "@/hooks/use-notes";
 import { usePropertyDefinitions } from "@/hooks/use-property-definitions";
 import { useSettledTimestamp } from "@/hooks/use-settled-timestamp";
-import { useEntityTags } from "@/hooks/use-entity-tags";
-import { useDerivedState } from "@/hooks/use-derived-state";
+import { useEntityTags, useOptimisticTagIds } from "@/hooks/use-entity-tags";
 import type { Tag } from "@/lib/powersync/AppSchema";
 
 import { NotesEditorContent } from "./NotesEditorContent";
@@ -94,7 +93,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   const [summaryDraft, setSummaryDraft] = useState("");
   // Seeded from entity_tags via a stable joined key (resyncs on page switch and
   // when membership lands); the setter drives optimistic edits.
-  const [selectedTagIdsDraft, setSelectedTagIdsDraft] = useDerivedState(pageTagIds.join(","), (k) => (k ? k.split(",") : []));
+  const [selectedTagIdsDraft, setSelectedTagIdsDraft] = useOptimisticTagIds(pageTagIds);
   const [isDeletingPage, setIsDeletingPage] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 

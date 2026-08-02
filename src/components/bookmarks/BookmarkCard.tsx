@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useDerivedState } from "@/hooks/use-derived-state";
+import { useOptimisticTagIds } from "@/hooks/use-entity-tags";
 import { Check, CheckCircle2, Circle, Copy, Ellipsis, ExternalLink, Loader2, RefreshCw, Star, Tag as TagIcon, Trash2 } from "lucide-react";
 
 import { Favicon } from "@/components/tasks/Favicon";
@@ -62,8 +62,7 @@ export function BookmarkCard({
 
   const host = getLinkHost(bookmark.url) ?? bookmark.url;
   const busy = loading || refetching;
-  // Seeded from entity_tags via a stable joined key; setter drives optimistic edits.
-  const [selectedTagIds, setSelectedTagIds] = useDerivedState(tagIds.join(","), (k) => (k ? k.split(",") : []));
+  const [selectedTagIds, setSelectedTagIds] = useOptimisticTagIds(tagIds);
   const selectedTags = selectedTagIds
     .map((id) => allTags.find((t) => t.id === id))
     .filter((t): t is Tag => Boolean(t));

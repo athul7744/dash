@@ -8,7 +8,7 @@ import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
 import { TagSelector } from "@/components/tags/TagSelector";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { type ThingAggregate } from "@/hooks/use-events";
-import { useDerivedState } from "@/hooks/use-derived-state";
+import { useOptimisticTagIds } from "@/hooks/use-entity-tags";
 import { statsFromAggregate, deleteEvent, toggleActive, updateEvent, type EventItem } from "@/lib/events/events";
 import { describeSchedule, nextOccurrenceOnOrAfter } from "@/lib/events/schedule";
 import { stripRefs } from "@/lib/links/tokens";
@@ -37,7 +37,7 @@ export function EventCard({
   tagIds?: string[];
 }) {
   // Seeded from entity_tags via a stable joined key; setter drives optimistic edits.
-  const [selectedTagIds, setSelectedTagIds] = useDerivedState(tagIds.join(","), (k) => (k ? k.split(",") : []));
+  const [selectedTagIds, setSelectedTagIds] = useOptimisticTagIds(tagIds);
   const s = event.schedule;
   const today = new Date();
   const cadenceDays = s?.freq === "interval" ? s.days : null;

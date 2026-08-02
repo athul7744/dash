@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { useQuery } from "@powersync/react";
+
+import { useDerivedState } from "@/hooks/use-derived-state";
 
 /**
  * Live tag ids for a set of entities, keyed by entity id. Batched — call it once
@@ -34,6 +36,17 @@ export function useEntityTags(entityIds: string[]): Map<string, string[]> {
     }
     return map;
   }, [data]);
+}
+
+/**
+ * Local, editable tag-id state seeded from the batched entity_tags value via a
+ * stable joined key — so a re-render never clobbers an in-flight edit, yet a
+ * change from elsewhere (or another device) still resyncs. The setter drives the
+ * optimistic update while the `setEntityTags` write lands. Used by every card
+ * that both displays and edits its tags.
+ */
+export function useOptimisticTagIds(tagIds: string[]): [string[], Dispatch<SetStateAction<string[]>>] {
+  return useDerivedState(tagIds.join(","), (k) => (k ? k.split(",") : []));
 }
 
 export type EntityByTag = { entity_id: string; entity_kind: string };

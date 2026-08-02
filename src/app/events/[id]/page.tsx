@@ -18,8 +18,7 @@ import { RefField } from "@/components/links/RefField";
 import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
 import { TagSelector } from "@/components/tags/TagSelector";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
-import { useDerivedState } from "@/hooks/use-derived-state";
-import { useEntityTags } from "@/hooks/use-entity-tags";
+import { useEntityTags, useOptimisticTagIds } from "@/hooks/use-entity-tags";
 import { useEvent, useEventMaterializer, useOccurrences, useSubjectLabels, useThingAggregates } from "@/hooks/use-events";
 import { statsFromAggregate, deleteEvent, formatDays, updateEvent, type EventItem } from "@/lib/events/events";
 import { describeSchedule, nextOccurrenceOnOrAfter } from "@/lib/events/schedule";
@@ -55,7 +54,7 @@ function EventDetail({ event }: { event: EventItem }) {
   const { focusedRef, schedule, flush } = useDebouncedSave();
   // Tags live in entity_tags; seed local optimistic state from the batched lookup.
   const entityTags = useEntityTags(useMemo(() => [event.id], [event.id]));
-  const [selectedTagIds, setSelectedTagIds] = useDerivedState((entityTags.get(event.id) ?? []).join(","), (k) => (k ? k.split(",") : []));
+  const [selectedTagIds, setSelectedTagIds] = useOptimisticTagIds(entityTags.get(event.id) ?? []);
 
   const placeSuggestions = useMemo(() => {
     const set = new Set<string>();

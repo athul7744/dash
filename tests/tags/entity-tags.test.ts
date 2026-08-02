@@ -16,9 +16,13 @@ function makeCtx() {
   const rows: Row[] = [];
   const bumps: Array<{ table: string; id: string }> = [];
   const ctx = {
-    async getAll<T>(_sql: string, params: unknown[] = []): Promise<T[]> {
-      const entityId = params[0];
-      return rows.filter((r) => r.entity_id === entityId).map((r) => ({ id: r.id, tag_id: r.tag_id })) as T[];
+    async getAll<T>(sql: string, params: unknown[] = []): Promise<T[]> {
+      if (sql.includes("WHERE tag_id =")) {
+        return rows
+          .filter((r) => r.tag_id === params[0])
+          .map((r) => ({ entity_id: r.entity_id, entity_kind: r.entity_kind })) as T[];
+      }
+      return rows.filter((r) => r.entity_id === params[0]).map((r) => ({ id: r.id, tag_id: r.tag_id })) as T[];
     },
     async execute(sql: string, params: unknown[] = []): Promise<unknown> {
       if (sql.startsWith("DELETE FROM entity_tags WHERE id =")) {
@@ -32,7 +36,8 @@ function makeCtx() {
         const [id, user_id, entity_id, entity_kind, tag_id] = params as string[];
         rows.push({ id, user_id, entity_id, entity_kind, tag_id });
       } else if (sql.startsWith("UPDATE ")) {
-        bumps.push({ table: sql.split(/\s+/)[1], id: params[0] as string });
+        const table = sql.split(/\s+/)[1];
+        for (const id of params as string[]) bumps.push({ table, id });
       }
       return undefined;
     },
@@ -123,5 +128,21 @@ describe("setEntityTags / deleteEntityTags / deleteTagLinks — delete", () => {
     await deleteTagLinks("a", ctx);
     expect(rows.every((r) => r.tag_id !== "a")).toBe(true);
     expect(rows.map((r) => r.tag_id).sort()).toEqual(["b"]);
+  });
+
+  it("deleteTagLinks bumps every affected entity (so search re-derives its aux)", async () => {
+    const { ctx, rows, bumps } = makeCtx();
+    await setEntityTags("t1", "task", ["a"], ctx); // owning table: tasks
+    await setEntityTags("b1", "bookmark", ["a"], ctx); // owning table: blocks
+    bumps.length = 0; // isolate the delete's bumps
+    await deleteTagLinks("a", ctx);
+    expect(rows).toHaveLength(0);
+    expect(bumps).toEqual(
+      expect.arrayContaining([
+        { table: "tasks", id: "t1" },
+        { table: "blocks", id: "b1" },
+      ]),
+    );
+    expect(bumps).toHaveLength(2);
   });
 });

@@ -100,9 +100,17 @@ async function setEntityTagsInner(entityId: string, kind: TagEntityKind, tagIds:
 
   // Bump the owning row so the search reconciler (watermark on updated_at)
   // re-derives this entity's tag aux — tag rows carry no updated_at of their own.
-  if (changed) {
-    await ctx.execute(`UPDATE ${ENTITY_TABLE[kind]} SET updated_at = ${SQL_UTC_NOW_EXPRESSION} WHERE id = ?`, [entityId]);
-  }
+  if (changed) await bumpUpdatedAt(ctx, ENTITY_TABLE[kind], [entityId]);
+}
+
+/** Touch `updated_at` on a batch of owning rows in one table, so the search
+ * reconciler re-derives them. No-op on an empty id list. */
+async function bumpUpdatedAt(ctx: DbContext, table: string, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await ctx.execute(
+    `UPDATE ${table} SET updated_at = ${SQL_UTC_NOW_EXPRESSION} WHERE id IN (${ids.map(() => "?").join(",")})`,
+    ids,
+  );
 }
 
 /** Drop every tag row for an entity (call on entity delete). */
@@ -110,8 +118,26 @@ export async function deleteEntityTags(entityId: string, ctx: DbContext = db): P
   await ctx.execute("DELETE FROM entity_tags WHERE entity_id = ?", [entityId]);
 }
 
-/** Drop every membership row for a tag definition (call on tag delete; the
- * server FK also cascades). */
+/**
+ * Drop every membership row for a tag definition (call on tag delete; the server
+ * FK also cascades). Bumps each entity that carried the tag so the search index
+ * re-derives its aux — otherwise the deleted tag's name lingers in search text
+ * (the entity rows don't otherwise change on a tag-definition delete).
+ */
 export async function deleteTagLinks(tagId: string, ctx: DbContext = db): Promise<void> {
+  const affected = await ctx.getAll<{ entity_id: string; entity_kind: string }>(
+    "SELECT entity_id, entity_kind FROM entity_tags WHERE tag_id = ?",
+    [tagId],
+  );
   await ctx.execute("DELETE FROM entity_tags WHERE tag_id = ?", [tagId]);
+
+  const byTable = new Map<string, string[]>();
+  for (const r of affected) {
+    const table = ENTITY_TABLE[r.entity_kind as TagEntityKind];
+    if (!table) continue;
+    const list = byTable.get(table);
+    if (list) list.push(r.entity_id);
+    else byTable.set(table, [r.entity_id]);
+  }
+  for (const [table, ids] of byTable) await bumpUpdatedAt(ctx, table, ids);
 }

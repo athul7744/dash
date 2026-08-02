@@ -2,9 +2,9 @@
 
 import { useQuery } from '@powersync/react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Plus, CheckCircle2, Filter, Tag as TagIcon, X, ChevronLeft, ChevronRight, ListTodo } from 'lucide-react';
+import { Plus, CheckCircle2, Filter, Tag as TagIcon, X, ListTodo, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Task, Tag } from '@/lib/powersync/AppSchema';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { ManageTagsDialog } from '@/components/tasks/ManageTagsDialog';
@@ -45,63 +45,78 @@ export default function Home() {
   const [isTagFilterOpen, setIsTagFilterOpen] = useState(false);
   const [isManageTagsOpen, setIsManageTagsOpen] = useState(false);
   
-  const [page, setPage] = useState(1);
-  const itemsPerPage = 10;
+  // Infinite scroll: how many top-level tasks are loaded. Grows by PAGE_SIZE as
+  // the sentinel nears the viewport; resets when filters change.
+  const PAGE_SIZE = 20;
+  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
 
   const [newTasks, setNewTasks] = useState<Task[]>([]);
 
   // Fetch Tags for the Filter
   const { data: allTags = [], isLoading: loadingTags } = useQuery("SELECT * FROM tags ORDER BY name ASC");
 
-  // Dynamic Query Builder
-  let query = `SELECT * FROM tasks WHERE 1=1`;
-  const args: any[] = [];
-  const parentConditions: string[] = [];
+  // Dynamic filter builder — applied to TOP-LEVEL tasks only (subtasks are loaded
+  // per visible parent below). The stable `id` tiebreaker keeps the ordering
+  // deterministic so growing the LIMIT never reshuffles, skips, or dupes a row.
+  const parentConditions: string[] = ['parent_id IS NULL'];
+  const filterArgs: (string | number)[] = [];
 
-  // If state filters are selected, use them; otherwise exclude trashed by default
   if (filterStates.length > 0) {
-    const placeholders = filterStates.map(() => '?').join(',');
-    parentConditions.push(`state IN (${placeholders})`);
-    args.push(...filterStates);
+    parentConditions.push(`state IN (${filterStates.map(() => '?').join(',')})`);
+    filterArgs.push(...filterStates);
   } else {
-    // No state filter selected — hide trashed by default
-    query += ` AND state != 'trashed'`;
+    parentConditions.push(`state != 'trashed'`);
   }
-
   if (filterPriorities.length > 0) {
-    const placeholders = filterPriorities.map(() => '?').join(',');
-    parentConditions.push(`priority IN (${placeholders})`);
-    args.push(...filterPriorities);
+    parentConditions.push(`priority IN (${filterPriorities.map(() => '?').join(',')})`);
+    filterArgs.push(...filterPriorities);
   }
-
   filterTags.forEach(tagId => {
     parentConditions.push(`tags LIKE ?`);
-    args.push(`%"${tagId}"%`);
+    filterArgs.push(`%"${tagId}"%`);
   });
 
-  if (parentConditions.length > 0) {
-    query += ` AND (parent_id IS NOT NULL OR (${parentConditions.join(' AND ')}))`;
+  const whereClause = parentConditions.join(' AND ');
+  const orderBy = `ORDER BY CASE WHEN due_date IS NULL OR due_date = '' THEN 1 ELSE 0 END, due_date ASC, CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END ASC, id ASC`;
+
+  // One page of top-level tasks (the DB does the paging — only these rows land in JS).
+  const { data: topLevelTasks = [], isLoading: loadingTasks } = useQuery<Task>(
+    `SELECT * FROM tasks WHERE ${whereClause} ${orderBy} LIMIT ?`,
+    [...filterArgs, loadedCount],
+  );
+
+  // Total matching top-level tasks — drives "load more?" without counting in JS.
+  const { data: countRows = [] } = useQuery<{ c: number }>(
+    `SELECT COUNT(*) AS c FROM tasks WHERE ${whereClause}`,
+    filterArgs,
+  );
+  const totalTopLevel = countRows[0]?.c ?? 0;
+  const hasMore = topLevelTasks.length < totalTopLevel;
+
+  // Subtasks for the loaded parents only (scoped, not the whole table).
+  const parentIds = topLevelTasks.map((t) => t.id);
+  const { data: subtaskRows = [] } = useQuery<Task>(
+    parentIds.length
+      ? `SELECT * FROM tasks WHERE parent_id IN (${parentIds.map(() => '?').join(',')})`
+      : `SELECT * FROM tasks WHERE 0`,
+    parentIds,
+  );
+
+  // Reset the scroll window whenever the filters change (adjust-during-render, so
+  // no setState-in-effect).
+  const filterKey = `${filterStates.join()}|${filterPriorities.join()}|${filterTags.join()}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey);
+    setLoadedCount(PAGE_SIZE);
   }
 
-  query += ` ORDER BY CASE WHEN due_date IS NULL OR due_date = '' THEN 1 ELSE 0 END, due_date ASC, CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END ASC`;
-  
-  const { data: allTasks = [], isLoading: loadingTasks } = useQuery(query, args);
-
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [filterStates, filterPriorities, filterTags]);
-
-  // Sync draft tasks: once a task appears in the DB subscription (allTasks), remove it from the draft list
-  // This prevents layout jumps because we don't manually remove it until the DB query catches up.
-  useEffect(() => {
-    if (newTasks.length > 0 && allTasks.length > 0) {
-      setNewTasks(prev => {
-        const filtered = prev.filter(nt => !allTasks.some(t => t.id === nt.id));
-        return filtered.length !== prev.length ? filtered : prev;
-      });
-    }
-  }, [allTasks, newTasks.length]);
+  // Drop a draft once its real row arrives in the query, so the card doesn't jump
+  // (also during render — converges once lengths match).
+  if (newTasks.length > 0 && topLevelTasks.length > 0) {
+    const stillDrafts = newTasks.filter(nt => !topLevelTasks.some(t => t.id === nt.id));
+    if (stillDrafts.length !== newTasks.length) setNewTasks(stillDrafts);
+  }
 
   const handleAddNewTask = () => {
     const tempTask = {
@@ -114,7 +129,7 @@ export default function Home() {
       tags: "[]",
     } as Task;
     setNewTasks(prev => [tempTask, ...prev]);
-    setPage(1); // Jump to page 1 so the new task is visible when saved
+    // Drafts always render at the top, so no need to move the scroll window.
     // If we add a task while viewing 'completed' or 'trashed' and NOT 'pending', ensure 'pending' is selected
     if (!filterStates.includes('pending')) {
       setFilterStates(prev => [...prev, 'pending']);
@@ -128,15 +143,27 @@ export default function Home() {
   // Command-palette "New task" (/tasks?new=1) opens a fresh draft on arrival.
   useNewItemParam(handleAddNewTask, true);
 
-  // Grouping Logic
-  const topLevelTasks = allTasks.filter(t => !t.parent_id);
-  const getSubtasks = (parentId: string) => allTasks.filter(t => t.parent_id === parentId);
+  // Subtasks grouped by parent (scoped query, so only loaded parents' children).
+  const getSubtasks = (parentId: string) => subtaskRows.filter(t => t.parent_id === parentId);
 
-  // Pagination Logic
-  const totalPages = Math.ceil(topLevelTasks.length / itemsPerPage);
-  const paginatedTopLevelTasks = topLevelTasks.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  // Infinite scroll — grow the window when the sentinel nears the viewport.
+  const mainRef = useRef<HTMLElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadMore = useCallback(() => {
+    if (hasMore && !loadingTasks) setLoadedCount((n) => n + PAGE_SIZE);
+  }, [hasMore, loadingTasks]);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMore(); },
+      { root: mainRef.current, rootMargin: '600px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, loadMore]);
 
-  const isInitialLoading = loadingTags || loadingTasks;
+  const isInitialLoading = loadingTags || (loadingTasks && topLevelTasks.length === 0);
 
   return (
     <div className="flex flex-col h-full w-full bg-background overflow-hidden min-w-0">
@@ -172,7 +199,8 @@ export default function Home() {
 
           {/* Unified sorted pills */}
           {(() => {
-            const pills: any[] = [];
+            type Pill = { id: string; type: string; label: string; isActive: boolean; activeClass: string; onClick: () => void };
+            const pills: Pill[] = [];
 
             // State pills
             (['pending', 'completed', 'trashed'] as const).forEach(state => {
@@ -312,6 +340,7 @@ export default function Home() {
       <ManageTagsDialog open={isManageTagsOpen} onOpenChange={setIsManageTagsOpen} hideTrigger />
 
       {isInitialLoading ? <TasksContentSkeleton /> : <motion.main
+        ref={mainRef}
         initial={reduce ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: DURATION.base, ease: EASE.standard }}
@@ -335,52 +364,39 @@ export default function Home() {
                 <AnimatePresence>
                 {(() => {
                   const combinedTasks = [
-                    ...newTasks.filter(nt => !paginatedTopLevelTasks.some((t: any) => t.id === nt.id)),
-                    ...paginatedTopLevelTasks
+                    ...newTasks.filter(nt => !topLevelTasks.some((t) => t.id === nt.id)),
+                    ...topLevelTasks
                   ];
 
-                  return combinedTasks.map((task: any) => {
+                  return combinedTasks.map((task) => {
                     const isDraft = newTasks.some(nt => nt.id === task.id);
                     return (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        subtasks={isDraft ? [] : getSubtasks(task.id)}
-                        isNew={isDraft}
-                        onNewCancel={() => handleCancelNewTask(task.id)}
-                      />
+                      // content-visibility skips layout/paint for off-screen cards,
+                      // so DOM cost stays flat however many are loaded; the remembered
+                      // intrinsic size keeps the scrollbar stable.
+                      <div key={task.id} className="break-inside-avoid [content-visibility:auto] [contain-intrinsic-size:auto_240px]">
+                        <TaskCard
+                          task={task}
+                          subtasks={isDraft ? [] : getSubtasks(task.id)}
+                          isNew={isDraft}
+                          onNewCancel={() => handleCancelNewTask(task.id)}
+                        />
+                      </div>
                     );
                   });
                 })()}
                 </AnimatePresence>
               </div>
 
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-4 mt-8 pb-12">
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="rounded-full h-9 w-9"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </Button>
-                  <div className="text-sm font-medium text-muted-foreground tabular-nums">
-                    Page {page} of {totalPages}
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="rounded-full h-9 w-9"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </Button>
+              {/* Infinite-scroll sentinel + status */}
+              {hasMore ? (
+                <div ref={sentinelRef} className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading more…
                 </div>
-              )}
+              ) : totalTopLevel > PAGE_SIZE ? (
+                <div className="py-8 text-center text-xs text-muted-foreground/70">All {totalTopLevel} tasks loaded</div>
+              ) : null}
             </div>
           )}
         </div>

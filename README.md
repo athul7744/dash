@@ -6,7 +6,7 @@ A personal productivity workspace that works offline and syncs across devices. T
 
 ### Dashboard
 
-The home screen opens calm and centered: a rotating, time-of-day greeting and a search bar that opens a command palette across everything — every task, note, bookmark, quote, and event, plus jump-to-app and quick-create commands (⌘K anywhere). Search reads full text, including the words inside your notes, ranks the best matches first, and highlights why each one matched. Type a few letters and it fills in the rest; a small typo still finds the thing. Narrow to one app with `kind:note` (a chip you can also pick from a list), gather everything under a label with `tag:reading` (pick the tag as you type, then keep typing to narrow within it), wrap a phrase in quotes for an exact match, and it all works offline. Beneath it sits a single contextual nudge that changes with the time of day and what you've actually done — the most relevant task in the morning, a reminder to log time if you've tracked nothing in the last couple of hours, the day's journal in the evening, and a mood check-in at night. Scroll down and the greeting glides up into a slim top bar while the day's essentials fade in — today's tasks with quick-add, hours logged, and a week strip for the journal — a day open to write in place. A row of apps sits at the bottom, one tap to each.
+The home screen opens calm and centered: a time-of-day greeting over a single search bar that opens a command palette across everything (⌘K anywhere) — every task, note, bookmark, quote, and event, plus jump-to-app and quick-create commands. Search reads full text, including the words inside your notes, ranks the best matches first, and shrugs off a small typo; narrow to one app with `kind:note` or gather a label with `tag:reading`, and it all works offline. Below it, a single nudge shifts with the time of day and what you've done — a key task in the morning, a reminder to log time, the day's journal in the evening, a mood check-in at night. Scroll down and the greeting slides into a slim top bar as the day's essentials fade in: today's tasks with quick-add, hours logged, and a week strip for the journal. A row of apps sits at the bottom.
 
 ### Tasks
 
@@ -18,13 +18,9 @@ Paint your week on a 7-day × 24-hour grid to log how you spend your time. Rate 
 
 ### Notes
 
-A structured editor for thinking and writing. Create pages, nest blocks into outlines, and link between pages with backlinks. Supports markdown shortcuts, slash commands, tables, code blocks with syntax highlighting, and LaTeX math. Attach custom properties to pages (dates, tags, checkboxes, URLs) to build a personal knowledge base.
+A structured editor for thinking and writing. Create pages, nest blocks into outlines, and write with markdown shortcuts, slash commands, tables, code blocks with syntax highlighting, and LaTeX math. Attach custom properties to pages (dates, tags, checkboxes, URLs), and build filtered, sorted query-block views over them — a lightweight database. Hover a page link for a peek preview, and a breadcrumb trail tracks your path through linked pages.
 
-Pages can have emoji icons, and headings stick while you scroll for easy orientation in long documents. Blocks can be colored for visual emphasis. Date tokens let you insert formatted dates inline via slash commands. Query blocks let you build filtered, sorted views of your pages — like a lightweight database.
-
-Navigate between linked pages with a breadcrumb trail that tracks your path. On desktop, hover a page link to see a peek preview; on mobile, long-press to preview before opening. Paste a URL and it becomes a link; hover (or tap) it for a small toolbar to open, copy, edit, or remove it.
-
-Linking isn't limited to notes. Type `[[` in any item — a task (or subtask), bookmark, quote, or event — to link it to any other item. Each link shows up as a backlink on the other side, and every linked item becomes a node in the notes graph, so the graph is a map of your whole workspace, not just your notes.
+Linking isn't limited to notes. Type `[[` in any item — a task (or subtask), bookmark, quote, or event — to link it to any other. Each link shows up as a backlink on the other side, and every linked item becomes a node in the graph, so the graph maps your whole workspace, not just your notes.
 
 ### Quotes
 

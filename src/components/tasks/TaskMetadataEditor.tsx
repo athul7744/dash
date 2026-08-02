@@ -21,6 +21,8 @@ interface TaskMetadataEditorProps {
   selectedTagsClassName?: string;
   /** When false, the tag control is omitted (the card renders it elsewhere). */
   showTags?: boolean;
+  /** A done task isn't overdue — suppress the due-urgency badge when completed. */
+  completed?: boolean;
 }
 
 const VARIANTS = {
@@ -43,11 +45,13 @@ export function TaskMetadataEditor({
   dueDateFormat = "PPP",
   className,
   showTags = true,
+  completed = false,
 }: TaskMetadataEditorProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const variant = VARIANTS[density];
   const dueDateInfo = getDueDateInfo(dueDate);
+  const showDueBadge = dueDateInfo.show && !completed;
 
   return (
     <>
@@ -76,7 +80,7 @@ export function TaskMetadataEditor({
           </PopoverContent>
         </Popover>
 
-        {dueDateInfo.show && (
+        {showDueBadge && (
           <button
             type="button"
             onClick={() => setIsCalendarOpen(true)}

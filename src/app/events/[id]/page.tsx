@@ -180,29 +180,34 @@ function EventDetail({ event }: { event: EventItem }) {
           </div>
         </div>
 
-        {/* ── schedule strip (compact, read-only) ── */}
-        <div className="mt-6 flex items-center gap-3 rounded-xl border border-border/65 bg-card/50 p-4">
-          <CalendarClock className="h-4.5 w-4.5 shrink-0 text-violet-500 dark:text-violet-400" />
-          <p className="min-w-0 flex-1 text-sm text-muted-foreground">
-            {describeSchedule({ schedule: s, daysBefore: event.daysBefore, active: event.active }, next)}
-          </p>
-          <button
-            type="button"
-            onClick={() => void genTask()}
-            title="Add a one-off task to your task list for this event"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
-          >
-            {taskAdded ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <ListPlus className="h-3.5 w-3.5" />}
-            {taskAdded ? "Task added" : "Generate task"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setScheduleOpen(true)}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
-          >
-            {s ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-            {s ? "Edit schedule" : "Add schedule"}
-          </button>
+        {/* ── schedule strip (compact, read-only) — stacks on mobile so the
+            description isn't squeezed thin between the two actions ── */}
+        <div className="mt-6 flex flex-col gap-3 rounded-xl border border-border/65 bg-card/50 p-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
+            <CalendarClock className="mt-0.5 h-4.5 w-4.5 shrink-0 text-violet-500 dark:text-violet-400 sm:mt-0" />
+            <p className="min-w-0 flex-1 text-sm text-muted-foreground">
+              {describeSchedule({ schedule: s, daysBefore: event.daysBefore, active: event.active }, next)}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void genTask()}
+              title="Add a one-off task to your task list for this event"
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+            >
+              {taskAdded ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <ListPlus className="h-3.5 w-3.5" />}
+              {taskAdded ? "Task added" : "Generate task"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setScheduleOpen(true)}
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+            >
+              {s ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+              {s ? "Edit schedule" : "Add schedule"}
+            </button>
+          </div>
         </div>
 
         {/* ── stats ── */}

@@ -13,7 +13,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@powersync/react";
-import { ChevronDown, ChevronUp, Plus, X, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, Network, Plus, X, Zap } from "lucide-react";
 
 import { useSearchIndexReady } from "@/hooks/use-search-index";
 import { useEntitiesByTag } from "@/hooks/use-entity-tags";
@@ -359,6 +359,9 @@ function CommandPaletteResults({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [q],
   );
+  // The workspace graph maps every app, so it's a first-class "Go to" target
+  // rather than living only inside Notes.
+  const showGraph = matchCmd("Graph");
   const createCmds = useMemo(
     () => CREATE_APPS.map((id) => getApp(id)).filter((app) => matchCmd(`New ${SINGULAR[app.id]}`)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -507,6 +510,7 @@ function CommandPaletteResults({
     tagOptions.length === 0 &&
     actionCmds.length === 0 &&
     navCmds.length === 0 &&
+    !showGraph &&
     createCmds.length === 0 &&
     tasks.length === 0 &&
     notes.length === 0 &&
@@ -599,7 +603,7 @@ function CommandPaletteResults({
         </CommandGroup>
       ) : null}
 
-      {navCmds.length > 0 ? (
+      {navCmds.length > 0 || showGraph ? (
         <CommandGroup heading="Go to">
           {navCmds.map((app) => {
             const Icon = app.icon;
@@ -617,6 +621,19 @@ function CommandPaletteResults({
               </CommandItem>
             );
           })}
+          {showGraph ? (
+            <CommandItem
+              key="nav:graph"
+              value="nav:graph"
+              onSelect={() => onNavigate("/notes/graph")}
+              className="items-center gap-3 rounded-lg px-3 py-2"
+            >
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                <Network className="h-3.5 w-3.5" />
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm text-foreground">Graph</span>
+            </CommandItem>
+          ) : null}
         </CommandGroup>
       ) : null}
 

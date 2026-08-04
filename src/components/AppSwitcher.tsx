@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ChevronDown, Check, LayoutDashboard, Logs } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ChevronDown, Check, LayoutDashboard, Logs, Network } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { APPS, type AppConfig } from "@/lib/shared/apps";
 import { isLogViewerEnabled } from "@/lib/shared/logger";
@@ -19,6 +19,8 @@ interface AppSwitcherProps {
 
 export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isGraph = pathname === "/notes/graph";
   const [open, setOpen] = useState(false);
   const [logDialogOpen, setLogDialogOpen] = useState(false);
   const showLogViewer = isLogViewerEnabled();
@@ -28,6 +30,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
       if (current && app.id === current.id) return;
       router.prefetch(app.href);
     });
+    router.prefetch("/notes/graph");
   }, [current, router]);
 
   const trigger = useMemo(() => {
@@ -103,7 +106,8 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
           <div className="grid grid-cols-2 gap-0.5">
             {APPS.map((app) => {
               const AppIcon = app.icon;
-              const isActive = current?.id === app.id;
+              // On the graph route `current` is still Notes; don't light its tile.
+              const isActive = current?.id === app.id && !isGraph;
               return (
                 <Link
                   key={app.id}
@@ -131,14 +135,28 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
             onClick={() => setOpen(false)}
             className={cn(
               "flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors",
-              !current ? "bg-accent font-medium" : "hover:bg-accent/50",
+              !current && !isGraph ? "bg-accent font-medium" : "hover:bg-accent/50",
             )}
           >
             <div className="rounded-md bg-muted p-1.5">
               <LayoutDashboard className="h-4 w-4 text-foreground" />
             </div>
             <span className="flex-1 font-heading font-semibold tracking-tight">Dashboard</span>
-            {!current && <Check className="h-4 w-4 text-muted-foreground" />}
+            {!current && !isGraph && <Check className="h-4 w-4 text-muted-foreground" />}
+          </Link>
+          <Link
+            href="/notes/graph"
+            onClick={() => setOpen(false)}
+            className={cn(
+              "flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors",
+              isGraph ? "bg-accent font-medium" : "hover:bg-accent/50",
+            )}
+          >
+            <div className="rounded-md bg-muted p-1.5">
+              <Network className="h-4 w-4 text-foreground" />
+            </div>
+            <span className="flex-1 font-heading font-semibold tracking-tight">Graph</span>
+            {isGraph && <Check className="h-4 w-4 text-muted-foreground" />}
           </Link>
         </PopoverContent>
       </Popover>

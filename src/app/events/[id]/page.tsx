@@ -22,7 +22,7 @@ import { useEntityTags, useOptimisticTagIds } from "@/hooks/use-entity-tags";
 import { useEvent, useEventMaterializer, useOccurrences, useSubjectLabels, useThingAggregates } from "@/hooks/use-events";
 import { generateTaskForEvent } from "@/lib/events/materialize";
 import { statsFromAggregate, deleteEvent, formatDays, updateEvent, type EventItem } from "@/lib/events/events";
-import { describeSchedule, nextOccurrenceOnOrAfter } from "@/lib/events/schedule";
+import { describeSchedule, nextScheduledOccurrence } from "@/lib/events/schedule";
 import { reconcileEntityRefs } from "@/lib/links/links";
 import { dispatchOpenEntity } from "@/components/links/EntityRefNode";
 import { getApp } from "@/lib/shared/apps";
@@ -71,7 +71,7 @@ function EventDetail({ event }: { event: EventItem }) {
   const agg = aggregates.get(subjectId);
   const stats = statsFromAggregate(agg, cadenceDays, now);
   const lastAtDate = stats.lastAt ? new Date(stats.lastAt) : null;
-  const next = s ? nextOccurrenceOnOrAfter(s, now, lastAtDate) : null;
+  const next = s ? nextScheduledOccurrence(s, now, event.lastMaterializedKey, lastAtDate) : null;
 
   const commitTitle = () =>
     flush(() => {

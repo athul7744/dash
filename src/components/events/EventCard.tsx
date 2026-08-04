@@ -11,7 +11,7 @@ import { type ThingAggregate } from "@/hooks/use-events";
 import { useOptimisticTagIds } from "@/hooks/use-entity-tags";
 import { generateTaskForEvent } from "@/lib/events/materialize";
 import { statsFromAggregate, deleteEvent, toggleActive, updateEvent, type EventItem } from "@/lib/events/events";
-import { describeSchedule, nextOccurrenceOnOrAfter } from "@/lib/events/schedule";
+import { describeSchedule, nextScheduledOccurrence } from "@/lib/events/schedule";
 import { stripRefs } from "@/lib/links/tokens";
 import { cn, formatRelativeTime } from "@/lib/shared/utils";
 
@@ -44,7 +44,7 @@ export function EventCard({
   const cadenceDays = s?.freq === "interval" ? s.days : null;
   const stats = statsFromAggregate(aggregate, cadenceDays, today);
   const lastAtDate = stats.lastAt ? new Date(stats.lastAt) : null;
-  const next = s ? nextOccurrenceOnOrAfter(s, today, lastAtDate) : null;
+  const next = s ? nextScheduledOccurrence(s, today, event.lastMaterializedKey, lastAtDate) : null;
   const titleText = stripRefs(event.title) || "Untitled event";
 
   return (

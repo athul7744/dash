@@ -95,6 +95,26 @@ export function nextOccurrenceOnOrAfter(schedule: EventSchedule, from: Date, las
   }
 }
 
+/**
+ * The next occurrence to surface in the UI. Like `nextOccurrenceOnOrAfter`, but
+ * if that occurrence's task has already been materialized (its key ==
+ * `lastMaterializedKey`), skip to the following one — so once a cycle's task has
+ * appeared and been resolved, the card/detail "Next …" advances instead of
+ * lingering on a date whose task is already done.
+ */
+export function nextScheduledOccurrence(
+  schedule: EventSchedule,
+  from: Date,
+  lastMaterializedKey: string | null,
+  lastOccurrence?: Date | null,
+): Date | null {
+  const next = nextOccurrenceOnOrAfter(schedule, from, lastOccurrence);
+  if (next && lastMaterializedKey && occurrenceKey(next) === lastMaterializedKey) {
+    return nextOccurrenceOnOrAfter(schedule, addDays(next, 1), next);
+  }
+  return next;
+}
+
 function ordinal(n: number): string {
   const rem100 = n % 100;
   if (rem100 >= 11 && rem100 <= 13) return `${n}th`;

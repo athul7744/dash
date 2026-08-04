@@ -4,6 +4,7 @@ import {
   dueOccurrence,
   formatSchedule,
   nextOccurrenceOnOrAfter,
+  nextScheduledOccurrence,
   occurrenceKey,
   type EventSchedule,
 } from "@/lib/events/schedule";
@@ -93,5 +94,33 @@ describe("dueOccurrence", () => {
     const r = { schedule: { freq: "interval" as const, days: 3 }, daysBefore: 0, lastMaterializedKey: null, lastOccurrence: day(2026, 7, 10) };
     expect(dueOccurrence(r, day(2026, 7, 12))).toBeNull(); // due the 13th, no lead
     expect(dueOccurrence(r, day(2026, 7, 13))?.key).toBe("2026-07-13");
+  });
+});
+
+describe("nextScheduledOccurrence", () => {
+  const monthly: EventSchedule = { freq: "monthly", day: 5 };
+
+  it("returns the current-cycle occurrence when nothing is materialized", () => {
+    expect(occurrenceKey(nextScheduledOccurrence(monthly, day(2026, 8, 4), null)!)).toBe("2026-08-05");
+  });
+
+  it("skips to the next cycle once this occurrence's task is materialized", () => {
+    // Task for Aug 5 already spawned/completed (materialized key = 2026-08-05):
+    // on Aug 4 the displayed "Next" should advance to Sep 5, not linger on Aug 5.
+    expect(occurrenceKey(nextScheduledOccurrence(monthly, day(2026, 8, 4), "2026-08-05")!)).toBe("2026-09-05");
+  });
+
+  it("does not skip when the materialized key is a different (older) occurrence", () => {
+    expect(occurrenceKey(nextScheduledOccurrence(monthly, day(2026, 8, 4), "2026-07-05")!)).toBe("2026-08-05");
+  });
+
+  it("ignores a manual (ad-hoc) materialized key — those don't consume a cycle", () => {
+    expect(occurrenceKey(nextScheduledOccurrence(monthly, day(2026, 8, 4), "manual:abc")!)).toBe("2026-08-05");
+  });
+
+  it("advances an interval schedule past its materialized occurrence", () => {
+    const interval: EventSchedule = { freq: "interval", days: 7 };
+    // Last occurrence Aug 1 → due Aug 8; if Aug 8 is materialized, next is Aug 15.
+    expect(occurrenceKey(nextScheduledOccurrence(interval, day(2026, 8, 4), "2026-08-08", day(2026, 8, 1))!)).toBe("2026-08-15");
   });
 });

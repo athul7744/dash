@@ -151,7 +151,8 @@ CREATE TABLE public.entity_tags (
   UNIQUE (entity_id, tag_id)
 );
 
--- Notes attachments table
+-- File attachments table (metadata only; bytes live in the `attachments` Storage bucket).
+-- One row per stored file, owned by a note page or any block (note block, bookmark, …).
 CREATE TABLE public.attachments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -159,6 +160,8 @@ CREATE TABLE public.attachments (
   block_id UUID REFERENCES public.blocks(id) ON DELETE CASCADE,
   file_path TEXT NOT NULL,
   sync_state TEXT NOT NULL DEFAULT 'pending',
+  mime_type TEXT,
+  file_name TEXT,
   CHECK (
     (page_id IS NOT NULL AND block_id IS NULL)
     OR (page_id IS NULL AND block_id IS NOT NULL)
@@ -258,6 +261,37 @@ TO authenticated;
 
 -- Publication for PowerSync replication
 CREATE PUBLICATION powersync FOR TABLE public.tasks, public.tags, public.time_logs, public.activity_types, public.daily_ratings, public.moods, public.pages, public.blocks, public.edges, public.entity_tags, public.attachments, public.property_definitions;
+```
+
+### File storage bucket
+
+File bytes (note images and attachments, bookmark preview images) live in a private
+Supabase Storage bucket — only the metadata rides the `attachments` table above. Objects
+are namespaced by user id (`{userId}/{entityId}/{uuid}.{ext}`), and the policies restrict
+each user to their own top-level folder.
+
+```sql
+-- Private bucket for user files.
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('attachments', 'attachments', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- Each user may read/write/delete only objects under their own {userId}/ folder.
+CREATE POLICY "Users can read own files" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (bucket_id = 'attachments' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "Users can upload own files" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'attachments' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "Users can update own files" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'attachments' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "Users can delete own files" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'attachments' AND (storage.foldername(name))[1] = auth.uid()::text);
 ```
 
 ### Push notifications schema (optional)

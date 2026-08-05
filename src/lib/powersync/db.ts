@@ -3,6 +3,7 @@ import { AppSchema } from './AppSchema';
 import { SupabaseConnector } from './SupabaseConnector';
 import { logger as log } from '../shared/logger';
 import { ensureSearchIndex, primeSearchIndexLocal, buildSearchIndexAfterSync, resetSearchIndex } from '../search/search-index';
+import { primeAttachmentsLocal, syncAttachmentsAfterSync } from '../storage/attachment-sync';
 
 export const db = new PowerSyncDatabase({
   schema: AppSchema,
@@ -24,6 +25,8 @@ export const initLocal = async () => {
   // Open the local search index and catch up any offline edits (never blocks UI).
   await ensureSearchIndex();
   void primeSearchIndexLocal();
+  // Start the attachment reconciler and flush any bytes left pending offline.
+  primeAttachmentsLocal();
 };
 
 /** Phase 2: Connect to PowerSync cloud — runs in background, doesn't block UI. */
@@ -39,6 +42,8 @@ export const connectCloud = async () => {
   log.info("Cloud connection established");
   // Build the search index once after the first sync, then keep it live.
   void buildSearchIndexAfterSync();
+  // Enable attachment uploads + the orphan sweep once the first sync confirms.
+  void syncAttachmentsAfterSync();
 };
 
 /** Disconnect and reconnect to PowerSync cloud. */

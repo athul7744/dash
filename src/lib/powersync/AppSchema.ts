@@ -99,7 +99,9 @@ export const attachmentsTable = new Table({
   page_id: column.text,
   block_id: column.text,
   file_path: column.text,
-  sync_state: column.text
+  sync_state: column.text,
+  mime_type: column.text,
+  file_name: column.text
 });
 
 export const propertyDefinitionsTable = new Table({

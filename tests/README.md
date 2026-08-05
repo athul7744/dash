@@ -12,6 +12,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/events/` — events recurrence-engine, action-vocabulary, and event/occurrence parse tests.
 - `tests/links/` — cross-app reference tests (the `[[label|kind:id]]` token grammar).
 - `tests/search/` — search text derivation and the pure query grammar / fuzzy / highlight helpers.
+- `tests/storage/` — the file-attachment layer's pure helpers (path layout, type/size validation, orphan diffing).
 - `tests/shared/` — reusable fixtures, builders, and assertions shared across app groups (incl. the universal-capture classifier).
 
 ## Current Notes Suites

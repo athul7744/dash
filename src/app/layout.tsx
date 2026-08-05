@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { PowerSyncProvider } from "@/components/powersync-provider";
 import { CaptureProvider } from "@/components/capture/CaptureProvider";
 import { CommandPaletteProvider } from "@/components/command/CommandPaletteProvider";
+import { PreventZoom } from "@/components/PreventZoom";
 import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -64,9 +65,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
+        spellCheck={false}
         className={`${inter.variable} ${lora.variable} ${fraunces.variable} ${hanken.variable} ${bricolage.variable} ${geistMono.variable} font-sans min-h-screen flex flex-col antialiased bg-background text-foreground`}
       >
         <script dangerouslySetInnerHTML={{ __html: DISPLAY_FONT_INIT }} />
+        <PreventZoom />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

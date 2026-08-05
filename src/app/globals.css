@@ -171,10 +171,13 @@ body[data-display-font="bricolage"] {
   body {
     @apply bg-background text-foreground overflow-x-hidden;
     overflow-x: clip;
+    /* Allow scrolling/panning but disable pinch-zoom and double-tap zoom. */
+    touch-action: pan-x pan-y;
   }
   html {
     @apply font-sans overflow-x-hidden;
     overflow-x: clip;
+    touch-action: pan-x pan-y;
   }
 }
 

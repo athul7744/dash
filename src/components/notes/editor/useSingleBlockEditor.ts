@@ -125,6 +125,9 @@ export function useSingleBlockEditor({
         // pl-7 keeps root-block grips (positioned in the left margin) within the
         // reading column instead of off the viewport edge.
         class: "outline-none focus:outline-none pl-7",
+        // No red grammar/spelling squiggles in the editor (matches the app-wide
+        // spellcheck=false on <body>; contenteditable needs it set explicitly).
+        spellcheck: "false",
       },
       // Structural keys are handled here, in the view's direct props, which
       // ProseMirror checks BEFORE any plugin keymap (base keymap, task-list /

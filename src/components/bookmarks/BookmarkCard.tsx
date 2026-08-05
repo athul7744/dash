@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useOptimisticTagIds } from "@/hooks/use-entity-tags";
-import { Check, CheckCircle2, Circle, Copy, Ellipsis, ExternalLink, Loader2, RefreshCw, Star, Tag as TagIcon, Trash2 } from "lucide-react";
+import { useEntityImage } from "@/hooks/use-entity-image";
+import { Check, CheckCircle2, Circle, Copy, Ellipsis, ExternalLink, Loader2, RefreshCw, Star, Tag as TagIcon, Trash2, X } from "lucide-react";
 
 import { Favicon } from "@/components/tasks/Favicon";
 import { EventLogNow } from "@/components/events/EventLogNow";
@@ -19,6 +20,7 @@ import {
   updateBookmark,
   type Bookmark,
 } from "@/lib/bookmarks/bookmarks";
+import { deleteEntityAttachments } from "@/lib/storage/attachments";
 import { reconcileEntityRefs } from "@/lib/links/links";
 import { refreshBookmarkTitle } from "@/lib/bookmarks/fetch-metadata";
 import { Tag } from "@/lib/powersync/AppSchema";
@@ -61,6 +63,7 @@ export function BookmarkCard({
   const { focusedRef, schedule, flush } = useDebouncedSave();
 
   const host = getLinkHost(bookmark.url) ?? bookmark.url;
+  const previewUrl = useEntityImage(bookmark.id);
   const busy = loading || refetching;
   const [selectedTagIds, setSelectedTagIds] = useOptimisticTagIds(tagIds);
   const selectedTags = selectedTagIds
@@ -230,6 +233,24 @@ export function BookmarkCard({
           <Loader2 className="h-3 w-3 animate-spin" />
           Fetching details…
         </p>
+      ) : null}
+
+      {previewUrl ? (
+        <div className="group/preview relative mt-3">
+          <a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-lg border border-border/50">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previewUrl} alt="" loading="lazy" className="max-h-44 w-full object-cover" />
+          </a>
+          <button
+            type="button"
+            onClick={() => void deleteEntityAttachments(bookmark.id)}
+            aria-label="Remove preview image"
+            title="Remove image"
+            className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/55 text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/70 focus-visible:opacity-100 group-hover/preview:opacity-100"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       ) : null}
 
       <RefField

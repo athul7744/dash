@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { deleteEntityEdges } from "@/lib/links/links";
 import { setEntityTags, deleteEntityTags } from "@/lib/tags/entity-tags";
+import { deleteEntityAttachments } from "@/lib/storage/attachments";
 import { deleteSubjectOccurrences } from "@/lib/events/events";
 import { ensureSystemPage } from "@/lib/notes/notes";
 import { db } from "@/lib/powersync/db";
@@ -134,6 +135,7 @@ export async function deleteBookmark(id: string): Promise<void> {
   await deleteEntityEdges(id);
   await deleteSubjectOccurrences(id);
   await deleteEntityTags(id);
+  await deleteEntityAttachments(id);
 }
 
 async function readBookmarkContent(id: string): Promise<BookmarkContent | null> {

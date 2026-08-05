@@ -1,5 +1,5 @@
 import { createBookmark } from "@/lib/bookmarks/bookmarks";
-import { refreshBookmarkTitle } from "@/lib/bookmarks/fetch-metadata";
+import { refreshBookmarkMetadata } from "@/lib/bookmarks/fetch-metadata";
 import { createNoteFromText } from "@/lib/notes/notes";
 import { createQuote } from "@/lib/quotes/quotes";
 import type { CaptureTarget } from "@/lib/shared/capture";
@@ -35,7 +35,8 @@ export async function saveCapture(input: CaptureInput): Promise<CaptureResult> {
     case "bookmark": {
       const url = input.url ?? "";
       const itemId = await createBookmark({ url, title: input.title, note: input.note, tags: input.tags });
-      if (url && !input.title?.trim()) void refreshBookmarkTitle(itemId, url);
+      // Always fetch the preview image; fill the title only when none was given.
+      if (url) void refreshBookmarkMetadata(itemId, url, { setTitle: !input.title?.trim() });
       return { appId: "bookmarks", itemId };
     }
     case "quote": {

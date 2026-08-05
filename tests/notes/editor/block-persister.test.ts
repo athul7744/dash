@@ -17,15 +17,17 @@ vi.mock("@/lib/powersync/db", () => {
     executed.push({ sql, params });
     return Promise.resolve(undefined);
   });
+  const getAll = vi.fn(async () => [] as unknown[]);
   return {
     db: {
       execute,
-      writeTransaction: vi.fn(async (fn: (tx: { execute: typeof execute }) => Promise<void>) => {
+      getAll,
+      writeTransaction: vi.fn(async (fn: (tx: { execute: typeof execute; getAll: typeof getAll }) => Promise<void>) => {
         if (failNextTransaction) {
           failNextTransaction = false;
           throw new Error("write failed");
         }
-        await fn({ execute });
+        await fn({ execute, getAll });
       }),
     },
   };

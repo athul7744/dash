@@ -21,7 +21,7 @@ export type LinkedNoteReferenceRow = {
 
 const EMPTY_PAGE_QUERY = "SELECT id, user_id, title, properties, created_at, updated_at FROM pages WHERE 1 = 0";
 const EMPTY_BLOCKS_QUERY = "SELECT id, user_id, page_id, parent_block_id, type, content, sort_rank, updated_at FROM blocks WHERE 1 = 0";
-const EMPTY_ATTACHMENTS_QUERY = "SELECT id, user_id, page_id, block_id, file_path, sync_state FROM attachments WHERE 1 = 0";
+const EMPTY_ATTACHMENTS_QUERY = "SELECT id, user_id, page_id, block_id, file_path, sync_state, mime_type, file_name FROM attachments WHERE 1 = 0";
 const EMPTY_LINKED_REFS_QUERY = [
   "SELECT DISTINCT",
   "  e.source_block_id AS source_block_id,",
@@ -138,7 +138,7 @@ export function useAllNotePages() {
 
 export function usePageAttachments(pageId?: string | null) {
   const query = pageId
-    ? "SELECT id, user_id, page_id, block_id, file_path, sync_state FROM attachments WHERE page_id = ? ORDER BY id ASC"
+    ? "SELECT id, user_id, page_id, block_id, file_path, sync_state, mime_type, file_name FROM attachments WHERE page_id = ? ORDER BY id ASC"
     : EMPTY_ATTACHMENTS_QUERY;
   const args = pageId ? [pageId] : [];
   const { data = [], isLoading } = useQuery<NoteAttachmentRow>(query, args);

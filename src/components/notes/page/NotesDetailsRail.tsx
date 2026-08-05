@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Clock, FileText, Files, History, Link2, Network, Orbit, Paperclip } from "lucide-react";
+import { Clock, Download, File as FileIcon, FileText, Files, History, Link2, Network, Orbit, Paperclip, Plus, Trash2 } from "lucide-react";
 
 import type { LinkedNoteReferenceRow, NoteAttachmentRow, NotePageRow } from "@/hooks/use-notes";
 
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/shared/utils";
+import { useAttachmentUrl } from "@/hooks/use-attachment-url";
+import { attachFile, deleteAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/storage/attachments";
 
 import { attachmentLabel, getPageDescription, parseProperties } from "./utils";
 import { DetailsRailCardSkeleton, DetailsSection, PageIcon } from "./ui";
@@ -83,6 +85,129 @@ type TimestampLabel = {
   dateOnly: string;
   absolute: string;
 } | null;
+
+// ---------------------------------------------------------------------------
+// Attachments section — upload, list (image thumbnails), download, delete
+// ---------------------------------------------------------------------------
+
+function AttachmentRow({ attachment }: { attachment: NoteAttachmentRow }) {
+  const url = useAttachmentUrl(attachment);
+  const isImage = (attachment.mime_type ?? "").startsWith("image/");
+  const label = attachment.file_name || attachmentLabel(attachment.file_path);
+  const pending = attachment.sync_state !== "synced";
+
+  return (
+    <div className="group flex items-center gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-muted/50">
+      {isImage && url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" className="h-9 w-9 shrink-0 rounded object-cover" />
+      ) : (
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-muted">
+          <FileIcon className="h-4 w-4 text-muted-foreground" />
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[12px] font-medium text-foreground">{label}</p>
+        <p className="truncate text-[11px] leading-5 text-muted-foreground">{pending ? "Uploading…" : "Synced"}</p>
+      </div>
+      {url && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          download={label}
+          className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+          title="Open"
+          aria-label="Open attachment"
+        >
+          <Download className="h-3.5 w-3.5" />
+        </a>
+      )}
+      <button
+        type="button"
+        onClick={() => void deleteAttachment(attachment)}
+        className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
+        title="Delete"
+        aria-label="Delete attachment"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function AttachmentsSection({
+  pageId,
+  attachments,
+  isLoading,
+  isOpen,
+  onToggle,
+}: {
+  pageId: string | null;
+  attachments: NoteAttachmentRow[];
+  isLoading: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onPick = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !pageId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      for (const file of Array.from(files)) {
+        try {
+          await attachFile(file, { pageId });
+        } catch {
+          setError(`Couldn't add "${file.name}" — max ${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)} MB, images or documents only.`);
+        }
+      }
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  return (
+    <DetailsSection
+      title="Attachments"
+      icon={Paperclip}
+      accentClassName="text-cyan-600 dark:text-cyan-400"
+      isOpen={isOpen}
+      onToggle={onToggle}
+    >
+      <input ref={inputRef} type="file" multiple className="hidden" onChange={onPick} />
+      <button
+        type="button"
+        disabled={!pageId || busy}
+        onClick={() => inputRef.current?.click()}
+        className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/70 px-2 py-1.5 text-[12px] text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        {busy ? "Adding…" : "Add file"}
+      </button>
+      {error && <p className="mb-2 text-[11px] leading-5 text-red-600 dark:text-red-400">{error}</p>}
+      {isLoading ? (
+        <div className="space-y-2 animate-stagger">
+          <DetailsRailCardSkeleton lines={1} />
+          <DetailsRailCardSkeleton lines={1} />
+        </div>
+      ) : attachments.length === 0 ? (
+        <p className="text-[12px] leading-5 text-muted-foreground">No attachments yet.</p>
+      ) : (
+        <div className="space-y-0.5 animate-stagger">
+          {attachments.map((attachment) => (
+            <AttachmentRow key={attachment.id} attachment={attachment} />
+          ))}
+        </div>
+      )}
+    </DetailsSection>
+  );
+}
 
 type DetailsSectionState = {
   outline: boolean;
@@ -289,34 +414,13 @@ export function NotesDetailsRail({
       </div>
 
       <div className="pt-3">
-        <DetailsSection
-          title="Attachments"
-          icon={Paperclip}
-          accentClassName="text-cyan-600 dark:text-cyan-400"
+        <AttachmentsSection
+          pageId={selectedPage?.id ?? null}
+          attachments={selectedPageAttachments}
+          isLoading={isLoadingAttachments}
           isOpen={detailsSectionOpen.attachments}
           onToggle={() => onToggleDetailsSection("attachments")}
-        >
-          {isLoadingAttachments ? (
-            <div className="space-y-2 animate-stagger">
-              <DetailsRailCardSkeleton lines={1} />
-              <DetailsRailCardSkeleton lines={1} />
-            </div>
-          ) : selectedPageAttachments.length === 0 ? (
-            <p className="text-[12px] leading-5 text-muted-foreground">No attachments yet.</p>
-          ) : (
-            <div className="space-y-2 animate-stagger">
-              {selectedPageAttachments.slice(0, 6).map((attachment) => (
-                <div key={attachment.id} className="px-0 py-1">
-                  <p className="truncate text-[12px] font-medium text-foreground">{attachmentLabel(attachment.file_path)}</p>
-                  <p className="mt-1 truncate text-[11px] leading-5 text-muted-foreground">
-                    {attachment.sync_state ?? "local"}
-                    {attachment.file_path ? ` · ${attachment.file_path}` : ""}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </DetailsSection>
+        />
       </div>
     </div>
   );

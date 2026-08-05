@@ -22,6 +22,7 @@ import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 import { deleteNotePage, reconcileNoteBlockEdges } from "@/lib/notes/notes";
+import { deleteEntityAttachments } from "@/lib/storage/attachments";
 import { extractNoteText, normalizeNoteDocument, serializeNoteDocument } from "@/lib/notes/notes-content";
 
 import { assembleDoc, decomposeDoc, type BlockDocumentRow } from "./block-document";
@@ -261,6 +262,7 @@ export class BlockDocumentPersister {
           await reconcileNoteBlockEdges(blockId, JSON.parse(content), tx);
         } else {
           await tx.execute(`DELETE FROM edges WHERE source_block_id = ?`, [write.blockId]);
+          await deleteEntityAttachments(write.blockId, tx);
           await tx.execute(`DELETE FROM blocks WHERE id = ?`, [write.blockId]);
         }
       }

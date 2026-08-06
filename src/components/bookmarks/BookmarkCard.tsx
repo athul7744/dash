@@ -120,7 +120,36 @@ export function BookmarkCard({
   };
 
   return (
-    <div className="group relative rounded-2xl border border-border/65 bg-card/60 p-5 transition-colors focus-within:border-border sm:p-6">
+    <div className="group relative overflow-hidden rounded-2xl border border-border/65 bg-card/60 transition-colors focus-within:border-border">
+      {previewUrl ? (
+        <div className="group/preview relative">
+          <a
+            href={bookmark.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block aspect-[16/9] w-full overflow-hidden bg-muted"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt=""
+              loading="lazy"
+              className="h-full w-full object-cover transition-transform duration-300 group-hover/preview:scale-[1.03]"
+            />
+          </a>
+          <button
+            type="button"
+            onClick={() => void deleteEntityAttachments(bookmark.id)}
+            aria-label="Remove preview image"
+            title="Remove image"
+            className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/55 text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/70 focus-visible:opacity-100 group-hover/preview:opacity-100"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : null}
+
+      <div className="p-5 sm:p-6">
       {/* Top bar: favicon + actions */}
       <div className="mb-3 flex items-center justify-between gap-2">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/50">
@@ -235,24 +264,6 @@ export function BookmarkCard({
         </p>
       ) : null}
 
-      {previewUrl ? (
-        <div className="group/preview relative mt-3">
-          <a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-lg border border-border/50">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewUrl} alt="" loading="lazy" className="max-h-44 w-full object-cover" />
-          </a>
-          <button
-            type="button"
-            onClick={() => void deleteEntityAttachments(bookmark.id)}
-            aria-label="Remove preview image"
-            title="Remove image"
-            className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/55 text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/70 focus-visible:opacity-100 group-hover/preview:opacity-100"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      ) : null}
-
       <RefField
         value={note}
         excludeId={bookmark.id}
@@ -286,6 +297,7 @@ export function BookmarkCard({
       ) : null}
 
       <LinkedFrom targetId={bookmark.id} className="mt-2.5" />
+      </div>
     </div>
   );
 }

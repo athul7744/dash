@@ -778,9 +778,9 @@ export function NotesWorkspace() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete page?</AlertDialogTitle>
+            <AlertDialogTitle>Move page to Trash?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the page, its blocks, attachments, and local note links. This cannot be undone.
+              The page and its contents move to Trash. You can restore it from there, or delete it permanently later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -790,7 +790,7 @@ export function NotesWorkspace() {
               disabled={shellHandle?.isDeletingPage}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {shellHandle?.isDeletingPage ? "Deleting..." : "Delete page"}
+              {shellHandle?.isDeletingPage ? "Moving..." : "Move to Trash"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

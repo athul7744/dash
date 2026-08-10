@@ -13,7 +13,6 @@ import { RefField } from "@/components/links/RefField";
 import { TagSelector } from "@/components/tags/TagSelector";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import {
-  deleteBookmark,
   markRead,
   setTags,
   toggleFavorite,
@@ -21,6 +20,7 @@ import {
   type Bookmark,
 } from "@/lib/bookmarks/bookmarks";
 import { deleteEntityAttachments } from "@/lib/storage/attachments";
+import { useTrashAction } from "@/hooks/use-trash-action";
 import { reconcileEntityRefs } from "@/lib/links/links";
 import { refreshBookmarkTitle } from "@/lib/bookmarks/fetch-metadata";
 import { Tag } from "@/lib/powersync/AppSchema";
@@ -64,6 +64,7 @@ export function BookmarkCard({
 
   const host = getLinkHost(bookmark.url) ?? bookmark.url;
   const previewUrl = useEntityImage(bookmark.id);
+  const trash = useTrashAction();
   const busy = loading || refetching;
   const [selectedTagIds, setSelectedTagIds] = useOptimisticTagIds(tagIds);
   const selectedTags = selectedTagIds
@@ -209,7 +210,7 @@ export function BookmarkCard({
                 Refetch details
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={() => void deleteBookmark(bookmark.id)}>
+              <DropdownMenuItem variant="destructive" onClick={() => trash("bookmark", bookmark.id, bookmark.title)}>
                 <Trash2 className="h-4 w-4" />
                 Delete
               </DropdownMenuItem>

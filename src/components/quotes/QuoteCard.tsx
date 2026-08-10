@@ -9,7 +9,8 @@ import { LinkedFrom } from "@/components/links/LinkedFrom";
 import { RefField } from "@/components/links/RefField";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { reconcileEntityRefs } from "@/lib/links/links";
-import { deleteQuote, toggleFavorite, updateQuote, type Quote } from "@/lib/quotes/quotes";
+import { toggleFavorite, updateQuote, type Quote } from "@/lib/quotes/quotes";
+import { useTrashAction } from "@/hooks/use-trash-action";
 import { cn } from "@/lib/shared/utils";
 
 /**
@@ -22,6 +23,7 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
   const [text, setText] = useState(quote.text);
   const [author, setAuthor] = useState(quote.author);
   const { focusedRef, schedule, flush } = useDebouncedSave();
+  const trash = useTrashAction();
 
   // Reconcile remote changes only when the user isn't editing this card.
   useEffect(() => {
@@ -68,7 +70,7 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
               <Ellipsis className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem variant="destructive" onClick={() => void deleteQuote(quote.id)}>
+              <DropdownMenuItem variant="destructive" onClick={() => trash("quote", quote.id, quote.text)}>
                 <Trash2 className="h-4 w-4" />
                 Delete
               </DropdownMenuItem>

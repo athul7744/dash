@@ -5,8 +5,8 @@ import { type Dispatch, type SetStateAction } from "react";
 import type { NoteBlockRow, NotePageRow } from "@/hooks/use-notes";
 import { setEntityTags } from "@/lib/tags/entity-tags";
 import { extractNoteText } from "@/lib/notes/notes-content";
+import { useTrashAction } from "@/hooks/use-trash-action";
 import {
-  deleteNotePage,
   isNotePageTitleAvailable,
   normalizeNotePageTitle,
   updateNotePageProperties,
@@ -60,6 +60,8 @@ export function useNotePageActions({
   setIsDeleteDialogOpen,
   onDeleteSuccess,
 }: UseNotePageActionsParams) {
+  const trash = useTrashAction();
+
   const persistSelectedPageProperties = (
     nextSummary: string,
     nextTagIds: string[],
@@ -133,7 +135,8 @@ export function useNotePageActions({
     setIsDeletingPage(true);
 
     try {
-      await deleteNotePage(selectedPageId);
+      // Soft-delete: moves the page to Trash (recoverable) and shows an undo toast.
+      trash("note", selectedPageId, selectedPage?.title ?? undefined);
       onDeleteSuccess();
     } finally {
       setIsDeletingPage(false);

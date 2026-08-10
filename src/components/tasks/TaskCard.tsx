@@ -19,8 +19,10 @@ import { cn } from "@/lib/shared/utils";
 import { PRIORITY_COLORS, PRIORITY_LEVELS } from "@/lib/tasks/tasks";
 import { LinkedFrom } from "@/components/links/LinkedFrom";
 import { RefField } from "@/components/links/RefField";
-import { reconcileEntityRefs, deleteEntityEdges } from "@/lib/links/links";
+import { reconcileEntityRefs } from "@/lib/links/links";
 import { setEntityTags, deleteEntityTags } from "@/lib/tags/entity-tags";
+import { cascadeOccurrences, purgeEntity } from "@/lib/shared/trash";
+import { useTaskTrashToast } from "@/hooks/use-trash-action";
 import { useOptimisticTagIds } from "@/hooks/use-entity-tags";
 import { parseRefTokens } from "@/lib/links/tokens";
 import { logOccurrence, deleteSubjectOccurrences } from "@/lib/events/events";
@@ -50,6 +52,7 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
   const [dueDate, setDueDate] = useDerivedState(task.due_date, (d) => (d ? new Date(d) : undefined));
   const [selectedTagIds, setSelectedTagIds] = useOptimisticTagIds(tagIds);
   const [optimisticState, setOptimisticState] = useDerivedState(persistedTaskState, (s) => s);
+  const taskTrashToast = useTaskTrashToast();
 
   const [newSubtaskTitle, setNewSubtaskTitle] = React.useState("");
   const [isSaving, setIsSaving] = React.useState(false);
@@ -204,24 +207,19 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
 
     // Parent task logic
     if (optimisticState === 'trashed') {
-      // Permanently delete — cancel/flush pending writes first, then delete immediately
+      // Permanently delete — cancel/flush pending writes first, then delete via the
+      // shared purge (children + full relationship fan-out). The card animates out
+      // via AnimatePresence as the watched query drops it from the list.
       cancelExecute(t.id);
       await flushUpdate(t.id, 'tasks');
-      // Delete immediately; the card animates out via AnimatePresence as it
-      // unmounts (the watched query drops it from the list).
-      const childIds = subtasks.map((st) => st.id);
-      await db.execute(`DELETE FROM tasks WHERE id = ?`, [t.id]);
-      await db.execute(`DELETE FROM tasks WHERE parent_id = ?`, [t.id]);
-      // Edges roll up to the root task; clear its links (both directions) and any
-      // inbound links to the removed subtasks.
-      await Promise.all([t.id, ...childIds].map((id) => deleteEntityEdges(id)));
-      await Promise.all([t.id, ...childIds].map((id) => deleteSubjectOccurrences(id)));
-      await Promise.all([t.id, ...childIds].map((id) => deleteEntityTags(id)));
+      await purgeEntity('task', t.id);
     } else {
-      // Move to trash — debounced
+      // Move to trash — debounced state flip, plus the shared undo toast and the
+      // occurrence-log cascade (hidden while trashed, restored on undo).
       setOptimisticState('trashed');
       persistStateChange(t, 'trashed');
       subtasks.forEach(st => persistStateChange(st, 'trashed'));
+      taskTrashToast(t.id, t.title ?? undefined, () => restoreTask());
     }
   };
 
@@ -229,6 +227,7 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
     const restoredTaskState = task.state === 'trashed' ? 'pending' : persistedTaskState;
     setOptimisticState(restoredTaskState);
     persistStateChange(task, restoredTaskState);
+    void cascadeOccurrences(task.id, false);
     if (!task.parent_id) {
       const restoredSubtaskState = task.state === 'trashed' ? 'pending' : null;
       const updates: Record<string, string> = {};

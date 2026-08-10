@@ -21,12 +21,13 @@ import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { useEntityTags, useOptimisticTagIds } from "@/hooks/use-entity-tags";
 import { useEvent, useEventMaterializer, useOccurrences, useSubjectLabels, useThingAggregates } from "@/hooks/use-events";
 import { generateTaskForEvent } from "@/lib/events/materialize";
-import { statsFromAggregate, deleteEvent, formatDays, updateEvent, type EventItem } from "@/lib/events/events";
+import { statsFromAggregate, formatDays, updateEvent, type EventItem } from "@/lib/events/events";
 import { describeSchedule, nextScheduledOccurrence } from "@/lib/events/schedule";
 import { reconcileEntityRefs } from "@/lib/links/links";
+import { useTrashAction } from "@/hooks/use-trash-action";
 import { dispatchOpenEntity } from "@/components/links/EntityRefNode";
 import { getApp } from "@/lib/shared/apps";
-import { refKindAccentVar } from "@/lib/links/tokens";
+import { refKindAccentVar, stripRefs } from "@/lib/links/tokens";
 import { cn, formatRelativeTime } from "@/lib/shared/utils";
 
 const eventsApp = getApp("events");
@@ -45,6 +46,7 @@ export default function EventDetailPage() {
 
 function EventDetail({ event }: { event: EventItem }) {
   const router = useRouter();
+  const trash = useTrashAction();
   // The event may track an external subject — its log lives on that entity.
   const subjectId = event.subjectId ?? event.id;
   const subjectKind = event.subjectKind ?? "event";
@@ -80,7 +82,7 @@ function EventDetail({ event }: { event: EventItem }) {
     });
 
   const removeEvent = () => {
-    void deleteEvent(event.id);
+    trash("event", event.id, stripRefs(event.title) || "Untitled event");
     router.push("/events");
   };
 

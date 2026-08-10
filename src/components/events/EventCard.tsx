@@ -10,7 +10,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { type ThingAggregate } from "@/hooks/use-events";
 import { useOptimisticTagIds } from "@/hooks/use-entity-tags";
 import { generateTaskForEvent } from "@/lib/events/materialize";
-import { statsFromAggregate, deleteEvent, toggleActive, updateEvent, type EventItem } from "@/lib/events/events";
+import { statsFromAggregate, toggleActive, updateEvent, type EventItem } from "@/lib/events/events";
+import { useTrashAction } from "@/hooks/use-trash-action";
 import { describeSchedule, nextScheduledOccurrence } from "@/lib/events/schedule";
 import { stripRefs } from "@/lib/links/tokens";
 import { cn, formatRelativeTime } from "@/lib/shared/utils";
@@ -39,6 +40,7 @@ export function EventCard({
 }) {
   // Seeded from entity_tags via a stable joined key; setter drives optimistic edits.
   const [selectedTagIds, setSelectedTagIds] = useOptimisticTagIds(tagIds);
+  const trash = useTrashAction();
   const s = event.schedule;
   const today = new Date();
   const cadenceDays = s?.freq === "interval" ? s.days : null;
@@ -100,7 +102,7 @@ export function EventCard({
                   <ListPlus className="h-4 w-4" />
                   Generate task
                 </DropdownMenuItem>
-                <DropdownMenuItem variant="destructive" onClick={() => void deleteEvent(event.id)}>
+                <DropdownMenuItem variant="destructive" onClick={() => trash("event", event.id, titleText)}>
                   <Trash2 className="h-4 w-4" />
                   Delete
                 </DropdownMenuItem>

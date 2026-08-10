@@ -52,10 +52,10 @@ vi.mock("@/components/notes/NotesPageSkeleton", () => ({
 }));
 
 function page(id: string): NotePageRow {
-  return { id, user_id: "u1", title: "Project", properties: "{}", created_at: "2026-07-18T00:00:00.000Z", updated_at: "2026-07-18T00:00:00.000Z" };
+  return { id, user_id: "u1", title: "Project", properties: "{}", created_at: "2026-07-18T00:00:00.000Z", updated_at: "2026-07-18T00:00:00.000Z", deleted_at: null };
 }
 function block(id: string, node: unknown, over: Partial<NoteBlockRow> = {}): NoteBlockRow {
-  return { id, user_id: "u1", page_id: "page-1", parent_block_id: null, type: "text", content: serializeNoteDocument({ type: "doc", content: [node] }), sort_rank: "a0", updated_at: "2026-07-18T00:00:00.000Z", ...over };
+  return { id, user_id: "u1", page_id: "page-1", parent_block_id: null, type: "text", content: serializeNoteDocument({ type: "doc", content: [node] }), sort_rank: "a0", updated_at: "2026-07-18T00:00:00.000Z", deleted_at: null, ...over };
 }
 
 async function renderShell() {

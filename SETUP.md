@@ -109,7 +109,8 @@ CREATE TABLE public.pages (
   title TEXT NOT NULL,
   properties JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ -- soft-delete marker (trash); NULL = live
 );
 
 -- Notes blocks table
@@ -121,7 +122,8 @@ CREATE TABLE public.blocks (
   type TEXT NOT NULL,
   content JSONB NOT NULL DEFAULT '{}'::jsonb,
   sort_rank TEXT NOT NULL,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ -- soft-delete marker (trash); NULL = live
 );
 
 -- Reference edges (any entity → any entity). `source_block_id` / `target_id`

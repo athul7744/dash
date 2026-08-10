@@ -55,7 +55,8 @@ export const pagesTable = new Table({
   title: column.text,
   properties: column.text, // stored as JSON string
   created_at: column.text,
-  updated_at: column.text
+  updated_at: column.text,
+  deleted_at: column.text // soft-delete marker (trash); NULL = live
 });
 
 export const blocksTable = new Table(
@@ -66,7 +67,8 @@ export const blocksTable = new Table(
     type: column.text,
     content: column.text, // stored as JSON string
     sort_rank: column.text,
-    updated_at: column.text
+    updated_at: column.text,
+    deleted_at: column.text // soft-delete marker (trash); NULL = live
   },
   // Hot path: "all items of one app" (WHERE page_id = ? AND type = ?) and note-block loads by page.
   { indexes: { page_type: ['page_id', 'type'] } }

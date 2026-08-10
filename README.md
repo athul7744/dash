@@ -42,6 +42,10 @@ Events don't have to stand alone. Hit "Log an event" on a note, bookmark, quote,
 
 The fastest way in. On Android, install Dash as a PWA and it shows up in your phone's share sheet — share a link or text from any app and a triage screen lets you save it to Bookmarks, Tasks, Notes, or Quotes (a smart default is preselected — links default to Bookmarks). Anywhere else, the dashboard Capture button (or ⌘/Ctrl+I) opens the same triage from your clipboard. Everything saves locally, so capture works offline.
 
+### Trash & undo
+
+Nothing deletes by accident. Removing a task, note, bookmark, quote, or event moves it to a shared Trash and offers an instant Undo. Whatever you don't undo waits in one Trash view — open it from the app switcher or ⌘K — where you can restore it or delete it for good.
+
 ## How It Works
 
 Everything happens locally first. The app reads and writes to a database in your browser, so interactions are instant even without internet. Changes sync to the cloud in the background when you're online, keeping all your devices up to date.

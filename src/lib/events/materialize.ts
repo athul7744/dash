@@ -37,7 +37,7 @@ async function eventTagIds(eventId: string): Promise<string[]> {
  */
 export async function generateTaskForEvent(eventId: string): Promise<string | null> {
   const row = await db.getOptional<{ content: string | null }>(
-    `SELECT content FROM blocks WHERE id = ? AND type = ? LIMIT 1`,
+    `SELECT content FROM blocks WHERE id = ? AND type = ? AND deleted_at IS NULL LIMIT 1`,
     [eventId, EVENT_BLOCK_TYPE],
   );
   if (!row) return null;
@@ -91,7 +91,8 @@ async function runMaterialize(): Promise<number> {
 
   const pageId = systemPageId(userId, "event", EVENTS_KEY);
   const rows = await db.getAll<{ id: string; content: string | null }>(
-    `SELECT id, content FROM blocks WHERE page_id = ? AND type = ?`,
+    // Trashed events must not keep spawning tasks or logging occurrences.
+    `SELECT id, content FROM blocks WHERE page_id = ? AND type = ? AND deleted_at IS NULL`,
     [pageId, EVENT_BLOCK_TYPE],
   );
 
@@ -130,7 +131,7 @@ async function runMaterialize(): Promise<number> {
     let lastOccurrence: Date | null = null;
     if (thing.schedule.freq === "interval") {
       const agg = await db.getOptional<{ last: string | null }>(
-        `SELECT MAX(json_extract(content, '$.at')) AS last FROM blocks WHERE type = ? AND ${OCCURRENCE_SUBJECT_SQL} = ?`,
+        `SELECT MAX(json_extract(content, '$.at')) AS last FROM blocks WHERE type = ? AND deleted_at IS NULL AND ${OCCURRENCE_SUBJECT_SQL} = ?`,
         [OCCURRENCE_BLOCK_TYPE, subjectId],
       );
       lastOccurrence = agg?.last ? new Date(agg.last) : null;

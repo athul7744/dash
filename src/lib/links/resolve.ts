@@ -64,8 +64,11 @@ export const ENTITY_JOIN_SQL = [
   "json_extract(bpage.properties, '$.kind') AS page_kind",
 ].join(" ");
 
+// Trashed sources are excluded via the join conditions: a soft-deleted task /
+// block / owning page nulls out its columns, so `classifyEntityRow` returns null
+// and the entity drops from backlinks. Edges stay intact for a clean restore.
 export const ENTITY_JOIN_FROM = [
-  "LEFT JOIN tasks t ON t.id = e.source_block_id",
-  "LEFT JOIN blocks b ON b.id = e.source_block_id",
-  "LEFT JOIN pages bpage ON bpage.id = b.page_id",
+  "LEFT JOIN tasks t ON t.id = e.source_block_id AND t.state != 'trashed'",
+  "LEFT JOIN blocks b ON b.id = e.source_block_id AND b.deleted_at IS NULL",
+  "LEFT JOIN pages bpage ON bpage.id = b.page_id AND bpage.deleted_at IS NULL",
 ].join(" ");

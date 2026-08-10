@@ -94,7 +94,7 @@ export function useBookmarkSearch(query: string, enabled: boolean): { results: B
 
   const { data = [] } = useQuery<SystemPageBlockRow>(
     ids.length
-      ? `SELECT id, content, sort_rank FROM blocks WHERE id IN (${ids.map(() => "?").join(",")})`
+      ? `SELECT id, content, sort_rank FROM blocks WHERE id IN (${ids.map(() => "?").join(",")}) AND deleted_at IS NULL`
       : "SELECT id, content, sort_rank FROM blocks WHERE 1 = 0",
     ids,
   );
@@ -114,7 +114,7 @@ export function useBookmarkFacets(): { total: number; usedTagIds: Set<string> } 
   const pageId = userId ? systemPageId(userId, "bookmark", BOOKMARKS_KEY) : null;
 
   const { data: countRows = [] } = useQuery<{ c: number }>(
-    pageId ? "SELECT COUNT(*) AS c FROM blocks WHERE page_id = ? AND type = ?" : "SELECT 0 AS c WHERE 0",
+    pageId ? "SELECT COUNT(*) AS c FROM blocks WHERE page_id = ? AND type = ? AND deleted_at IS NULL" : "SELECT 0 AS c WHERE 0",
     pageId ? [pageId, BOOKMARK_BLOCK_TYPE] : [],
   );
   const { data: tagRows = [] } = useQuery<{ id: string | null }>(

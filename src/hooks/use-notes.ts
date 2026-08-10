@@ -37,7 +37,7 @@ const EMPTY_LINKED_REFS_QUERY = [
 
 export function useNotePage(pageId?: string | null) {
   const query = pageId
-    ? "SELECT id, user_id, title, properties, created_at, updated_at FROM pages WHERE id = ? LIMIT 1"
+    ? "SELECT id, user_id, title, properties, created_at, updated_at FROM pages WHERE id = ? AND deleted_at IS NULL LIMIT 1"
     : EMPTY_PAGE_QUERY;
   const args = pageId ? [pageId] : [];
   const { data = [], isLoading } = useQuery<NotePageRow>(query, args);
@@ -68,10 +68,10 @@ export function useNoteBlocks(pageId?: string | null) {
 
 export function useNoteCounts() {
   const { data: pageRows = [], isLoading: isLoadingPages } = useQuery<NoteCountRow>(
-    "SELECT COUNT(*) AS count FROM pages"
+    "SELECT COUNT(*) AS count FROM pages WHERE deleted_at IS NULL"
   );
   const { data: blockRows = [], isLoading: isLoadingBlocks } = useQuery<NoteCountRow>(
-    "SELECT COUNT(*) AS count FROM blocks"
+    "SELECT COUNT(*) AS count FROM blocks WHERE deleted_at IS NULL"
   );
   const { data: edgeRows = [], isLoading: isLoadingEdges } = useQuery<NoteCountRow>(
     "SELECT COUNT(*) AS count FROM edges"
@@ -95,7 +95,8 @@ const NOTE_PAGE_SELECT = [
 ].join(" ");
 
 // Real note pages only: system-page kinds (bookmarks/quotes/…) store a `kind`.
-const NOTE_PAGE_WHERE = "WHERE json_extract(properties, '$.kind') IS NULL";
+// Excludes trashed pages (deleted_at set) so they only appear in /trash.
+const NOTE_PAGE_WHERE = "WHERE json_extract(properties, '$.kind') IS NULL AND deleted_at IS NULL";
 
 export function useRecentNotePages(limit = 8) {
   const { data = [], isLoading } = useQuery<NotePageRow>(
@@ -164,7 +165,7 @@ export function useLinkedNoteReferences(pageId?: string | null) {
         "JOIN pages p ON p.id = b.page_id",
         // Note → note only (both legacy `page_ref` and id-bound `ref`). Cross-app
         // sources (tasks/bookmarks/…) surface via the <Backlinks> chip row.
-        `WHERE ${refTypeSql("e")} AND e.target_id = ? AND json_extract(p.properties, '$.kind') IS NULL`,
+        `WHERE ${refTypeSql("e")} AND e.target_id = ? AND json_extract(p.properties, '$.kind') IS NULL AND p.deleted_at IS NULL AND b.deleted_at IS NULL`,
         "ORDER BY b.updated_at DESC, e.source_block_id DESC",
       ].join(" ")
     : EMPTY_LINKED_REFS_QUERY;

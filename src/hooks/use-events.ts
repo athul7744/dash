@@ -37,7 +37,7 @@ type EventRow = { id: string; content: string | null; sort_rank: string | null }
 /** Live single event by id — for the full-page detail view. `null` when missing. */
 export function useEvent(id: string | null | undefined): { event: EventItem | null; isLoading: boolean } {
   const { data = [], isLoading } = useQuery<EventRow>(
-    id ? "SELECT id, content, sort_rank FROM blocks WHERE id = ? AND type = ? LIMIT 1" : "SELECT id, content, sort_rank FROM blocks WHERE 1 = 0",
+    id ? "SELECT id, content, sort_rank FROM blocks WHERE id = ? AND type = ? AND deleted_at IS NULL LIMIT 1" : "SELECT id, content, sort_rank FROM blocks WHERE 1 = 0",
     id ? [id, EVENT_BLOCK_TYPE] : [],
   );
   const event = useMemo(() => (data[0] ? toEvent(data[0]) : null), [data]);
@@ -55,7 +55,7 @@ export function useOccurrences(opts: { thingId?: string; limit?: number; enabled
   const { thingId, limit, enabled = true } = opts;
   const pageId = enabled && userId ? systemPageId(userId, "event", EVENTS_KEY) : null;
 
-  const where = ["page_id = ?", "type = ?"];
+  const where = ["page_id = ?", "type = ?", "deleted_at IS NULL"];
   const args: (string | number)[] = [pageId ?? "", OCCURRENCE_BLOCK_TYPE];
   if (thingId) {
     where.push(`${OCCURRENCE_SUBJECT_SQL} = ?`);
@@ -99,7 +99,7 @@ export function useAllOccurrenceSubjects(enabled = true): { id: string; kind: Re
   const { data = [] } = useQuery<{ id: string | null; kind: string | null }>(
     pageId
       ? `SELECT DISTINCT ${OCCURRENCE_SUBJECT_SQL} AS id, json_extract(content, '$.subjectKind') AS kind
-         FROM blocks WHERE page_id = ? AND type = ?`
+         FROM blocks WHERE page_id = ? AND type = ? AND deleted_at IS NULL`
       : "SELECT NULL AS id, NULL AS kind WHERE 1 = 0",
     pageId ? [pageId, OCCURRENCE_BLOCK_TYPE] : [],
   );
@@ -126,7 +126,7 @@ export function useThingAggregates(): Map<string, ThingAggregate> {
   const { data = [] } = useQuery<{ thing: string; n: number; first: string | null; last: string | null; kind: string | null }>(
     pageId
       ? `SELECT ${OCCURRENCE_SUBJECT_SQL} AS thing, COUNT(*) AS n, MIN(json_extract(content, '$.at')) AS first, MAX(json_extract(content, '$.at')) AS last, MAX(json_extract(content, '$.subjectKind')) AS kind
-         FROM blocks WHERE page_id = ? AND type = ? GROUP BY ${OCCURRENCE_SUBJECT_SQL}`
+         FROM blocks WHERE page_id = ? AND type = ? AND deleted_at IS NULL GROUP BY ${OCCURRENCE_SUBJECT_SQL}`
       : "SELECT NULL AS thing, 0 AS n, NULL AS first, NULL AS last, NULL AS kind WHERE 1 = 0",
     pageId ? [pageId, OCCURRENCE_BLOCK_TYPE] : [],
   );
@@ -152,7 +152,7 @@ export function usePlaceSuggestions(): string[] {
   const { data = [] } = useQuery<{ place: string | null }>(
     pageId
       ? `SELECT DISTINCT json_extract(content, '$.place') AS place
-         FROM blocks WHERE page_id = ? AND type = ?
+         FROM blocks WHERE page_id = ? AND type = ? AND deleted_at IS NULL
            AND json_extract(content, '$.place') IS NOT NULL AND json_extract(content, '$.place') <> ''`
       : "SELECT NULL AS place WHERE 1 = 0",
     pageId ? [pageId, OCCURRENCE_BLOCK_TYPE] : [],
@@ -173,7 +173,7 @@ export function useActionVocabulary(): VocabEntry[] {
     pageId
       ? `SELECT json_extract(content, '$.action') AS action, COUNT(*) AS n
          FROM blocks
-         WHERE page_id = ? AND type = ?
+         WHERE page_id = ? AND type = ? AND deleted_at IS NULL
            AND json_extract(content, '$.action') IS NOT NULL
            AND json_extract(content, '$.action') <> ''
          GROUP BY json_extract(content, '$.action')`

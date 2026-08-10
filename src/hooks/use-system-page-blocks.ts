@@ -11,7 +11,7 @@ export type SystemPageBlockRow = { id: string; content: string | null; sort_rank
 
 const EMPTY_QUERY = "SELECT id, content, sort_rank FROM blocks WHERE 1 = 0";
 const LIST_QUERY =
-  "SELECT id, content, sort_rank FROM blocks WHERE page_id = ? AND type = ? ORDER BY sort_rank ASC";
+  "SELECT id, content, sort_rank FROM blocks WHERE page_id = ? AND type = ? AND deleted_at IS NULL ORDER BY sort_rank ASC";
 
 /**
  * Live list of the blocks on a feature-owned system page (bookmarks, quotes,
@@ -69,13 +69,13 @@ export function useSystemPageBlocksPaged<T>(
   const whereArgs = opts.whereArgs ?? [];
 
   const listQuery = pageId
-    ? `SELECT id, content, sort_rank FROM blocks WHERE page_id = ? AND type = ?${filter} ORDER BY sort_rank ASC LIMIT ?`
+    ? `SELECT id, content, sort_rank FROM blocks WHERE page_id = ? AND type = ? AND deleted_at IS NULL${filter} ORDER BY sort_rank ASC LIMIT ?`
     : EMPTY_QUERY;
   const listArgs = pageId ? [pageId, blockType, ...whereArgs, opts.limit] : [];
   const { data = [], isLoading, isFetching } = useQuery<SystemPageBlockRow>(listQuery, listArgs, { reportFetching: true });
 
   const { data: countRows = [] } = useQuery<{ c: number }>(
-    pageId ? `SELECT COUNT(*) AS c FROM blocks WHERE page_id = ? AND type = ?${filter}` : COUNT_EMPTY,
+    pageId ? `SELECT COUNT(*) AS c FROM blocks WHERE page_id = ? AND type = ? AND deleted_at IS NULL${filter}` : COUNT_EMPTY,
     pageId ? [pageId, blockType, ...whereArgs] : [],
   );
 

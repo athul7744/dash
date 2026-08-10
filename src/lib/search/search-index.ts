@@ -83,7 +83,7 @@ function enqueue<T>(fn: () => Promise<T>): Promise<T> {
 
 // --- SQL fragments ---
 
-const NOTE_PAGE_FILTER = "json_extract(properties, '$.kind') IS NULL";
+const NOTE_PAGE_FILTER = "json_extract(properties, '$.kind') IS NULL AND deleted_at IS NULL";
 // Top-level tasks only — subtasks aren't independently navigable and would leave
 // dangling hits in surfaces that list only parent tasks.
 const TASK_FILTER = "state != 'trashed' AND parent_id IS NULL";
@@ -91,10 +91,10 @@ const TASK_FILTER = "state != 'trashed' AND parent_id IS NULL";
 // are entities — `type='occurrence'` blocks are logged instances (indexed
 // separately in occurrence_index), so exclude them here.
 const SYS_BLOCK_JOIN =
-  "blocks b JOIN pages p ON p.id = b.page_id WHERE json_extract(p.properties, '$.kind') IN ('bookmark','quote','event') AND (json_extract(p.properties, '$.kind') != 'event' OR b.type = 'event')";
+  "blocks b JOIN pages p ON p.id = b.page_id WHERE b.deleted_at IS NULL AND json_extract(p.properties, '$.kind') IN ('bookmark','quote','event') AND (json_extract(p.properties, '$.kind') != 'event' OR b.type = 'event')";
 // Logged occurrences: `type='occurrence'` blocks on the events system page.
 const OCC_JOIN =
-  "blocks b JOIN pages p ON p.id = b.page_id WHERE json_extract(p.properties, '$.kind') = 'event' AND b.type = 'occurrence'";
+  "blocks b JOIN pages p ON p.id = b.page_id WHERE b.deleted_at IS NULL AND json_extract(p.properties, '$.kind') = 'event' AND b.type = 'occurrence'";
 
 type TaskRow = { id: string; title: string | null; link: string | null };
 type BlockRow = { id: string; content: string | null; kind: BlockEntityKind };
@@ -250,7 +250,7 @@ async function reconcileNow(): Promise<void> {
   const blocks = await db.getAll<BlockRow>(
     `SELECT b.id AS id, b.content AS content, json_extract(p.properties, '$.kind') AS kind
      FROM blocks b JOIN pages p ON p.id = b.page_id
-     WHERE b.updated_at > ? AND json_extract(p.properties, '$.kind') IN ('bookmark','quote','event')
+     WHERE b.updated_at > ? AND b.deleted_at IS NULL AND json_extract(p.properties, '$.kind') IN ('bookmark','quote','event')
        AND (json_extract(p.properties, '$.kind') != 'event' OR b.type = 'event')`,
     [w],
   );

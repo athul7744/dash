@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Check, LayoutDashboard, Logs, Network } from "lucide-react";
+import { ChevronDown, Check, LayoutDashboard, Logs, Network, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { APPS, type AppConfig } from "@/lib/shared/apps";
 import { isLogViewerEnabled } from "@/lib/shared/logger";
@@ -21,6 +21,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
   const router = useRouter();
   const pathname = usePathname();
   const isGraph = pathname === "/notes/graph";
+  const isTrash = pathname === "/trash";
   const [open, setOpen] = useState(false);
   const [logDialogOpen, setLogDialogOpen] = useState(false);
   const showLogViewer = isLogViewerEnabled();
@@ -31,6 +32,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
       router.prefetch(app.href);
     });
     router.prefetch("/notes/graph");
+    router.prefetch("/trash");
   }, [current, router]);
 
   const trigger = useMemo(() => {
@@ -130,34 +132,32 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
           </div>
 
           <div className="my-1 h-px bg-border/60" />
-          <Link
-            href="/"
-            onClick={() => setOpen(false)}
-            className={cn(
-              "flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors",
-              !current && !isGraph ? "bg-accent font-medium" : "hover:bg-accent/50",
-            )}
-          >
-            <div className="rounded-md bg-muted p-1.5">
-              <LayoutDashboard className="h-4 w-4 text-foreground" />
-            </div>
-            <span className="flex-1 font-heading font-semibold tracking-tight">Dashboard</span>
-            {!current && !isGraph && <Check className="h-4 w-4 text-muted-foreground" />}
-          </Link>
-          <Link
-            href="/notes/graph"
-            onClick={() => setOpen(false)}
-            className={cn(
-              "flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors",
-              isGraph ? "bg-accent font-medium" : "hover:bg-accent/50",
-            )}
-          >
-            <div className="rounded-md bg-muted p-1.5">
-              <Network className="h-4 w-4 text-foreground" />
-            </div>
-            <span className="flex-1 font-heading font-semibold tracking-tight">Graph</span>
-            {isGraph && <Check className="h-4 w-4 text-muted-foreground" />}
-          </Link>
+          {/* Destinations: an icon row on mobile, labeled rows on desktop. */}
+          <div className="flex gap-1 sm:flex-col sm:gap-0">
+            {[
+              { href: "/", label: "Dashboard", Icon: LayoutDashboard, active: !current && !isGraph && !isTrash },
+              { href: "/notes/graph", label: "Graph", Icon: Network, active: isGraph },
+              { href: "/trash", label: "Trash", Icon: Trash2, active: isTrash },
+            ].map(({ href, label, Icon, active }) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setOpen(false)}
+                title={label}
+                aria-label={label}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-3 rounded-md px-2 py-2 text-sm transition-colors sm:flex-none sm:justify-start",
+                  active ? "bg-accent font-medium" : "hover:bg-accent/50",
+                )}
+              >
+                <div className="rounded-md bg-muted p-1.5">
+                  <Icon className="h-4 w-4 text-foreground" />
+                </div>
+                <span className="hidden flex-1 font-heading font-semibold tracking-tight sm:block">{label}</span>
+                {active && <Check className="hidden h-4 w-4 text-muted-foreground sm:block" />}
+              </Link>
+            ))}
+          </div>
         </PopoverContent>
       </Popover>
 

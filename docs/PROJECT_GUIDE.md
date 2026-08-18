@@ -196,7 +196,7 @@ Important convention:
 - `src/lib/tasks/tasks.ts` — priority, due-date, and URL helpers (`normalizeUrl`/`getLinkHost`/`extractFirstUrl`); pure (no DB) so the capture classifier can import it
 - `src/lib/tasks/create-task.ts` — `createTask(...)` (extracted from the inline INSERTs so share/capture share one path)
 - `src/lib/tasks/tags.ts` — tag creation helpers
-- `src/lib/quotes/quotes.ts` / `quotes/daily.ts` — quote CRUD over the `kind:"quote"` system page, and the favorites-weighted `pickDailyQuote`
+- `src/lib/quotes/quotes.ts` / `quotes/daily.ts` — quote CRUD over the `kind:"quote"` system page (content `{ text, author, link, favorite }`; `updateQuote` takes a partial patch), and the favorites-weighted `pickDailyQuote`
 - `src/lib/bookmarks/bookmarks.ts` / `bookmarks/daily.ts` / `bookmarks/metadata.ts` / `bookmarks/fetch-metadata.ts` / `bookmarks/ssrf.ts` — bookmark CRUD over the `kind:"bookmark"` system page, the unread-weighted `pickDailyBookmark`, the pure `parseMetadataHtml`, the SSRF host guard shared by both proxy routes, and `refreshBookmarkMetadata` (fills the title and stores the og:image as the bookmark's preview attachment, fetched through the image proxy to dodge CORS; `refreshBookmarkTitle` is the title+image wrapper). Two server routes back it: `src/app/api/bookmark-metadata/route.ts` (returns `{title,description,image,host}`) and `src/app/api/bookmark-image/route.ts` (streams the image bytes)
 - `src/lib/events/events.ts` / `events/schedule.ts` / `events/actions.ts` / `events/materialize.ts` — event + occurrence CRUD over the `kind:"event"` system page, the pure recurrence engine, the pure action-vocabulary helpers, and the on-mount reconciler that materializes due scheduled events into Tasks (see [Events App Structure](#events-app-structure))
 - `src/lib/tracker/activities.ts` — tracker activity palette and class maps
@@ -552,7 +552,7 @@ Full-text search over every app is backed by **SQLite FTS5**, run in the same br
 
 ## Quotes App Structure
 
-Route: `src/app/quotes/page.tsx`. Quotes are `type:"quote"` blocks on one hidden system page (`kind:"quote"`, key `"library"`) — no schema change. `src/lib/quotes/quotes.ts` is the CRUD layer, `src/hooks/use-quotes.ts` the live query, `QuoteCard` the editable card (masonry list), and `DashboardQuote` the favorites-weighted daily "quote of the day" (dashboard tile + `variant="hero"` atop `/quotes`).
+Route: `src/app/quotes/page.tsx`. Quotes are `type:"quote"` blocks on one hidden system page (`kind:"quote"`, key `"library"`) — no schema change; `content` is `{ text, author, link, favorite }`. `src/lib/quotes/quotes.ts` is the CRUD layer (`updateQuote` takes a partial patch), `src/hooks/use-quotes.ts` the live query, `QuoteCard` the editable card (masonry list), and `DashboardQuote` the favorites-weighted daily "quote of the day" (dashboard tile + `variant="hero"` atop `/quotes`). The optional source `link` renders as a `TaskLink` chip at the end of the attribution line (reused from Tasks), links out from the daily quote's `Attribution`, is searchable via the quote's aux (url + host), and is prefilled from a captured URL.
 
 ## Bookmarks App Structure
 

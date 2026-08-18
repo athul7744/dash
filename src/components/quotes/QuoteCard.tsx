@@ -7,6 +7,7 @@ import { EventLogNow } from "@/components/events/EventLogNow";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LinkedFrom } from "@/components/links/LinkedFrom";
 import { RefField } from "@/components/links/RefField";
+import { TaskLink } from "@/components/tasks/TaskLink";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { reconcileEntityRefs } from "@/lib/links/links";
 import { toggleFavorite, updateQuote, type Quote } from "@/lib/quotes/quotes";
@@ -22,6 +23,7 @@ import { cn } from "@/lib/shared/utils";
 export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocus?: boolean }) {
   const [text, setText] = useState(quote.text);
   const [author, setAuthor] = useState(quote.author);
+  const [link, setLink] = useState(quote.link);
   const { focusedRef, schedule, flush } = useDebouncedSave();
   const trash = useTrashAction();
 
@@ -30,15 +32,17 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
     if (focusedRef.current) return;
     setText(quote.text);
     setAuthor(quote.author);
-  }, [quote.text, quote.author, focusedRef]);
+    setLink(quote.link);
+  }, [quote.text, quote.author, quote.link, focusedRef]);
 
-  const persist = (nextText: string, nextAuthor: string) => {
-    void updateQuote(quote.id, { text: nextText, author: nextAuthor });
+  const persist = (nextText: string, nextAuthor: string, nextLink: string) => {
+    void updateQuote(quote.id, { text: nextText, author: nextAuthor, link: nextLink });
     void reconcileEntityRefs(quote.id, [nextText]);
   };
 
-  const scheduleSave = (nextText: string, nextAuthor: string) => schedule(() => persist(nextText, nextAuthor));
-  const flushSave = () => flush(() => persist(text, author));
+  const scheduleSave = (nextText: string, nextAuthor: string, nextLink = link) =>
+    schedule(() => persist(nextText, nextAuthor, nextLink));
+  const flushSave = () => flush(() => persist(text, author, link));
 
   return (
     <div className="group relative rounded-2xl border border-border/65 bg-card/60 p-5 transition-colors focus-within:border-border sm:p-6">
@@ -109,6 +113,16 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
           onBlur={flushSave}
           placeholder="Author or source"
           className="min-w-0 flex-1 bg-transparent text-sm italic text-muted-foreground outline-none placeholder:text-muted-foreground/40"
+        />
+        {/* Source link — a quiet favicon/domain chip at the end of the attribution
+            line (hidden until card hover while unset), so it reads as part of the
+            citation rather than a card action. */}
+        <TaskLink
+          link={link}
+          onLinkChange={(value) => {
+            setLink(value);
+            scheduleSave(text, author, value);
+          }}
         />
       </div>
 

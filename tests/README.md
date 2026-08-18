@@ -116,6 +116,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/quotes/daily.test.ts`
   Covers `pickDailyQuote` (`src/lib/quotes/daily.ts`): empty → null, single-quote stability, determinism within a local day, advancing across days, favorites-weighted bias, and the no-favorites fallback.
 
+- `tests/quotes/quotes.test.ts`
+  Covers `parseQuoteContent` (`src/lib/quotes/quotes.ts`): full round-trip, per-field defaults, quotes stored before the `link` field existed, non-string link rejection, and malformed JSON.
+
 ## Current Bookmarks Suites
 
 - `tests/bookmarks/daily.test.ts`

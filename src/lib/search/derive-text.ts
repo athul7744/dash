@@ -64,7 +64,7 @@ export function deriveBlockEntity(kind: BlockEntityKind, row: { id: string; cont
         id: row.id,
         title: stripRefs(q.text ?? "") || "Untitled quote",
         body: q.text,
-        aux: q.author,
+        aux: join([q.author, q.link, getLinkHost(q.link) ?? ""]),
       };
     }
     case "event": {

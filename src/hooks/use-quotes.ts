@@ -4,8 +4,8 @@ import { useSystemPageBlocks, useSystemPageBlocksPaged, type SystemPageBlockRow 
 import { parseQuoteContent, QUOTE_BLOCK_TYPE, QUOTES_KEY, type Quote } from "@/lib/quotes/quotes";
 
 function toQuote(row: SystemPageBlockRow): Quote {
-  const { text, author, favorite } = parseQuoteContent(row.content);
-  return { id: row.id, text, author, favorite, sortRank: row.sort_rank ?? "" };
+  const { text, author, link, favorite } = parseQuoteContent(row.content);
+  return { id: row.id, text, author, link, favorite, sortRank: row.sort_rank ?? "" };
 }
 
 /** Live list of quotes, ordered by sort_rank. */

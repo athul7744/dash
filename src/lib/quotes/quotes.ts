@@ -11,7 +11,7 @@ import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 /**
  * Quotes are stored in the notes backend as one feature-owned "system page"
  * (kind "quote") whose blocks are the quotes — each a `type="quote"` block
- * whose `content` is JSON `{ text, author, favorite }`. System pages are hidden
+ * whose `content` is JSON `{ text, author, link, favorite }`. System pages are hidden
  * from every /notes listing, so quotes never leak into the notes app.
  *
  * The page holds a single collection ("library"). `ensureSystemPage` seeds an
@@ -26,6 +26,8 @@ export interface Quote {
   id: string;
   text: string;
   author: string;
+  /** Optional source URL the quote came from. */
+  link: string;
   favorite: boolean;
   sortRank: string;
 }
@@ -34,6 +36,7 @@ export interface Quote {
 interface QuoteContent {
   text: string;
   author: string;
+  link: string;
   favorite: boolean;
 }
 
@@ -49,15 +52,16 @@ export function parseQuoteContent(raw: string | null | undefined): QuoteContent 
     return {
       text: typeof parsed.text === "string" ? parsed.text : "",
       author: typeof parsed.author === "string" ? parsed.author : "",
+      link: typeof parsed.link === "string" ? parsed.link : "",
       favorite: parsed.favorite === true,
     };
   } catch {
-    return { text: "", author: "", favorite: false };
+    return { text: "", author: "", link: "", favorite: false };
   }
 }
 
 /** Append a new quote to the collection. Returns the new block id. */
-export async function createQuote(input: { text?: string; author?: string } = {}): Promise<string> {
+export async function createQuote(input: { text?: string; author?: string; link?: string } = {}): Promise<string> {
   const pageId = await ensureQuotesPage();
   const userId = await getCurrentUserId();
   const id = uuidv4();
@@ -66,6 +70,7 @@ export async function createQuote(input: { text?: string; author?: string } = {}
   const content: QuoteContent = {
     text: input.text ?? "",
     author: input.author ?? "",
+    link: input.link?.trim() ?? "",
     favorite: false,
   };
   await db.execute(
@@ -76,11 +81,15 @@ export async function createQuote(input: { text?: string; author?: string } = {}
   return id;
 }
 
-/** Overwrite a quote's text/author (favorite unchanged). */
-export async function updateQuote(id: string, patch: { text: string; author: string }): Promise<void> {
+/** Overwrite a quote's editable fields (favorite unchanged). */
+export async function updateQuote(
+  id: string,
+  patch: Partial<Pick<QuoteContent, "text" | "author" | "link">>,
+): Promise<void> {
+  if (Object.keys(patch).length === 0) return;
   const current = await readQuoteContent(id);
   if (!current) return;
-  await writeQuoteContent(id, { ...current, text: patch.text, author: patch.author });
+  await writeQuoteContent(id, { ...current, ...patch });
 }
 
 /** Flip a quote's favorite flag. */

@@ -40,7 +40,8 @@ export async function saveCapture(input: CaptureInput): Promise<CaptureResult> {
       return { appId: "bookmarks", itemId };
     }
     case "quote": {
-      const itemId = await createQuote({ text: input.text, author: input.author });
+      // A shared/pasted URL becomes the quote's source link.
+      const itemId = await createQuote({ text: input.text, author: input.author, link: input.link ?? input.url });
       return { appId: "quotes", itemId };
     }
     case "task": {

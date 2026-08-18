@@ -10,9 +10,35 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { pickDailyQuote } from "@/lib/quotes/daily";
 import { stripRefs } from "@/lib/links/tokens";
 import { getApp } from "@/lib/shared/apps";
+import { getLinkHost, normalizeUrl } from "@/lib/tasks/tasks";
 import { cn } from "@/lib/shared/utils";
 
 const QUOTES_APP = getApp("quotes");
+
+/** The attribution line: "— Author · source.com", each part optional. The source
+ * host links out to where the quote came from. */
+function Attribution({ author, link, className }: { author: string; link: string; className: string }) {
+  const host = getLinkHost(link)?.replace(/^www\./, "");
+  if (!author && !host) return null;
+  return (
+    <figcaption className={className}>
+      {author ? <>&mdash; {author}</> : null}
+      {host ? (
+        <>
+          {author ? <span className="text-muted-foreground/50"> · </span> : null}
+          <a
+            href={normalizeUrl(link)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="not-italic underline-offset-2 transition-colors hover:text-foreground hover:underline"
+          >
+            {host}
+          </a>
+        </>
+      ) : null}
+    </figcaption>
+  );
+}
 
 /**
  * "Quote of the day" — a deterministic, favorites-weighted daily pick from the
@@ -71,9 +97,7 @@ export function DashboardQuote({
             <blockquote className="whitespace-pre-line text-balance font-serif text-xl leading-relaxed text-foreground sm:text-2xl sm:leading-[1.5]">
               {stripRefs(current.text)}
             </blockquote>
-            {current.author ? (
-              <figcaption className="mt-6 text-sm italic text-muted-foreground">&mdash; {current.author}</figcaption>
-            ) : null}
+            <Attribution author={current.author} link={current.link} className="mt-6 text-sm italic text-muted-foreground" />
           </figure>
           {quotes.length > 1 ? (
             <button
@@ -101,9 +125,7 @@ export function DashboardQuote({
           <blockquote className="whitespace-pre-line font-serif text-lg leading-relaxed text-foreground sm:text-xl">
             {stripRefs(current.text)}
           </blockquote>
-          {current.author ? (
-            <figcaption className="mt-3 text-sm italic text-muted-foreground">&mdash; {current.author}</figcaption>
-          ) : null}
+          <Attribution author={current.author} link={current.link} className="mt-3 text-sm italic text-muted-foreground" />
         </figure>
 
         <div className="mt-4 flex items-center gap-4">

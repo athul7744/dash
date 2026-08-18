@@ -4,7 +4,7 @@ import { dayNumber, pickDailyQuote } from "@/lib/quotes/daily";
 import type { Quote } from "@/lib/quotes/quotes";
 
 function quote(id: string, favorite = false): Quote {
-  return { id, text: `q-${id}`, author: "", favorite, sortRank: id };
+  return { id, text: `q-${id}`, author: "", link: "", favorite, sortRank: id };
 }
 
 describe("pickDailyQuote", () => {

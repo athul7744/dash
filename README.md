@@ -24,7 +24,7 @@ Linking isn't limited to notes. Type `[[` in any item — a task (or subtask), b
 
 ### Quotes
 
-Collect lines worth remembering — each with an optional author. Star your favorites. One resurfaces on the dashboard each day (favorites show up more often), and "Show another" cycles through the rest.
+Collect lines worth remembering — each with an optional author and a link back to where you found it. Star your favorites. One resurfaces on the dashboard each day (favorites show up more often), and "Show another" cycles through the rest.
 
 ### Bookmarks
 

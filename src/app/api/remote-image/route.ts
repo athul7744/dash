@@ -4,16 +4,17 @@ import { isBlockedHost } from "@/lib/bookmarks/ssrf";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Best-effort image proxy: given `?url=` (an og:image), fetch the image
- * server-side and stream the raw bytes back so the client can store it (browser
- * CORS blocks fetching most remote images directly). Same lockdown as the
- * metadata proxy: auth-gated, http(s)-only, SSRF-guarded, timed out, size-capped,
- * and it only returns responses that are actually images.
+ * Best-effort image proxy: given `?url=`, fetch the image server-side and stream
+ * the raw bytes back so the client can store it (browser CORS blocks fetching
+ * most remote images directly). Serves bookmark previews and images pasted into
+ * notes as a URL. Same lockdown as the metadata proxy: auth-gated, http(s)-only,
+ * SSRF-guarded, timed out, size-capped, and it only returns responses that are
+ * actually images.
  */
 
 const FETCH_TIMEOUT_MS = 5000;
-const MAX_BYTES = 5 * 1024 * 1024; // 5 MB — preview images, not large media.
-const USER_AGENT = "Mozilla/5.0 (compatible; DashBookmarks/1.0; +https://dash.local)";
+const MAX_BYTES = 5 * 1024 * 1024; // 5 MB — previews and inline images, not large media.
+const USER_AGENT = "Mozilla/5.0 (compatible; Dash/1.0; +https://dash.local)";
 
 export async function GET(request: Request) {
   const supabase = await createClient();

@@ -1,6 +1,7 @@
 import { updateBookmark } from "@/lib/bookmarks/bookmarks";
 import type { PageMetadata } from "@/lib/bookmarks/metadata";
 import { attachFile, deleteEntityAttachments } from "@/lib/storage/attachments";
+import { fetchRemoteImage, imageFileNameFromUrl } from "@/lib/storage/remote-image";
 
 /**
  * Client-side wrapper over the server metadata proxy (`/api/bookmark-metadata`).
@@ -20,24 +21,15 @@ export async function fetchBookmarkMetadata(url: string): Promise<Partial<PageMe
  * prior one. Fetched through the server image proxy to dodge CORS. Best-effort. */
 async function persistBookmarkImage(id: string, imageUrl: string): Promise<void> {
   try {
-    const res = await fetch(`/api/bookmark-image?url=${encodeURIComponent(imageUrl)}`);
-    if (!res.ok) return;
-    const blob = await res.blob();
-    if (!blob.size) return;
+    const blob = await fetchRemoteImage(imageUrl);
+    if (!blob) return;
     await deleteEntityAttachments(id); // one preview per bookmark
-    await attachFile(blob, { blockId: id }, { fileName: fileNameFromUrl(imageUrl), mimeType: blob.type });
+    await attachFile(blob, { blockId: id }, {
+      fileName: imageFileNameFromUrl(imageUrl, "preview"),
+      mimeType: blob.type,
+    });
   } catch {
     /* best-effort — no preview is fine */
-  }
-}
-
-function fileNameFromUrl(url: string): string {
-  try {
-    const path = new URL(url).pathname;
-    const base = path.slice(path.lastIndexOf("/") + 1);
-    return base || "preview";
-  } catch {
-    return "preview";
   }
 }
 

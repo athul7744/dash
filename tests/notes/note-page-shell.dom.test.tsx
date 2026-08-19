@@ -37,6 +37,8 @@ vi.mock("@/lib/notes/notes", () => ({
   normalizeNotePageTitle: (t: string) => t.trim(),
 }));
 vi.mock("@/lib/powersync/db", () => ({ db: { execute: vi.fn(async () => undefined) } }));
+// Deleting a page raises an undo toast; the shell isn't rendered inside the provider here.
+vi.mock("@/components/toast/ToastProvider", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
 // Stub the editor content so we capture the props the shell forwards without
 // mounting the full editor tree.

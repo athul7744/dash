@@ -19,6 +19,7 @@ import { getCurrentUserId } from "@/lib/shared/auth";
 import { logger as log } from "@/lib/shared/logger";
 import type { AttachmentRecord } from "@/lib/powersync/AppSchema";
 import { bucket } from "./attachments";
+import { blobPreview } from "./blob-preview";
 import * as blobStore from "./local-blob-store";
 import { persistStorage } from "./local-blob-store";
 import { orphanPaths } from "./paths";
@@ -69,11 +70,16 @@ async function uploadPending(): Promise<void> {
 // --- Read path ---
 
 /**
- * Resolve a viewable blob URL for an attachment: the local cache first, else
- * download from Storage and cache it (so it works offline next time). Returns null
- * if the bytes can't be fetched. The caller owns the URL and must revoke it.
+ * Resolve a viewable blob URL for an attachment: the session preview first, then
+ * the local cache, else download from Storage and cache it (so it works offline
+ * next time). Returns null if the bytes can't be fetched. The caller owns the URL
+ * and must revoke it.
  */
 export async function resolveUrl(att: Pick<AttachmentRecord, "id" | "file_path">): Promise<string | null> {
+  // A file stored this session skips the read back out of the blob store, so it
+  // resolves in a microtask instead of after a round trip through OPFS.
+  const preview = blobPreview(att.id);
+  if (preview) return URL.createObjectURL(preview);
   const cached = await blobStore.get(att.id);
   if (cached) return URL.createObjectURL(cached);
   if (!att.file_path || !online()) return null;

@@ -21,6 +21,7 @@ import { logger as log } from "@/lib/shared/logger";
 import type { DbContext } from "@/lib/links/links";
 import type { AttachmentRecord } from "@/lib/powersync/AppSchema";
 import * as blobStore from "./local-blob-store";
+import { dropBlobPreview, primeBlobPreview } from "./blob-preview";
 import { buildAttachmentPath, isAllowed } from "./paths";
 
 export { MAX_ATTACHMENT_BYTES } from "./paths";
@@ -64,8 +65,10 @@ export async function attachFile(
   const filePath = buildAttachmentPath(userId, entityId, id, fileName, mimeType);
 
   // Cache the bytes first, so the reconciler always finds them and the file is
-  // renderable the moment the row exists.
+  // renderable the moment the row exists. The preview keeps the blob we already
+  // hold, so the first render doesn't wait on a read back out of that cache.
   await blobStore.put(id, file);
+  primeBlobPreview(id, file);
 
   const pageId = "pageId" in target ? target.pageId : null;
   const blockId = "blockId" in target ? target.blockId : null;
@@ -104,6 +107,7 @@ export async function deleteAttachment(att: Pick<AttachmentRecord, "id" | "file_
 
 /** Remove cached blobs + Storage objects for deleted rows. Best-effort. */
 async function purgeFiles(rows: Array<{ id: string; file_path: string | null }>): Promise<void> {
+  for (const r of rows) dropBlobPreview(r.id);
   await Promise.all(rows.map((r) => blobStore.remove(r.id).catch(() => {})));
   const paths = rows.map((r) => r.file_path).filter((p): p is string => !!p);
   if (paths.length === 0) return;

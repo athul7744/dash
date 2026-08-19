@@ -300,9 +300,12 @@ function serializeMarkdownInline(node: unknown): string {
 
   if (node.type === "image") {
     const attrs = getNodeAttrs(node);
-    const src = typeof attrs?.src === "string" ? attrs.src : "";
     const alt = typeof attrs?.alt === "string" ? attrs.alt : "";
     const title = typeof attrs?.title === "string" && attrs.title.length > 0 ? ` \"${attrs.title}\"` : "";
+    // An image the app stores has no public URL (the bucket is private), so it
+    // exports as an `attachment:` reference. A plain URL exports as itself.
+    const attachmentId = typeof attrs?.attachmentId === "string" ? attrs.attachmentId : "";
+    const src = typeof attrs?.src === "string" && attrs.src ? attrs.src : attachmentId ? `attachment:${attachmentId}` : "";
     return src ? `![${alt}](${src}${title})` : "";
   }
 

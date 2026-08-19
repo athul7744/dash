@@ -20,7 +20,7 @@ export type SlashCommand = {
   blockType?: string;
   /** Marks a command handled specially by the menu UI (e.g. opening a picker)
    *  instead of inserting `createContent` directly. */
-  custom?: "date-picker";
+  custom?: "date-picker" | "image-picker";
 };
 
 function createParagraphNode(text: string): JSONContent {
@@ -258,11 +258,13 @@ export const slashCommands: SlashCommand[] = [
     id: "image",
     section: "media",
     title: "Image",
-    description: "Insert a markdown image scaffold.",
+    description: "Add an image from your device.",
     shortcut: "/image",
     icon: ImageIcon,
-    keywords: ["image", "media", "photo", "picture"],
-    createContent: () => createScaffoldDocument("![alt](https://example.com/image.png)"),
+    keywords: ["image", "media", "photo", "picture", "upload", "file"],
+    custom: "image-picker",
+    // The picker replaces the slash text with the stored image; nothing to insert.
+    createContent: () => emptyDocument(),
   },
   {
     id: "math-block",

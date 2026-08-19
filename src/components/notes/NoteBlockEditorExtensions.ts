@@ -602,8 +602,28 @@ export const NotesHorizontalRule = HorizontalRule.extend({
   },
 });
 
-/** Image: `![alt](url)` on its own line → an image block. */
+/**
+ * Image: `![alt](url)` on its own line → an image block.
+ *
+ * `attachmentId` points at the stored file for images held in the app's own
+ * storage (pasted, dropped, picked, or a URL the adopt pass pulled in); `src`
+ * carries the plain URL for images not yet adopted. `NoteImageView` (attached in
+ * the editor's extension list) resolves whichever is set — a blob URL must never
+ * reach the persisted attrs.
+ */
 export const NotesImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      attachmentId: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-attachment-id"),
+        renderHTML: (attributes) =>
+          attributes.attachmentId ? { "data-attachment-id": attributes.attachmentId } : {},
+      },
+    };
+  },
+
   addInputRules() {
     return [
       new InputRule({

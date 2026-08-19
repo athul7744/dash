@@ -13,12 +13,15 @@ import type { Editor } from "@tiptap/core";
 
 import {
   createDateDocument,
+  emptyDocument,
   getFilteredSlashCommands,
   getGroupedSlashCommands,
   type SlashCommand,
   type SlashScope,
 } from "@/components/notes/NoteBlockEditorSlash";
+import { insertImageFiles, pickImageFiles } from "@/lib/notes/editor/image-insert";
 import { applySlashCommand, getSlashContext, type SlashContext } from "@/lib/notes/editor/slash-single";
+import { useToast } from "@/components/toast/ToastProvider";
 import { Calendar } from "@/components/ui/calendar";
 
 // left/top are container-relative (for absolute positioning); viewportBottom is
@@ -57,6 +60,7 @@ export function SlashMenuLayer({
   /** Restrict the offered commands; the journal uses "dates" (date actions only). */
   scope?: SlashScope;
 }) {
+  const { toast } = useToast();
   const [query, setQuery] = useState<string | null>(null);
   const [caret, setCaret] = useState<Caret | null>(null);
   const [index, setIndex] = useState(0);
@@ -146,10 +150,25 @@ export function SlashMenuLayer({
         close();
         return;
       }
+      // "Image" opens the OS file picker. The native dialog is modal, so the
+      // document can't move while it's open and `ctx` stays valid: the slash text
+      // is swapped for an empty paragraph, then the stored images land at the caret.
+      if (command.custom === "image-picker") {
+        close();
+        void pickImageFiles().then(async (files) => {
+          if (files.length === 0) {
+            editor.commands.focus();
+            return;
+          }
+          applySlashCommand(editor, { ...command, createContent: emptyDocument }, ctx);
+          await insertImageFiles(editor.view, files, { onError: (message) => toast({ message }) });
+        });
+        return;
+      }
       applySlashCommand(editor, command, ctx);
       close();
     },
-    [editor, close, caret],
+    [editor, close, caret, toast],
   );
 
   const pickDate = useCallback(

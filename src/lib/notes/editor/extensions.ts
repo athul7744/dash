@@ -16,6 +16,7 @@
  */
 
 import type { Extensions } from "@tiptap/core";
+import { ReactNodeViewRenderer } from "@tiptap/react";
 import Blockquote from "@tiptap/extension-blockquote";
 import Bold from "@tiptap/extension-bold";
 import Code from "@tiptap/extension-code";
@@ -49,6 +50,7 @@ import {
 import { MathBlock, MathInline } from "@/components/notes/NoteBlockEditorMath";
 import { DateTokenNode } from "@/components/notes/DateTokenNode";
 import { EntityRefNode } from "@/components/links/EntityRefNode";
+import { NoteImageView } from "@/components/notes/editor/NoteImageView";
 import { QueryBlock } from "@/components/notes/editor/QueryBlockNode";
 import { TaskLine } from "@/components/notes/editor/TaskLineNode";
 import { createBlockNodeView } from "@/components/notes/editor/blockNodeViewDom";
@@ -56,6 +58,7 @@ import { createBlockNodeView } from "@/components/notes/editor/blockNodeViewDom"
 import { NotesDocument, BlockNode, asBlockContent, BLOCK_CONTENT_GROUP } from "./block-schema";
 import { BlockIdPlugin } from "./block-id-plugin";
 import { BlockNormalize } from "./block-normalize";
+import { ImageAdopt } from "./image-adopt";
 
 export function buildNoteEditorExtensions(): Extensions {
   const lowlight = createLowlight(common);
@@ -83,7 +86,15 @@ export function buildNoteEditorExtensions(): Extensions {
     // they hold no valid children and structural ops (canSplit) throw.
     asBlockContent(Blockquote.extend({ content: `${BLOCK_CONTENT_GROUP}+` })),
     asBlockContent(CodeBlockWithToolbar.configure({ lowlight })),
-    asBlockContent(NotesImage),
+    // The image NodeView resolves stored files, so it's attached here rather than
+    // on the node itself — the node stays importable without pulling in the db.
+    asBlockContent(
+      NotesImage.extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(NoteImageView);
+        },
+      }),
+    ),
     asBlockContent(NotesHorizontalRule),
     asBlockContent(Table_),
     asBlockContent(MathBlock),
@@ -112,6 +123,7 @@ export function buildNoteEditorExtensions(): Extensions {
     TaskShortcut,
     BlockColorShortcut,
     ReferenceDecorations,
+    ImageAdopt,
     Dropcursor,
     Gapcursor,
     History,

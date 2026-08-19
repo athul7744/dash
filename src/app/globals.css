@@ -1182,6 +1182,113 @@ body[data-display-font="bricolage"] {
   border-radius: 0.9rem;
 }
 
+/* ── Inline images ───────────────────────────────────────── */
+
+.note-image {
+  position: relative;
+}
+
+.note-image-selected img,
+.note-image-selected .note-image-placeholder {
+  outline: 2px solid color-mix(in oklab, var(--color-ring) 70%, transparent);
+  outline-offset: 2px;
+}
+
+/* Stands in for the image while its bytes resolve, or when they're gone. */
+.note-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 8rem;
+  overflow: hidden;
+  border: 1px dashed color-mix(in oklab, var(--color-border) 80%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in oklab, var(--color-foreground) 3%, var(--color-background));
+  color: var(--color-muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.note-image-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--color-foreground) 6%, transparent),
+    transparent
+  );
+  animation: note-image-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes note-image-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-image-shimmer {
+    animation: none;
+  }
+}
+
+/* Description control — revealed by hover or by selecting the image. */
+.note-image-alt-button,
+.note-image-alt-input {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  max-width: calc(100% - 1rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
+  border-radius: 999px;
+  padding: 0.25rem 0.625rem;
+  background: color-mix(in oklab, var(--color-background) 85%, transparent);
+  backdrop-filter: blur(4px);
+  color: var(--color-muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.1;
+}
+
+.note-image-alt-button {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+/* Selecting the image reveals it too — the only route on a touch screen, and it
+   keeps the control keyboard-reachable. */
+.note-image:hover .note-image-alt-button,
+.note-image-selected .note-image-alt-button,
+.note-image-alt-button:focus-visible {
+  opacity: 1;
+}
+
+/* Where there's no hover at all, keep it quietly present rather than hidden
+   behind an interaction the pointer can't perform, and give it a real tap target. */
+@media (hover: none) {
+  .note-image-alt-button {
+    opacity: 0.55;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+.note-image-alt-input {
+  min-width: 12rem;
+  border-radius: 0.5rem;
+  color: var(--color-foreground);
+  outline: none;
+}
+
+.note-image-alt-input:focus-visible {
+  border-color: color-mix(in oklab, var(--color-ring) 70%, transparent);
+}
+
 /* ── Math (KaTeX) ────────────────────────────────────────── */
 
 .math-inline-node {

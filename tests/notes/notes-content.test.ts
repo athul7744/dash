@@ -86,6 +86,30 @@ describe("notes-content", () => {
     expect(serializeNoteDocumentToMarkdown(document)).toBe("Consider:\n\n$$\\int_0^1 x^2 dx$$");
   });
 
+  it("serializes an image url to markdown", () => {
+    const document = {
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "https://example.com/a.png", alt: "A photo" } }],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("![A photo](https://example.com/a.png)");
+  });
+
+  it("serializes a stored image as an attachment reference", () => {
+    const document = {
+      type: "doc",
+      content: [{ type: "image", attrs: { attachmentId: "att-1", alt: "Shot" } }],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("![Shot](attachment:att-1)");
+  });
+
+  it("prefers the original url over the attachment reference once adopted", () => {
+    const document = {
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "https://example.com/a.png", attachmentId: "att-1" } }],
+    };
+    expect(serializeNoteDocumentToMarkdown(document)).toBe("![](https://example.com/a.png)");
+  });
+
   it("serializes multiple mathInline nodes in one paragraph", () => {
     const document = {
       type: "doc",

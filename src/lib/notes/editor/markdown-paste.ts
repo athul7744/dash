@@ -71,13 +71,25 @@ export function insertMarkdown(view: EditorView, markdown: string): boolean {
   }
   if (blocks.length === 0) return false;
 
+  const inline = isSingleParagraph(blocks);
+  const json = inline ? (blocks[0].content?.[0]?.content ?? []) : blocks;
+  return insertBlockNodes(view, json);
+}
+
+/**
+ * Insert node JSON at the selection as a closed slice, which splits the current
+ * block when the nodes are block-level. Returns false when a node fails schema
+ * validation, so a caller handling a paste can fall back to native behavior.
+ */
+export function insertBlockNodes(view: EditorView, json: JSONContent[], at?: number): boolean {
+  if (json.length === 0) return false;
   const { schema } = view.state;
   try {
-    const inline = isSingleParagraph(blocks);
-    const json = inline ? (blocks[0].content?.[0]?.content ?? []) : blocks;
     const nodes = json.map((node) => schema.nodeFromJSON(node));
     const slice = new Slice(Fragment.fromArray(nodes), 0, 0);
-    view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView());
+    let tr = view.state.tr;
+    tr = at === undefined ? tr.replaceSelection(slice) : tr.replaceRange(at, at, slice);
+    view.dispatch(tr.scrollIntoView());
     return true;
   } catch {
     return false;

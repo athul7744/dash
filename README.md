@@ -18,7 +18,7 @@ Paint your week on a 7-day × 24-hour grid to log how you spend your time. Rate 
 
 ### Notes
 
-A structured editor for thinking and writing. Create pages, nest blocks into outlines, and write with markdown shortcuts, slash commands, tables, code blocks with syntax highlighting, and LaTeX math. Attach custom properties to pages (dates, tags, checkboxes, URLs), and build filtered, sorted query-block views over them — a lightweight database. Attach files too — add images or documents to a page and they're stored with it, available offline and across your devices. Hover a page link for a peek preview, and a breadcrumb trail tracks your path through linked pages.
+A structured editor for thinking and writing. Create pages, nest blocks into outlines, and write with markdown shortcuts, slash commands, tables, code blocks with syntax highlighting, and LaTeX math. Attach custom properties to pages (dates, tags, checkboxes, URLs), and build filtered, sorted query-block views over them — a lightweight database. Put images in a page by pasting a screenshot, dragging a file in, or typing `/image` — and paste an image's web address and Dash keeps its own copy. Attach documents to a page too. Everything you add is stored with the note, available offline and across your devices. Hover a page link for a peek preview, and a breadcrumb trail tracks your path through linked pages.
 
 Linking isn't limited to notes. Type `[[` in any item — a task (or subtask), bookmark, quote, or event — to link it to any other. Each link shows up as a backlink on the other side, and every linked item becomes a node in the graph, so the graph maps your whole workspace, not just your notes.
 

@@ -137,11 +137,21 @@ export function useAllNotePages() {
   };
 }
 
+/**
+ * Every file on a page: those added through the details rail (`page_id`) plus
+ * those owned by a block in the page body, which is how inline images are stored.
+ */
 export function usePageAttachments(pageId?: string | null) {
   const query = pageId
-    ? "SELECT id, user_id, page_id, block_id, file_path, sync_state, mime_type, file_name FROM attachments WHERE page_id = ? ORDER BY id ASC"
+    ? [
+        "SELECT a.id, a.user_id, a.page_id, a.block_id, a.file_path, a.sync_state, a.mime_type, a.file_name",
+        "FROM attachments a",
+        "LEFT JOIN blocks b ON b.id = a.block_id",
+        "WHERE a.page_id = ? OR (b.page_id = ? AND b.deleted_at IS NULL)",
+        "ORDER BY a.id ASC",
+      ].join(" ")
     : EMPTY_ATTACHMENTS_QUERY;
-  const args = pageId ? [pageId] : [];
+  const args = pageId ? [pageId, pageId] : [];
   const { data = [], isLoading } = useQuery<NoteAttachmentRow>(query, args);
 
   return {

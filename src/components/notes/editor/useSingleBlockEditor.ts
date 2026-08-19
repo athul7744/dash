@@ -22,6 +22,7 @@ import type { EditorView } from "@tiptap/pm/view";
 import { useEditor } from "@tiptap/react";
 
 import type { NoteBlockRow } from "@/hooks/use-notes";
+import { useToast } from "@/components/toast/ToastProvider";
 import { db } from "@/lib/powersync/db";
 import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 
@@ -31,6 +32,7 @@ import { buildNoteEditorExtensions } from "@/lib/notes/editor/extensions";
 import { STAMP_META } from "@/lib/notes/editor/block-id-plugin";
 import { splitBlock, indentBlock, outdentBlock, mergeBlockBackward } from "@/lib/notes/editor/block-commands";
 import { insertMarkdown, clipboardMarkdown, pasteUrlAsLink } from "@/lib/notes/editor/markdown-paste";
+import { clipboardImageFiles, imageFilesFrom, insertImageFiles } from "@/lib/notes/editor/image-insert";
 import { getResolvedPageReferenceAtPosition } from "@/lib/notes/editor-document-helpers";
 
 export type SingleBlockEditorHandlers = {
@@ -67,6 +69,7 @@ export function useSingleBlockEditor({
   ensurePage?: () => Promise<void>;
   deleteWhenEmpty?: boolean;
 }): Editor | null {
+  const { toast } = useToast();
   const rows = useMemo(() => blocks.map(toBlockDocumentRow), [blocks]);
 
   const liveRowsRef = useRef(rows);
@@ -145,6 +148,14 @@ export function useSingleBlockEditor({
       // Parse pasted raw markdown text into blocks. Rich HTML and non-markdown
       // text fall through to native paste (return false).
       handlePaste(view, event) {
+        // A clipboard holding only image files (a screenshot, a copied file)
+        // becomes image blocks. Anything with text alongside keeps text handling.
+        const images = clipboardImageFiles(event.clipboardData);
+        if (images.length > 0) {
+          event.preventDefault();
+          void insertImageFiles(view, images, { onError: (message) => toast({ message }) });
+          return true;
+        }
         const markdown = clipboardMarkdown(event.clipboardData);
         if (markdown) {
           const inserted = insertMarkdown(view, markdown);
@@ -158,6 +169,17 @@ export function useSingleBlockEditor({
           return true;
         }
         return false;
+      },
+      // Dropped image files land where they were dropped. An internal node drag
+      // (`moved`) and anything that isn't an image file are ProseMirror's job.
+      handleDrop(view, event, _slice, moved) {
+        if (moved) return false;
+        const images = imageFilesFrom(event.dataTransfer);
+        if (images.length === 0) return false;
+        event.preventDefault();
+        const at = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
+        void insertImageFiles(view, images, { at, onError: (message) => toast({ message }) });
+        return true;
       },
       handleDOMEvents: {
         mousedown(view, event) {

@@ -12,7 +12,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/events/` — events recurrence-engine, action-vocabulary, and event/occurrence parse tests.
 - `tests/links/` — cross-app reference tests (the `[[label|kind:id]]` token grammar).
 - `tests/search/` — search text derivation and the pure query grammar / fuzzy / highlight helpers.
-- `tests/storage/` — the file-attachment layer's pure helpers (path layout, type/size validation, orphan diffing).
+- `tests/storage/` — the file-attachment layer's pure helpers (path layout, type/size validation, orphan diffing), the remote-image proxy client (`remote-image.test.ts`: request shape, and every failure reading as "no image"), and the session preview cache (`blob-preview.test.ts`: one *stable* url per id — a changed src re-decodes on every editor document rebuild — reference counting so a dropped url outlives its last holder, a release-then-re-acquire remount surviving, eviction on the entry and byte budgets, and bytes reclaimed on drop).
 - `tests/shared/` — reusable fixtures, builders, and assertions shared across app groups (incl. the universal-capture classifier).
 
 ## Current Notes Suites
@@ -82,6 +82,8 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `paste.dom.test.ts` — external multi-paragraph paste becomes well-formed blocks; copied blocks get fresh ids.
 - `markdown-paste.test.ts` — `markdownToBlockNodes` maps every markdown construct (headings, paragraphs, bullet/ordered/task lists incl. nesting, blockquotes, fenced code, thematic breaks, GFM tables, inline marks, hard breaks) to the right block/`taskLine` shape; `looksLikeMarkdown` + `clipboardMarkdown` detection/routing (prose left alone, structured HTML deferred to native paste); `isBareUrl` single-URL detection.
 - `markdown-paste.dom.test.ts` — parsed markdown inserts into a live editor as schema-valid nodes with zero frankenblocks, one content node per block, and freshly-stamped ids; the single inline-formatted paragraph merges into the current line; `pasteUrlAsLink` links a pasted bare URL (inserts linked text, normalizes bare domains, wraps a selection, and leaves no stored mark).
+- `image-insert.dom.test.ts` — inserting image files: the block id is minted before the file is stored and the inserted block carries both ids, the blocks rows are flushed straight away so deletes can cascade, one block lands per file in order, and a rejected or failed file leaves no node behind (reported through `onError` instead). A failed insert discards the files it had already stored — nothing else reclaims a file with no block. Also which clipboard/drag payloads count as images: a text-bearing paste keeps text handling.
+- `image-adopt.test.ts` — which images the adopt pass picks up (remote `http(s)` srcs only, never one already backed by a file, `data:`/`blob:`/unstamped blocks skipped, a nested image attributed to its own block rather than its parent) and `adoptImage`'s rollback when the node can't be pointed at the stored file, which otherwise stores another copy on every pass.
 - `reference-resolver.dom.test.ts` — `getResolvedPageReferenceAtPosition` resolves the `[[title]]` under the cursor.
 - `read-only-block-renderer.dom.test.tsx` — `ReadOnlyBlockRenderer` renders heading/paragraph/task blocks non-editably through the single-doc schema.
 

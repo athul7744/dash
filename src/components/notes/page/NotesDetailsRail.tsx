@@ -95,6 +95,9 @@ function AttachmentRow({ attachment }: { attachment: NoteAttachmentRow }) {
   const isImage = (attachment.mime_type ?? "").startsWith("image/");
   const label = attachment.file_name || attachmentLabel(attachment.file_path);
   const pending = attachment.sync_state !== "synced";
+  // A block owns its file — an inline image. Deleting the row here would leave a
+  // broken image in the page, so it's removed by deleting the image itself.
+  const inline = !!attachment.block_id;
 
   return (
     <div className="group flex items-center gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-muted/50">
@@ -108,7 +111,9 @@ function AttachmentRow({ attachment }: { attachment: NoteAttachmentRow }) {
       )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-[12px] font-medium text-foreground">{label}</p>
-        <p className="truncate text-[11px] leading-5 text-muted-foreground">{pending ? "Uploading…" : "Synced"}</p>
+        <p className="truncate text-[11px] leading-5 text-muted-foreground">
+          {pending ? "Uploading…" : inline ? "In the page" : "Synced"}
+        </p>
       </div>
       {url && (
         <a
@@ -123,15 +128,17 @@ function AttachmentRow({ attachment }: { attachment: NoteAttachmentRow }) {
           <Download className="h-3.5 w-3.5" />
         </a>
       )}
-      <button
-        type="button"
-        onClick={() => void deleteAttachment(attachment)}
-        className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
-        title="Delete"
-        aria-label="Delete attachment"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
+      {!inline && (
+        <button
+          type="button"
+          onClick={() => void deleteAttachment(attachment)}
+          className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
+          title="Delete"
+          aria-label="Delete attachment"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }

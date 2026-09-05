@@ -182,7 +182,7 @@ Important convention:
 - `src/lib/shared/auth.ts` — current-user lookup with session caching
 - `src/lib/shared/share.ts` — parsing incoming share payloads and title generation
 - `src/lib/shared/capture.ts` — pure capture classifier (`classifyShare`, `detectPlatform`, `looksLikeQuote`); no DB imports so it stays testable
-- `src/lib/shared/capture-actions.ts` — `saveCapture` dispatcher that writes a capture into the chosen app (bookmark/quote/task/note) + `captureResultHref`
+- `src/lib/shared/capture-actions.ts` — `buildCaptureInput` (the triage's shared fields → the fields the chosen target stores) + the `saveCapture` dispatcher that writes a capture into the chosen app (bookmark/quote/task/note) + `captureResultHref`
 - `src/lib/shared/daily-pick.ts` — shared deterministic "of the day" primitives (`dayNumber`, `hashInt`, pool/index salts) reused by the quotes + bookmarks daily picks
 - `src/lib/shared/debounced-update.ts` — debounced local writes and execute batching
 - `src/lib/shared/logger.ts` — runtime logging abstraction
@@ -521,8 +521,9 @@ Two entry points, one triage component:
 Both render `src/components/capture/CaptureTriage.tsx`, which:
 
 - classifies the payload with `classifyShare` (`src/lib/shared/capture.ts`) → a smart default target (URL → Bookmark with platform detected, short text → Quote, prose → Note)
-- holds one shared field model (title / text / url), so fetched metadata and edits persist when the user switches the target chip; a URL auto-fetches its title/description via `/api/bookmark-metadata` into the active fields
-- saves through `saveCapture` (`src/lib/shared/capture-actions.ts`) → `createBookmark` / `createQuote` / `createTask` / `createNoteFromText`, then shows an inline "Saved to X" state (no toast system)
+- holds one shared field model (title / text / url / author / due date / tags), so fetched metadata and edits persist when the user switches the target chip; a URL auto-fetches its title/description via `/api/bookmark-metadata` into the active fields
+- maps those fields to the chosen target with `buildCaptureInput` (`src/lib/shared/capture-actions.ts`) — the one url is a bookmark's address, a task's link, and a quote's source link. It's a pure function so the mapping is covered by tests: a field the user filled going missing for one target is invisible otherwise
+- saves through `saveCapture` (same module) → `createBookmark` / `createQuote` / `createTask` / `createNoteFromText`, then shows an inline "Saved to X" state (no toast system)
 
 All writes are local (offline-safe). The proxy (`src/proxy.ts`) preserves `/share?...` across a login round-trip via `sanitizeNextPath`.
 

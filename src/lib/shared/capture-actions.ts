@@ -19,6 +19,35 @@ export interface CaptureInput {
   priority?: "low" | "medium" | "high" | "urgent";
 }
 
+/**
+ * The triage's shared field model. One set of fields backs every target, so a
+ * value survives switching between them (a shared URL is a bookmark's address, a
+ * task's link, and a quote's source).
+ */
+export interface CaptureFields {
+  url: string;
+  title: string;
+  text: string;
+  author: string;
+  dueDate?: Date;
+  tags: string[];
+}
+
+/** Pick the fields the chosen target actually stores. */
+export function buildCaptureInput(target: CaptureTarget, fields: CaptureFields): CaptureInput {
+  const { url, title, text, author, dueDate, tags } = fields;
+  switch (target) {
+    case "bookmark":
+      return { target, url, title, note: text, tags };
+    case "quote":
+      return { target, text, author, link: url };
+    case "task":
+      return { target, title, link: url, dueDate, tags };
+    case "note":
+      return { target, title, text };
+  }
+}
+
 export interface CaptureResult {
   /** App id from the registry (bookmarks/quotes/tasks/notes). */
   appId: string;

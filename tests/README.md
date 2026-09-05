@@ -113,6 +113,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/shared/capture.test.ts`
   Covers the universal-capture classifier (`src/lib/shared/capture.ts`): `detectPlatform` host recognition (YouTube/Instagram/X/Reddit/GitHub, null otherwise), `looksLikeQuote`, and `classifyShare` picking the smart default target (URL → bookmark + platform, short text → quote, prose → note, empty → note; URL-in-text extraction).
 
+- `tests/shared/capture-input.test.ts`
+  Pins which fields each target keeps (`buildCaptureInput`). The triage backs every target with one field set, so this is where a value the user filled gets silently dropped — the one url has to reach a bookmark as its address, a task as its link, and a quote as its source.
+
 ## Current Quotes Suites
 
 - `tests/quotes/daily.test.ts`

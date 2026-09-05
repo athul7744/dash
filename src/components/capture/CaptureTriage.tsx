@@ -11,9 +11,9 @@ import { TaskMetadataEditor } from "@/components/tasks/TaskMetadataEditor";
 import { Button } from "@/components/ui/button";
 import { fetchBookmarkMetadata } from "@/lib/bookmarks/fetch-metadata";
 import {
+  buildCaptureInput,
   captureResultHref,
   saveCapture,
-  type CaptureInput,
   type CaptureResult,
 } from "@/lib/shared/capture-actions";
 import { classifyShare, PLATFORM_LABELS, type CaptureTarget } from "@/lib/shared/capture";
@@ -121,25 +121,12 @@ export function CaptureTriage({
           ? text.trim().length > 0
           : text.trim().length > 0 || title.trim().length > 0;
 
-  const buildInput = (): CaptureInput => {
-    switch (target) {
-      case "bookmark":
-        return { target, url, title, note: text, tags };
-      case "quote":
-        return { target, text, author };
-      case "task":
-        return { target, title, link: url, dueDate, tags };
-      case "note":
-        return { target, title, text };
-    }
-  };
-
   const handleSave = async () => {
     if (!canSave || saving) return;
     setSaving(true);
     try {
       if (!(await getCurrentUserId())) return; // not signed in — bail (proxy normally prevents this)
-      setSaved(await saveCapture(buildInput()));
+      setSaved(await saveCapture(buildCaptureInput(target, { url, title, text, author, dueDate, tags })));
     } finally {
       setSaving(false);
     }
@@ -272,7 +259,8 @@ export function CaptureTriage({
             placeholder="Quote"
             className={cn(FIELD, "resize-none font-serif text-base")}
           />
-          <input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Author or source" className={FIELD} />
+          <input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Author" className={FIELD} />
+          {urlField("Source link (optional)")}
         </div>
       ) : target === "task" ? (
         <div className="flex flex-col gap-3">

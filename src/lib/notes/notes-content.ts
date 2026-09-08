@@ -432,3 +432,12 @@ export function serializeNoteDocumentToMarkdown(raw: unknown) {
 
   return markdown;
 }
+/**
+ * The canonical form of a page title: trimmed, inner whitespace collapsed.
+ *
+ * Lives here rather than in `notes.ts` so pure code — the import's title
+ * allocator — can share the exact uniqueness key without pulling in the database.
+ */
+export function normalizeNotePageTitle(value: string | null | undefined) {
+  return (value ?? "").trim().replace(/\s+/g, " ");
+}

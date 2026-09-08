@@ -80,3 +80,38 @@ export function parseCustomPropertyValues(
 
   return {};
 }
+
+/**
+ * Resolve property-definition names to ids, creating the missing ones.
+ *
+ * The markdown importer decides its whole set of definitions up front (from the
+ * mapping screen) and needs their ids before it starts writing pages, so it can
+ * store values keyed by definition id. Matching is case-insensitive on name, so a
+ * second import reuses what the first one created instead of adding a twin.
+ */
+export async function ensurePropertyDefinitions(
+  wanted: ReadonlyArray<{ name: string; type: PropertyType; config?: PropertyDefinitionConfig }>,
+): Promise<Map<string, string>> {
+  const byKey = new Map<string, { name: string; type: PropertyType; config?: PropertyDefinitionConfig }>();
+  for (const definition of wanted) {
+    const key = definition.name.trim().toLowerCase();
+    if (key && !byKey.has(key)) byKey.set(key, definition);
+  }
+  if (byKey.size === 0) return new Map();
+
+  const existing = await db.getAll<{ id: string; name: string | null }>(
+    "SELECT id, name FROM property_definitions",
+  );
+  const idByKey = new Map<string, string>();
+  for (const row of existing) {
+    const key = (row.name ?? "").trim().toLowerCase();
+    if (key && !idByKey.has(key)) idByKey.set(key, row.id);
+  }
+
+  for (const [key, definition] of byKey) {
+    if (idByKey.has(key)) continue;
+    idByKey.set(key, await createPropertyDefinition(definition.name, definition.type, definition.config ?? {}));
+  }
+
+  return new Map([...byKey.keys()].map((key) => [key, idByKey.get(key) as string]));
+}

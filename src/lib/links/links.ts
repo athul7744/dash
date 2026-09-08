@@ -107,9 +107,10 @@ export async function reconcileEntityRefs(
   sourceId: string,
   texts: Array<string | null | undefined>,
   ctx: DbContext = db,
+  titleIndex?: TitleIndex,
 ) {
   const prior = reconcileQueue.get(sourceId) ?? Promise.resolve();
-  const next = prior.catch(() => {}).then(() => reconcileEntityRefsInner(sourceId, texts, ctx));
+  const next = prior.catch(() => {}).then(() => reconcileEntityRefsInner(sourceId, texts, ctx, titleIndex));
   reconcileQueue.set(sourceId, next);
   try {
     await next;
@@ -122,6 +123,7 @@ async function reconcileEntityRefsInner(
   sourceId: string,
   texts: Array<string | null | undefined>,
   ctx: DbContext,
+  titleIndex?: TitleIndex,
 ) {
   const tokens = texts.flatMap((text) => (text ? parseRefTokens(text) : []));
 
@@ -133,12 +135,7 @@ async function reconcileEntityRefsInner(
 
   let titleEdges: DesiredEdge[] = [];
   if (legacyTitles.length > 0) {
-    const pageRows = await ctx.getAll<{ id: string; title: string | null }>("SELECT id, title FROM pages");
-    const idByTitle = new Map<string, string>();
-    for (const row of pageRows) {
-      const key = normalizeTitleKey(row.title ?? "");
-      if (key && !idByTitle.has(key)) idByTitle.set(key, row.id);
-    }
+    const idByTitle = titleIndex ?? (await buildTitleIndex(ctx));
     titleEdges = legacyTitles.flatMap((title) => {
       const targetId = idByTitle.get(title);
       return targetId ? [{ targetId, type: "page_ref" }] : [];
@@ -146,6 +143,27 @@ async function reconcileEntityRefsInner(
   }
 
   await replaceEdges(sourceId, [...idEdges, ...titleEdges], ctx);
+}
+
+/** Page title key → page id, for resolving legacy `[[Title]]` tokens. */
+export type TitleIndex = Map<string, string>;
+
+/**
+ * Build the title index once.
+ *
+ * Reconciling a legacy `[[Title]]` needs every page title, and doing that read
+ * per call is fine for one edit but not for a bulk pass — a vault import
+ * reconciles hundreds of blocks and would scan the table hundreds of times. Bulk
+ * callers build this once and pass it to `reconcileEntityRefs`.
+ */
+export async function buildTitleIndex(ctx: DbContext = db): Promise<TitleIndex> {
+  const rows = await ctx.getAll<{ id: string; title: string | null }>("SELECT id, title FROM pages");
+  const index: TitleIndex = new Map();
+  for (const row of rows) {
+    const key = normalizeTitleKey(row.title ?? "");
+    if (key && !index.has(key)) index.set(key, row.id);
+  }
+  return index;
 }
 
 /**

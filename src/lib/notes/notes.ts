@@ -1,9 +1,13 @@
+import type { JSONContent } from "@tiptap/core";
 import { LexoRank } from "lexorank";
 import { v4 as uuidv4 } from "uuid";
 
-import { reconcileEntityRefs, REF_TYPE_SQL } from "@/lib/links/links";
-import { createNoteDocumentFromText, extractNoteText, serializeNoteDocument } from "@/lib/notes/notes-content";
+import { reconcileEntityRefs, REF_TYPE_SQL, type TitleIndex } from "@/lib/links/links";
+import { createNoteDocumentFromText, extractNoteText, normalizeNotePageTitle, serializeNoteDocument } from "@/lib/notes/notes-content";
+import { decomposeDoc, stampBlockIds } from "@/lib/notes/editor/block-document";
+import { diffBlocks } from "@/lib/notes/editor/block-diff";
 import { systemPageId, type SystemPageKind } from "@/lib/notes/system-pages";
+import { setEntityTags } from "@/lib/tags/entity-tags";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { debouncedExecute, debouncedUpdate, SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
@@ -19,6 +23,7 @@ const NOTES_DEBOUNCE_MS = 10_000;
 const PAGE_META_DEBOUNCE_MS = 1_000;
 
 export type { JsonValue } from "@/lib/shared/types";
+export { normalizeNotePageTitle } from "@/lib/notes/notes-content";
 
 export type NoteBlockInsert = {
   content: JsonValue;
@@ -54,9 +59,6 @@ function toNullableOwner(ownerId?: string | null) {
   return ownerId ?? null;
 }
 
-export function normalizeNotePageTitle(value: string | null | undefined) {
-  return (value ?? "").trim().replace(/\s+/g, " ");
-}
 
 function extractPlainText(value: JsonValue | undefined) {
   if (value === undefined) return "";
@@ -109,8 +111,13 @@ async function insertNoteBlocksImmediately(inputs: CreateBlockInput[]) {
 }
 
 
-export async function reconcileNoteBlockEdges(blockId: string, content: JsonValue | undefined, ctx?: DbContext) {
-  await reconcileEntityRefs(blockId, [extractPlainText(content)], ctx ?? db);
+export async function reconcileNoteBlockEdges(
+  blockId: string,
+  content: JsonValue | undefined,
+  ctx?: DbContext,
+  titleIndex?: TitleIndex,
+) {
+  await reconcileEntityRefs(blockId, [extractPlainText(content)], ctx ?? db, titleIndex);
 }
 
 async function createNotePage(input: CreatePageInput = {}) {
@@ -278,6 +285,65 @@ export async function ensureSystemPage(params: {
       content: { type: "doc", content: [] },
     });
   }
+
+  return pageId;
+}
+/**
+ * Create a page whose body is a whole block document — the write the markdown
+ * importer needs, and the one nothing outside the editor could do.
+ *
+ * The ranks come from `diffBlocks` against an empty snapshot, which is the same
+ * code the editor's persister uses, so nesting and sibling order match what the
+ * editor would have produced. Page, blocks, edges and tags all land in ONE
+ * transaction: a half-written page is worse than a skipped one.
+ *
+ * Unlike `createNotePage` this does **not** check the title for uniqueness. Bulk
+ * callers allocate titles up front against a single prefetch (see the import's
+ * `createTitleAllocator`); re-checking per page would mean a full table scan each
+ * time and a throw the caller can no longer act on.
+ */
+export async function createNotePageFromBlockNodes(input: {
+  id?: string;
+  title: string;
+  blockNodes: JSONContent[];
+  properties?: Record<string, JsonValue>;
+  tagIds?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}): Promise<string> {
+  const pageId = input.id ?? uuidv4();
+  const userId = await getCurrentUserId();
+  const now = new Date().toISOString();
+  const createdAt = input.createdAt ?? now;
+  const updatedAt = input.updatedAt ?? now;
+
+  const { writes } = diffBlocks(
+    decomposeDoc({ type: "doc", content: stampBlockIds(input.blockNodes) }),
+    new Map(),
+  );
+
+  await db.writeTransaction(async (tx) => {
+    await tx.execute(
+      `INSERT INTO pages (id, user_id, title, properties, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [pageId, userId, normalizeNotePageTitle(input.title) || "Untitled", toJson(input.properties), createdAt, updatedAt],
+    );
+
+    for (const write of writes) {
+      if (write.op !== "insert") continue;
+      const { blockId, parentId, type, content, sortRank } = write.row;
+      await tx.execute(
+        `INSERT INTO blocks (id, user_id, page_id, parent_block_id, type, content, sort_rank, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [blockId, userId, pageId, parentId, type, content, sortRank, updatedAt],
+      );
+      await reconcileNoteBlockEdges(blockId, JSON.parse(content) as JsonValue, tx);
+    }
+
+    if (input.tagIds && input.tagIds.length > 0) {
+      await setEntityTags(pageId, "note", input.tagIds, tx);
+    }
+  });
 
   return pageId;
 }

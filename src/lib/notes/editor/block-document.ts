@@ -19,6 +19,7 @@
  */
 
 import type { JSONContent } from "@tiptap/core";
+import { v4 as uuidv4 } from "uuid";
 
 import { normalizeNoteDocument, serializeNoteDocument } from "@/lib/notes/notes-content";
 import { parseRank } from "@/lib/shared/ranked-order";
@@ -195,4 +196,22 @@ export function decomposeDoc(doc: JSONContent): DecomposedBlock[] {
   roots.forEach((root, index) => visit(root, null, index));
 
   return out;
+}
+
+/**
+ * Give every `block` node an id, leaving any it already has.
+ *
+ * Inside the editor `BlockIdPlugin` does this on the transaction after an insert.
+ * Code that builds a document headlessly — the markdown importer — has no
+ * transaction to wait for, and `decomposeDoc` drops a block whose id is empty, so
+ * it has to stamp them itself.
+ */
+export function stampBlockIds(nodes: JSONContent[]): JSONContent[] {
+  return nodes.map((node) => {
+    if (node.type !== BLOCK_NODE_TYPE) return node;
+    const attrs = { ...(node.attrs ?? {}) };
+    if (typeof attrs.blockId !== "string" || attrs.blockId.length === 0) attrs.blockId = uuidv4();
+    const content = Array.isArray(node.content) ? stampBlockIds(node.content) : node.content;
+    return { ...node, attrs, content };
+  });
 }

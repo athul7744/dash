@@ -14,6 +14,7 @@
  */
 
 import { db } from "@/lib/powersync/db";
+import { yieldToUI } from "@/lib/shared/utils";
 import { logger as log } from "@/lib/shared/logger";
 import {
   deriveBlockEntity,
@@ -281,7 +282,6 @@ async function reconcileNow(): Promise<void> {
 
 // --- Full backfill (first build; batched, resumable, progress-reporting) ---
 
-const yieldToUI = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 async function backfill(): Promise<void> {
   if (!available) return;

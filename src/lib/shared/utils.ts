@@ -47,3 +47,11 @@ export function autoResizeTextarea(textarea: HTMLTextAreaElement | null) {
     textarea.style.height = `${textarea.scrollHeight}px`;
   }
 }
+/**
+ * Hand the main thread back for a tick.
+ *
+ * Long write loops — the search backfill, a vault import — starve rendering
+ * otherwise: the work is all local and synchronous enough to lock the tab for
+ * seconds. Awaiting this between batches keeps progress visible.
+ */
+export const yieldToUI = () => new Promise<void>((resolve) => setTimeout(resolve, 0));

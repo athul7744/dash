@@ -1,5 +1,6 @@
 "use client";
 
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { useSearchIndexProgress } from "@/hooks/use-search-index";
 
 /**
@@ -14,22 +15,12 @@ export function SearchIndexProgressBar() {
   const { status, done, total } = useSearchIndexProgress();
   if (status !== "building") return null;
 
-  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
-
   return (
-    <div
-      className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 overflow-hidden"
-      role="progressbar"
-      aria-label="Building search index"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={pct}
-      title={`Building search index… ${done}/${total}`}
-    >
-      <div
-        className="h-full bg-violet-500 transition-[width] duration-300 ease-out dark:bg-violet-400"
-        style={{ width: `${pct}%` }}
-      />
-    </div>
+    <ProgressBar
+      done={done}
+      total={total}
+      label="Building search index"
+      className="pointer-events-none absolute inset-x-0 bottom-0 rounded-none bg-transparent"
+    />
   );
 }

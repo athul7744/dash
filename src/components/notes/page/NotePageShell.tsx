@@ -408,6 +408,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   return (
     <NotesEditorContent
       editorContent={editorContent}
+      attachments={attachments}
       showSelectedPageLoading={false}
       showEditorOverlay={false}
       shouldAnimateEditorContent={false}

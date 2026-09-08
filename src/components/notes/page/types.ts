@@ -11,6 +11,10 @@ export type NormalizedNotePage = NotePageRow & {
   summary: string | null;
   tags: NoteTag[];
   emoji: string | null;
+  /** The page's banner image, for the card cover. Null when it has none. */
+  bannerAttachmentId: string | null;
+  /** Where the banner is cropped, as a vertical percent. */
+  bannerAlign: number;
 };
 
 export const PROPERTY_TYPES = ["text", "number", "date", "select", "checkbox", "url"] as const;

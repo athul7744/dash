@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, Copy, Ellipsis, Files, Keyboard, Link2, Star, Timer, Trash2 } from "lucide-react";
 
 import { TagPillStrip } from "@/components/tags/TagPillStrip";
@@ -38,6 +38,7 @@ export function NotesEditorHeader({
   allTags,
   isLoadingTags,
   pageId,
+  bannerSlot,
   onBack,
   onTitleChange,
   onCommitTitle,
@@ -60,6 +61,8 @@ export function NotesEditorHeader({
   isLoadingTags: boolean;
   /** The open note's id — subject for a logged event. */
   pageId: string;
+  /** The "Add banner" control, rendered in the metadata chip row. */
+  bannerSlot?: ReactNode;
   onBack: () => void;
   onTitleChange: (value: string) => void;
   onCommitTitle: () => void | Promise<void>;
@@ -190,6 +193,7 @@ export function NotesEditorHeader({
               />
             </PopoverContent>
           </Popover>
+          {bannerSlot}
           {visibleTags.length === 0 && !isLoadingTags ? (
             <TagSelector
               selectedTagIds={selectedTagIdsDraft}

@@ -5,6 +5,7 @@ import { useMemo } from "react";
 
 import type { NotePageRow } from "@/hooks/use-notes";
 import { useEntityTags } from "@/hooks/use-entity-tags";
+import { DEFAULT_BANNER_ALIGN, readPageBanner } from "@/lib/notes/banner";
 import { normalizeNotePageTitle } from "@/lib/notes/notes";
 import type { Tag } from "@/lib/powersync/AppSchema";
 
@@ -27,12 +28,15 @@ function normalizePages(
   return pages.map((page) => {
     const properties = parseProperties(page.properties);
     const tags = resolveNoteTags(tagsByPage.get(page.id) ?? [], availableTags);
+    const banner = readPageBanner(properties);
 
     return {
       ...page,
       summary: getPageDescription(page.properties, page.preview_content),
       tags,
       emoji: normalizePageEmoji(properties.emoji),
+      bannerAttachmentId: banner?.attachmentId ?? null,
+      bannerAlign: banner?.align ?? DEFAULT_BANNER_ALIGN,
     };
   });
 }

@@ -8,6 +8,7 @@ import type { LinkedNoteReferenceRow, NoteAttachmentRow, NotePageRow } from "@/h
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/shared/utils";
 import { useAttachmentUrl } from "@/hooks/use-attachment-url";
+import { readPageBanner, writePageBanner } from "@/lib/notes/banner";
 import { attachFile, deleteAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/storage/attachments";
 
 import { attachmentLabel, getPageDescription, parseProperties } from "./utils";
@@ -90,7 +91,16 @@ type TimestampLabel = {
 // Attachments section — upload, list (image thumbnails), download, delete
 // ---------------------------------------------------------------------------
 
-function AttachmentRow({ attachment }: { attachment: NoteAttachmentRow }) {
+function AttachmentRow({
+  attachment,
+  isBanner,
+  onDelete,
+}: {
+  attachment: NoteAttachmentRow;
+  /** This file is the page's banner — labelled, so deleting it is a known trade. */
+  isBanner: boolean;
+  onDelete: () => void;
+}) {
   const url = useAttachmentUrl(attachment);
   const isImage = (attachment.mime_type ?? "").startsWith("image/");
   const label = attachment.file_name || attachmentLabel(attachment.file_path);
@@ -110,7 +120,14 @@ function AttachmentRow({ attachment }: { attachment: NoteAttachmentRow }) {
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[12px] font-medium text-foreground">{label}</p>
+        <p className="flex items-center gap-1.5 text-[12px] font-medium text-foreground">
+          <span className="truncate">{label}</span>
+          {isBanner ? (
+            <span className="shrink-0 rounded-full bg-muted px-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Banner
+            </span>
+          ) : null}
+        </p>
         <p className="truncate text-[11px] leading-5 text-muted-foreground">
           {pending ? "Uploading…" : inline ? "In the page" : "Synced"}
         </p>
@@ -131,7 +148,7 @@ function AttachmentRow({ attachment }: { attachment: NoteAttachmentRow }) {
       {!inline && (
         <button
           type="button"
-          onClick={() => void deleteAttachment(attachment)}
+          onClick={onDelete}
           className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
           title="Delete"
           aria-label="Delete attachment"
@@ -145,17 +162,20 @@ function AttachmentRow({ attachment }: { attachment: NoteAttachmentRow }) {
 
 function AttachmentsSection({
   pageId,
+  pageProperties,
   attachments,
   isLoading,
   isOpen,
   onToggle,
 }: {
   pageId: string | null;
+  pageProperties: Record<string, unknown>;
   attachments: NoteAttachmentRow[];
   isLoading: boolean;
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const banner = readPageBanner(pageProperties);
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -208,7 +228,18 @@ function AttachmentsSection({
       ) : (
         <div className="space-y-0.5 animate-stagger">
           {attachments.map((attachment) => (
-            <AttachmentRow key={attachment.id} attachment={attachment} />
+            <AttachmentRow
+              key={attachment.id}
+              attachment={attachment}
+              isBanner={attachment.id === banner?.attachmentId}
+              onDelete={() => {
+                void deleteAttachment(attachment);
+                // Otherwise the page keeps pointing at bytes that are gone.
+                if (pageId && attachment.id === banner?.attachmentId) {
+                  writePageBanner(pageId, pageProperties, null);
+                }
+              }}
+            />
           ))}
         </div>
       )}
@@ -423,6 +454,7 @@ export function NotesDetailsRail({
       <div className="pt-3">
         <AttachmentsSection
           pageId={selectedPage?.id ?? null}
+          pageProperties={parseProperties(selectedPage?.properties ?? null)}
           attachments={selectedPageAttachments}
           isLoading={isLoadingAttachments}
           isOpen={detailsSectionOpen.attachments}

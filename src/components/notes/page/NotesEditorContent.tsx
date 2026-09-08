@@ -5,14 +5,17 @@ import { useQuery } from "@powersync/react";
 
 import { SingleBlockEditor } from "@/components/notes/editor/SingleBlockEditor";
 import { NotesEditorMainSkeleton } from "@/components/notes/NotesPageSkeleton";
+import type { NoteAttachmentRow } from "@/hooks/use-notes";
 import { Tag } from "@/lib/powersync/AppSchema";
 
+import { AddBannerChip, NotePageBanner } from "./NotePageBanner";
 import { NotesEditorHeader } from "./NotesEditorHeader";
 import { NotePageProperties } from "./NotePageProperties";
 import type { NotesEditorRenderableContent } from "./types";
 
 export function NotesEditorContent({
   editorContent,
+  attachments,
   showSelectedPageLoading,
   showEditorOverlay,
   shouldAnimateEditorContent,
@@ -38,6 +41,8 @@ export function NotesEditorContent({
   onSingleEditorChange,
 }: {
   editorContent: NotesEditorRenderableContent;
+  /** Every file on the page — the banner reads its image and its picker from these. */
+  attachments: NoteAttachmentRow[];
   showSelectedPageLoading: boolean;
   showEditorOverlay: boolean;
   shouldAnimateEditorContent: boolean;
@@ -82,6 +87,14 @@ export function NotesEditorContent({
 
   return (
     <div className="notes-reading relative mx-auto max-w-3xl min-h-[200px]">
+      {editorContent.pageId ? (
+        <NotePageBanner
+          pageId={editorContent.pageId}
+          pageProperties={selectedPageProperties}
+          attachments={attachments}
+        />
+      ) : null}
+
       <div className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-1 gap-y-1.5 md:gap-x-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] ${shouldAnimateEditorContent ? "animate-fade-slide-in" : ""}`}>
         <NotesEditorHeader
           editorContent={editorContent}
@@ -95,6 +108,15 @@ export function NotesEditorContent({
           allTags={allTags}
           isLoadingTags={isLoadingTags}
           pageId={editorContent.pageId ?? ""}
+          bannerSlot={
+            editorContent.pageId ? (
+              <AddBannerChip
+                pageId={editorContent.pageId}
+                pageProperties={selectedPageProperties}
+                attachments={attachments}
+              />
+            ) : null
+          }
           onBack={onBack}
           onTitleChange={onTitleChange}
           onCommitTitle={onCommitTitle}

@@ -12,6 +12,7 @@ import {
   NotesOverviewRowsSkeleton,
   NotesOverviewSpineSkeleton,
 } from "@/components/notes/NotesPageSkeleton";
+import { useImageSource } from "@/hooks/use-image-source";
 import type { OverviewView } from "@/lib/notes/overview-view";
 import { SPRING_SOFT } from "@/lib/shared/motion";
 import { cn } from "@/lib/shared/utils";
@@ -259,6 +260,30 @@ function RowList({ pages, onSelectPage, onToggleFavorite }: Omit<ListProps, "vie
 
 /* ============================ Soft gallery ============================ */
 
+/**
+ * A gallery card's banner strip.
+ *
+ * Negative margins take it out of the card's padding so it meets the card's own
+ * rounded edge, and it carries the page's stored crop.
+ */
+function NoteCardCover({ attachmentId, align }: { attachmentId: string; align: number }) {
+  const { url } = useImageSource(attachmentId);
+  if (!url) return null;
+
+  return (
+    <div className="-mx-4 -mt-4 mb-3 h-20 overflow-hidden sm:-mx-5 sm:-mt-5 sm:h-24">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt=""
+        loading="lazy"
+        className="h-full w-full object-cover"
+        style={{ objectPosition: `50% ${align}%` }}
+      />
+    </div>
+  );
+}
+
 function OverviewGalleryCard({ page, onSelectPage, onToggleFavorite }: ItemProps) {
   const updated = formatTimestampLabel(page.updated_at)?.relative;
   const isFavorite = isFavorited(page);
@@ -271,7 +296,12 @@ function OverviewGalleryCard({ page, onSelectPage, onToggleFavorite }: ItemProps
         className="absolute inset-0 rounded-3xl"
         aria-label={`Open ${page.title || "Untitled page"}`}
       />
-      <div className="pointer-events-none relative flex h-full min-h-[8rem] flex-col rounded-3xl border border-border/60 bg-muted/40 p-4 shadow-sm transition-smooth group-hover:-translate-y-0.5 group-hover:border-border/80 group-hover:bg-card group-hover:shadow-md sm:min-h-[9rem] sm:p-5 dark:bg-card/80 dark:group-hover:bg-card">
+      <div className="pointer-events-none relative flex h-full min-h-[8rem] flex-col overflow-hidden rounded-3xl border border-border/60 bg-muted/40 p-4 shadow-sm transition-smooth group-hover:-translate-y-0.5 group-hover:border-border/80 group-hover:bg-card group-hover:shadow-md sm:min-h-[9rem] sm:p-5 dark:bg-card/80 dark:group-hover:bg-card">
+        {/* Mounted only for a page that has a banner, so a plain card runs no lookup. */}
+        {page.bannerAttachmentId ? (
+          <NoteCardCover attachmentId={page.bannerAttachmentId} align={page.bannerAlign} />
+        ) : null}
+
         <div className="flex items-start justify-between gap-2">
           <PageIcon emoji={page.emoji} size={26} className="h-6 w-6 leading-none" fallbackClassName="text-muted-foreground" />
           <FavoriteStar page={page} isFavorite={isFavorite} onToggleFavorite={onToggleFavorite} className={cn("pointer-events-auto -mr-1.5 -mt-1 size-8", starRevealClass(isFavorite))} />

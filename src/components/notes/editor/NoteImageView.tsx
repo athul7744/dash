@@ -17,9 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
 import { ImageOff, Type } from "lucide-react";
 
-import { useAttachment } from "@/hooks/use-attachment";
-import { useAttachmentUrl } from "@/hooks/use-attachment-url";
-import { usePreviewUrl } from "@/hooks/use-preview-url";
+import { useImageSource } from "@/hooks/use-image-source";
 import { cn } from "@/lib/shared/utils";
 
 export function NoteImageView({ node, updateAttributes, editor, selected }: ReactNodeViewProps) {
@@ -27,19 +25,7 @@ export function NoteImageView({ node, updateAttributes, editor, selected }: Reac
   const src = typeof node.attrs.src === "string" ? node.attrs.src : null;
   const alt = typeof node.attrs.alt === "string" ? node.attrs.alt : "";
 
-  // Covers the file stored a moment ago: on screen in the first paint, and stable
-  // across the document rebuilds that follow a save.
-  const preview = usePreviewUrl(attachmentId);
-
-  const { attachment, isLoading } = useAttachment(attachmentId);
-  // Otherwise resolve from the id alone (session cache, then local blob store) so
-  // an image doesn't wait on its row query to settle. The real row takes over once
-  // it arrives, which is what a cross-device download needs.
-  const source = preview || !attachmentId
-    ? null
-    : (attachment ?? { id: attachmentId, file_path: null, sync_state: null });
-  const attachmentUrl = useAttachmentUrl(source);
-  const url = preview ?? (attachmentId ? attachmentUrl : src);
+  const { url, isPreview, isLoading, syncState } = useImageSource(attachmentId, src);
 
   const [editingAlt, setEditingAlt] = useState(false);
   const [draftAlt, setDraftAlt] = useState(alt);
@@ -66,10 +52,10 @@ export function NoteImageView({ node, updateAttributes, editor, selected }: Reac
         // Local bytes: decoding synchronously presents the image with the frame
         // that introduces it, rather than showing an empty box first.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt={alt} decoding={preview ? "sync" : "async"} />
+        <img src={url} alt={alt} decoding={isPreview ? "sync" : "async"} />
       ) : (
         <Placeholder
-          state={placeholderState({ attachmentId, isLoading, syncState: attachment?.sync_state ?? null })}
+          state={placeholderState({ attachmentId, isLoading, syncState })}
         />
       )}
 

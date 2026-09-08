@@ -62,7 +62,7 @@ export function markdownToBlockNodes(text: string): JSONContent[] {
  * Returns false (paste unhandled) when there's nothing to insert or a node
  * fails schema validation.
  */
-export function insertMarkdown(view: EditorView, markdown: string): boolean {
+export function insertMarkdown(view: EditorView, markdown: string, at?: number): boolean {
   let blocks: JSONContent[];
   try {
     blocks = markdownToBlockNodes(markdown);
@@ -73,7 +73,7 @@ export function insertMarkdown(view: EditorView, markdown: string): boolean {
 
   const inline = isSingleParagraph(blocks);
   const json = inline ? (blocks[0].content?.[0]?.content ?? []) : blocks;
-  return insertBlockNodes(view, json);
+  return insertBlockNodes(view, json, at);
 }
 
 /**

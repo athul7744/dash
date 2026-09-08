@@ -5,6 +5,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 ## Layout
 
 - `tests/notes/` — notes-specific logic and write-path tests.
+- `tests/notes/import/` — the Logseq/markdown importer (normalizer, property and tag mapping, title allocation, the scan, the writes).
 - `tests/tasks/` — task-specific test entry points and notes about where task suites belong.
 - `tests/tracker/` — tracker-specific test entry points and notes about where tracker suites belong.
 - `tests/quotes/` — quotes-specific logic tests.
@@ -86,6 +87,19 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `image-adopt.test.ts` — which images the adopt pass picks up (remote `http(s)` srcs only, never one already backed by a file, `data:`/`blob:`/unstamped blocks skipped, a nested image attributed to its own block rather than its parent) and `adoptImage`'s rollback when the node can't be pointed at the stored file, which otherwise stores another copy on every pass.
 - `reference-resolver.dom.test.ts` — `getResolvedPageReferenceAtPosition` resolves the `[[title]]` under the cursor.
 - `read-only-block-renderer.dom.test.tsx` — `ReadOnlyBlockRenderer` renders heading/paragraph/task blocks non-editably through the single-doc schema.
+
+## Current Import Suites
+
+`tests/notes/import/` covers the Logseq importer. Fixtures are lifted from a real vault, because the shapes that break a parser — a property value holding a comma, a bullet carrying several paragraphs, a filename with `%3A` in it — aren't the ones you invent.
+
+- `logseq-normalize.test.ts` — each syntax rewrite (page properties split off, block bookkeeping stripped, embeds to links, `TODO`/`DONE` to checkboxes); a property-shaped line inside a code fence left alone; structure passed through untouched so the markdown parser still owns it; untranslatable constructs kept *and* counted.
+- `page-properties.test.ts` — unwrapping `#[[Yet To Read]]`-style values, splitting a list without breaking on a comma inside a reference, Logseq's ordinal dates (`Aug 26th, 2020`), and `date` deliberately **not** mapping to `created_at`.
+- `property-mapping.test.ts` — one row per key across spellings, mapping onto an existing definition instead of a twin, select-vs-text inference at the real value distribution, and Logseq's own bookkeeping keys staying ignored however often they recur.
+- `tag-mapping.test.ts` — case collapsing (`#Notion`/`#notion`), a value that is also a page defaulting to tag *and* link, the `tag:` search-prefix warning and its suggestion, and inline hashtags staying opt-in.
+- `title-allocator.test.ts` — basename titles (a Logseq link targets the basename), `___` → `/`, percent-decoding, and collisions against both existing pages and earlier files in the same batch.
+- `scan-import.test.ts` — every per-file status the picker shows, plus a non-markdown file still being indexed as a resolvable asset.
+- `undo-import.test.ts` — rebuilding the last import from what's stored on each page (so the undo outlives the dialog), soft-deleting only that batch's live pages, and a fully-undone batch dropping out of the query rather than showing a stale count.
+- `run-import.test.ts` — the invariants that fail silently: one transaction per file, one batch id across every page in a run, a bad file not taking the others down, real block ids, document order and nesting, `properties.kind` staying absent, images stored against their own block (from the folder, or downloaded through the proxy when asked — with the hotlink kept when a download fails), and stored images discarded when the page write fails.
 
 ## Current Shared Suites
 

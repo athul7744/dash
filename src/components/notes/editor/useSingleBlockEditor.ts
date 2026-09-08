@@ -33,6 +33,8 @@ import { STAMP_META } from "@/lib/notes/editor/block-id-plugin";
 import { splitBlock, indentBlock, outdentBlock, mergeBlockBackward } from "@/lib/notes/editor/block-commands";
 import { insertMarkdown, clipboardMarkdown, pasteUrlAsLink } from "@/lib/notes/editor/markdown-paste";
 import { clipboardImageFiles, imageFilesFrom, insertImageFiles } from "@/lib/notes/editor/image-insert";
+import { markdownFilesFrom } from "@/lib/notes/import/pick-markdown-files";
+import { normalizeLogseqMarkdown } from "@/lib/notes/import/logseq-normalize";
 import { getResolvedPageReferenceAtPosition } from "@/lib/notes/editor-document-helpers";
 
 export type SingleBlockEditorHandlers = {
@@ -174,12 +176,40 @@ export function useSingleBlockEditor({
       // (`moved`) and anything that isn't an image file are ProseMirror's job.
       handleDrop(view, event, _slice, moved) {
         if (moved) return false;
-        const images = imageFilesFrom(event.dataTransfer);
-        if (images.length === 0) return false;
-        event.preventDefault();
         const at = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
-        void insertImageFiles(view, images, { at, onError: (message) => toast({ message }) });
-        return true;
+
+        const images = imageFilesFrom(event.dataTransfer);
+        if (images.length > 0) {
+          event.preventDefault();
+          void insertImageFiles(view, images, { at, onError: (message) => toast({ message }) });
+          return true;
+        }
+
+        // A dropped markdown file becomes blocks at the drop point. Its
+        // frontmatter is stripped — a fragment dropped into an existing page has
+        // no page-level metadata to carry.
+        const notes = markdownFilesFrom(event.dataTransfer);
+        if (notes.length > 0) {
+          event.preventDefault();
+          void (async () => {
+            let position = at;
+            for (const note of notes) {
+              try {
+                const { body } = normalizeLogseqMarkdown(await note.text());
+                if (body && !insertMarkdown(view, body, position)) {
+                  toast({ message: `Couldn't add "${note.name}" here.` });
+                }
+              } catch {
+                toast({ message: `Couldn't read "${note.name}".` });
+              }
+              // Positions shift after the first insert; the rest follow the caret.
+              position = undefined;
+            }
+          })();
+          return true;
+        }
+
+        return false;
       },
       handleDOMEvents: {
         mousedown(view, event) {

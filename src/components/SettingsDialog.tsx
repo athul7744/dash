@@ -2,10 +2,13 @@
 
 import { type ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@powersync/react";
 import { useTheme } from "next-themes";
 import {
   Bell,
   DatabaseZap,
+  Download,
+  Undo2,
   LogOut,
   Mail,
   Monitor,
@@ -30,7 +33,14 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { formatRelativeTime } from "@/lib/shared/utils";
 import { ResetLocalDataDialog } from "@/components/ResetLocalDataDialog";
+import {
+  LAST_IMPORT_BATCH_QUERY,
+  toImportBatchSummary,
+  undoImportBatch,
+  type LastImportBatchRow,
+} from "@/lib/notes/import/undo-import";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useDisplayFont } from "@/hooks/use-display-font";
 import { DISPLAY_FONTS } from "@/lib/shared/display-font";
@@ -46,12 +56,14 @@ import { cn } from "@/lib/shared/utils";
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Opens the Logseq importer. Omitted where no host mounts it. */
+  onImportLogseq?: () => void;
 }
 
 /** Responsive Settings surface: centered Dialog on desktop, bottom Drawer on mobile. */
-export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+export function SettingsDialog({ open, onOpenChange, onImportLogseq }: SettingsDialogProps) {
   const isMobile = useMediaQuery("(max-width: 639px)");
-  const body = <SettingsBody open={open} onClose={() => onOpenChange(false)} />;
+  const body = <SettingsBody open={open} onClose={() => onOpenChange(false)} onImportLogseq={onImportLogseq} />;
 
   if (isMobile) {
     return (
@@ -86,14 +98,22 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   );
 }
 
-function SettingsBody({ open, onClose }: { open: boolean; onClose: () => void }) {
+function SettingsBody({
+  open,
+  onClose,
+  onImportLogseq,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onImportLogseq?: () => void;
+}) {
   return (
     <div className="flex flex-col gap-6">
       <AccountSection onClose={onClose} />
       <AppearanceSection />
       <DisplayFontSection />
       <NotificationsSection open={open} />
-      <DataSection onClose={onClose} />
+      <DataSection onClose={onClose} onImportLogseq={onImportLogseq} />
     </div>
   );
 }
@@ -296,11 +316,63 @@ function NotificationsSection({ open }: { open: boolean }) {
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
-function DataSection({ onClose }: { onClose: () => void }) {
+function DataSection({ onClose, onImportLogseq }: { onClose: () => void; onImportLogseq?: () => void }) {
   const [showReset, setShowReset] = useState(false);
+  const [undoing, setUndoing] = useState(false);
+
+  // Mounted only while Settings is open, so this doesn't run app-wide.
+  const { data: batchRows = [] } = useQuery<LastImportBatchRow>(LAST_IMPORT_BATCH_QUERY);
+  const lastImport = toImportBatchSummary(batchRows[0]);
+
+  const undoLastImport = async () => {
+    if (!lastImport || undoing) return;
+    setUndoing(true);
+    try {
+      await undoImportBatch(lastImport.batchId);
+    } finally {
+      setUndoing(false);
+    }
+  };
 
   return (
     <SettingsSection title="Data">
+      {onImportLogseq ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            // Settings gets out of the way — the importer is a full-width,
+            // multi-step dialog of its own. It's mounted a level up so closing
+            // this one can't unmount it mid-import.
+            onClose();
+            onImportLogseq();
+          }}
+          className="w-full justify-start gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Import from Logseq
+        </Button>
+      ) : null}
+      {lastImport ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={undoing}
+          onClick={() => void undoLastImport()}
+          className="w-full justify-start gap-2"
+          title="Moves them to the Trash, where any can be restored"
+        >
+          {undoing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+          <span className="flex min-w-0 flex-col items-start">
+            <span>{undoing ? "Undoing…" : "Undo last import"}</span>
+            <span className="text-xs text-muted-foreground">
+              {lastImport.pageCount} {lastImport.pageCount === 1 ? "note" : "notes"}
+              {lastImport.importedAt ? `, ${formatRelativeTime(new Date(lastImport.importedAt))}` : ""} · moves them to
+              the Trash
+            </span>
+          </span>
+        </Button>
+      ) : null}
       <Button
         variant="ghost"
         size="sm"

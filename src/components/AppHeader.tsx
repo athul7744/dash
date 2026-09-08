@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { SearchIndexProgressBar } from "@/components/SearchIndexProgressBar";
 import { AppSwitcher } from "@/components/AppSwitcher";
+import { ImportLogseqDialog } from "@/components/notes/page/ImportLogseqDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { type AppConfig } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
@@ -25,6 +26,7 @@ interface AppHeaderProps {
 export function AppHeader({ app, actions, mobileMenuItems, children }: AppHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const Icon = app.icon;
 
   return (
@@ -101,7 +103,14 @@ export function AppHeader({ app, actions, mobileMenuItems, children }: AppHeader
         <SearchIndexProgressBar />
       </header>
 
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        onImportLogseq={() => setImportOpen(true)}
+      />
+      {/* Mounted only while open: it queries every page, definition and tag, and
+          this header is on every route. */}
+      {importOpen ? <ImportLogseqDialog open onOpenChange={setImportOpen} hideTrigger /> : null}
     </>
   );
 }

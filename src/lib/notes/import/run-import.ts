@@ -29,7 +29,7 @@ import type { JsonValue } from "@/lib/shared/types";
 
 import { collectImageNodes, imageSrcOf, isExternalRef, resolveAssetRef, type AssetIndex } from "./asset-index";
 import { normalizeLogseqMarkdown } from "./logseq-normalize";
-import { propertyKeyId, splitPropertyList } from "./page-properties";
+import { bannerAlignPercent, propertyKeyId, splitPropertyList } from "./page-properties";
 import { propertyValueFor, type PropertyAction } from "./property-mapping";
 import { normalizeTitleKey } from "@/lib/links/tokens";
 import type { TagDecision } from "./tag-mapping";
@@ -137,7 +137,23 @@ async function importOneFile(
   const stored: StoredFile[] = [];
   try {
     await attachImages(blockNodes, entry.path, assets, stored, mapping.downloadRemoteImages);
-    if (fields.banner) await attachBanner(fields.banner, entry.path, assets, pageId, stored);
+
+    if (fields.banner) {
+      const attachmentId = await attachBanner(
+        fields.banner,
+        entry.path,
+        assets,
+        pageId,
+        stored,
+        mapping.downloadRemoteImages,
+      );
+      // A banner the vault referenced but doesn't hold leaves the page without
+      // one, rather than pointing at a file that was never stored.
+      if (attachmentId) {
+        fields.properties.banner = attachmentId;
+        if (fields.bannerAlign !== undefined) fields.properties.bannerAlign = fields.bannerAlign;
+      }
+    }
 
     return await createNotePageFromBlockNodes({
       id: pageId,
@@ -165,7 +181,10 @@ interface PageFields {
   tagIds: string[];
   /** Values the mapping asked to render as `[[links]]`. */
   links: string[];
+  /** The raw `banner::` reference, resolved to a file once the page id exists. */
   banner: string | null;
+  /** `banner-align::` as a vertical percent, when the vault set one. */
+  bannerAlign?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -231,6 +250,11 @@ function resolvePageFields(
         case "banner":
           fields.banner = value.trim();
           break;
+        case "bannerAlign": {
+          const align = bannerAlignPercent(value);
+          if (align !== null) fields.bannerAlign = align;
+          break;
+        }
       }
       continue;
     }
@@ -338,17 +362,39 @@ async function attachImages(
   }
 }
 
-/** A `banner::` image becomes a page attachment — it has no other home here. */
+/**
+ * A `banner::` image becomes the page's banner — a page-owned attachment whose id
+ * the page records in `properties.banner`.
+ *
+ * Returns the attachment id, or null when the reference resolves to nothing: a
+ * vault can name an asset it no longer holds, and a remote banner needs the same
+ * proxy an inline image does.
+ */
 async function attachBanner(
   ref: string,
   fromPath: string,
   assets: AssetIndex,
   pageId: string,
   stored: StoredFile[],
-): Promise<void> {
+  downloadRemote: boolean,
+): Promise<string | null> {
+  if (isExternalRef(ref)) {
+    if (!downloadRemote || !/^https?:\/\//i.test(ref)) return null;
+    const blob = await fetchRemoteImage(ref);
+    if (!blob) return null;
+    const attachment = await attachFile(blob, { pageId }, {
+      fileName: imageFileNameFromUrl(ref),
+      mimeType: blob.type,
+    });
+    stored.push(attachment);
+    return attachment.id;
+  }
+
   const file = resolveAssetRef(ref, fromPath, assets);
-  if (!file) return;
-  stored.push(await attachFile(file, { pageId }, { fileName: file.name, mimeType: file.type }));
+  if (!file) return null;
+  const attachment = await attachFile(file, { pageId }, { fileName: file.name, mimeType: file.type });
+  stored.push(attachment);
+  return attachment.id;
 }
 
 // --- Pass two: resolve links now that every page exists ----------------------

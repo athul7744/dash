@@ -265,8 +265,14 @@ export function ImportLogseqDialog({
     : [];
   const readyCount = scan?.files.filter((file) => file.status === "ready").length ?? 0;
   const withNotes = chosen.filter((file) => file.notes.length > 0).length;
-  const remoteImageCount = chosen.reduce((total, file) => total + file.remoteImages, 0);
+  // A remote banner is fetched through the same download step, so it counts here.
+  const remoteImageCount = chosen.reduce(
+    (total, file) => total + file.remoteImages + (file.banner === "remote" ? 1 : 0),
+    0,
+  );
   const localImageCount = chosen.reduce((total, file) => total + file.localImages, 0);
+  const bannerCount = chosen.filter((file) => file.banner === "local" || file.banner === "remote").length;
+  const missingBannerCount = chosen.filter((file) => file.banner === "missing").length;
 
   const toggle = (path: string) => {
     setSelection((current) => {
@@ -449,6 +455,17 @@ export function ImportLogseqDialog({
                 <p className="text-xs text-muted-foreground/70">
                   {localImageCount} {localImageCount === 1 ? "image" : "images"} from the folder will be stored with
                   their notes.
+                </p>
+              ) : null}
+              {bannerCount > 0 ? (
+                <p className="text-xs text-muted-foreground/70">
+                  {bannerCount} {bannerCount === 1 ? "page brings" : "pages bring"} a banner image.
+                </p>
+              ) : null}
+              {missingBannerCount > 0 ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {missingBannerCount} {missingBannerCount === 1 ? "page names a banner" : "pages name banners"} the
+                  vault no longer holds — those pages arrive without one.
                 </p>
               ) : null}
               {remoteImageCount > 0 ? (

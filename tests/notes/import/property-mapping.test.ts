@@ -76,9 +76,16 @@ describe("buildPropertyCensus", () => {
   });
 
   it("ignores Logseq's own bookkeeping however often it appears", () => {
-    // banner-align recurs in a real vault but describes how Logseq drew the page.
-    const census = buildPropertyCensus(spread("banner-align", ["70%", "40%", "10%"]), []);
+    // query-table recurs in a real vault but describes how Logseq drew the page.
+    const census = buildPropertyCensus(spread("query-table", ["true", "true", "true"]), []);
     expect(census[0].suggested).toEqual({ kind: "ignore" });
+  });
+
+  it("maps banner-align onto the banner's position", () => {
+    // It reads like bookkeeping, and was treated as such until the banner had a
+    // crop of its own to carry it.
+    const census = buildPropertyCensus(spread("banner-align", ["70%", "40%", "10%"]), []);
+    expect(census[0].suggested).toEqual({ kind: "builtin", field: "bannerAlign" });
   });
 
   it("orders by how widely a key is used", () => {

@@ -6,6 +6,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 
 - `tests/notes/` — notes-specific logic and write-path tests.
 - `tests/notes/import/` — the Logseq/markdown importer (normalizer, property and tag mapping, title allocation, the scan, the writes).
+- `tests/notes/page/` — note-page surfaces rendered in jsdom.
 - `tests/tasks/` — task-specific test entry points and notes about where task suites belong.
 - `tests/tracker/` — tracker-specific test entry points and notes about where tracker suites belong.
 - `tests/quotes/` — quotes-specific logic tests.
@@ -60,6 +61,12 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/notes/system-pages.test.ts`
   Covers `systemPageId`: deterministic ids per `(userId, kind, key)`, matching an explicit uuidv5 over the documented name scheme, and v5 uuid format.
 
+- `tests/notes/banner.test.ts`
+  Covers a page's banner image (`src/lib/notes/banner.ts`): reading it out of the page's properties (a wrong type reading as "no banner", a missing crop centring, an out-of-range one clamped), writing it back without disturbing the page's other properties and storing a crop only when it isn't the default, clearing both keys on removal, the size/type check the picker doesn't do, the remote-URL path reporting a failed fetch, and the drag-to-crop maths.
+
+- `tests/notes/page/note-page-banner.dom.test.tsx`
+  Covers the banner surface: the stored crop being what's shown, nothing rendered when the file is gone, removal keeping the rest of the page, and a reposition landing only when saved (cancel puts the crop back). The write path is real — only the page update is mocked — so a wrong property shape fails here.
+
 - `tests/notes/graph.test.ts`
   Covers the pure graph helpers (`src/lib/notes/graph.ts`) behind the universal one-node-per-item graph view: `buildGraph` building an undirected, deduped, weighted node graph from resolved entity→entity edges (self-links and edges to unknown nodes dropped; degree computed; `kind` carried onto nodes), `neighborhood` BFS to a depth, and `isOrphan`.
 
@@ -97,9 +104,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `property-mapping.test.ts` — one row per key across spellings, mapping onto an existing definition instead of a twin, select-vs-text inference at the real value distribution, and Logseq's own bookkeeping keys staying ignored however often they recur.
 - `tag-mapping.test.ts` — case collapsing (`#Notion`/`#notion`), a value that is also a page defaulting to tag *and* link, the `tag:` search-prefix warning and its suggestion, and inline hashtags staying opt-in.
 - `title-allocator.test.ts` — basename titles (a Logseq link targets the basename), `___` → `/`, percent-decoding, and collisions against both existing pages and earlier files in the same batch.
-- `scan-import.test.ts` — every per-file status the picker shows, plus a non-markdown file still being indexed as a resolvable asset.
+- `scan-import.test.ts` — every per-file status the picker shows, a non-markdown file still being indexed as a resolvable asset, and each `banner::` ref resolved up front (local, remote, or missing).
 - `undo-import.test.ts` — rebuilding the last import from what's stored on each page (so the undo outlives the dialog), soft-deleting only that batch's live pages, and a fully-undone batch dropping out of the query rather than showing a stale count.
-- `run-import.test.ts` — the invariants that fail silently: one transaction per file, one batch id across every page in a run, a bad file not taking the others down, real block ids, document order and nesting, `properties.kind` staying absent, images stored against their own block (from the folder, or downloaded through the proxy when asked — with the hotlink kept when a download fails), and stored images discarded when the page write fails.
+- `run-import.test.ts` — the invariants that fail silently: one transaction per file, one batch id across every page in a run, a bad file not taking the others down, real block ids, document order and nesting, `properties.kind` staying absent, images stored against their own block (from the folder, or downloaded through the proxy when asked — with the hotlink kept when a download fails), stored images discarded when the page write fails, and banners arriving as banners — stored against the page with their crop in `properties`, downloaded only when remote downloading is on, and never recorded when the vault no longer holds the file.
 
 ## Current Shared Suites
 

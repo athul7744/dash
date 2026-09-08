@@ -14,8 +14,9 @@
 import { markdownToBlockNodes } from "@/lib/notes/editor/markdown-paste";
 import { yieldToUI } from "@/lib/shared/utils";
 
-import { buildAssetIndex, collectImageNodes, imageSrcOf, relativePathOf, resolveAssetRef, type AssetIndex } from "./asset-index";
+import { buildAssetIndex, collectImageNodes, imageSrcOf, isExternalRef, relativePathOf, resolveAssetRef, type AssetIndex } from "./asset-index";
 import { normalizeLogseqMarkdown, type LogseqNote } from "./logseq-normalize";
+import { propertyKeyId } from "./page-properties";
 import { isMarkdownFile } from "./pick-markdown-files";
 import { titleFromVaultPath } from "./title-allocator";
 
@@ -36,6 +37,14 @@ export type ScanStatus =
   /** Couldn't be read or parsed. */
   | "failed";
 
+/**
+ * What a page's `banner::` reference points at.
+ *
+ * Worth resolving during the dry run: a vault can name an asset it no longer
+ * holds, and finding that out before the write is the point of a dry run.
+ */
+export type BannerScan = "local" | "remote" | "missing" | null;
+
 export interface ScannedFile {
   file: File;
   /** Vault-relative path, e.g. `pages/Books/Sapiens.md`. */
@@ -52,6 +61,8 @@ export interface ScannedFile {
   remoteImages: number;
   /** Images that resolve to a file in the picked folder. */
   localImages: number;
+  /** Where this page's banner image comes from, if it declares one. */
+  banner: BannerScan;
   properties: Array<{ key: string; value: string }>;
   hashtags: string[];
   /** Ticked by default: ready files only. */
@@ -106,6 +117,7 @@ async function scanOne(file: File, context: ScanContext, assets: AssetIndex): Pr
     blockCount: 0,
     remoteImages: 0,
     localImages: 0,
+    banner: null as BannerScan,
     properties: [] as Array<{ key: string; value: string }>,
     hashtags: [] as string[],
   };
@@ -128,6 +140,7 @@ async function scanOne(file: File, context: ScanContext, assets: AssetIndex): Pr
   let blockCount: number;
   let remoteImages = 0;
   let localImages = 0;
+  let banner: BannerScan = null;
   try {
     normalized = normalizeLogseqMarkdown(text);
     const nodes = markdownToBlockNodes(normalized.body);
@@ -138,6 +151,7 @@ async function scanOne(file: File, context: ScanContext, assets: AssetIndex): Pr
       if (/^https?:\/\//i.test(src)) remoteImages += 1;
       else if (resolveAssetRef(src, path, assets)) localImages += 1;
     }
+    banner = scanBanner(normalized.properties, path, assets);
   } catch {
     return { ...base, title, status: "failed", detail: "couldn't be parsed", selected: false };
   }
@@ -152,6 +166,7 @@ async function scanOne(file: File, context: ScanContext, assets: AssetIndex): Pr
     blockCount,
     remoteImages,
     localImages,
+    banner,
   };
 
   if (context.alreadyImported.has(path)) {
@@ -165,6 +180,17 @@ async function scanOne(file: File, context: ScanContext, assets: AssetIndex): Pr
   }
 
   return { ...parsed, status: "ready", detail: "", selected: true };
+}
+
+function scanBanner(
+  properties: ReadonlyArray<{ key: string; value: string }>,
+  path: string,
+  assets: AssetIndex,
+): BannerScan {
+  const ref = properties.find((property) => propertyKeyId(property.key) === "banner")?.value.trim();
+  if (!ref) return null;
+  if (isExternalRef(ref)) return /^https?:\/\//i.test(ref) ? "remote" : "missing";
+  return resolveAssetRef(ref, path, assets) ? "local" : "missing";
 }
 
 /** Files the user has ticked, in vault order. */

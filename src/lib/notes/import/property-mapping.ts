@@ -25,7 +25,6 @@ const INTERNAL_KEYS = new Set([
   "id",
   "collapsed",
   "heading",
-  "banner-align",
   "banner-repeat",
   "title-align",
   "public",

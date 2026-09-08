@@ -69,6 +69,7 @@ function scanned(path: string, text: string, over: Partial<ScannedFile> = {}): S
     blockCount: 1,
     remoteImages: 0,
     localImages: 0,
+    banner: null,
     properties: [],
     hashtags: [],
     selected: true,
@@ -388,5 +389,115 @@ describe("mapped properties and tags", () => {
     });
 
     expect(setEntityTags).toHaveBeenCalledWith(expect.any(String), "note", ["tag-folder"], expect.anything());
+  });
+});
+
+describe("banners", () => {
+  const jpg = (name = "cover.jpg") => {
+    const file = new File([new Uint8Array(4)], name, { type: "image/jpeg" });
+    Object.defineProperty(file, "webkitRelativePath", { value: `Vault/assets/${name}` });
+    return file;
+  };
+
+  const bannerMapping = (over: Partial<ImportMapping> = {}) =>
+    mapping({
+      properties: new Map([
+        ["banner", { kind: "builtin", field: "banner" }],
+        ["banner-align", { kind: "builtin", field: "bannerAlign" }],
+      ]) as ImportMapping["properties"],
+      ...over,
+    });
+
+  const pageProperties = () => JSON.parse(String(inserts("pages")[0].params[3]));
+
+  it("stores the banner against the page and records which file it is", async () => {
+    // Against the page, not a block: it belongs to the page, and the page's
+    // properties are the only place its id can live without a schema change.
+    await runMarkdownImport(
+      [scanned("pages/Home.md", ["banner:: ../assets/cover.jpg", "banner-align:: 70%", "", "- body"].join("\n"))],
+      buildAssetIndex([jpg()]),
+      bannerMapping(),
+      { existingTitles: [] },
+    );
+
+    const [, target] = attachFile.mock.calls[0];
+    expect(target).toEqual({ pageId: expect.any(String) });
+    expect(pageProperties()).toMatchObject({ banner: "att-1", bannerAlign: 70 });
+  });
+
+  it("centres a banner the vault didn't position", async () => {
+    await runMarkdownImport(
+      [scanned("pages/Home.md", "banner:: ../assets/cover.jpg\n\n- body")],
+      buildAssetIndex([jpg()]),
+      bannerMapping(),
+      { existingTitles: [] },
+    );
+
+    const properties = pageProperties();
+    expect(properties.banner).toBe("att-1");
+    // Absent means centred, so there's nothing to store.
+    expect(properties.bannerAlign).toBeUndefined();
+  });
+
+  it("imports the page without a banner when the vault no longer holds the file", async () => {
+    const result = await runMarkdownImport(
+      [scanned("pages/Home.md", "banner:: ../assets/gone.jpg\n\n- body")],
+      buildAssetIndex([]),
+      bannerMapping(),
+      { existingTitles: [] },
+    );
+
+    expect(result.failures).toEqual([]);
+    expect(attachFile).not.toHaveBeenCalled();
+    // Never a banner key pointing at a file that was never stored.
+    expect(pageProperties().banner).toBeUndefined();
+  });
+
+  it("downloads a remote banner only when downloading is on", async () => {
+    fetchRemoteImage.mockResolvedValue(new Blob([new Uint8Array(4)], { type: "image/jpeg" }));
+    const source = "banner:: https://example.com/cover.jpg\n\n- body";
+
+    await runMarkdownImport([scanned("pages/A.md", source)], buildAssetIndex([]), bannerMapping(), {
+      existingTitles: [],
+    });
+    expect(fetchRemoteImage).not.toHaveBeenCalled();
+    expect(pageProperties().banner).toBeUndefined();
+
+    statements = [];
+    await runMarkdownImport(
+      [scanned("pages/B.md", source)],
+      buildAssetIndex([]),
+      bannerMapping({ downloadRemoteImages: true }),
+      { existingTitles: [] },
+    );
+    expect(fetchRemoteImage).toHaveBeenCalledWith("https://example.com/cover.jpg");
+    expect(pageProperties().banner).toBe("att-1");
+  });
+
+  it("discards a stored banner when the page write fails", async () => {
+    writeTransaction.mockRejectedValueOnce(new Error("disk full"));
+
+    const result = await runMarkdownImport(
+      [scanned("pages/Home.md", "banner:: ../assets/cover.jpg\n\n- body")],
+      buildAssetIndex([jpg()]),
+      bannerMapping(),
+      { existingTitles: [] },
+    );
+
+    expect(result.failures).toHaveLength(1);
+    expect(deleteAttachment).toHaveBeenCalledWith({ id: "att-1", file_path: "p/att-1.png" });
+  });
+
+  it("keeps a banner out of the page when the key is left unmapped", async () => {
+    // The mapping screen is the whole contract: nothing is stored that it didn't show.
+    await runMarkdownImport(
+      [scanned("pages/Home.md", "banner:: ../assets/cover.jpg\n\n- body")],
+      buildAssetIndex([jpg()]),
+      mapping(),
+      { existingTitles: [] },
+    );
+
+    expect(attachFile).not.toHaveBeenCalled();
+    expect(pageProperties().importedFrontmatter).toEqual({ banner: "../assets/cover.jpg" });
   });
 });

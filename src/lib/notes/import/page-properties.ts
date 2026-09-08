@@ -8,7 +8,15 @@
  */
 
 /** Keys that map onto a field the notes app already has, rather than a custom property. */
-export type BuiltinPropertyField = "title" | "tags" | "emoji" | "favorite" | "created" | "updated" | "banner";
+export type BuiltinPropertyField =
+  | "title"
+  | "tags"
+  | "emoji"
+  | "favorite"
+  | "created"
+  | "updated"
+  | "banner"
+  | "bannerAlign";
 
 const BUILTIN_BY_KEY: Record<string, BuiltinPropertyField> = {
   title: "title",
@@ -25,6 +33,7 @@ const BUILTIN_BY_KEY: Record<string, BuiltinPropertyField> = {
   modified: "updated",
   "updated-at": "updated",
   banner: "banner",
+  "banner-align": "bannerAlign",
 };
 
 /**
@@ -84,6 +93,25 @@ export function splitPropertyList(raw: string): string[] {
   }
   items.push(current);
   return items.map(cleanPropertyValue).filter((item) => item.length > 0);
+}
+
+/**
+ * `banner-align:: 70%` → the vertical percent a banner is cropped at.
+ *
+ * Logseq writes a CSS `background-position` here, so a real vault holds
+ * percentages, and its keywords mean what they do in CSS. Null when the value is
+ * neither — a horizontal-only `left`, say, which this banner has no notion of.
+ */
+export function bannerAlignPercent(raw: string): number | null {
+  const value = cleanPropertyValue(raw).toLowerCase();
+  if (!value) return null;
+  if (value === "top") return 0;
+  if (value === "center" || value === "centre" || value === "middle") return 50;
+  if (value === "bottom") return 100;
+
+  const percent = /^(-?\d+(?:\.\d+)?)\s*%?$/.exec(value);
+  if (!percent) return null;
+  return Math.min(100, Math.max(0, Math.round(Number.parseFloat(percent[1]))));
 }
 
 /**

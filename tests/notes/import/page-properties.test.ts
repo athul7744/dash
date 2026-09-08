@@ -10,6 +10,7 @@
  */
 
 import {
+  bannerAlignPercent,
   builtinFieldFor,
   cleanPropertyValue,
   parseLogseqDate,
@@ -54,6 +55,7 @@ describe("builtinFieldFor", () => {
     expect(builtinFieldFor("starred")).toBe("favorite");
     expect(builtinFieldFor("created")).toBe("created");
     expect(builtinFieldFor("banner")).toBe("banner");
+    expect(builtinFieldFor("banner-align")).toBe("bannerAlign");
   });
 
   it("leaves `date` to the mapping step", () => {
@@ -93,5 +95,33 @@ describe("parseLogseqDate", () => {
     expect(parseLogseqDate("Sapiens")).toBeNull();
     expect(parseLogseqDate("70%")).toBeNull();
     expect(parseLogseqDate("")).toBeNull();
+  });
+});
+
+describe("bannerAlignPercent", () => {
+  it("reads the percentages a real vault holds", () => {
+    expect(bannerAlignPercent("10%")).toBe(10);
+    expect(bannerAlignPercent("40%")).toBe(40);
+    expect(bannerAlignPercent("70%")).toBe(70);
+    expect(bannerAlignPercent("70")).toBe(70);
+  });
+
+  it("reads the CSS keywords Logseq also accepts", () => {
+    expect(bannerAlignPercent("top")).toBe(0);
+    expect(bannerAlignPercent("center")).toBe(50);
+    expect(bannerAlignPercent("Bottom")).toBe(100);
+  });
+
+  it("keeps the value inside the frame", () => {
+    expect(bannerAlignPercent("-30%")).toBe(0);
+    expect(bannerAlignPercent("180%")).toBe(100);
+    expect(bannerAlignPercent("33.4%")).toBe(33);
+  });
+
+  it("is null for a position this banner has no notion of", () => {
+    // Horizontal-only alignment, and prose: the banner crops vertically only.
+    expect(bannerAlignPercent("left")).toBeNull();
+    expect(bannerAlignPercent("cover no-repeat")).toBeNull();
+    expect(bannerAlignPercent("")).toBeNull();
   });
 });

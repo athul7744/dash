@@ -71,7 +71,14 @@ export function FileRow({
   checked: boolean;
   onToggle: (path: string) => void;
 }) {
-  const detail = file.notes.length > 0 ? describeNotes(file.notes) : file.detail;
+  // A banner the vault no longer holds comes first: it's the one thing here that
+  // will silently not arrive.
+  const detail =
+    file.banner === "missing"
+      ? "banner missing"
+      : file.notes.length > 0
+        ? describeNotes(file.notes)
+        : file.detail;
   const selectable = file.status !== "failed" && file.status !== "notMarkdown";
 
   return (
@@ -130,7 +137,8 @@ const BUILTIN_LABEL: Record<BuiltinPropertyField, string> = {
   favorite: "favourite",
   created: "the created date",
   updated: "the updated date",
-  banner: "a page attachment",
+  banner: "the page banner",
+  bannerAlign: "the banner position",
 };
 
 function PropertyActionLabel({

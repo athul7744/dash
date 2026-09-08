@@ -117,4 +117,22 @@ describe("scanVaultFiles", () => {
     ]);
     expect(result.files.map((file) => file.path)).toEqual(["pages/A.md", "pages/B.md"]);
   });
+
+  it("resolves a page's banner before anything is written", async () => {
+    // The real vault holds `banner:: ../assets/x.jpg` on nine pages, one with a
+    // trailing space after the filename — so the ref is checked, not assumed.
+    const png = vaultFile("assets/cover.png", "binary", "image/png");
+    const local = vaultFile("pages/Home.md", ["banner:: ../assets/cover.png ", "banner-align:: 70%", "", "- hi"].join("\n"));
+    const remote = vaultFile("pages/Away.md", ["banner:: https://example.com/cover.jpg", "", "- hi"].join("\n"));
+    const gone = vaultFile("pages/Gone.md", ["banner:: ../assets/deleted.png", "", "- hi"].join("\n"));
+    const none = vaultFile("pages/Plain.md", "- hi");
+
+    const result = await scan([png, local, remote, gone, none]);
+    const banners = new Map(result.files.map((file) => [file.path, file.banner]));
+
+    expect(banners.get("pages/Home.md")).toBe("local");
+    expect(banners.get("pages/Away.md")).toBe("remote");
+    expect(banners.get("pages/Gone.md")).toBe("missing");
+    expect(banners.get("pages/Plain.md")).toBeNull();
+  });
 });

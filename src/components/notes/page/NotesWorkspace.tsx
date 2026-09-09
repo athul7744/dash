@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, ChevronDown, ChevronUp, Columns3, Download, Files, Network, NotebookTabs, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Redo2, Tag as TagIcon, Undo2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Columns3, Files, Network, NotebookTabs, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Redo2, Tag as TagIcon, Undo2 } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
@@ -42,7 +42,6 @@ import { useNotesSurfaceState } from "@/components/notes/page/useNotesSurfaceSta
 import { useNotesNavigation } from "@/components/notes/page/useNotesNavigation";
 import { parseProperties } from "@/components/notes/page/utils";
 import { ManagePropertiesDialog } from "@/components/notes/ManagePropertiesDialog";
-import { ImportLogseqDialog } from "@/components/notes/page/ImportLogseqDialog";
 import { ManageTagsDialog } from "@/components/tasks/ManageTagsDialog";
 import { useEdgeSwipe } from "@/hooks/use-edge-swipe";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -78,7 +77,6 @@ export function NotesWorkspace() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isManageTagsOpen, setIsManageTagsOpen] = useState(false);
   const [isManagePropertiesOpen, setIsManagePropertiesOpen] = useState(false);
-  const [isImportOpen, setIsImportOpen] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState("");
   const {
     showEditorAppHeader,
@@ -497,10 +495,6 @@ export function NotesWorkspace() {
                 <span>Manage Properties</span>
                 <Columns3 className="ml-auto h-4 w-4 text-muted-foreground" />
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsImportOpen(true)}>
-                <span>Import from Logseq</span>
-                <Download className="ml-auto h-4 w-4 text-muted-foreground" />
-              </DropdownMenuItem>
             </>
           ) : undefined}
           actions={isDisplayingOverview ? (
@@ -509,7 +503,6 @@ export function NotesWorkspace() {
               <ManageTagsDialog open={isManageTagsOpen} onOpenChange={setIsManageTagsOpen} hideTrigger />
               <ManagePropertiesDialog />
               <ManagePropertiesDialog open={isManagePropertiesOpen} onOpenChange={setIsManagePropertiesOpen} hideTrigger />
-              <ImportLogseqDialog open={isImportOpen} onOpenChange={setIsImportOpen} hideTrigger />
               <button
                 type="button"
                 onClick={() => startTransition(() => { router.push("/notes/graph"); })}

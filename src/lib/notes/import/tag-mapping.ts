@@ -32,11 +32,6 @@ export interface TagCensusEntry {
   source: TagSource;
   /** The value is also a page — the case where a link is the truer reading. */
   isPageTitle: boolean;
-  /**
-   * Set when the name can't be used with the app's `tag:<name>` search prefix.
-   * Carries a suggestion; renaming still requires saying so.
-   */
-  warning: { reason: string; suggestion: string } | null;
   suggested: TagDecision;
 }
 
@@ -97,7 +92,6 @@ export function buildTagCensus(
         files: entry.files,
         source: entry.source,
         isPageTitle,
-        warning: tagNameWarning(label),
         suggested: suggestDecision({ label, files: entry.files, source: entry.source, isPageTitle, tagByName, valueId }),
       };
     })
@@ -152,6 +146,31 @@ export function tagActionKind(decision: TagDecision): TagActionKind {
   if (!decision.tag) return decision.link ? "link" : "ignore";
   if (decision.link) return "both";
   return "existingId" in decision.tag ? "existing" : "create";
+}
+
+/** Why a tag can't be created under the name it currently has. */
+export type TagNameProblem =
+  /** Cleared. `ensureTagIdsByName` skips blanks, so it would create nothing. */
+  | "empty"
+  /** Unsearchable: the `tag:<name>` prefix stops at a space. */
+  | "spaces";
+
+/**
+ * The problem with a decision's tag name, or null when there is none.
+ *
+ * The name is editable, so both states are reachable, and both cost something
+ * silently: an empty name creates no tag at all and every page carrying the value
+ * loses it without a word, and a name with spaces creates a tag that the app's own
+ * search can never find. The import step refuses to start while either stands —
+ * one keystroke or the suggested name fixes it, which is cheaper than finding out
+ * afterwards. Only a *created* name is in question; mapping onto an existing tag
+ * or leaving the value out has no name to get wrong.
+ */
+export function tagDecisionProblem(decision: TagDecision): TagNameProblem | null {
+  if (decision.tag === null || !("createName" in decision.tag)) return null;
+  const name = decision.tag.createName.trim();
+  if (!name) return "empty";
+  return /\s/.test(name) ? "spaces" : null;
 }
 
 /** Tag names this mapping will create, deduplicated. */

@@ -373,15 +373,24 @@ function DataSection({ onClose, onImportLogseq }: { onClose: () => void; onImpor
           </span>
         </Button>
       ) : null}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setShowReset(true)}
-        className="w-full justify-start gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
-      >
-        <DatabaseZap className="h-4 w-4" />
-        Reset local data
-      </Button>
+      {/* Set apart, and labelled with what it costs: everything above this line is
+          reversible, and this one throws away anything not yet synced. */}
+      <div className="mt-2 border-t border-destructive/20 pt-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowReset(true)}
+          className="h-auto w-full justify-start gap-2 py-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
+          <DatabaseZap className="h-4 w-4 shrink-0" />
+          <span className="flex min-w-0 flex-col items-start gap-0.5">
+            <span>Reset local data</span>
+            <span className="text-xs font-normal text-muted-foreground">
+              Deletes this device&apos;s copy and re-downloads everything. Unsynced changes are lost.
+            </span>
+          </span>
+        </Button>
+      </div>
       <ResetLocalDataDialog open={showReset} onOpenChange={setShowReset} onConfirmed={onClose} />
     </SettingsSection>
   );

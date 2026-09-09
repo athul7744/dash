@@ -37,7 +37,14 @@ import { normalizeTitleKey } from "@/lib/links/tokens";
 import { buildPropertyCensus, type PropertyAction, type PropertyCensusEntry } from "@/lib/notes/import/property-mapping";
 import { runMarkdownImport, type ImportResult } from "@/lib/notes/import/run-import";
 import { scanVaultFiles, type VaultScan } from "@/lib/notes/import/scan-import";
-import { buildTagCensus, type TagCensusEntry, type TagDecision } from "@/lib/notes/import/tag-mapping";
+import {
+  buildTagCensus,
+  tagDecisionProblem,
+  tagNameWarning,
+  type TagCensusEntry,
+  type TagDecision,
+  type TagNameProblem,
+} from "@/lib/notes/import/tag-mapping";
 import { ensurePropertyDefinitions } from "@/lib/notes/properties";
 import { softDeleteEntity } from "@/lib/shared/trash";
 import { yieldToUI } from "@/lib/shared/utils";
@@ -191,6 +198,33 @@ export function ImportLogseqDialog({
   const propertyActionFor = (entry: PropertyCensusEntry) => propertyActions.get(entry.keyId) ?? entry.suggested;
   const tagDecisionFor = (entry: TagCensusEntry) => tagDecisions.get(entry.valueId) ?? entry.suggested;
 
+  // Holding the import beats explaining afterwards why a tag went missing — or
+  // why the one it created can't be searched for.
+  const tagProblems = tagCensus
+    .map((entry) => tagDecisionProblem(tagDecisionFor(entry)))
+    .filter((problem): problem is TagNameProblem => problem !== null);
+  const spacedTags = tagProblems.filter((problem) => problem === "spaces").length;
+
+  /**
+   * Take the hyphenated name on every row that has spaces.
+   *
+   * Several of a real vault's tag values are page titles, which have spaces by
+   * nature — so the block would otherwise mean the same edit five times before
+   * anything can be imported.
+   */
+  const hyphenateSpacedTags = () => {
+    setTagDecisions((current) => {
+      const next = new Map(current);
+      for (const entry of tagCensus) {
+        const decision = tagDecisionFor(entry);
+        if (tagDecisionProblem(decision) !== "spaces" || !decision.tag || !("createName" in decision.tag)) continue;
+        const suggestion = tagNameWarning(decision.tag.createName)?.suggestion;
+        if (suggestion) next.set(entry.valueId, { ...decision, tag: { createName: suggestion } });
+      }
+      return next;
+    });
+  };
+
   const runImport = async () => {
     setPhase("running");
     setProgress({ done: 0, total: chosen.length });
@@ -274,6 +308,14 @@ export function ImportLogseqDialog({
   const bannerCount = chosen.filter((file) => file.banner === "local" || file.banner === "remote").length;
   const missingBannerCount = chosen.filter((file) => file.banner === "missing").length;
 
+  // Picking `pages/` instead of the vault root is an easy mistake and a quiet
+  // one: the notes all import, and every local image and banner is simply
+  // absent. Say so while there's still a chance to go back.
+  const pickedAnyAsset = scan
+    ? [...scan.assets.byPath.keys()].some((path) => path.startsWith("assets/"))
+    : true;
+  const assetsMissing = !pickedAnyAsset && scan !== null && scan.files.some((file) => file.banner === "missing");
+
   const toggle = (path: string) => {
     setSelection((current) => {
       const next = new Set(current);
@@ -352,7 +394,9 @@ export function ImportLogseqDialog({
 
         {phase === "review" && scan ? (
           <>
-            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            {/* Wraps rather than squeezes: the count and the two actions don't fit
+                on one phone-width line. */}
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
               <span>
                 {selection.size} of {scan.files.length} selected
                 {renamedCount > 0 ? (
@@ -362,7 +406,7 @@ export function ImportLogseqDialog({
                   </span>
                 ) : null}
               </span>
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-4">
                 <button type="button" className="hover:text-foreground" onClick={() => setHideSkipped((v) => !v)}>
                   {hideSkipped ? "Show skipped" : "Hide skipped"}
                 </button>
@@ -381,6 +425,13 @@ export function ImportLogseqDialog({
                 </button>
               </span>
             </div>
+            {assetsMissing ? (
+              <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-[11px] leading-4 text-amber-600 dark:text-amber-400">
+                No <code className="font-mono">assets</code> folder in this pick, so local images and banners
+                won&apos;t come across. Go back and choose the vault&apos;s root folder rather than{" "}
+                <code className="font-mono">pages</code>.
+              </p>
+            ) : null}
             <div className="-mx-1 flex-1 overflow-y-auto px-1">
               <ul className="divide-y divide-border/50">
                 {visibleFiles.map((file) => (
@@ -530,10 +581,27 @@ export function ImportLogseqDialog({
           ) : null}
           {phase === "mapping" ? (
             <>
+              {tagProblems.length > 0 ? (
+                <p className="flex items-start gap-1.5 text-xs text-amber-600 sm:mr-auto sm:items-center dark:text-amber-400">
+                  <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 sm:mt-0" />
+                  <span>
+                    {tagProblemMessage(tagProblems)}
+                    {spacedTags > 0 ? (
+                      <button
+                        type="button"
+                        onClick={hyphenateSpacedTags}
+                        className="ml-1.5 font-medium whitespace-nowrap underline underline-offset-2 hover:text-foreground"
+                      >
+                        Hyphenate {spacedTags === 1 ? "it" : "them"}
+                      </button>
+                    ) : null}
+                  </span>
+                </p>
+              ) : null}
               <Button variant="ghost" onClick={() => setPhase("review")}>
                 Back
               </Button>
-              <Button onClick={() => void runImport()}>
+              <Button disabled={tagProblems.length > 0} onClick={() => void runImport()}>
                 Import {chosen.length} {chosen.length === 1 ? "note" : "notes"}
                 {withNotes > 0 ? ` · ${withNotes} with notes` : ""}
               </Button>
@@ -575,4 +643,21 @@ export function ImportLogseqDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * Why the import is being held, in one line.
+ *
+ * Named per problem when they are all of a kind, since that says what to do; a
+ * mixture just gets a count, and the amber rows say which and why.
+ */
+function tagProblemMessage(problems: readonly TagNameProblem[]): string {
+  const one = problems.length === 1;
+  if (problems.every((problem) => problem === "empty")) {
+    return one ? "One tag needs a name, or set it to Ignore" : `${problems.length} tags need names, or set them to Ignore`;
+  }
+  if (problems.every((problem) => problem === "spaces")) {
+    return one ? "One tag name has a space." : `${problems.length} tag names have spaces.`;
+  }
+  return `${problems.length} tag names need fixing.`;
 }

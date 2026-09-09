@@ -10,6 +10,7 @@
 
 import {
   buildTagCensus,
+  tagDecisionProblem,
   tagActionKind,
   tagNamesToCreate,
   tagNameWarning,
@@ -111,5 +112,32 @@ describe("tagNamesToCreate", () => {
       { tag: null, link: true },
     ]);
     expect(names).toEqual(["meta"]);
+  });
+});
+
+describe("tagDecisionProblem", () => {
+  it("catches a name that was cleared", () => {
+    // A blank name creates nothing, so the value would be dropped from every page
+    // carrying it without a word. The import step refuses to start on either of
+    // these.
+    expect(tagDecisionProblem({ tag: { createName: "" }, link: false })).toBe("empty");
+    expect(tagDecisionProblem({ tag: { createName: "   " }, link: true })).toBe("empty");
+  });
+
+  it("catches a name the app's own search couldn't find", () => {
+    // `tag:<name>` stops at a space, so "personal development" is untaggable in
+    // search — the row offers a hyphenated name to take instead.
+    expect(tagDecisionProblem({ tag: { createName: "personal development" }, link: false })).toBe("spaces");
+    expect(tagDecisionProblem({ tag: { createName: "Books To Read" }, link: true })).toBe("spaces");
+  });
+
+  it("passes everything that would actually land", () => {
+    expect(tagDecisionProblem({ tag: { createName: "meta" }, link: false })).toBeNull();
+    expect(tagDecisionProblem({ tag: { createName: " tech " }, link: false })).toBeNull();
+    // An existing tag's name isn't ours to judge, and link-only or ignore create
+    // no tag at all — no name to get wrong.
+    expect(tagDecisionProblem({ tag: { existingId: "tag-1" }, link: false })).toBeNull();
+    expect(tagDecisionProblem({ tag: null, link: true })).toBeNull();
+    expect(tagDecisionProblem({ tag: null, link: false })).toBeNull();
   });
 });

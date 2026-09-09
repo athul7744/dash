@@ -29,7 +29,14 @@ import { describeNotes } from "@/lib/notes/import/logseq-normalize";
 import type { BuiltinPropertyField } from "@/lib/notes/import/page-properties";
 import type { PropertyAction, PropertyCensusEntry } from "@/lib/notes/import/property-mapping";
 import type { ScanStatus, ScannedFile } from "@/lib/notes/import/scan-import";
-import { tagActionKind, type TagActionKind, type TagCensusEntry, type TagDecision } from "@/lib/notes/import/tag-mapping";
+import {
+  tagActionKind,
+  tagDecisionProblem,
+  tagNameWarning,
+  type TagActionKind,
+  type TagCensusEntry,
+  type TagDecision,
+} from "@/lib/notes/import/tag-mapping";
 import { cn } from "@/lib/shared/utils";
 
 export const STATUS_STYLE: Record<ScanStatus, string> = {
@@ -82,40 +89,68 @@ export function FileRow({
   const selectable = file.status !== "failed" && file.status !== "notMarkdown";
 
   return (
-    // Every column is sized explicitly. Each row is its own grid, so an `auto`
-    // column would size to that row's own content — one longer status ("Ready ·
-    // 1 query") then shrinks that row's title column and the list stops lining up.
-    <li className="grid grid-cols-[1.25rem_minmax(0,1fr)_minmax(0,1fr)_6.5rem] items-center gap-3 py-1.5">
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={!selectable}
-        onChange={() => onToggle(file.path)}
-        aria-label={`Import ${file.path}`}
-        className="h-4 w-4 accent-violet-500 disabled:opacity-40"
-      />
-      <span className="truncate text-xs text-muted-foreground" title={file.path}>
-        {file.path}
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-sm text-foreground" title={planned?.title || file.title}>
-          {planned?.title || file.title || "—"}
-        </span>
-        {planned?.renamedFrom ? (
-          <span className="block truncate text-[11px] leading-4 text-amber-600 dark:text-amber-400">
-            renamed &mdash; &ldquo;{planned.renamedFrom}&rdquo;{" "}
-            {planned.reason === "existing" ? "already exists" : "is used twice here"}
+    <li>
+      {/*
+        Two layouts, one set of cells, placed by row and column.
+        Narrow: the title leads, with the path and any detail on lines of their
+        own — four columns across a phone leaves every one of them truncated.
+        Wide: path, title, status in a row, each column sized explicitly. Each row
+        is its own grid, so an `auto` column would size to that row's own content
+        — one longer status ("Ready · 1 query") then shrinks that row's title
+        column and the list stops lining up.
+
+        A label, so the whole row is a tap target and the checkbox toggles once.
+      */}
+      <label
+        className={cn(
+          "grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 py-3",
+          "sm:grid-cols-[1.25rem_minmax(0,1fr)_minmax(0,1fr)_6.5rem] sm:items-center sm:gap-y-0 sm:py-1.5",
+          selectable && "cursor-pointer",
+        )}
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={!selectable}
+          onChange={() => onToggle(file.path)}
+          aria-label={`Import ${file.path}`}
+          className="col-start-1 row-start-1 mt-0.5 h-4 w-4 accent-violet-500 disabled:opacity-40 sm:mt-0"
+        />
+        <span className="col-start-2 row-start-1 min-w-0 sm:col-start-3">
+          <span className="block truncate text-sm text-foreground" title={planned?.title || file.title}>
+            {planned?.title || file.title || "—"}
           </span>
-        ) : null}
-      </span>
-      <span className="min-w-0 text-right">
-        <span className={cn("block text-xs", STATUS_STYLE[file.status])}>{STATUS_LABEL[file.status]}</span>
+          {planned?.renamedFrom ? (
+            <span className="block truncate text-[11px] leading-4 text-amber-600 dark:text-amber-400">
+              renamed &mdash; &ldquo;{planned.renamedFrom}&rdquo;{" "}
+              {planned.reason === "existing" ? "already exists" : "is used twice here"}
+            </span>
+          ) : null}
+        </span>
+        <span
+          className={cn(
+            "col-start-3 row-start-1 justify-self-end text-xs whitespace-nowrap",
+            STATUS_STYLE[file.status],
+            "sm:col-start-4",
+          )}
+        >
+          {STATUS_LABEL[file.status]}
+        </span>
+        <span
+          className="col-start-2 col-end-4 row-start-2 min-w-0 truncate text-[11px] leading-4 text-muted-foreground sm:col-start-2 sm:col-end-3 sm:row-start-1 sm:text-xs"
+          title={file.path}
+        >
+          {file.path}
+        </span>
         {detail ? (
-          <span className="block truncate text-[11px] leading-4 text-muted-foreground" title={detail}>
+          <span
+            className="col-start-2 col-end-4 row-start-3 min-w-0 truncate text-[11px] leading-4 text-muted-foreground sm:col-start-4 sm:col-end-5 sm:row-start-2 sm:text-right"
+            title={detail}
+          >
             {detail}
           </span>
         ) : null}
-      </span>
+      </label>
     </li>
   );
 }
@@ -195,12 +230,22 @@ export function PropertyRow({
   const builtin = entry.suggested.kind === "builtin" ? entry.suggested.field : null;
 
   return (
-    <li className="grid grid-cols-[minmax(5rem,8rem)_2.25rem_minmax(0,1fr)_13rem] items-center gap-3 py-2">
-      <span className="truncate text-sm font-medium text-foreground" title={entry.variants.join(" / ")}>
+    // Narrow: the key and its count, then a sample, then a full-width action —
+    // a select squeezed into a phone-width column can't show what it says.
+    <li className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 py-3 sm:grid-cols-[minmax(5rem,8rem)_2.25rem_minmax(0,1fr)_13rem] sm:gap-y-0 sm:py-2">
+      <span
+        className="col-start-1 row-start-1 truncate text-sm font-medium text-foreground"
+        title={entry.variants.join(" / ")}
+      >
         {entry.label}
       </span>
-      <span className="text-xs tabular-nums text-muted-foreground">{entry.files}&times;</span>
-      <span className="truncate text-xs text-muted-foreground" title={entry.values.join(", ")}>
+      <span className="col-start-2 row-start-1 text-xs tabular-nums text-muted-foreground sm:justify-self-start">
+        {entry.files}&times;
+      </span>
+      <span
+        className="col-start-1 col-end-3 row-start-2 min-w-0 truncate text-xs text-muted-foreground sm:col-start-3 sm:col-end-4 sm:row-start-1"
+        title={entry.values.join(", ")}
+      >
         {entry.values[0] ?? ""}
       </span>
       <Select
@@ -218,7 +263,10 @@ export function PropertyRow({
           });
         }}
       >
-        <SelectTrigger size="sm" className="w-full">
+        <SelectTrigger
+          size="sm"
+          className="col-start-1 col-end-3 row-start-3 w-auto max-w-full justify-self-start sm:col-start-4 sm:col-end-5 sm:row-start-1 sm:w-full"
+        >
           <SelectValue>
             <PropertyActionLabel action={action} definitions={definitions} />
           </SelectValue>
@@ -300,23 +348,32 @@ export function TagRow({
   const naming = kind === "create" || kind === "both";
   const name = decision.tag && "createName" in decision.tag ? decision.tag.createName : entry.label;
   const existing = tags.find((tag) => tag.name.trim().toLowerCase() === entry.valueId);
-  // Only warn while the name still has the problem — it clears as you fix it.
-  const warning = naming && entry.warning && /\s/.test(name) ? entry.warning : null;
+  // Read off the name as it stands, so the row and the footer's block always
+  // agree — including for spaces typed into a name that arrived without any.
+  const problem = tagDecisionProblem(decision);
+  const warning = problem === "spaces" ? tagNameWarning(name) : null;
 
   return (
-    <li className="grid grid-cols-[minmax(5rem,9rem)_2.25rem_minmax(0,1fr)_11rem] items-start gap-3 py-2">
-      <span className="truncate pt-1.5 text-sm text-foreground" title={entry.variants.join(" / ")}>
+    <li className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1.5 py-3 sm:grid-cols-[minmax(5rem,9rem)_2.25rem_minmax(0,1fr)_11rem] sm:gap-y-0 sm:py-2">
+      <span
+        className="col-start-1 row-start-1 truncate text-sm text-foreground sm:pt-1.5"
+        title={entry.variants.join(" / ")}
+      >
         {entry.source === "hashtag" ? `#${entry.label}` : entry.label}
       </span>
-      <span className="pt-2 text-xs tabular-nums text-muted-foreground">{entry.files}&times;</span>
+      <span className="col-start-2 row-start-1 text-xs tabular-nums text-muted-foreground sm:pt-2">
+        {entry.files}&times;
+      </span>
 
-      <div className="min-w-0">
+      <div className="col-start-1 col-end-3 row-start-2 min-w-0 sm:col-start-3 sm:col-end-4 sm:row-start-1">
         {naming ? (
           <Input
             value={name}
             onChange={(event) => onChange({ ...decision, tag: { createName: event.target.value } })}
             aria-label={`Tag name for ${entry.label}`}
-            className="h-8 text-sm"
+            aria-invalid={problem !== null}
+            // Marks the row the footer is refusing to import on.
+            className={cn("h-8 text-sm", problem && "border-amber-500/70")}
           />
         ) : (
           // Never an empty box: say what will happen instead.
@@ -355,7 +412,10 @@ export function TagRow({
           return onChange({ tag: null, link: false });
         }}
       >
-        <SelectTrigger size="sm" className="w-full">
+        <SelectTrigger
+          size="sm"
+          className="col-start-1 col-end-3 row-start-3 w-auto max-w-full justify-self-start sm:col-start-4 sm:col-end-5 sm:row-start-1 sm:w-full"
+        >
           <SelectValue>
             <Icon className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="truncate">{TAG_ACTION_LABEL[kind]}</span>

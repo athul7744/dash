@@ -116,6 +116,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/shared/debounced-update.test.ts`
   Covers debounced field updates and execute batching, including per-`table:id` keying and flush ordering.
 
+- `tests/shared/trash.test.ts`
+  Covers the shared soft-delete layer: the marker each kind flips (and the `updated_at` bump the search reconciler needs), the occurrence cascade both ways, `purgeEntity` delegating to each app's hard delete plus a task's subtask fan-out, and the bulk `purgeEntities`/`restoreEntities` the Trash page's Delete all / selection actions run.
+
 - `tests/shared/share.test.ts`
   Covers incoming share payload parsing, safe next-path sanitization, and task title generation.
 

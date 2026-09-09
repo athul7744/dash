@@ -46,7 +46,7 @@ The fastest way in. On Android, install Dash as a PWA and it shows up in your ph
 
 ### Trash & undo
 
-Nothing deletes by accident. Removing a task, note, bookmark, quote, or event moves it to a shared Trash and offers an instant Undo. Whatever you don't undo waits in one Trash view — open it from the app switcher or ⌘K — where you can restore it or delete it for good.
+Nothing deletes by accident. Removing a task, note, bookmark, quote, or event moves it to a shared Trash and offers an instant Undo. Whatever you don't undo waits in one Trash view — open it from the app switcher or ⌘K — where you can restore it or delete it for good, one at a time, everything at once, or a batch you tick off yourself.
 
 ## How It Works
 

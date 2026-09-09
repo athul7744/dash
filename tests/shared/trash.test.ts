@@ -31,7 +31,14 @@ vi.mock("@/lib/notes/notes", () => ({ deleteNotePage: (...a: unknown[]) => delet
 vi.mock("@/lib/links/links", () => ({ deleteEntityEdges: (...a: unknown[]) => deleteEntityEdges(...a) }));
 vi.mock("@/lib/tags/entity-tags", () => ({ deleteEntityTags: (...a: unknown[]) => deleteEntityTags(...a) }));
 
-import { softDeleteEntity, restoreEntity, purgeEntity, cascadeOccurrences } from "@/lib/shared/trash";
+import {
+  softDeleteEntity,
+  restoreEntity,
+  restoreEntities,
+  purgeEntity,
+  purgeEntities,
+  cascadeOccurrences,
+} from "@/lib/shared/trash";
 import { db } from "@/lib/powersync/db";
 
 beforeEach(() => {
@@ -116,5 +123,38 @@ describe("purgeEntity", () => {
     expect(deleteEntityEdges).toHaveBeenCalledTimes(3);
     expect(deleteSubjectOccurrences).toHaveBeenCalledTimes(3);
     expect(deleteEntityTags).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("bulk actions", () => {
+  it("purges every item, in the order given", async () => {
+    // The Trash empties itself and deletes a selection through this, so the whole
+    // list has to land — one straggler reads as a failed cleanup.
+    await purgeEntities([
+      { kind: "bookmark", id: "b1" },
+      { kind: "quote", id: "q1" },
+      { kind: "note", id: "n1" },
+    ]);
+
+    expect(deleteBookmark).toHaveBeenCalledWith("b1");
+    expect(deleteQuote).toHaveBeenCalledWith("q1");
+    expect(deleteNotePage).toHaveBeenCalledWith("n1");
+  });
+
+  it("restores every item", async () => {
+    await restoreEntities([
+      { kind: "event", id: "e1" },
+      { kind: "task", id: "t1" },
+    ]);
+
+    expect(sqlsMatching("UPDATE blocks SET deleted_at = NULL").some((e) => e.params.includes("e1"))).toBe(true);
+    expect(sqlsMatching("UPDATE tasks SET state = 'pending'")[0].params).toEqual(["t1", "t1"]);
+  });
+
+  it("does nothing for an empty list", async () => {
+    await purgeEntities([]);
+    await restoreEntities([]);
+    expect(executed).toEqual([]);
+    expect(deleteBookmark).not.toHaveBeenCalled();
   });
 });

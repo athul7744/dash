@@ -102,6 +102,23 @@ export async function purgeEntity(kind: TrashKind, id: string): Promise<void> {
   }
 }
 
+/**
+ * Permanently delete several entities.
+ *
+ * One at a time, not in parallel: each purge is a fan-out of writes across
+ * blocks, pages, edges, tags and attachments, and running dozens at once turns a
+ * cleanup into a stall. Callers pass their own snapshot — the list a reactive
+ * query gave them shrinks as this runs.
+ */
+export async function purgeEntities(items: ReadonlyArray<{ kind: TrashKind; id: string }>): Promise<void> {
+  for (const item of items) await purgeEntity(item.kind, item.id);
+}
+
+/** Restore several entities from the trash. Same one-at-a-time reasoning. */
+export async function restoreEntities(items: ReadonlyArray<{ kind: TrashKind; id: string }>): Promise<void> {
+  for (const item of items) await restoreEntity(item.kind, item.id);
+}
+
 /** Hard-delete a task and its subtasks, severing their relationships. */
 async function hardDeleteTask(id: string): Promise<void> {
   const children = await db.getAll<{ id: string }>(`SELECT id FROM tasks WHERE parent_id = ?`, [id]);

@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ImagePlus, Loader2, Move, Trash2, Upload } from "lucide-react";
+import { Check, ImagePlus, Loader2, Move, Trash2, Upload, X } from "lucide-react";
 
 import { useToast } from "@/components/toast/ToastProvider";
 import { Input } from "@/components/ui/input";
@@ -38,8 +38,13 @@ type BannerProps = {
   attachments: NoteAttachmentRow[];
 };
 
+/** Icon-only, so three controls sit lightly on top of the image. */
 const CONTROL_CLASS =
-  "inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/75 disabled:opacity-60";
+  "inline-flex size-7 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white backdrop-blur-sm transition-colors hover:bg-black/75 disabled:opacity-60";
+
+/** The one thing an icon can't say: that the image is now draggable. */
+const HINT_CLASS =
+  "pointer-events-none inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm";
 
 const CHIP_CLASS =
   "inline-flex h-7 items-center gap-1.5 rounded-full bg-muted px-2.5 text-xs text-foreground transition-colors hover:bg-accent hover:text-foreground";
@@ -135,15 +140,15 @@ export function NotePageBanner({ pageId, pageProperties, attachments }: BannerPr
       <div className="note-banner-controls">
         {repositioning ? (
           <>
-            <span className={cn(CONTROL_CLASS, "pointer-events-none")}>
+            <span className={HINT_CLASS}>
               <Move className="h-3.5 w-3.5" aria-hidden />
               Drag to reposition
             </span>
-            <button type="button" className={CONTROL_CLASS} onClick={commitAlign}>
-              Save
+            <button type="button" className={CONTROL_CLASS} onClick={commitAlign} title="Save" aria-label="Save banner position">
+              <Check className="h-3.5 w-3.5" aria-hidden />
             </button>
-            <button type="button" className={CONTROL_CLASS} onClick={stopRepositioning}>
-              Cancel
+            <button type="button" className={CONTROL_CLASS} onClick={stopRepositioning} title="Cancel" aria-label="Cancel repositioning">
+              <X className="h-3.5 w-3.5" aria-hidden />
             </button>
           </>
         ) : (
@@ -151,33 +156,31 @@ export function NotePageBanner({ pageId, pageProperties, attachments }: BannerPr
             <button
               type="button"
               className={CONTROL_CLASS}
+              title="Reposition"
+              aria-label="Reposition banner"
               onClick={() => {
                 setDraftAlign(banner.align);
                 setRepositioning(true);
               }}
             >
               <Move className="h-3.5 w-3.5" aria-hidden />
-              Reposition
             </button>
             <BannerSourcePopover
               pageId={pageId}
               pageProperties={pageProperties}
               attachments={attachments}
               triggerClassName={CONTROL_CLASS}
-              triggerContent={
-                <>
-                  <ImagePlus className="h-3.5 w-3.5" aria-hidden />
-                  Replace
-                </>
-              }
+              triggerTitle="Replace banner"
+              triggerContent={<ImagePlus className="h-3.5 w-3.5" aria-hidden />}
             />
             <button
               type="button"
               className={CONTROL_CLASS}
+              title="Remove"
+              aria-label="Remove banner"
               onClick={() => writePageBanner(pageId, pageProperties, null)}
             >
               <Trash2 className="h-3.5 w-3.5" aria-hidden />
-              Remove
             </button>
           </>
         )}
@@ -198,6 +201,8 @@ export function AddBannerChip({ pageId, pageProperties, attachments }: BannerPro
       pageProperties={pageProperties}
       attachments={attachments}
       triggerClassName={CHIP_CLASS}
+      // The visible "Add banner" stays part of the accessible name.
+      triggerTitle="Add banner image"
       triggerContent={
         <>
           <ImagePlus className="h-3.5 w-3.5" aria-hidden />
@@ -213,8 +218,9 @@ function BannerSourcePopover({
   pageProperties,
   attachments,
   triggerClassName,
+  triggerTitle,
   triggerContent,
-}: BannerProps & { triggerClassName: string; triggerContent: ReactNode }) {
+}: BannerProps & { triggerClassName: string; triggerTitle: string; triggerContent: ReactNode }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -240,7 +246,7 @@ function BannerSourcePopover({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger disabled={busy} className={triggerClassName}>
+      <PopoverTrigger disabled={busy} className={triggerClassName} title={triggerTitle} aria-label={triggerTitle}>
         {triggerContent}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 gap-3">

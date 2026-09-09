@@ -69,8 +69,9 @@ function render(properties: Record<string, unknown>) {
 }
 
 const image = () => container.querySelector("img");
+/** The controls are icon-only, so they're found the way a screen reader finds them. */
 const button = (label: string) =>
-  [...container.querySelectorAll("button")].find((element) => element.textContent?.includes(label));
+  [...container.querySelectorAll("button")].find((element) => element.getAttribute("aria-label")?.includes(label));
 
 /** React listens by native event type, and jsdom has no PointerEvent. */
 function pointer(type: string, clientY: number) {
@@ -107,14 +108,14 @@ describe("NotePageBanner", () => {
 
   it("clears both keys when removed, keeping the rest of the page", () => {
     render({ banner: "att-1", bannerAlign: 70, summary: "keep me" });
-    act(() => button("Remove")?.click());
+    act(() => button("Remove banner")?.click());
 
     expect(updateNotePageProperties).toHaveBeenCalledWith("page-1", { summary: "keep me" });
   });
 
   it("follows the drag and stores it on save", () => {
     render({ banner: "att-1", bannerAlign: 50 });
-    act(() => button("Reposition")?.click());
+    act(() => button("Reposition banner")?.click());
 
     pointer("pointerdown", 100);
     pointer("pointermove", 140);
@@ -124,20 +125,20 @@ describe("NotePageBanner", () => {
     expect(updateNotePageProperties).not.toHaveBeenCalled();
 
     pointer("pointerup", 140);
-    act(() => button("Save")?.click());
+    act(() => button("Save banner position")?.click());
 
     expect(updateNotePageProperties).toHaveBeenCalledWith("page-1", { banner: "att-1", bannerAlign: 30 });
   });
 
   it("puts the crop back when a reposition is cancelled", () => {
     render({ banner: "att-1", bannerAlign: 60 });
-    act(() => button("Reposition")?.click());
+    act(() => button("Reposition banner")?.click());
 
     pointer("pointerdown", 100);
     pointer("pointermove", 40);
     expect(image()?.style.objectPosition).toBe("50% 90%");
 
-    act(() => button("Cancel")?.click());
+    act(() => button("Cancel repositioning")?.click());
 
     expect(updateNotePageProperties).not.toHaveBeenCalled();
     expect(image()?.style.objectPosition).toBe("50% 60%");
@@ -148,16 +149,16 @@ describe("NotePageBanner", () => {
     // active capture retargets the click that follows to the capturing element —
     // so capturing on a press over Save or Cancel swallows the button entirely.
     render({ banner: "att-1", bannerAlign: 50 });
-    act(() => button("Reposition")?.click());
+    act(() => button("Reposition banner")?.click());
 
-    const save = button("Save") as HTMLButtonElement;
+    const save = button("Save banner position") as HTMLButtonElement;
     act(() => save.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientY: 100 })));
     pointer("pointermove", 160);
     expect(image()?.style.objectPosition).toBe("50% 50%");
 
     act(() => save.click());
     expect(updateNotePageProperties).toHaveBeenCalledWith("page-1", { banner: "att-1" });
-    expect(button("Reposition")).toBeDefined();
+    expect(button("Reposition banner")).toBeDefined();
   });
 
   it("ignores a drag when not repositioning", () => {

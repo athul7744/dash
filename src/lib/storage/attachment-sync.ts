@@ -45,26 +45,47 @@ function online(): boolean {
 
 // --- Upload pending bytes ---
 
+type PendingRow = { id: string; file_path: string; mime_type: string | null };
+
+/**
+ * Files uploaded at once.
+ *
+ * Each upload is one request that spends its time on the wire, and they're
+ * independent of each other, so a vault import with sixty images has no reason to
+ * send them one at a time. Bounded, because a phone on a slow connection does
+ * worse with sixty at once than with a few.
+ */
+const UPLOAD_CONCURRENCY = 4;
+
 async function uploadPending(): Promise<void> {
   if (!online()) return;
-  const rows = await db.getAll<{ id: string; file_path: string; mime_type: string | null }>(
+  const rows = await db.getAll<PendingRow>(
     "SELECT id, file_path, mime_type FROM attachments WHERE sync_state = 'pending'",
   );
-  for (const row of rows) {
-    const blob = await blobStore.get(row.id);
-    if (!blob) continue; // bytes live on another device — not ours to upload
-    log.info(`Attachment upload → ${row.file_path} (${blob.size} bytes)`);
-    const { error } = await bucket().upload(row.file_path, blob, {
-      contentType: row.mime_type ?? undefined,
-      upsert: true,
-    });
-    if (error) {
-      log.warn(`Attachment upload failed (will retry): ${row.file_path}`, error);
-      continue;
-    }
-    await db.execute("UPDATE attachments SET sync_state = 'synced' WHERE id = ?", [row.id]);
-    log.info(`Attachment uploaded ✓ ${row.file_path}`);
+  if (rows.length === 0) return;
+
+  const queue = [...rows];
+  const workers = Array.from({ length: Math.min(UPLOAD_CONCURRENCY, queue.length) }, async () => {
+    for (let row = queue.shift(); row; row = queue.shift()) await uploadOne(row);
+  });
+  await Promise.all(workers);
+}
+
+/** One file's bytes. A failure is left `pending` for the next pass. */
+async function uploadOne(row: PendingRow): Promise<void> {
+  const blob = await blobStore.get(row.id);
+  if (!blob) return; // bytes live on another device — not ours to upload
+  log.info(`Attachment upload → ${row.file_path} (${blob.size} bytes)`);
+  const { error } = await bucket().upload(row.file_path, blob, {
+    contentType: row.mime_type ?? undefined,
+    upsert: true,
+  });
+  if (error) {
+    log.warn(`Attachment upload failed (will retry): ${row.file_path}`, error);
+    return;
   }
+  await db.execute("UPDATE attachments SET sync_state = 'synced' WHERE id = ?", [row.id]);
+  log.info(`Attachment uploaded ✓ ${row.file_path}`);
 }
 
 // --- Read path ---

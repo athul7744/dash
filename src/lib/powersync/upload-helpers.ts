@@ -113,3 +113,40 @@ export function orderTables(tables: readonly string[], preferredOrder: readonly 
     return left.localeCompare(right);
   });
 }
+
+/**
+ * SQLSTATE classes that can never succeed on retry: data exceptions (22),
+ * integrity violations (23) and syntax/access errors (42).
+ *
+ * The queue is strictly ordered, so one unsatisfiable op blocks every write
+ * behind it — including ones that would succeed. Discarding the batch loses that
+ * op, which is the lesser loss.
+ */
+export function isFatalResponseCode(code: string | null | undefined): boolean {
+  return typeof code === "string" && /^(22|23|42)/.test(code);
+}
+
+/**
+ * An upload failure that keeps the server's SQLSTATE.
+ *
+ * Rethrowing a bare `Error` drops the code, and the code is the only thing that
+ * separates "retry this" from "this can never work" — without it, one permanently
+ * rejected row retries forever and the queue never drains.
+ */
+export class UploadError extends Error {
+  readonly code?: string;
+
+  constructor(message: string, code?: string | null) {
+    super(message);
+    this.name = "UploadError";
+    if (code) this.code = code;
+  }
+}
+
+/** Split a list into fixed-size chunks, so one request's payload stays bounded. */
+export function chunk<T>(items: readonly T[], size: number): T[][] {
+  if (size <= 0) return [[...items]];
+  const out: T[][] = [];
+  for (let index = 0; index < items.length; index += size) out.push(items.slice(index, index + size));
+  return out;
+}

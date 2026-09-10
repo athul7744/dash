@@ -2,9 +2,12 @@ import { PowerSyncBackendConnector, AbstractPowerSyncDatabase, UpdateType } from
 import { createClient } from '../supabase/client';
 import { logger as log } from '../shared/logger';
 import {
+  chunk,
   collapseCrudOps,
+  isFatalResponseCode,
   isForeignKeyViolation,
   orderTables,
+  UploadError,
   DELETE_TABLE_ORDER,
   PUT_TABLE_ORDER,
   type CrudOpKind,
@@ -16,8 +19,21 @@ const OP_KIND: Record<UpdateType, CrudOpKind> = {
   [UpdateType.DELETE]: 'delete',
 };
 
-/** Response codes that indicate a permanent/fatal error — discard the transaction. */
-const FATAL_RESPONSE_CODES = [/^22/, /^23/, /^42/];
+/**
+ * CRUD entries pulled per `uploadData` call.
+ *
+ * `uploadData` is called again while anything is left, so this is only about how
+ * many round trips a bulk write costs: an import writing thousands of rows drains
+ * in a handful of calls rather than dozens. The ops are still applied in order,
+ * and each request's payload is bounded by the chunk sizes below.
+ */
+const CRUD_BATCH_LIMIT = 1000;
+
+/** Rows per upsert request — a batch of a thousand blocks is several MB of JSON. */
+const UPSERT_CHUNK = 200;
+
+/** Ids per delete request: PostgREST puts `id=in.(…)` in the URL, which has limits. */
+const DELETE_CHUNK = 100;
 
 /** Columns that are JSONB in Supabase but stored as TEXT in PowerSync. */
 export const JSON_COLUMNS: Record<string, Set<string>> = {
@@ -81,7 +97,7 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
    */
   async uploadData(database: AbstractPowerSyncDatabase): Promise<void> {
     // getCrudBatch returns pending CRUD ops (limited to prevent oversized requests)
-    const batch = await database.getCrudBatch(100);
+    const batch = await database.getCrudBatch(CRUD_BATCH_LIMIT);
     if (!batch) return;
 
     // Collapse the batch to one net op per (table, id), honouring op ORDER so a
@@ -98,19 +114,21 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     );
 
     try {
-      // Execute bulk PUTs (upsert) per table
+      // Execute bulk PUTs (upsert) per table, in chunks so one request stays small
       for (const table of orderTables(Object.keys(putOps), PUT_TABLE_ORDER)) {
         const records = [...putOps[table].values()];
         log.info(`BATCH PUT ${table}: ${records.length} record(s)`);
-        const { error } = await this.client.from(table).upsert(records);
-        if (!error) continue;
-        // A foreign-key violation means one row references a parent that no
-        // longer exists (an orphan from a create/delete race). The upsert fails
-        // atomically, so retry row-by-row and drop only the orphan(s) — keeping
-        // the valid rows and preventing the unsatisfiable op from wedging the
-        // queue on endless retries. Table-agnostic (keyed on the FK code).
-        if (!isForeignKeyViolation(error)) throw new Error(`PUT ${table} failed: ${error.message}`);
-        await this.upsertSkippingOrphans(table, records);
+        for (const part of chunk(records, UPSERT_CHUNK)) {
+          const { error } = await this.client.from(table).upsert(part);
+          if (!error) continue;
+          // A foreign-key violation means one row references a parent that no
+          // longer exists (an orphan from a create/delete race). The upsert fails
+          // atomically, so retry row-by-row and drop only the orphan(s) — keeping
+          // the valid rows and preventing the unsatisfiable op from wedging the
+          // queue on endless retries. Table-agnostic (keyed on the FK code).
+          if (!isForeignKeyViolation(error)) throw new UploadError(`PUT ${table} failed: ${error.message}`, error.code);
+          await this.upsertSkippingOrphans(table, part);
+        }
       }
 
       // Execute bulk DELETEs per table
@@ -118,15 +136,17 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
         const ids = [...deleteOps[table]];
         if (ids.length === 0) continue;
         log.info(`BATCH DELETE ${table}: ${ids.length} record(s)`);
-        const { error } = await this.client.from(table).delete().in('id', ids);
-        if (error) throw new Error(`DELETE ${table} failed: ${error.message}`);
+        for (const part of chunk(ids, DELETE_CHUNK)) {
+          const { error } = await this.client.from(table).delete().in('id', part);
+          if (error) throw new UploadError(`DELETE ${table} failed: ${error.message}`, error.code);
+        }
       }
 
       // Execute PATCH operations individually (partial updates can't be easily batched)
       for (const op of patchOps) {
         log.info(`PATCH ${op.table}/${op.id}`, Object.keys(op.data).join(", "));
         const { error } = await this.client.from(op.table).update(op.data).eq('id', op.id);
-        if (error) throw new Error(`PATCH ${op.table}/${op.id} failed: ${error.message}`);
+        if (error) throw new UploadError(`PATCH ${op.table}/${op.id} failed: ${error.message}`, error.code);
       }
 
       await batch.complete();
@@ -136,14 +156,16 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
         + patchOps.length;
       log.info(`Upload complete — ${total} op(s) batched`);
 
-    } catch (ex: any) {
-      if (typeof ex?.code === 'string' && FATAL_RESPONSE_CODES.some(regex => regex.test(ex.code))) {
+    } catch (ex: unknown) {
+      const code = (ex as { code?: string } | null)?.code;
+      const message = ex instanceof Error ? ex.message : String(ex);
+      if (isFatalResponseCode(code)) {
         // Fatal error — discard batch to unblock the queue
-        log.error("Fatal upload error — discarding batch:", ex.message || ex);
+        log.error(`Fatal upload error (${code}) — discarding batch:`, message);
         await batch.complete();
       } else {
         // Retryable error — throw to trigger retry after delay
-        log.error("Upload error (will retry):", ex.message || ex);
+        log.error("Upload error (will retry):", message);
         throw ex;
       }
     }
@@ -162,7 +184,7 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
         log.warn(`Dropping orphaned ${table} row ${String(record.id)} — parent row missing (${error.message})`);
         continue;
       }
-      throw new Error(`PUT ${table} failed: ${error.message}`);
+      throw new UploadError(`PUT ${table} failed: ${error.message}`, error.code);
     }
   }
 }

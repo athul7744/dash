@@ -1,8 +1,11 @@
 /// <reference types="vitest/globals" />
 
 import {
+  chunk,
   collapseCrudOps,
+  isFatalResponseCode,
   isForeignKeyViolation,
+  UploadError,
   orderTables,
   DELETE_TABLE_ORDER,
   PUT_TABLE_ORDER,
@@ -121,5 +124,48 @@ describe("orderTables", () => {
       "activity_types",
       "time_logs",
     ]);
+  });
+});
+
+describe("fatal response codes", () => {
+  it("treats data, integrity and access errors as unretryable", () => {
+    // The queue is strictly ordered, so an op that can never succeed blocks every
+    // write behind it. Discarding the batch loses that op — the lesser loss.
+    expect(isFatalResponseCode("22001")).toBe(true); // value too long
+    expect(isFatalResponseCode("23505")).toBe(true); // unique violation
+    expect(isFatalResponseCode("42501")).toBe(true); // RLS / permission
+  });
+
+  it("leaves anything else to retry", () => {
+    expect(isFatalResponseCode("40001")).toBe(false); // serialization failure
+    expect(isFatalResponseCode("08006")).toBe(false); // connection failure
+    expect(isFatalResponseCode(undefined)).toBe(false);
+    expect(isFatalResponseCode(null)).toBe(false);
+  });
+
+  it("carries the code through a rethrow", () => {
+    // Without this the code is lost, the failure reads as retryable, and one
+    // permanently rejected row retries forever.
+    const error = new UploadError("PUT tags failed: duplicate key", "23505");
+    expect(isFatalResponseCode(error.code)).toBe(true);
+    expect(error.message).toContain("duplicate key");
+    expect(new UploadError("network died").code).toBeUndefined();
+  });
+});
+
+describe("chunk", () => {
+  it("splits a list into fixed-size parts, keeping order", () => {
+    // Bulk writes go up in one batch of a thousand ops, but a single request
+    // can't carry a thousand rows of block content — or a thousand ids in a URL.
+    expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+    expect(chunk([1, 2, 3], 3)).toEqual([[1, 2, 3]]);
+  });
+
+  it("returns nothing for an empty list", () => {
+    expect(chunk([], 10)).toEqual([]);
+  });
+
+  it("falls back to one part rather than looping forever on a bad size", () => {
+    expect(chunk([1, 2], 0)).toEqual([[1, 2]]);
   });
 });

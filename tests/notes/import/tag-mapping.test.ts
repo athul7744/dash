@@ -12,6 +12,7 @@ import {
   buildTagCensus,
   tagDecisionProblem,
   tagActionKind,
+  tagNameFor,
   tagNamesToCreate,
   tagNameWarning,
   type TagFileInput,
@@ -139,5 +140,14 @@ describe("tagDecisionProblem", () => {
     expect(tagDecisionProblem({ tag: { existingId: "tag-1" }, link: false })).toBeNull();
     expect(tagDecisionProblem({ tag: null, link: true })).toBeNull();
     expect(tagDecisionProblem({ tag: null, link: false })).toBeNull();
+  });
+});
+
+describe("tagNameFor", () => {
+  it("hyphenates a name the mapping screen never gets to show", () => {
+    // A folder name, when folder tagging is on: the screen can't offer a fix for
+    // it, so it gets the same treatment it insists on for every other new tag.
+    expect(tagNameFor("Things To Write")).toBe("things-to-write");
+    expect(tagNameFor("  Books  ")).toBe("Books");
   });
 });

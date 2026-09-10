@@ -254,7 +254,11 @@ export function PropertyRow({
           if (!next || next === "ignore") return onChange({ kind: "ignore" });
           const [kind, rest] = next.split(":");
           if (kind === "builtin" && builtin) return onChange({ kind: "builtin", field: builtin });
-          if (kind === "existing") return onChange({ kind: "existing", definitionId: rest });
+          if (kind === "existing") {
+            const definition = definitions.find((candidate) => candidate.id === rest);
+            if (!definition) return onChange({ kind: "ignore" });
+            return onChange({ kind: "existing", definitionId: definition.id, type: definition.type });
+          }
           return onChange({
             kind: "create",
             name: entry.label,

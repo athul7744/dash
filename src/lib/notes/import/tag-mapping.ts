@@ -148,6 +148,17 @@ export function tagActionKind(decision: TagDecision): TagActionKind {
   return "existingId" in decision.tag ? "existing" : "create";
 }
 
+/**
+ * The name a tag is actually created under.
+ *
+ * For names the mapping screen never shows — a folder name, when folder tagging
+ * is on — so they get the same treatment the screen insists on for every other
+ * created tag, rather than quietly producing one `tag:` search can't find.
+ */
+export function tagNameFor(label: string): string {
+  return tagNameWarning(label)?.suggestion ?? label.trim();
+}
+
 /** Why a tag can't be created under the name it currently has. */
 export type TagNameProblem =
   /** Cleared. `ensureTagIdsByName` skips blanks, so it would create nothing. */

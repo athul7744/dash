@@ -49,7 +49,8 @@ export type PropertyAction =
   /** Straight into a field the notes app already has (title, tags, emoji, …). */
   | { kind: "builtin"; field: BuiltinPropertyField }
   /** Onto a property definition that already exists. */
-  | { kind: "existing"; definitionId: string }
+  /** The definition's own type comes along: a value has to be stored as what it holds. */
+  | { kind: "existing"; definitionId: string; type: PropertyType }
   /** A new definition, name and type both overridable. */
   | { kind: "create"; name: string; type: PropertyType; options: string[] }
   /** Kept in `properties.importedFrontmatter` — stored, not shown. */
@@ -152,7 +153,7 @@ function suggestAction({
   if (INTERNAL_KEYS.has(keyId)) return { kind: "ignore" };
 
   const match = definitionByName.get(keyId);
-  if (match) return { kind: "existing", definitionId: match.id };
+  if (match) return { kind: "existing", definitionId: match.id, type: match.type };
 
   if (files >= RECURRENCE_THRESHOLD) {
     const type = inferPropertyType(values, files);

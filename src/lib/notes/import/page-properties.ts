@@ -96,6 +96,22 @@ export function splitPropertyList(raw: string): string[] {
 }
 
 /**
+ * The title a file's own properties ask for, or null.
+ *
+ * A `title::` property overrides the filename at import time, so the review
+ * step's preview has to read it too or it shows a title the import won't use.
+ * Trimmed only, matching what the writer does with the value.
+ */
+export function titleFromProperties(properties: ReadonlyArray<{ key: string; value: string }>): string | null {
+  for (const property of properties) {
+    if (builtinFieldFor(property.key) !== "title") continue;
+    const title = property.value.trim();
+    if (title) return title;
+  }
+  return null;
+}
+
+/**
  * `banner-align:: 70%` → the vertical percent a banner is cropped at.
  *
  * Logseq writes a CSS `background-position` here, so a real vault holds

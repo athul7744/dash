@@ -45,7 +45,16 @@ describe("buildPropertyCensus", () => {
     const census = buildPropertyCensus(spread("Author", ["a", "b", "c"]), [
       { id: "def-1", name: "author", type: "text" },
     ]);
-    expect(census[0].suggested).toEqual({ kind: "existing", definitionId: "def-1" });
+    expect(census[0].suggested).toEqual({ kind: "existing", definitionId: "def-1", type: "text" });
+  });
+
+  it("carries the existing definition's type, not the value's shape", () => {
+    // The value has to be stored as what the definition holds: a date read as
+    // text lands as an unparseable string the properties panel can't render.
+    const census = buildPropertyCensus(spread("date", ["Aug 26th, 2020", "2020-01-01", "Feb 3rd, 2020"]), [
+      { id: "def-date", name: "Date", type: "date" },
+    ]);
+    expect(census[0].suggested).toEqual({ kind: "existing", definitionId: "def-date", type: "date" });
   });
 
   it("creates a select for a small shared value set, like Status", () => {

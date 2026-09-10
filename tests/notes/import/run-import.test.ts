@@ -219,6 +219,21 @@ describe("runMarkdownImport", () => {
     expect(getAll).toHaveBeenCalledWith(expect.stringContaining("FROM blocks WHERE page_id IN"), expect.any(Array));
   });
 
+  it("reconciles a block's links once, in the second pass only", async () => {
+    // Doing it inside the write transaction as well reads every page title per
+    // block — the expensive half of a large import — to produce edges the second
+    // pass replaces, and drops any link to a page not yet written.
+    getAll.mockImplementation((sql: string) =>
+      Promise.resolve(sql.includes("FROM blocks WHERE page_id IN") ? [{ id: "b1", content: '{"type":"doc"}' }] : []),
+    );
+
+    await runMarkdownImport([scanned("pages/A.md", "- see [[B]]")], buildAssetIndex([]), mapping(), {
+      existingTitles: [],
+    });
+
+    expect(reconcileEntityRefs).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a page that landed even if recording its files fails", async () => {
     // The page is committed by then, so calling the file a page failure would
     // leave it out of `pageIds` — unlinked, and missed by the import's undo.
@@ -389,6 +404,35 @@ describe("mapped properties and tags", () => {
     expect(properties.custom).toEqual({ "def-status": "Reading" });
     // An unmapped key is stored rather than dropped.
     expect(properties.importedFrontmatter).toEqual({ oddity: "keep me" });
+  });
+
+  it("stores a value as the existing definition's own type", async () => {
+    // Mapped onto a Date definition, a Logseq date has to land as an ISO day: as
+    // text it's an unparseable string the properties panel can't render.
+    await runMarkdownImport(
+      [scanned("pages/Sapiens.md", ["date:: [[Aug 26th, 2020]]", "", "- body"].join("\n"))],
+      buildAssetIndex([]),
+      mapping({
+        properties: new Map([
+          ["date", { kind: "existing", definitionId: "def-date", type: "date" }],
+        ]) as ImportMapping["properties"],
+      }),
+      { existingTitles: [] },
+    );
+
+    const properties = JSON.parse(String(inserts("pages")[0].params[3]));
+    expect(properties.custom).toEqual({ "def-date": "2020-08-26" });
+  });
+
+  it("tags a page with a folder name under the name that tag was created with", async () => {
+    // The dialog creates it hyphenated (spaces break `tag:` search), so the
+    // lookup has to use the same name or the tag silently never applies.
+    const withFolders = mapping({ tagFolders: true, tagIds: new Map([["things-to-write", "tag-folder"]]) });
+    await runMarkdownImport([scanned("pages/Things To Write/Idea.md", "- body")], buildAssetIndex([]), withFolders, {
+      existingTitles: [],
+    });
+
+    expect(setEntityTags).toHaveBeenCalledWith(expect.any(String), "note", ["tag-folder"], expect.anything());
   });
 
   it("tags the page with both the created and the existing tag", async () => {

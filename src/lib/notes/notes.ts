@@ -310,6 +310,16 @@ export async function createNotePageFromBlockNodes(input: {
   tagIds?: string[];
   createdAt?: string;
   updatedAt?: string;
+  /**
+   * Skip link reconciliation for these blocks.
+   *
+   * For a caller that reconciles afterwards against a prebuilt title index — a
+   * bulk import, where every `[[link]]` to a page written later would be dropped
+   * here anyway. `reconcileEntityRefs` reads every page title per call, so doing
+   * it per block inside the write lock is the expensive half of a large import
+   * and the second pass replaces its edges regardless.
+   */
+  deferEdges?: boolean;
 }): Promise<string> {
   const pageId = input.id ?? uuidv4();
   const userId = await getCurrentUserId();
@@ -337,7 +347,7 @@ export async function createNotePageFromBlockNodes(input: {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [blockId, userId, pageId, parentId, type, content, sortRank, updatedAt],
       );
-      await reconcileNoteBlockEdges(blockId, JSON.parse(content) as JsonValue, tx);
+      if (!input.deferEdges) await reconcileNoteBlockEdges(blockId, JSON.parse(content) as JsonValue, tx);
     }
 
     if (input.tagIds && input.tagIds.length > 0) {

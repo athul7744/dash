@@ -37,7 +37,7 @@ import { normalizeLogseqMarkdown } from "./logseq-normalize";
 import { bannerAlignPercent, propertyKeyId, splitPropertyList } from "./page-properties";
 import { propertyValueFor, type PropertyAction } from "./property-mapping";
 import { normalizeTitleKey } from "@/lib/links/tokens";
-import type { TagDecision } from "./tag-mapping";
+import { tagNameFor, type TagDecision } from "./tag-mapping";
 import type { ScannedFile } from "./scan-import";
 import { createTitleAllocator } from "./title-allocator";
 
@@ -167,6 +167,10 @@ async function importOneFile(
       tagIds: fields.tagIds,
       createdAt: fields.createdAt,
       updatedAt: fields.updatedAt,
+      // Every imported block is reconciled again at the end against one shared
+      // title index. Doing it here as well would scan the whole `pages` table per
+      // block, inside the write lock, to produce edges the second pass replaces.
+      deferEdges: true,
     });
   } catch (error) {
     // Bytes nothing will ever reference. They're inert without a row — no Storage
@@ -282,8 +286,9 @@ function resolvePageFields(
       leftovers[key] = value;
       continue;
     }
-    const type = action.kind === "existing" ? "text" : action.type;
-    const resolved = propertyValueFor(type, value);
+    // Its own type, either way: a date read as text stores an unparseable string
+    // and the properties panel can't render it.
+    const resolved = propertyValueFor(action.type, value);
     if (resolved !== null) custom[definitionId] = resolved as JsonValue;
   }
 
@@ -292,7 +297,8 @@ function resolvePageFields(
 
   if (mapping.tagFolders) {
     const folder = folderNameOf(entry.path);
-    const id = folder ? mapping.tagIds.get(folder.toLowerCase()) : undefined;
+    // Through the same naming as any created tag, and looked up under it.
+    const id = folder ? mapping.tagIds.get(tagNameFor(folder).toLowerCase()) : undefined;
     if (id) tagIds.add(id);
   }
 

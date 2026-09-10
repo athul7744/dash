@@ -12,6 +12,7 @@
 import {
   bannerAlignPercent,
   builtinFieldFor,
+  titleFromProperties,
   cleanPropertyValue,
   parseLogseqDate,
   propertyKeyId,
@@ -123,5 +124,20 @@ describe("bannerAlignPercent", () => {
     expect(bannerAlignPercent("left")).toBeNull();
     expect(bannerAlignPercent("cover no-repeat")).toBeNull();
     expect(bannerAlignPercent("")).toBeNull();
+  });
+});
+
+describe("titleFromProperties", () => {
+  it("reads the title a file asks for", () => {
+    // The writer prefers it over the filename, so the review step's preview has
+    // to read it too or it shows a title the import won't use.
+    expect(titleFromProperties([{ key: "title", value: " Real Title " }])).toBe("Real Title");
+    expect(titleFromProperties([{ key: "Title", value: "Real Title" }])).toBe("Real Title");
+  });
+
+  it("is null when there is none to read", () => {
+    expect(titleFromProperties([])).toBeNull();
+    expect(titleFromProperties([{ key: "name", value: "Sapiens" }])).toBeNull();
+    expect(titleFromProperties([{ key: "title", value: "   " }])).toBeNull();
   });
 });

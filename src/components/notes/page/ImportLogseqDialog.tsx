@@ -31,6 +31,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { useToast } from "@/components/toast/ToastProvider";
 import { FileRow, PropertyRow, TagRow, type PlannedTitle } from "@/components/notes/page/ImportMappingRows";
 import { type PropertyType } from "@/components/notes/page/types";
+import { titleFromProperties } from "@/lib/notes/import/page-properties";
 import { pickVaultFiles } from "@/lib/notes/import/pick-markdown-files";
 import { createTitleAllocator } from "@/lib/notes/import/title-allocator";
 import { normalizeTitleKey } from "@/lib/links/tokens";
@@ -40,6 +41,7 @@ import { scanVaultFiles, type VaultScan } from "@/lib/notes/import/scan-import";
 import {
   buildTagCensus,
   tagDecisionProblem,
+  tagNameFor,
   tagNameWarning,
   type TagCensusEntry,
   type TagDecision,
@@ -155,7 +157,9 @@ export function ImportLogseqDialog({
     const allocator = createTitleAllocator(existingTitles);
     const planned = new Map<string, PlannedTitle>();
     for (const file of chosen) {
-      const base = file.title;
+      // The writer prefers a `title::` property, which is the default mapping for
+      // that key — so the preview reads it too rather than showing the filename.
+      const base = titleFromProperties(file.properties) || file.title;
       const title = allocator.allocate(base);
       planned.set(
         file.path,
@@ -245,7 +249,7 @@ export function ImportLogseqDialog({
       if (tagFolders) {
         for (const file of chosen) {
           const folder = file.path.split("/").slice(0, -1).pop();
-          if (folder && folder.toLowerCase() !== "pages") tagNames.push(folder);
+          if (folder && folder.toLowerCase() !== "pages") tagNames.push(tagNameFor(folder));
         }
       }
       const tagIds = await ensureTagIdsByName(tagNames);
@@ -493,14 +497,23 @@ export function ImportLogseqDialog({
             </section>
 
             <div className="space-y-2 border-t border-border/50 pt-3">
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <label className="flex items-start gap-2 text-sm text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={tagFolders}
                   onChange={(event) => setTagFolders(event.target.checked)}
-                  className="h-4 w-4 accent-violet-500"
+                  className="mt-0.5 h-4 w-4 accent-violet-500"
                 />
-                Also tag each page with the folder it came from
+                <span>
+                  Also tag each page with the folder it came from
+                  {/* These names never reach the rows above, so say what happens to them. */}
+                  {tagFolders ? (
+                    <span className="block text-xs text-muted-foreground/70">
+                      A folder with spaces becomes hyphenated, so <code className="font-mono">tag:</code> search finds
+                      it.
+                    </span>
+                  ) : null}
+                </span>
               </label>
               {localImageCount > 0 ? (
                 <p className="text-xs text-muted-foreground/70">

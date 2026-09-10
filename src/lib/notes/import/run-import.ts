@@ -22,7 +22,12 @@ import { BLOCK_NODE_TYPE, DEFAULT_BLOCK_TYPE, stampBlockIds } from "@/lib/notes/
 import { markdownToBlockNodes } from "@/lib/notes/editor/markdown-paste";
 import { createNotePageFromBlockNodes, reconcileNoteBlockEdges } from "@/lib/notes/notes";
 import { db } from "@/lib/powersync/db";
-import { attachFile, deleteAttachment } from "@/lib/storage/attachments";
+import {
+  discardStoredBytes,
+  insertAttachmentRow,
+  storeFileBytes,
+  type StoredBytes,
+} from "@/lib/storage/attachments";
 import { fetchRemoteImage, imageFileNameFromUrl } from "@/lib/storage/remote-image";
 import { yieldToUI } from "@/lib/shared/utils";
 import type { JsonValue } from "@/lib/shared/types";
@@ -78,8 +83,6 @@ export interface RunImportOptions {
   onProgress?: (done: number, total: number) => void;
 }
 
-type StoredFile = { id: string; file_path: string | null };
-
 /** Identifies one import run across every page it creates. */
 export interface ImportBatch {
   id: string;
@@ -134,28 +137,29 @@ async function importOneFile(
     ...markdownToBlockNodes(normalized.body),
   ]);
 
-  const stored: StoredFile[] = [];
+  const stored: StoredBytes[] = [];
+  let written: string;
   try {
-    await attachImages(blockNodes, entry.path, assets, stored, mapping.downloadRemoteImages);
+    await storeImageBytes(blockNodes, entry.path, assets, stored, mapping.downloadRemoteImages);
 
     if (fields.banner) {
-      const attachmentId = await attachBanner(
+      const banner = await storeBannerBytes(
         fields.banner,
         entry.path,
         assets,
         pageId,
-        stored,
         mapping.downloadRemoteImages,
       );
       // A banner the vault referenced but doesn't hold leaves the page without
       // one, rather than pointing at a file that was never stored.
-      if (attachmentId) {
-        fields.properties.banner = attachmentId;
+      if (banner) {
+        stored.push(banner);
+        fields.properties.banner = banner.id;
         if (fields.bannerAlign !== undefined) fields.properties.bannerAlign = fields.bannerAlign;
       }
     }
 
-    return await createNotePageFromBlockNodes({
+    written = await createNotePageFromBlockNodes({
       id: pageId,
       title,
       blockNodes,
@@ -165,12 +169,25 @@ async function importOneFile(
       updatedAt: fields.updatedAt,
     });
   } catch (error) {
-    // The page never landed, so nothing references these files — and nothing
-    // would ever reclaim them: the cascade needs a block row and the orphan sweep
-    // only removes objects whose row is gone.
-    await Promise.all(stored.map((file) => deleteAttachment(file).catch(() => {})));
+    // Bytes nothing will ever reference. They're inert without a row — no Storage
+    // object exists yet — so dropping them is the whole cleanup.
+    await Promise.all(stored.map((bytes) => discardStoredBytes(bytes).catch(() => {})));
     throw error;
   }
+
+  // Rows last, once their page and blocks exist: the upload queue keeps that
+  // order, so no `attachments` row reaches the server ahead of the row it points
+  // at, which the server refuses and the connector drops. Past the commit the
+  // page has landed, so a row that won't write costs its image, not the file.
+  for (const bytes of stored) {
+    try {
+      await insertAttachmentRow(bytes);
+    } catch {
+      await discardStoredBytes(bytes).catch(() => {});
+    }
+  }
+
+  return written;
 }
 
 // --- Properties → page fields ------------------------------------------------
@@ -317,7 +334,8 @@ function linkBlock(labels: readonly string[]): JSONContent {
 // --- Images ------------------------------------------------------------------
 
 /**
- * Store each image against the block that owns it and point the node at it.
+ * Cache each image's bytes against the block that owns it, and point the node at
+ * the id it will have. The rows follow once the blocks are written.
  *
  * Two sources, both worth taking: a file from the picked folder, and — when
  * `downloadRemote` is on — an image that lives at a URL, fetched through the
@@ -329,11 +347,11 @@ function linkBlock(labels: readonly string[]): JSONContent {
  * and leaves the editor's adopt pass free to try again later. A downloaded image
  * keeps its `src` too, so the original URL survives in a markdown export.
  */
-async function attachImages(
+async function storeImageBytes(
   blockNodes: readonly JSONContent[],
   fromPath: string,
   assets: AssetIndex,
-  stored: StoredFile[],
+  stored: StoredBytes[],
   downloadRemote: boolean,
 ): Promise<void> {
   for (const { node, blockId } of collectImageNodes(blockNodes)) {
@@ -344,7 +362,7 @@ async function attachImages(
       if (!downloadRemote || !/^https?:\/\//i.test(src)) continue;
       const blob = await fetchRemoteImage(src);
       if (!blob) continue;
-      const attachment = await attachFile(blob, { blockId }, {
+      const attachment = await storeFileBytes(blob, { blockId }, {
         fileName: imageFileNameFromUrl(src),
         mimeType: blob.type,
       });
@@ -355,7 +373,7 @@ async function attachImages(
 
     const file = resolveAssetRef(src, fromPath, assets);
     if (!file) continue;
-    const attachment = await attachFile(file, { blockId }, { fileName: file.name, mimeType: file.type });
+    const attachment = await storeFileBytes(file, { blockId }, { fileName: file.name, mimeType: file.type });
     stored.push(attachment);
     // A local path is meaningless once imported, so it goes.
     node.attrs = { ...node.attrs, attachmentId: attachment.id, src: null };
@@ -366,35 +384,27 @@ async function attachImages(
  * A `banner::` image becomes the page's banner — a page-owned attachment whose id
  * the page records in `properties.banner`.
  *
- * Returns the attachment id, or null when the reference resolves to nothing: a
+ * Returns the cached bytes, or null when the reference resolves to nothing: a
  * vault can name an asset it no longer holds, and a remote banner needs the same
  * proxy an inline image does.
  */
-async function attachBanner(
+async function storeBannerBytes(
   ref: string,
   fromPath: string,
   assets: AssetIndex,
   pageId: string,
-  stored: StoredFile[],
   downloadRemote: boolean,
-): Promise<string | null> {
+): Promise<StoredBytes | null> {
   if (isExternalRef(ref)) {
     if (!downloadRemote || !/^https?:\/\//i.test(ref)) return null;
     const blob = await fetchRemoteImage(ref);
     if (!blob) return null;
-    const attachment = await attachFile(blob, { pageId }, {
-      fileName: imageFileNameFromUrl(ref),
-      mimeType: blob.type,
-    });
-    stored.push(attachment);
-    return attachment.id;
+    return storeFileBytes(blob, { pageId }, { fileName: imageFileNameFromUrl(ref), mimeType: blob.type });
   }
 
   const file = resolveAssetRef(ref, fromPath, assets);
   if (!file) return null;
-  const attachment = await attachFile(file, { pageId }, { fileName: file.name, mimeType: file.type });
-  stored.push(attachment);
-  return attachment.id;
+  return storeFileBytes(file, { pageId }, { fileName: file.name, mimeType: file.type });
 }
 
 // --- Pass two: resolve links now that every page exists ----------------------

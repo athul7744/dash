@@ -122,7 +122,7 @@ export function NotesWorkspace() {
       }
 
       flushAllUpdates();
-      flushAllBlockDocumentPersisters();
+      void flushAllBlockDocumentPersisters();
       event.preventDefault();
     };
 

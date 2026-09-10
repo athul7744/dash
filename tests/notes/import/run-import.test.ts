@@ -13,8 +13,9 @@ const {
   execute,
   getAll,
   writeTransaction,
-  attachFile,
-  deleteAttachment,
+  storeFileBytes,
+  insertAttachmentRow,
+  discardStoredBytes,
   setEntityTags,
   reconcileEntityRefs,
   fetchRemoteImage,
@@ -22,8 +23,9 @@ const {
   execute: vi.fn(),
   getAll: vi.fn(),
   writeTransaction: vi.fn(),
-  attachFile: vi.fn(),
-  deleteAttachment: vi.fn(),
+  storeFileBytes: vi.fn(),
+  insertAttachmentRow: vi.fn(),
+  discardStoredBytes: vi.fn(),
   setEntityTags: vi.fn(),
   reconcileEntityRefs: vi.fn(),
   fetchRemoteImage: vi.fn(),
@@ -31,7 +33,7 @@ const {
 
 vi.mock("@/lib/powersync/db", () => ({ db: { execute, getAll, writeTransaction } }));
 vi.mock("@/lib/shared/auth", () => ({ getCurrentUserId: vi.fn(() => Promise.resolve("user-1")) }));
-vi.mock("@/lib/storage/attachments", () => ({ attachFile, deleteAttachment }));
+vi.mock("@/lib/storage/attachments", () => ({ storeFileBytes, insertAttachmentRow, discardStoredBytes }));
 vi.mock("@/lib/storage/remote-image", () => ({
   fetchRemoteImage,
   imageFileNameFromUrl: (url: string) => url.split("/").pop() ?? "image",
@@ -98,20 +100,22 @@ beforeEach(() => {
   execute.mockReset();
   getAll.mockReset();
   writeTransaction.mockReset();
-  attachFile.mockReset();
-  deleteAttachment.mockReset();
+  storeFileBytes.mockReset();
+  insertAttachmentRow.mockReset();
+  discardStoredBytes.mockReset();
   setEntityTags.mockReset();
   reconcileEntityRefs.mockReset();
   fetchRemoteImage.mockReset();
 
   getAll.mockResolvedValue([]);
-  deleteAttachment.mockResolvedValue(undefined);
+  insertAttachmentRow.mockResolvedValue(undefined);
+  discardStoredBytes.mockResolvedValue(undefined);
   setEntityTags.mockResolvedValue(undefined);
   reconcileEntityRefs.mockResolvedValue(undefined);
   let n = 0;
-  attachFile.mockImplementation(() => {
+  storeFileBytes.mockImplementation(() => {
     n += 1;
-    return Promise.resolve({ id: `att-${n}`, file_path: `p/att-${n}.png` });
+    return Promise.resolve({ id: `att-${n}`, record: { id: `att-${n}`, file_path: `p/att-${n}.png` } });
   });
   writeTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
     const captured: Statement[] = [];
@@ -214,6 +218,25 @@ describe("runMarkdownImport", () => {
     // The second pass reads the imported pages' blocks back.
     expect(getAll).toHaveBeenCalledWith(expect.stringContaining("FROM blocks WHERE page_id IN"), expect.any(Array));
   });
+
+  it("keeps a page that landed even if recording its files fails", async () => {
+    // The page is committed by then, so calling the file a page failure would
+    // leave it out of `pageIds` — unlinked, and missed by the import's undo.
+    insertAttachmentRow.mockRejectedValueOnce(new Error("disk full"));
+    const png = new File([new Uint8Array(4)], "photo.png", { type: "image/png" });
+    Object.defineProperty(png, "webkitRelativePath", { value: "Vault/assets/photo.png" });
+
+    const result = await runMarkdownImport(
+      [scanned("pages/A.md", "- ![](../assets/photo.png)")],
+      buildAssetIndex([png]),
+      mapping(),
+      { existingTitles: [] },
+    );
+
+    expect(result.failures).toEqual([]);
+    expect(result.pageIds).toHaveLength(1);
+    expect(discardStoredBytes).toHaveBeenCalledWith(expect.objectContaining({ id: "att-1" }));
+  });
 });
 
 describe("images", () => {
@@ -230,18 +253,35 @@ describe("images", () => {
       existingTitles: [],
     });
 
-    expect(attachFile).toHaveBeenCalledTimes(1);
-    const [, target] = attachFile.mock.calls[0];
+    expect(storeFileBytes).toHaveBeenCalledTimes(1);
+    const [, target] = storeFileBytes.mock.calls[0];
     const blockRow = inserts("blocks").find((row) => String(row.params[5]).includes("attachmentId"));
     expect(blockRow?.params[0]).toBe((target as { blockId: string }).blockId);
     expect(String(blockRow?.params[5])).not.toContain('"src"');
+  });
+
+  it("records the row only after the block that owns it", async () => {
+    // Local writes upload in the order they were made, so an `attachments` row
+    // written before its `blocks` row reaches the server first, is refused by
+    // `attachments_block_id_fkey`, and gets dropped — leaving the image on this
+    // device alone. Bytes still come first: the node carries the id.
+    await runMarkdownImport([scanned("pages/A.md", "- ![](../assets/photo.png)")], buildAssetIndex([png()]), mapping(), {
+      existingTitles: [],
+    });
+
+    expect(insertAttachmentRow).toHaveBeenCalledTimes(1);
+    const [bytesAt] = storeFileBytes.mock.invocationCallOrder;
+    const [pageAt] = writeTransaction.mock.invocationCallOrder;
+    const [rowAt] = insertAttachmentRow.mock.invocationCallOrder;
+    expect(bytesAt).toBeLessThan(pageAt);
+    expect(pageAt).toBeLessThan(rowAt);
   });
 
   it("leaves a reference it can't resolve as-is", async () => {
     await runMarkdownImport([scanned("pages/A.md", "- ![](../assets/missing.png)")], buildAssetIndex([]), mapping(), {
       existingTitles: [],
     });
-    expect(attachFile).not.toHaveBeenCalled();
+    expect(storeFileBytes).not.toHaveBeenCalled();
   });
 
   it("leaves a remote image alone when downloading is off", async () => {
@@ -253,7 +293,7 @@ describe("images", () => {
       { existingTitles: [] },
     );
     expect(fetchRemoteImage).not.toHaveBeenCalled();
-    expect(attachFile).not.toHaveBeenCalled();
+    expect(storeFileBytes).not.toHaveBeenCalled();
   });
 
   it("downloads a remote image when asked, keeping the original url", async () => {
@@ -269,7 +309,7 @@ describe("images", () => {
     );
 
     expect(fetchRemoteImage).toHaveBeenCalledWith("https://example.com/x.png");
-    expect(attachFile).toHaveBeenCalledTimes(1);
+    expect(storeFileBytes).toHaveBeenCalledTimes(1);
     const content = String(inserts("blocks")[0].params[5]);
     expect(content).toContain("attachmentId");
     // The url survives, so a markdown export still points at the source.
@@ -287,7 +327,7 @@ describe("images", () => {
     );
 
     expect(result.failures).toEqual([]);
-    expect(attachFile).not.toHaveBeenCalled();
+    expect(storeFileBytes).not.toHaveBeenCalled();
     expect(String(inserts("blocks")[0].params[5])).toContain("https://example.com/x.png");
   });
 
@@ -314,7 +354,8 @@ describe("images", () => {
     );
 
     expect(result.failures).toHaveLength(1);
-    expect(deleteAttachment).toHaveBeenCalledWith({ id: "att-1", file_path: "p/att-1.png" });
+    expect(discardStoredBytes).toHaveBeenCalledWith(expect.objectContaining({ id: "att-1" }));
+    expect(insertAttachmentRow).not.toHaveBeenCalled();
   });
 });
 
@@ -420,9 +461,22 @@ describe("banners", () => {
       { existingTitles: [] },
     );
 
-    const [, target] = attachFile.mock.calls[0];
+    const [, target] = storeFileBytes.mock.calls[0];
     expect(target).toEqual({ pageId: expect.any(String) });
     expect(pageProperties()).toMatchObject({ banner: "att-1", bannerAlign: 70 });
+  });
+
+  it("records the banner's row after the page it belongs to", async () => {
+    await runMarkdownImport(
+      [scanned("pages/Home.md", ["banner:: ../assets/cover.jpg", "", "- body"].join("\n"))],
+      buildAssetIndex([jpg()]),
+      bannerMapping(),
+      { existingTitles: [] },
+    );
+
+    expect(writeTransaction.mock.invocationCallOrder[0]).toBeLessThan(
+      insertAttachmentRow.mock.invocationCallOrder[0],
+    );
   });
 
   it("centres a banner the vault didn't position", async () => {
@@ -448,7 +502,7 @@ describe("banners", () => {
     );
 
     expect(result.failures).toEqual([]);
-    expect(attachFile).not.toHaveBeenCalled();
+    expect(storeFileBytes).not.toHaveBeenCalled();
     // Never a banner key pointing at a file that was never stored.
     expect(pageProperties().banner).toBeUndefined();
   });
@@ -485,7 +539,8 @@ describe("banners", () => {
     );
 
     expect(result.failures).toHaveLength(1);
-    expect(deleteAttachment).toHaveBeenCalledWith({ id: "att-1", file_path: "p/att-1.png" });
+    expect(discardStoredBytes).toHaveBeenCalledWith(expect.objectContaining({ id: "att-1" }));
+    expect(insertAttachmentRow).not.toHaveBeenCalled();
   });
 
   it("keeps a banner out of the page when the key is left unmapped", async () => {
@@ -497,7 +552,7 @@ describe("banners", () => {
       { existingTitles: [] },
     );
 
-    expect(attachFile).not.toHaveBeenCalled();
+    expect(storeFileBytes).not.toHaveBeenCalled();
     expect(pageProperties().importedFrontmatter).toEqual({ banner: "../assets/cover.jpg" });
   });
 });

@@ -72,3 +72,44 @@ export function collapseCrudOps(ops: CollapsibleOp[]): CollapsedBatch {
 export function isForeignKeyViolation(error: { code?: string | null } | null | undefined): boolean {
   return error?.code === "23503";
 }
+
+/**
+ * Upload order for a batch's upserts: a parent table before any table that
+ * references it (`pages` → `blocks` → `attachments`, `tags` → `entity_tags`).
+ *
+ * The connector groups a batch's ops by table, which loses the order the writes
+ * were made in — so without this a child row can reach the server before its
+ * parent and be rejected by the foreign key. A table missing from this list
+ * sorts last, alphabetically, which is how `entity_tags` used to overtake
+ * `tags` and lose every tag an import created.
+ */
+export const PUT_TABLE_ORDER = [
+  "pages",
+  "blocks",
+  "tags",
+  "entity_tags",
+  "edges",
+  "attachments",
+] as const;
+
+/** The reverse for deletes: a child row goes before the parent it points at. */
+export const DELETE_TABLE_ORDER = [
+  "attachments",
+  "entity_tags",
+  "edges",
+  "blocks",
+  "tags",
+  "pages",
+] as const;
+
+/** Sort tables by a preferred order, with anything unlisted last and alphabetical. */
+export function orderTables(tables: readonly string[], preferredOrder: readonly string[]): string[] {
+  const preferredIndex = new Map(preferredOrder.map((table, index) => [table, index]));
+
+  return [...tables].sort((left, right) => {
+    const leftIndex = preferredIndex.get(left) ?? Number.MAX_SAFE_INTEGER;
+    const rightIndex = preferredIndex.get(right) ?? Number.MAX_SAFE_INTEGER;
+    if (leftIndex !== rightIndex) return leftIndex - rightIndex;
+    return left.localeCompare(right);
+  });
+}

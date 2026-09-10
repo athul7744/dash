@@ -6,8 +6,10 @@
  * (which pastes as HTML). All of those hotlink: they need the network to render
  * and they break when the source moves. Rather than bolt an async download onto
  * each route, one debounced pass sweeps the document, downloads any image that
- * still points at a URL, stores it as an attachment on its block, and records
- * the attachment id on the node.
+ * still points at a URL, caches it against its block, records the attachment id
+ * on the node, and writes the `attachments` rows once the blocks rows have
+ * landed — a row that reaches the server before the block it points at is
+ * refused and dropped.
  *
  * Best-effort throughout: an image that can't be fetched keeps its URL and stays
  * usable, and the pass no-ops while offline so the next edit retries it.
@@ -18,7 +20,12 @@ import type { Node as PMNode } from "@tiptap/pm/model";
 
 import { BLOCK_NODE_TYPE } from "@/lib/notes/editor/block-document";
 import { flushAllBlockDocumentPersisters } from "@/lib/notes/editor/block-persister";
-import { attachFile, deleteAttachment } from "@/lib/storage/attachments";
+import {
+  discardStoredBytes,
+  insertAttachmentRow,
+  storeFileBytes,
+  type StoredBytes,
+} from "@/lib/storage/attachments";
 import { fetchRemoteImage, imageFileNameFromUrl } from "@/lib/storage/remote-image";
 
 const ADOPT_DELAY_MS = 1500;
@@ -125,16 +132,16 @@ async function adoptNow(editor: Editor): Promise<void> {
   );
   if (pending.length === 0) return;
 
-  let adopted = 0;
+  const stored: StoredBytes[] = [];
   for (const image of pending) {
     const key = `${image.blockId}|${image.src}`;
     inFlight.add(key);
     try {
       if (editor.isDestroyed) break;
-      const applied = await adoptImage(image, (attachmentId) =>
+      const bytes = await adoptImage(image, (attachmentId) =>
         !editor.isDestroyed && setAttachmentId(editor, image, attachmentId),
       );
-      if (applied) adopted += 1;
+      if (bytes) stored.push(bytes);
     } catch {
       /* best-effort — the URL still renders */
     } finally {
@@ -142,34 +149,48 @@ async function adoptNow(editor: Editor): Promise<void> {
     }
   }
 
-  // The attachment rows reference block ids, so land those rows now.
-  if (adopted > 0) flushAllBlockDocumentPersisters();
+  if (stored.length === 0) return;
+
+  // The blocks rows first: an image reached by this pass may have been pasted
+  // seconds ago and still be waiting on the persister's debounce, and an
+  // `attachments` row uploaded ahead of the block it points at is refused by the
+  // server and dropped. A flush that fails is another page's problem — the rows
+  // still belong here, and the image is useless without them.
+  await flushAllBlockDocumentPersisters().catch(() => {});
+  for (const bytes of stored) {
+    try {
+      await insertAttachmentRow(bytes);
+    } catch {
+      await discardStoredBytes(bytes).catch(() => {});
+    }
+  }
 }
 
 /**
- * Fetch one image's bytes, store them against its block, and hand the attachment
+ * Fetch one image's bytes, cache them against its block, and hand the attachment
  * id to `apply` — which points the node at it and reports whether it could.
  *
- * Rolls the file back when `apply` declines (the node moved, or the editor went
- * away mid-download). Keeping it would leave a file nothing references, and since
- * the image still carries its URL the next pass would fetch and store it again,
- * accumulating a copy per pass.
+ * Returns the cached bytes for the caller to record once the block's row is
+ * written, or null when there is nothing to record. Drops the bytes when `apply`
+ * declines (the node moved, or the editor went away mid-download): keeping them
+ * would leave a file nothing references, and since the image still carries its
+ * URL the next pass would fetch it again, accumulating a copy per pass.
  */
 export async function adoptImage(
   image: AdoptableImage,
   apply: (attachmentId: string) => boolean,
-): Promise<boolean> {
+): Promise<StoredBytes | null> {
   const blob = await fetchRemoteImage(image.src);
-  if (!blob) return false;
+  if (!blob) return null;
 
-  const attachment = await attachFile(blob, { blockId: image.blockId }, {
+  const bytes = await storeFileBytes(blob, { blockId: image.blockId }, {
     fileName: imageFileNameFromUrl(image.src),
     mimeType: blob.type,
   });
 
-  if (apply(attachment.id)) return true;
-  await deleteAttachment(attachment).catch(() => {});
-  return false;
+  if (apply(bytes.id)) return bytes;
+  await discardStoredBytes(bytes).catch(() => {});
+  return null;
 }
 
 /**

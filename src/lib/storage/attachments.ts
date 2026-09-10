@@ -1,11 +1,17 @@
 /**
  * The common file-attachment layer.
  *
- * `attachFile` is the single entry point for storing a file: it caches the bytes
- * locally (so the file is usable at once, even offline) and inserts an
- * `attachments` metadata row. The row syncs through PowerSync; the bytes are
- * uploaded to the private `attachments` Storage bucket by the reconciler in
- * `attachment-sync.ts` (watching the table), never through PowerSync.
+ * `attachFile` is the entry point for storing a file: it caches the bytes locally
+ * (so the file is usable at once, even offline) and inserts an `attachments`
+ * metadata row. The row syncs through PowerSync; the bytes are uploaded to the
+ * private `attachments` Storage bucket by the reconciler in `attachment-sync.ts`
+ * (watching the table), never through PowerSync.
+ *
+ * A caller whose owner row isn't written yet splits that in two —
+ * `storeFileBytes`, then `insertAttachmentRow` once the owner exists. The upload
+ * queue keeps the order local writes were made in, so a row that reaches the
+ * server before its parent is refused by the foreign key and dropped, leaving the
+ * file on one device only.
  *
  * `deleteEntityAttachments` drops every row owned by an entity — call it from an
  * entity's delete fan-out beside `deleteEntityEdges` / `deleteEntityTags`. The
@@ -43,16 +49,29 @@ export interface AttachOptions {
   mimeType?: string;
 }
 
+/** Bytes cached under an id, with the row they will become. */
+export interface StoredBytes {
+  id: string;
+  record: AttachmentRecord;
+}
+
 /**
- * Store `file` against `target`, returning the metadata row. Caches the bytes
- * locally and marks the row `pending`; the reconciler uploads when online. Throws
- * if the file is empty, too large, or a disallowed type.
+ * Cache a file's bytes and mint its id, without recording the row.
+ *
+ * The half a caller needs when the owner row doesn't exist yet. Local writes are
+ * uploaded in the order they were made, so an `attachments` row written before
+ * its `blocks` row reaches the server first and is refused by the foreign key —
+ * the row is then dropped, and the file exists on this device only. Cached bytes
+ * with no row are inert (the reconciler only uploads rows), so nothing leaks if
+ * the caller never reaches `insertAttachmentRow`.
+ *
+ * Throws if the file is empty, too large, or a disallowed type.
  */
-export async function attachFile(
+export async function storeFileBytes(
   file: Blob,
   target: AttachTarget,
   opts: AttachOptions = {},
-): Promise<AttachmentRecord> {
+): Promise<StoredBytes> {
   const mimeType = opts.mimeType || file.type || "application/octet-stream";
   const fileName = opts.fileName || (file instanceof File ? file.name : "file");
   if (!isAllowed(mimeType, file.size)) {
@@ -64,21 +83,62 @@ export async function attachFile(
   const entityId = "pageId" in target ? target.pageId : target.blockId;
   const filePath = buildAttachmentPath(userId, entityId, id, fileName, mimeType);
 
-  // Cache the bytes first, so the reconciler always finds them and the file is
-  // renderable the moment the row exists. The preview keeps the blob we already
-  // hold, so the first render doesn't wait on a read back out of that cache.
+  // Bytes first, so the reconciler always finds them and the file is renderable
+  // the moment the row exists. The preview keeps the blob we already hold, so the
+  // first render doesn't wait on a read back out of that cache.
   await blobStore.put(id, file);
   primeBlobPreview(id, file);
 
-  const pageId = "pageId" in target ? target.pageId : null;
-  const blockId = "blockId" in target ? target.blockId : null;
-  await db.execute(
+  return {
+    id,
+    record: {
+      id,
+      user_id: userId,
+      page_id: "pageId" in target ? target.pageId : null,
+      block_id: "blockId" in target ? target.blockId : null,
+      file_path: filePath,
+      sync_state: "pending",
+      mime_type: mimeType,
+      file_name: fileName,
+    },
+  };
+}
+
+/**
+ * Record a stored file's row, making it real — visible to the rails, the
+ * reconciler (which uploads the bytes) and every other device.
+ *
+ * Call it only once the row this file belongs to exists, so the upload queue
+ * carries them to the server in that order.
+ */
+export async function insertAttachmentRow(stored: StoredBytes, ctx: DbContext = db): Promise<AttachmentRecord> {
+  const { record } = stored;
+  await ctx.execute(
     `INSERT INTO attachments (id, user_id, page_id, block_id, file_path, sync_state, mime_type, file_name)
      VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)`,
-    [id, userId, pageId, blockId, filePath, mimeType, fileName],
+    [record.id, record.user_id, record.page_id, record.block_id, record.file_path, record.mime_type, record.file_name],
   );
+  return record;
+}
 
-  return { id, user_id: userId, page_id: pageId, block_id: blockId, file_path: filePath, sync_state: "pending", mime_type: mimeType, file_name: fileName };
+/** Drop bytes that will never get a row. Best-effort: nothing else holds them. */
+export async function discardStoredBytes(stored: StoredBytes): Promise<void> {
+  dropBlobPreview(stored.id);
+  await blobStore.remove(stored.id).catch(() => {});
+}
+
+/**
+ * Store `file` against `target` and record its row, returning the row.
+ *
+ * For an owner that already exists — a page, or a block already written. When it
+ * doesn't yet, use `storeFileBytes` and `insertAttachmentRow` in that order.
+ */
+export async function attachFile(
+  file: Blob,
+  target: AttachTarget,
+  opts: AttachOptions = {},
+): Promise<AttachmentRecord> {
+  return insertAttachmentRow(await storeFileBytes(file, target, opts));
 }
 
 /**

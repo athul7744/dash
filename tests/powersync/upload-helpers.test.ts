@@ -1,6 +1,13 @@
 /// <reference types="vitest/globals" />
 
-import { collapseCrudOps, isForeignKeyViolation, type CollapsibleOp } from "@/lib/powersync/upload-helpers";
+import {
+  collapseCrudOps,
+  isForeignKeyViolation,
+  orderTables,
+  DELETE_TABLE_ORDER,
+  PUT_TABLE_ORDER,
+  type CollapsibleOp,
+} from "@/lib/powersync/upload-helpers";
 
 const op = (kind: CollapsibleOp["kind"], table: string, id: string, extra: Record<string, unknown> = {}): CollapsibleOp =>
   ({ kind, table, id, data: { id, ...extra } });
@@ -79,5 +86,40 @@ describe("isForeignKeyViolation", () => {
     expect(isForeignKeyViolation(null)).toBe(false);
     expect(isForeignKeyViolation(undefined)).toBe(false);
     expect(isForeignKeyViolation({})).toBe(false);
+  });
+});
+
+describe("orderTables", () => {
+  it("sends a parent table before the tables that reference it", () => {
+    const order = orderTables(["attachments", "blocks", "entity_tags", "pages", "tags"], PUT_TABLE_ORDER);
+    expect(order.indexOf("pages")).toBeLessThan(order.indexOf("blocks"));
+    expect(order.indexOf("blocks")).toBeLessThan(order.indexOf("attachments"));
+    expect(order.indexOf("tags")).toBeLessThan(order.indexOf("entity_tags"));
+  });
+
+  it("keeps tags ahead of entity_tags whatever order they arrive in", () => {
+    // The batch loses the order the writes were made in, so this list is the only
+    // thing standing between a new tag's membership row and `entity_tags_tag_id_fkey`.
+    // Left unlisted, `entity_tags` sorted alphabetically ahead of `tags` and every
+    // tag an import created was dropped on upload.
+    expect(orderTables(["entity_tags", "tags"], PUT_TABLE_ORDER)).toEqual(["tags", "entity_tags"]);
+    expect(orderTables(["tags", "entity_tags"], PUT_TABLE_ORDER)).toEqual(["tags", "entity_tags"]);
+  });
+
+  it("reverses the order for deletes, so a child goes before its parent", () => {
+    const order = orderTables(["pages", "blocks", "attachments", "tags", "entity_tags"], DELETE_TABLE_ORDER);
+    expect(order.indexOf("attachments")).toBeLessThan(order.indexOf("blocks"));
+    expect(order.indexOf("blocks")).toBeLessThan(order.indexOf("pages"));
+    expect(order.indexOf("entity_tags")).toBeLessThan(order.indexOf("tags"));
+  });
+
+  it("puts an unlisted table last, alphabetically", () => {
+    // A table with no cross-table foreign key can go anywhere; being last means a
+    // new one can't jump ahead of a parent by accident.
+    expect(orderTables(["time_logs", "pages", "activity_types"], PUT_TABLE_ORDER)).toEqual([
+      "pages",
+      "activity_types",
+      "time_logs",
+    ]);
   });
 });

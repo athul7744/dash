@@ -7,13 +7,13 @@
  * block would hand its file to a block that can't clean it up.
  */
 
-const { attachFile, deleteAttachment, fetchRemoteImage } = vi.hoisted(() => ({
-  attachFile: vi.fn(),
-  deleteAttachment: vi.fn(),
+const { storeFileBytes, discardStoredBytes, fetchRemoteImage } = vi.hoisted(() => ({
+  storeFileBytes: vi.fn(),
+  discardStoredBytes: vi.fn(),
   fetchRemoteImage: vi.fn(),
 }));
 
-vi.mock("@/lib/storage/attachments", () => ({ attachFile, deleteAttachment }));
+vi.mock("@/lib/storage/attachments", () => ({ storeFileBytes, discardStoredBytes, insertAttachmentRow: vi.fn() }));
 vi.mock("@/lib/notes/editor/block-persister", () => ({ flushAllBlockDocumentPersisters: vi.fn() }));
 vi.mock("@/lib/storage/remote-image", () => ({
   fetchRemoteImage,
@@ -40,41 +40,41 @@ describe("adoptImage", () => {
   const image = { blockId: "b1", src: "https://example.com/a.png" };
 
   beforeEach(() => {
-    attachFile.mockReset();
-    deleteAttachment.mockReset();
+    storeFileBytes.mockReset();
+    discardStoredBytes.mockReset();
     fetchRemoteImage.mockReset();
-    deleteAttachment.mockResolvedValue(undefined);
-    attachFile.mockResolvedValue({ id: "att-1", file_path: "p/att-1.png" });
+    discardStoredBytes.mockResolvedValue(undefined);
+    storeFileBytes.mockResolvedValue({ id: "att-1", record: { id: "att-1", file_path: "p/att-1.png" } });
     fetchRemoteImage.mockResolvedValue(new Blob([new Uint8Array(4)], { type: "image/png" }));
   });
 
   it("stores the bytes against the image's block and reports the attachment id", async () => {
     const apply = vi.fn(() => true);
 
-    expect(await adoptImage(image, apply)).toBe(true);
-    expect(attachFile).toHaveBeenCalledWith(expect.anything(), { blockId: "b1" }, expect.anything());
+    expect(await adoptImage(image, apply)).toEqual(expect.objectContaining({ id: "att-1" }));
+    expect(storeFileBytes).toHaveBeenCalledWith(expect.anything(), { blockId: "b1" }, expect.anything());
     expect(apply).toHaveBeenCalledWith("att-1");
-    expect(deleteAttachment).not.toHaveBeenCalled();
+    expect(discardStoredBytes).not.toHaveBeenCalled();
   });
 
   it("rolls the file back when the node can't be pointed at it", async () => {
     // Otherwise the image keeps its url, so every later pass stores another copy.
-    expect(await adoptImage(image, () => false)).toBe(false);
-    expect(deleteAttachment).toHaveBeenCalledWith({ id: "att-1", file_path: "p/att-1.png" });
+    expect(await adoptImage(image, () => false)).toBeNull();
+    expect(discardStoredBytes).toHaveBeenCalledWith(expect.objectContaining({ id: "att-1" }));
   });
 
   it("stores nothing when the download fails", async () => {
     fetchRemoteImage.mockResolvedValue(null);
     const apply = vi.fn();
 
-    expect(await adoptImage(image, apply)).toBe(false);
-    expect(attachFile).not.toHaveBeenCalled();
+    expect(await adoptImage(image, apply)).toBeNull();
+    expect(storeFileBytes).not.toHaveBeenCalled();
     expect(apply).not.toHaveBeenCalled();
   });
 
   it("survives a rollback that itself fails", async () => {
-    deleteAttachment.mockRejectedValue(new Error("offline"));
-    await expect(adoptImage(image, () => false)).resolves.toBe(false);
+    discardStoredBytes.mockRejectedValue(new Error("offline"));
+    await expect(adoptImage(image, () => false)).resolves.toBeNull();
   });
 });
 

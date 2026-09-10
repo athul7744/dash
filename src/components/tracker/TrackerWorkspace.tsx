@@ -106,7 +106,7 @@ export function TrackerWorkspace() {
   useEffect(() => {
     const flush = () => {
       flushAllUpdates();
-      flushAllBlockDocumentPersisters();
+      void flushAllBlockDocumentPersisters();
     };
     window.addEventListener("beforeunload", flush);
     return () => {

@@ -1,7 +1,14 @@
 import { PowerSyncBackendConnector, AbstractPowerSyncDatabase, UpdateType } from '@powersync/web';
 import { createClient } from '../supabase/client';
 import { logger as log } from '../shared/logger';
-import { collapseCrudOps, isForeignKeyViolation, type CrudOpKind } from './upload-helpers';
+import {
+  collapseCrudOps,
+  isForeignKeyViolation,
+  orderTables,
+  DELETE_TABLE_ORDER,
+  PUT_TABLE_ORDER,
+  type CrudOpKind,
+} from './upload-helpers';
 
 const OP_KIND: Record<UpdateType, CrudOpKind> = {
   [UpdateType.PUT]: 'put',
@@ -11,35 +18,6 @@ const OP_KIND: Record<UpdateType, CrudOpKind> = {
 
 /** Response codes that indicate a permanent/fatal error — discard the transaction. */
 const FATAL_RESPONSE_CODES = [/^22/, /^23/, /^42/];
-
-const PUT_TABLE_ORDER = [
-  'pages',
-  'blocks',
-  'edges',
-  'attachments',
-];
-
-const DELETE_TABLE_ORDER = [
-  'attachments',
-  'edges',
-  'blocks',
-  'pages',
-];
-
-function orderTables(tables: string[], preferredOrder: string[]) {
-  const preferredIndex = new Map(preferredOrder.map((table, index) => [table, index]));
-
-  return [...tables].sort((left, right) => {
-    const leftIndex = preferredIndex.get(left) ?? Number.MAX_SAFE_INTEGER;
-    const rightIndex = preferredIndex.get(right) ?? Number.MAX_SAFE_INTEGER;
-
-    if (leftIndex !== rightIndex) {
-      return leftIndex - rightIndex;
-    }
-
-    return left.localeCompare(right);
-  });
-}
 
 /** Columns that are JSONB in Supabase but stored as TEXT in PowerSync. */
 export const JSON_COLUMNS: Record<string, Set<string>> = {

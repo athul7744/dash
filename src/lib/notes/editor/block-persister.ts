@@ -74,8 +74,11 @@ function snapshotFromRows(rows: BlockDocumentRow[]): Map<string, PersistedBlock>
 const activePersisters = new Set<BlockDocumentPersister>();
 
 /** Flush every mounted single-editor persister (call on beforeunload). */
-export function flushAllBlockDocumentPersisters(): void {
-  for (const persister of activePersisters) void persister.flush();
+export function flushAllBlockDocumentPersisters(): Promise<void> {
+  // Awaitable, because a caller may need the rows to exist before its own next
+  // write — an image's `attachments` row has to follow its `blocks` row, or the
+  // server refuses it. `beforeunload` and the adopt pass ignore the promise.
+  return Promise.all([...activePersisters].map((persister) => persister.flush())).then(() => undefined);
 }
 
 export class BlockDocumentPersister {

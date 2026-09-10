@@ -16,6 +16,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/search/` — search text derivation and the pure query grammar / fuzzy / highlight helpers.
 - `tests/storage/` — the file-attachment layer's pure helpers (path layout, type/size validation, orphan diffing), the remote-image proxy client (`remote-image.test.ts`: request shape, and every failure reading as "no image"), and the session preview cache (`blob-preview.test.ts`: one *stable* url per id — a changed src re-decodes on every editor document rebuild — reference counting so a dropped url outlives its last holder, a release-then-re-acquire remount surviving, eviction on the entry and byte budgets, and bytes reclaimed on drop).
 - `tests/shared/` — reusable fixtures, builders, and assertions shared across app groups (incl. the universal-capture classifier).
+- `tests/powersync/` — the upload connector's pure helpers (`upload-helpers.test.ts`): collapsing a CRUD batch to one net op per row, recognising a foreign-key violation, and the table order a batch must be uploaded in — a parent table before anything referencing it, and the reverse for deletes. An unlisted table sorts last, which is how `entity_tags` once overtook `tags` and lost every tag an import created.
 
 ## Current Notes Suites
 

@@ -2,19 +2,20 @@
  * Putting image files into a note — the shared path behind paste, drop and the
  * slash menu's file picker.
  *
- * The ordering here is the whole trick. `attachFile` needs a real block id for
+ * The ordering here is the whole trick. Storing a file needs a real block id for
  * the storage key, but a node inserted into the editor carries `blockId: null`
  * until `BlockIdPlugin` stamps it, and the `blocks` row itself only lands after
- * the persister's debounce. So the block id is minted *first* — `resolveBlockId`
- * keeps any id already on a node — then the file is attached to it, then the
- * block is inserted carrying both ids, then the document is flushed so the row
- * exists straight away.
+ * the persister's debounce. So the block id is minted *first*, then the bytes are
+ * cached under it, then the block is inserted carrying both ids, then the
+ * document is flushed so the row exists straight away — and only then is the
+ * `attachments` row written.
  *
- * That ordering is what makes cleanup free: because the `blocks` row exists,
- * removing the image (delete, cut, undo) produces a delete write, and the
- * persister's delete branch already drops the block's attachments. Nothing here
- * has to track files. And because the file is attached before anything is
- * inserted, a failed upload leaves no broken node behind.
+ * That last step is last on purpose: local writes upload in the order they were
+ * made, so a row written before its `blocks` row reaches the server first and is
+ * refused by the foreign key, which leaves the image on this device alone. And
+ * because the `blocks` row exists by then, cleanup is free — removing the image
+ * (delete, cut, undo) produces a delete write and the persister's delete branch
+ * already drops the block's attachments. Nothing here has to track files.
  */
 
 import type { JSONContent } from "@tiptap/core";
@@ -24,13 +25,15 @@ import { v4 as uuidv4 } from "uuid";
 import { BLOCK_NODE_TYPE, DEFAULT_BLOCK_TYPE } from "@/lib/notes/editor/block-document";
 import { flushAllBlockDocumentPersisters } from "@/lib/notes/editor/block-persister";
 import { insertBlockNodes } from "@/lib/notes/editor/markdown-paste";
-import { attachFile, deleteAttachment } from "@/lib/storage/attachments";
+import {
+  discardStoredBytes,
+  insertAttachmentRow,
+  storeFileBytes,
+  type StoredBytes,
+} from "@/lib/storage/attachments";
 import { MAX_ATTACHMENT_BYTES, isAllowed } from "@/lib/storage/paths";
-import type { AttachmentRecord } from "@/lib/powersync/AppSchema";
 
 const MAX_MB = Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024);
-
-type StoredFile = Pick<AttachmentRecord, "id" | "file_path">;
 
 export interface ImageInsertOptions {
   /** Document position to insert at (drop point). Defaults to the selection. */
@@ -70,7 +73,7 @@ export async function insertImageFiles(
   opts: ImageInsertOptions = {},
 ): Promise<number> {
   const blocks: JSONContent[] = [];
-  const stored: StoredFile[] = [];
+  const stored: StoredBytes[] = [];
 
   for (const file of files) {
     const mimeType = file.type || "application/octet-stream";
@@ -80,9 +83,9 @@ export async function insertImageFiles(
     }
     const blockId = uuidv4();
     try {
-      const attachment = await attachFile(file, { blockId }, { fileName: file.name || "image", mimeType });
-      stored.push(attachment);
-      blocks.push(imageBlockNode(blockId, attachment.id));
+      const bytes = await storeFileBytes(file, { blockId }, { fileName: file.name || "image", mimeType });
+      stored.push(bytes);
+      blocks.push(imageBlockNode(blockId, bytes.id));
     } catch {
       opts.onError?.(`Couldn't add "${file.name || "image"}".`);
     }
@@ -90,16 +93,17 @@ export async function insertImageFiles(
 
   if (blocks.length === 0) return 0;
   if (!insertBlockNodes(view, blocks, opts.at)) {
-    // The files are already stored but no block will ever reference them, so
-    // nothing would reclaim them: the persister's cascade needs a block row, and
-    // the orphan sweep only removes objects whose row is gone. Undo the writes.
+    // No block will ever reference these bytes. Nothing has been recorded yet, so
+    // dropping the cache is the whole cleanup.
     await discard(stored);
     opts.onError?.("Couldn't add the image here.");
     return 0;
   }
 
-  // Land the blocks rows now so the persister owns cleanup from this point on.
-  flushAllBlockDocumentPersisters();
+  // Land the blocks rows now, so the persister owns cleanup from here on — and so
+  // each file's row is written after the block it points at.
+  await flushAllBlockDocumentPersisters();
+  for (const bytes of stored) await insertAttachmentRow(bytes);
   return blocks.length;
 }
 
@@ -120,9 +124,9 @@ export function pickImageFiles(): Promise<File[]> {
   });
 }
 
-/** Drop stored files nothing ended up pointing at. Best-effort. */
-async function discard(stored: readonly StoredFile[]): Promise<void> {
-  await Promise.all(stored.map((attachment) => deleteAttachment(attachment).catch(() => {})));
+/** Drop cached bytes nothing ended up pointing at. Best-effort. */
+async function discard(stored: readonly StoredBytes[]): Promise<void> {
+  await Promise.all(stored.map((bytes) => discardStoredBytes(bytes).catch(() => {})));
 }
 
 /** A `block` holding a single image node, pre-stamped with the id its file was stored under. */

@@ -4,19 +4,23 @@
  * Inserting image files against the real editor schema.
  *
  * The ordering is the thing worth pinning down: the block id is minted before
- * the file is stored, the file is stored before anything is inserted, and the
- * inserted block carries both ids. That's what lets the persister's delete
- * cascade own cleanup, and what keeps a failed write from leaving a broken image
- * in the page.
+ * the bytes are cached, the bytes are cached before anything is inserted, the
+ * inserted block carries both ids, and the `attachments` row is written last —
+ * after the flush that lands the `blocks` row it points at, or the server refuses
+ * it. That is also what lets the persister's delete cascade own cleanup, and what
+ * keeps a failed write from leaving a broken image in the page.
  */
 
-const { attachFile, deleteAttachment, flushAllBlockDocumentPersisters } = vi.hoisted(() => ({
-  attachFile: vi.fn(),
-  deleteAttachment: vi.fn(),
-  flushAllBlockDocumentPersisters: vi.fn(),
-}));
+const { storeFileBytes, insertAttachmentRow, discardStoredBytes, flushAllBlockDocumentPersisters } = vi.hoisted(
+  () => ({
+    storeFileBytes: vi.fn(),
+    insertAttachmentRow: vi.fn(),
+    discardStoredBytes: vi.fn(),
+    flushAllBlockDocumentPersisters: vi.fn(),
+  }),
+);
 
-vi.mock("@/lib/storage/attachments", () => ({ attachFile, deleteAttachment }));
+vi.mock("@/lib/storage/attachments", () => ({ storeFileBytes, insertAttachmentRow, discardStoredBytes }));
 vi.mock("@/lib/notes/editor/block-persister", () => ({ flushAllBlockDocumentPersisters }));
 
 import { Editor } from "@tiptap/core";
@@ -85,12 +89,18 @@ function imageNodes(editor: Editor): Array<{ blockId: string | null; attachmentI
 let editor: Editor;
 
 beforeEach(() => {
-  attachFile.mockReset();
-  deleteAttachment.mockReset();
-  deleteAttachment.mockResolvedValue(undefined);
+  storeFileBytes.mockReset();
+  insertAttachmentRow.mockReset();
+  insertAttachmentRow.mockResolvedValue(undefined);
+  discardStoredBytes.mockReset();
+  discardStoredBytes.mockResolvedValue(undefined);
   flushAllBlockDocumentPersisters.mockReset();
+  flushAllBlockDocumentPersisters.mockResolvedValue(undefined);
   let n = 0;
-  attachFile.mockImplementation(() => Promise.resolve({ id: `att-${++n}`, file_path: `p/att-${n}.png` }));
+  storeFileBytes.mockImplementation(() => {
+    n += 1;
+    return Promise.resolve({ id: `att-${n}`, record: { id: `att-${n}`, file_path: `p/att-${n}.png` } });
+  });
   editor = makeEditor();
   editor.commands.focus("end");
 });
@@ -104,8 +114,8 @@ describe("insertImageFiles", () => {
     const inserted = await insertImageFiles(editor.view, [imageFile()]);
 
     expect(inserted).toBe(1);
-    expect(attachFile).toHaveBeenCalledTimes(1);
-    const [, target, opts] = attachFile.mock.calls[0];
+    expect(storeFileBytes).toHaveBeenCalledTimes(1);
+    const [, target, opts] = storeFileBytes.mock.calls[0];
     expect(opts).toEqual({ fileName: "shot.png", mimeType: "image/png" });
 
     const images = imageNodes(editor);
@@ -134,7 +144,7 @@ describe("insertImageFiles", () => {
     );
 
     expect(inserted).toBe(0);
-    expect(attachFile).not.toHaveBeenCalled();
+    expect(storeFileBytes).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledWith(expect.stringContaining("notes.zip"));
     expect(imageNodes(editor)).toEqual([]);
   });
@@ -148,12 +158,12 @@ describe("insertImageFiles", () => {
     );
 
     expect(inserted).toBe(0);
-    expect(attachFile).not.toHaveBeenCalled();
+    expect(storeFileBytes).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledWith(expect.stringContaining("10 MB"));
   });
 
   it("leaves no node behind when the file can't be stored", async () => {
-    attachFile.mockRejectedValueOnce(new Error("quota"));
+    storeFileBytes.mockRejectedValueOnce(new Error("quota"));
     const onError = vi.fn();
 
     const inserted = await insertImageFiles(editor.view, [imageFile()], { onError });
@@ -164,11 +174,11 @@ describe("insertImageFiles", () => {
     expect(flushAllBlockDocumentPersisters).not.toHaveBeenCalled();
   });
 
-  it("discards stored files when the insert itself fails", async () => {
+  it("discards cached bytes when the insert itself fails", async () => {
     // A drop position inside an atom has nowhere to put a block, so the slice is
-    // rejected. The files are already stored at that point, and nothing would ever
-    // reclaim them: the persister's cascade needs a block row, and the orphan sweep
-    // only removes objects whose row is gone.
+    // rejected. The bytes are already cached at that point and nothing will ever
+    // reference them — and no row was written, so dropping the cache is the whole
+    // cleanup.
     const onError = vi.fn();
     const inserted = await insertImageFiles(editor.view, [imageFile("a.png"), imageFile("b.png")], {
       at: 9999,
@@ -177,22 +187,39 @@ describe("insertImageFiles", () => {
 
     expect(inserted).toBe(0);
     expect(imageNodes(editor)).toEqual([]);
-    expect(deleteAttachment.mock.calls.map(([att]) => (att as { id: string }).id)).toEqual(["att-1", "att-2"]);
+    expect(discardStoredBytes.mock.calls.map(([bytes]) => (bytes as { id: string }).id)).toEqual(["att-1", "att-2"]);
+    expect(insertAttachmentRow).not.toHaveBeenCalled();
     expect(flushAllBlockDocumentPersisters).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledTimes(1);
   });
 
   it("keeps stored files when the insert succeeds", async () => {
     await insertImageFiles(editor.view, [imageFile()]);
-    expect(deleteAttachment).not.toHaveBeenCalled();
+    expect(discardStoredBytes).not.toHaveBeenCalled();
+  });
+
+  it("writes the attachments row only after the blocks row has landed", async () => {
+    // Local writes upload in the order they were made. A row written before its
+    // `blocks` row reaches the server first, is refused by
+    // `attachments_block_id_fkey`, and is dropped — the image then exists on this
+    // device alone.
+    await insertImageFiles(editor.view, [imageFile()]);
+
+    expect(insertAttachmentRow).toHaveBeenCalledTimes(1);
+    expect(flushAllBlockDocumentPersisters.mock.invocationCallOrder[0]).toBeLessThan(
+      insertAttachmentRow.mock.invocationCallOrder[0],
+    );
+    expect(storeFileBytes.mock.invocationCallOrder[0]).toBeLessThan(
+      flushAllBlockDocumentPersisters.mock.invocationCallOrder[0],
+    );
   });
 
   it("inserts the files that worked when one of several fails", async () => {
-    attachFile.mockReset();
-    attachFile
-      .mockResolvedValueOnce({ id: "att-1" })
+    storeFileBytes.mockReset();
+    storeFileBytes
+      .mockResolvedValueOnce({ id: "att-1", record: { id: "att-1" } })
       .mockRejectedValueOnce(new Error("quota"))
-      .mockResolvedValueOnce({ id: "att-3" });
+      .mockResolvedValueOnce({ id: "att-3", record: { id: "att-3" } });
     const onError = vi.fn();
 
     const inserted = await insertImageFiles(

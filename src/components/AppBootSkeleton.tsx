@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 
 import { BookmarksLoadingSkeleton } from "@/components/skeletons/BookmarksLoadingSkeleton";
 import { DashboardLoadingSkeleton } from "@/components/skeletons/DashboardLoadingSkeleton";
+import { DayLoadingSkeleton } from "@/components/skeletons/DayLoadingSkeleton";
 import { NotesLoadingSkeleton } from "@/components/skeletons/NotesLoadingSkeleton";
 import { QuotesLoadingSkeleton } from "@/components/skeletons/QuotesLoadingSkeleton";
 import { EventsLoadingSkeleton } from "@/components/skeletons/EventsLoadingSkeleton";
@@ -28,8 +29,7 @@ export function AppBootSkeleton() {
     const view: TrackerView = seg === "activity" || seg === "mood" ? seg : "week";
     return <TrackerLoadingSkeleton view={view} />;
   }
-  // A day reads mostly as tracker data, so it boots the week skeleton's shape.
-  if (path.startsWith("/day")) return <TrackerLoadingSkeleton view="week" />;
+  if (path.startsWith("/day")) return <DayLoadingSkeleton />;
   if (path.startsWith("/tasks")) return <TasksLoadingSkeleton />;
   if (path.startsWith("/quotes")) return <QuotesLoadingSkeleton />;
   if (path.startsWith("/bookmarks")) return <BookmarksLoadingSkeleton />;

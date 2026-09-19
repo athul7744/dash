@@ -14,20 +14,12 @@
  */
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { addDays, format, isValid, parseISO } from "date-fns";
-import {
-  Bookmark as BookmarkIcon,
-  CalendarDays,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  Quote as QuoteIcon,
-} from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
+import { EntityRow } from "@/components/links/EntityRow";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ActivityToolbar } from "@/components/tracker/ActivityToolbar";
@@ -35,31 +27,18 @@ import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { DailyJournalEntry } from "@/components/journal/DailyJournalEntry";
 import { TimeGrid } from "@/components/tracker/TimeGrid";
 import { MoodPicker } from "@/components/dashboard/MoodPicker";
+import { useCurrentUserId } from "@/hooks/use-current-user-id";
 import { useDayCaptures, useDayOccurrences, useDayTasks } from "@/hooks/use-day";
 import { useSubjectLabels } from "@/hooks/use-events";
+import { useJournalEntryDays } from "@/hooks/use-journal";
+import { useBacklinks } from "@/hooks/use-links";
 import { useTimeGrid } from "@/hooks/use-time-grid";
 import { getDueDateInfo } from "@/lib/tasks/tasks";
-import { type AppConfig } from "@/lib/shared/apps";
+import { dayApp } from "@/lib/shared/day-app";
+import { systemPageId } from "@/lib/notes/system-pages";
 import { localDateKey } from "@/lib/tracker/day-keys";
 import { summarizeDay } from "@/lib/tracker/day-summary";
 import { COLOR_HEX } from "@/components/tracker/widgets/types";
-
-// A day isn't an app — it's a cross-app destination, like Trash — so it carries
-// its own identity rather than borrowing Tracker's.
-const dayApp: AppConfig = {
-  id: "day",
-  name: "Day",
-  description: "Everything one day holds, across every app",
-  href: "/day",
-  icon: CalendarDays,
-  accent: {
-    // A deeper green than Tracker's teal: near enough to read as time, far
-    // enough not to be mistaken for the tracker itself.
-    iconBg: "bg-emerald-600/10 dark:bg-emerald-500/20",
-    iconText: "text-emerald-700 dark:text-emerald-400",
-    hoverText: "hover:text-emerald-800 dark:hover:text-emerald-300",
-  },
-};
 
 function Section({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
   return (
@@ -97,6 +76,14 @@ export default function DayPage() {
   const subjectLabels = useSubjectLabels(
     useMemo(() => occurrences.map((occurrence) => ({ id: occurrence.thingId, kind: occurrence.subjectKind })), [occurrences]),
   );
+
+  // The journal page this day owns: the anchor a `[[day]]` reference points at,
+  // and the row that says whether anything was written here. Without the second,
+  // a day with an entry still opens on the empty prompt.
+  const userId = useCurrentUserId();
+  const journalPageId = userId ? systemPageId(userId, "journal", dateKey) : null;
+  const hasJournalEntry = useJournalEntryDays(days).has(dateKey);
+  const linkedFrom = useBacklinks(journalPageId);
 
   const summary = useMemo(
     () =>
@@ -226,18 +213,21 @@ export default function DayPage() {
           <Section title="Tasks" count={tasks.due.length + tasks.completed.length}>
             <ul className="space-y-1.5">
               {tasks.completed.map((task) => (
-                <li key={task.id} className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-2 text-sm">
-                  <span className="text-emerald-600 dark:text-emerald-400">✓</span>
-                  <span className="min-w-0 flex-1 truncate line-through text-muted-foreground">{task.title}</span>
-                  <span className="shrink-0 text-[11px] text-muted-foreground/70">done</span>
+                <li key={task.id}>
+                  <EntityRow kind="task" id={task.id} done trailing="done">
+                    {task.title}
+                  </EntityRow>
                 </li>
               ))}
               {tasks.due.map((task) => (
-                <li key={task.id} className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-2 text-sm">
-                  <span className="min-w-0 flex-1 truncate">{task.title}</span>
-                  <span className="shrink-0 text-[11px] text-muted-foreground/70">
-                    {task.due_date ? getDueDateInfo(new Date(task.due_date)).label : "due"}
-                  </span>
+                <li key={task.id}>
+                  <EntityRow
+                    kind="task"
+                    id={task.id}
+                    trailing={task.due_date ? getDueDateInfo(new Date(task.due_date)).label : "due"}
+                  >
+                    {task.title}
+                  </EntityRow>
                 </li>
               ))}
             </ul>
@@ -248,14 +238,19 @@ export default function DayPage() {
           <Section title="Logged" count={occurrences.length}>
             <ul className="space-y-1.5">
               {occurrences.map((occurrence) => (
-                <li key={occurrence.id} className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-2 text-sm">
-                  <span className="min-w-0 flex-1 truncate">
+                <li key={occurrence.id}>
+                  {/* The row opens the subject that was logged, not the log line:
+                      an occurrence has no page of its own. */}
+                  <EntityRow
+                    kind={occurrence.subjectKind ?? "event"}
+                    id={occurrence.thingId}
+                    trailing={
+                      occurrence.at ? <span className="tabular-nums">{format(new Date(occurrence.at), "HH:mm")}</span> : null
+                    }
+                  >
                     {occurrence.action ? <span className="font-medium">{occurrence.action} </span> : null}
                     {subjectLabels.get(occurrence.thingId) ?? "Something"}
-                  </span>
-                  <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/70">
-                    {occurrence.at ? format(new Date(occurrence.at), "HH:mm") : ""}
-                  </span>
+                  </EntityRow>
                 </li>
               ))}
             </ul>
@@ -270,35 +265,23 @@ export default function DayPage() {
             <ul className="space-y-1.5">
               {captures.notes.map((note) => (
                 <li key={note.id}>
-                  <Link
-                    href={`/notes/${note.id}`}
-                    className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-2 text-sm transition-colors hover:border-border"
-                  >
-                    <FileText className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
-                    <span className="min-w-0 flex-1 truncate">{note.title || "Untitled page"}</span>
-                  </Link>
+                  <EntityRow kind="note" id={note.id} href={`/notes/${note.id}`}>
+                    {note.title || "Untitled page"}
+                  </EntityRow>
                 </li>
               ))}
               {captures.bookmarks.map((bookmark) => (
                 <li key={bookmark.id}>
-                  <a
-                    href={bookmark.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-2 text-sm transition-colors hover:border-border"
-                  >
-                    <BookmarkIcon className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
-                    <span className="min-w-0 flex-1 truncate">{bookmark.title || bookmark.url}</span>
-                  </a>
+                  <EntityRow kind="bookmark" id={bookmark.id}>
+                    {bookmark.title || bookmark.url}
+                  </EntityRow>
                 </li>
               ))}
               {captures.quotes.map((quote) => (
-                <li
-                  key={quote.id}
-                  className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-2 text-sm"
-                >
-                  <QuoteIcon className="h-3.5 w-3.5 shrink-0 text-rose-600 dark:text-rose-400" />
-                  <span className="min-w-0 flex-1 truncate">{quote.text}</span>
+                <li key={quote.id}>
+                  <EntityRow kind="quote" id={quote.id}>
+                    {quote.text}
+                  </EntityRow>
                 </li>
               ))}
             </ul>
@@ -306,8 +289,26 @@ export default function DayPage() {
         ) : null}
 
         <Section title="Journal">
-          <DailyJournalEntry date={date} placeholder="Write about this day…" />
+          <DailyJournalEntry date={date} placeholder="Write about this day…" hasEntry={hasJournalEntry} />
         </Section>
+
+        {linkedFrom.length > 0 ? (
+          <Section title="Linked from" count={linkedFrom.length}>
+            <ul className="space-y-1.5">
+              {linkedFrom.map((source) => (
+                <li key={`${source.kind}:${source.id}`}>
+                  <EntityRow
+                    kind={source.kind}
+                    id={source.id}
+                    href={source.kind === "note" ? `/notes/${source.id}` : undefined}
+                  >
+                    {source.label}
+                  </EntityRow>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        ) : null}
       </div>
 
       <MobileBottomFabs app={dayApp} />

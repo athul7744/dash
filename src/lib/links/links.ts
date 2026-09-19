@@ -17,6 +17,9 @@ import { v5 as uuidv5 } from "uuid";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { parseRefTokens, normalizeTitleKey } from "@/lib/links/tokens";
+import { parseDateTokensInText } from "@/lib/notes/date-tokens";
+import { systemPageId } from "@/lib/notes/system-pages";
+import { localDateKey } from "@/lib/tracker/day-keys";
 
 /** Minimal DB execution context (a transaction or the db itself). */
 export interface DbContext {
@@ -142,7 +145,25 @@ async function reconcileEntityRefsInner(
     });
   }
 
-  await replaceEdges(sourceId, [...idEdges, ...titleEdges], ctx);
+  await replaceEdges(sourceId, [...idEdges, ...titleEdges, ...(await dateTokenEdges(texts))], ctx);
+}
+
+/**
+ * A `{MMM d, yyyy}` chip links its day, the same edge `[[day|…]]` makes — so a
+ * page that mentions a date is a backlink on that day, not just a one-way jump
+ * to it.
+ *
+ * The target is the journal page's deterministic id, and that page needn't
+ * exist: a backlink resolves the *source*, and reconcile runs inside a
+ * transaction in places, where creating a page isn't safe. The day materializes
+ * its page the moment anything is written there.
+ */
+async function dateTokenEdges(texts: Array<string | null | undefined>): Promise<DesiredEdge[]> {
+  const dates = texts.flatMap((text) => (text ? parseDateTokensInText(text) : []));
+  if (dates.length === 0) return [];
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+  return dates.map((date) => ({ targetId: systemPageId(userId, "journal", localDateKey(date)), type: "ref" }));
 }
 
 /** Page title key → page id, for resolving legacy `[[Title]]` tokens. */

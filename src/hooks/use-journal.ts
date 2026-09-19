@@ -35,9 +35,14 @@ export async function ensureJournalPage(date: Date): Promise<string> {
 }
 
 /**
- * Given a set of days, returns the subset (as day keys) that already have a
- * journal page — i.e. days the user has actually written on. One indexed
- * `id IN (...)` lookup over the deterministic page ids; pass a memoized `dates`.
+ * Given a set of days, returns the subset (as day keys) the user has actually
+ * written on. One indexed `page_id IN (...)` lookup over the deterministic page
+ * ids; pass a memoized `dates`.
+ *
+ * The test is blocks, not the page: linking a day creates its page so the
+ * reference has a row to resolve against, and that page has no blocks. Asking
+ * for the page instead would make every linked day read as written on, so a day
+ * you have only mentioned would open its editor rather than its prompt.
  */
 export function useJournalEntryDays(dates: Date[]): Set<string> {
   const userId = useCurrentUserId();
@@ -47,8 +52,9 @@ export function useJournalEntryDays(dates: Date[]): Set<string> {
     [userId, keys],
   );
   const sql = ids.length
-    ? `SELECT id FROM pages WHERE id IN (${ids.map(() => "?").join(",")})`
-    : "SELECT id FROM pages WHERE 1 = 0";
+    ? `SELECT DISTINCT page_id AS id FROM blocks
+       WHERE page_id IN (${ids.map(() => "?").join(",")}) AND deleted_at IS NULL`
+    : "SELECT NULL AS id WHERE 1 = 0";
   const { data = [] } = useQuery<{ id: string }>(sql, ids);
 
   return useMemo(() => {

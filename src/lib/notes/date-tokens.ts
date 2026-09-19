@@ -80,6 +80,28 @@ export function parseDayQuery(raw: string): Date | null {
   return parseDateToken(withYear);
 }
 
+/**
+ * Only the canonical `{MMM d, yyyy}` a chip serializes to — the form
+ * `formatDateToken` writes, and so the only one the editor ever produces.
+ */
+const DATE_TOKEN_IN_TEXT = /\{((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}, \d{4})\}/g;
+
+/**
+ * Every date chip in a piece of text, as dates.
+ *
+ * Strict where `parseDateToken` is lenient, because this drives edge writes and
+ * `new Date` reads almost anything as a date — `{summary}` alone would link
+ * March. A missed link costs less than a wrong one.
+ */
+export function parseDateTokensInText(text: string): Date[] {
+  const dates: Date[] = [];
+  for (const match of text.matchAll(DATE_TOKEN_IN_TEXT)) {
+    const parsed = parseDateToken(match[1]);
+    if (parsed) dates.push(parsed);
+  }
+  return dates;
+}
+
 export function getRelativeDate(offset: RelativeDateOffset): Date {
   const d = new Date();
   switch (offset) {

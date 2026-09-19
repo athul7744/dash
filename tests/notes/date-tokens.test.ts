@@ -5,6 +5,7 @@ import {
   formatDateToken,
   getRelativeDate,
   parseDateToken,
+  parseDateTokensInText,
   parseDayQuery,
 } from "@/lib/notes/date-tokens";
 import { localDateKey } from "@/lib/tracker/day-keys";
@@ -170,5 +171,29 @@ describe("parseDayQuery", () => {
     expect(parsed.getMonth()).toBe(8);
     expect(parsed.getDate()).toBe(15);
     expect(parsed.getHours()).toBe(0);
+  });
+});
+
+describe("parseDateTokensInText", () => {
+  it("finds every chip in a block's text", () => {
+    const dates = parseDateTokensInText("shipped {Sep 20, 2026} and reviewed on {Dec 1, 2026}");
+    expect(dates.map(localDateKey)).toEqual(["2026-09-20", "2026-12-01"]);
+  });
+
+  it("round-trips what formatDateToken writes", () => {
+    // The chip is the only writer of this form, so these two have to agree —
+    // a drift here silently stops dates from linking their day.
+    const date = new Date(2026, 8, 20);
+    expect(parseDateTokensInText(formatDateToken(date)).map(localDateKey)).toEqual(["2026-09-20"]);
+  });
+
+  it("ignores braces that aren't the canonical form", () => {
+    // This drives edge writes, and `new Date` reads "summary" as March. Linking
+    // a day nobody mentioned is worse than missing an odd hand-typed date.
+    expect(parseDateTokensInText("{summary} {2026} {marketing} {15 Sep 2026} plain text")).toEqual([]);
+  });
+
+  it("finds nothing in text without a chip", () => {
+    expect(parseDateTokensInText("a note about September")).toEqual([]);
   });
 });

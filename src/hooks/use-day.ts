@@ -82,9 +82,21 @@ const parseQuoteRow = (row: SystemPageBlockRow): Quote => ({
   ...parseQuoteContent(row.content),
 });
 
+/**
+ * When a capture was kept.
+ *
+ * Bookmarks and quotes both stamp `addedAt` at creation, but rows saved before
+ * that field existed carry none — and without a fallback an entire back
+ * catalogue is invisible to every day. A block's `updated_at` is set on insert,
+ * so for anything never edited since it *is* the capture time; for the rest it's
+ * the best the row knows. The fallback stops applying the moment a row carries a
+ * real `addedAt`, so it only ever covers the legacy tail.
+ */
+const CAPTURED_AT = "COALESCE(NULLIF(json_extract(content, '$.addedAt'), ''), updated_at)";
+
 export function useDayCaptures(dateKey: string): DayCaptures {
   const [from, to] = localDayBounds(dateKey);
-  const window = { where: "json_extract(content, '$.addedAt') >= ? AND json_extract(content, '$.addedAt') < ?" };
+  const window = { where: `${CAPTURED_AT} >= ? AND ${CAPTURED_AT} < ?` };
 
   const { items: bookmarks, isLoading: loadingBookmarks } = useSystemPageBlocksPaged(
     "bookmark",
@@ -94,7 +106,6 @@ export function useDayCaptures(dateKey: string): DayCaptures {
     { limit: CAPTURE_LIMIT, ...window, whereArgs: [from, to] },
   );
 
-  // Quotes kept before they recorded a capture time simply never match.
   const { items: quotes, isLoading: loadingQuotes } = useSystemPageBlocksPaged(
     "quote",
     QUOTES_KEY,

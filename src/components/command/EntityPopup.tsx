@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { useQuery } from "@powersync/react";
 
 import { TaskCard } from "@/components/tasks/TaskCard";
@@ -55,6 +57,25 @@ export function EntityPopup({
 }) {
   const isTask = item?.kind === "task";
   const isBlock = item != null && item.kind !== "task";
+
+  // The cards carry their own links — an event title opens `/events/<id>`, a
+  // reference chip opens its target — and following one should leave the popup
+  // behind rather than land you on the new page with the old item still over it.
+  // Watching the route covers every such link without each card knowing it is in
+  // a dialog; an external link (a bookmark's URL) changes no path, so it stays.
+  const pathname = usePathname();
+  const pathAtOpen = useRef<string | null>(null);
+  useEffect(() => {
+    if (!item) {
+      pathAtOpen.current = null;
+      return;
+    }
+    if (pathAtOpen.current === null) {
+      pathAtOpen.current = pathname;
+      return;
+    }
+    if (pathAtOpen.current !== pathname) onOpenChange(false);
+  }, [item, pathname, onOpenChange]);
 
   const { data: taskRows = [] } = useQuery<TaskRow>(
     isTask ? "SELECT * FROM tasks WHERE id = ?" : EMPTY_TASK,

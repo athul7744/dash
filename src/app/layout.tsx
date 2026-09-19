@@ -78,18 +78,21 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <PowerSyncProvider>
-            <CaptureProvider>
-              <CommandPaletteProvider>
-                <ToastProvider>
+            {/* Outermost of the three: the capture sheet and the command
+                palette's entity popup both render cards that toast, and a
+                provider can only be used from inside its own subtree. */}
+            <ToastProvider>
+              <CaptureProvider>
+                <CommandPaletteProvider>
                   {/* App Shell Layout structure will be placed here or inside individual pages */}
                   <div className="flex flex-col md:flex-row h-screen overflow-hidden">
                     <main className="flex-1 overflow-y-auto relative">
                       {children}
                     </main>
                   </div>
-                </ToastProvider>
-              </CommandPaletteProvider>
-            </CaptureProvider>
+                </CommandPaletteProvider>
+              </CaptureProvider>
+            </ToastProvider>
           </PowerSyncProvider>
         </ThemeProvider>
         <Analytics />

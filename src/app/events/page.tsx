@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
-import { format } from "date-fns";
+import Link from "next/link";
+import { format, parseISO } from "date-fns";
 import { CalendarClock, Loader2, MapPin, Plus, Search } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
@@ -24,6 +25,7 @@ import { statsFromAggregate, createEvent } from "@/lib/events/events";
 import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { refKindAccentVar, type RefKind } from "@/lib/links/tokens";
 import { formatRelativeTime, cn } from "@/lib/shared/utils";
+import { localDateKey } from "@/lib/tracker/day-keys";
 
 type TimelineRow = { id: string; thingId: string; subjectKind: RefKind; at: string; action: string; title: string; place: string; note: string };
 
@@ -202,7 +204,8 @@ export default function EventsPage() {
     const rows = useFts ? ftsRows! : fallbackRows;
     const groups = new Map<string, TimelineRow[]>();
     for (const r of rows) {
-      const key = r.at ? format(new Date(r.at), "PP") : "—";
+      // Keyed by the day itself, so the heading can link to it.
+      const key = r.at ? localDateKey(new Date(r.at)) : "";
       const arr = groups.get(key) ?? [];
       arr.push(r);
       groups.set(key, arr);
@@ -306,9 +309,17 @@ export default function EventsPage() {
                   <p className="py-12 text-center text-sm text-muted-foreground">No occurrences.</p>
                 ) : (
                   <div className="space-y-6">
-                    {timeline.map(([day, rows]) => (
-                      <div key={day}>
-                        <h3 className="mb-2 text-xs font-semibold text-muted-foreground">{day}</h3>
+                    {timeline.map(([dayKey, rows]) => (
+                      <div key={dayKey || "undated"}>
+                        <h3 className="mb-2 text-xs font-semibold text-muted-foreground">
+                          {dayKey ? (
+                            <Link href={`/day/${dayKey}`} className="transition-colors hover:text-foreground">
+                              {format(parseISO(dayKey), "PP")}
+                            </Link>
+                          ) : (
+                            "—"
+                          )}
+                        </h3>
                         <ul className="space-y-1.5">
                           {rows.map((o) => {
                             const SubjectIcon = getApp(`${o.subjectKind}s`).icon;

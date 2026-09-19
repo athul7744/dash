@@ -428,6 +428,8 @@ Responsibilities:
 
 `src/hooks/use-day.ts` holds its reads. Every store it touches timestamps a **real instant**, so they all window on `localDayBounds`; the tracker rows are the exception and go through `useTimeGrid`. **Sections stay separate deliberately** — interleaving UTC-naive blocks with real instants into one chronological feed would order them wrongly by the viewer's UTC offset. That feed is the one thing that needs the UTC-naive migration to land first.
 
+**The dates already on screen lead here.** A `{date}` chip in a note opens its day (`DateTokenNode` renders through a React NodeView for that, parsing its label back to a date since the attr holds only what it displays); a day in either year heatmap opens it rather than jumping to that day's week; the journal strip's day headings and an occurrence's date are links. Task due chips are deliberately left alone — their click opens the calendar editor, and repointing it would cost the ability to change a due date.
+
 Two stores gained a field for it: `tasks.completed_at` (any edit moves `updated_at`, so it can't answer *when it was finished*) and a quote's `addedAt` (bookmarks already had one; quotes kept before it simply never appear in a day's intake).
 
 Important child components:
@@ -480,6 +482,8 @@ Responsibilities:
 `src/app/day/[date]/page.tsx` — `/day/<yyyy-MM-dd>`, a cross-app destination like `/trash`, carrying its own `AppConfig` rather than borrowing Tracker's. It answers "what happened on this day" across every app: mood and hours (`useTimeGrid` + `summarizeDay`), that day's grid column to paint (the same `TimeGrid` and `ActivityToolbar` as the week), tasks due and completed, events logged, what was captured, and the day's journal entry inline (`DailyJournalEntry`, which materializes its page on the first keystroke).
 
 `src/hooks/use-day.ts` holds its reads. Every store it touches timestamps a **real instant**, so they all window on `localDayBounds`; the tracker rows are the exception and go through `useTimeGrid`. **Sections stay separate deliberately** — interleaving UTC-naive blocks with real instants into one chronological feed would order them wrongly by the viewer's UTC offset. That feed is the one thing that needs the UTC-naive migration to land first.
+
+**The dates already on screen lead here.** A `{date}` chip in a note opens its day (`DateTokenNode` renders through a React NodeView for that, parsing its label back to a date since the attr holds only what it displays); a day in either year heatmap opens it rather than jumping to that day's week; the journal strip's day headings and an occurrence's date are links. Task due chips are deliberately left alone — their click opens the calendar editor, and repointing it would cost the ability to change a due date.
 
 Two stores gained a field for it: `tasks.completed_at` (any edit moves `updated_at`, so it can't answer *when it was finished*) and a quote's `addedAt` (bookmarks already had one; quotes kept before it simply never appear in a day's intake).
 

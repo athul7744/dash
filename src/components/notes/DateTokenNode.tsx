@@ -1,6 +1,11 @@
+"use client";
+
 import { InputRule, Node, mergeAttributes } from "@tiptap/core";
+import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
+import { useRouter } from "next/navigation";
 
 import { DATE_TOKEN_NODE_TYPE, dateLabelToToken, formatDateLabel, parseDateToken } from "@/lib/notes/date-tokens";
+import { localDateKey } from "@/lib/tracker/day-keys";
 
 /**
  * `dateToken` — an inline, atomic node for a date, the sibling of `entityRef`
@@ -14,7 +19,40 @@ import { DATE_TOKEN_NODE_TYPE, dateLabelToToken, formatDateLabel, parseDateToken
  * to the `{MMM d, yyyy}` token via `renderText`, so plain-text/markdown output
  * is unchanged and legacy stored text tokens keep resolving. The teal chip look
  * (calendar glyph + dotted underline) is the shared `.note-date-token` style.
+ *
+ * Clicking one opens that day (`/day/<yyyy-MM-dd>`) — the label is parsed back
+ * to a date, since the attr holds only what it displays. Rendered through a
+ * React NodeView for that; `renderHTML` stays as the non-editor fallback (the
+ * read-only renderer makes chips inert anyway).
  */
+function DateChip({ node }: NodeViewProps) {
+  const router = useRouter();
+  const label = (node.attrs.date as string) || "";
+  const parsed = parseDateToken(label);
+
+  return (
+    <NodeViewWrapper as="span" data-date-token="true" data-date={label}>
+      <span
+        role={parsed ? "link" : undefined}
+        tabIndex={parsed ? 0 : undefined}
+        contentEditable={false}
+        title={parsed ? `Open ${label}` : label}
+        className="note-date-token"
+        onClick={() => {
+          if (parsed) router.push(`/day/${localDateKey(parsed)}`);
+        }}
+        onKeyDown={(event) => {
+          if (!parsed || (event.key !== "Enter" && event.key !== " ")) return;
+          event.preventDefault();
+          router.push(`/day/${localDateKey(parsed)}`);
+        }}
+      >
+        {label}
+      </span>
+    </NodeViewWrapper>
+  );
+}
+
 export const DateTokenNode = Node.create({
   name: DATE_TOKEN_NODE_TYPE,
   group: "inline",
@@ -52,6 +90,10 @@ export const DateTokenNode = Node.create({
       }),
       date,
     ];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(DateChip);
   },
 
   renderText({ node }) {

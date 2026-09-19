@@ -1,6 +1,7 @@
 /// <reference types="vitest/globals" />
 
-import { formatDateToken, getRelativeDate, parseDateToken } from "@/lib/notes/date-tokens";
+import { formatDateLabel, formatDateToken, getRelativeDate, parseDateToken } from "@/lib/notes/date-tokens";
+import { localDateKey } from "@/lib/tracker/day-keys";
 
 describe("formatDateToken", () => {
   it("formats a date as {MMM d, yyyy}", () => {
@@ -87,5 +88,23 @@ describe("getRelativeDate", () => {
     // JS Date rolls Jan 31 + 1 month → March 3 (Feb has 28 days)
     expect(d.getMonth()).toBe(2); // March
     expect(d.getDate()).toBe(3);
+  });
+});
+
+describe("a chip's label round-trips to a day key", () => {
+  it("survives label → date → key", () => {
+    // A date chip stores only what it displays, so opening the day it names
+    // means parsing that label back. If this drifts, chips open the wrong day
+    // (or nothing) with nothing else failing.
+    for (const date of [new Date(2026, 0, 15), new Date(2026, 6, 23), new Date(2026, 11, 1)]) {
+      const parsed = parseDateToken(formatDateLabel(date));
+      expect(parsed).not.toBeNull();
+      expect(localDateKey(parsed!)).toBe(localDateKey(date));
+    }
+  });
+
+  it("gives back nothing for a label that isn't a date", () => {
+    // The chip stays inert rather than routing somewhere arbitrary.
+    expect(parseDateToken("someday")).toBeNull();
   });
 });

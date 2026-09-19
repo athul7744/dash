@@ -39,7 +39,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
   Covers slash command filtering, grouping, and query matching logic used by the editor's slash-command palette.
 
 - `tests/notes/date-tokens.test.ts`
-  Covers date token formatting and relative date resolution for inline date slash commands.
+  Covers date token formatting and relative date resolution for inline date slash commands, plus the label → date → day-key round trip a date chip needs to open the right day (it stores only what it displays).
 
 - `tests/notes/page-nav-stack.test.ts`
   Covers pure push/pop/popTo logic for the page breadcrumb navigation stack.

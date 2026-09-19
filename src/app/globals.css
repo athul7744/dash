@@ -550,6 +550,8 @@ body[data-display-font="bricolage"] {
      Inline (not flex) so the date text stays on the baseline. */
   font-weight: 500;
   white-space: nowrap;
+  /* It opens that day, so it reads as something to press. */
+  cursor: pointer;
   color: color-mix(in oklab, var(--color-teal-500) 76%, var(--color-foreground));
   text-decoration: underline;
   text-decoration-style: dotted;

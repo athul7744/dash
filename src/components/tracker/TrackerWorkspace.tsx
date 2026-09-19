@@ -29,6 +29,7 @@ import { DURATION, SPRING_SOFT } from "@/lib/shared/motion";
 import { DEFAULT_ACTIVITIES } from "@/lib/tracker/activities";
 import { DEFAULT_MOODS } from "@/lib/tracker/moods";
 import { useTimeGrid } from "@/hooks/use-time-grid";
+import { localDateKey } from "@/lib/tracker/day-keys";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
@@ -169,11 +170,9 @@ export function TrackerWorkspace() {
 
   const showSkeleton = grid.isLoading;
 
-  // When clicking a day in the year rating grid, jump to that week
-  const handleDayClick = (date: Date) => {
-    setCurrentDate(date);
-    setView("week");
-  };
+  // A day in a year heatmap opens that day. It used to jump to the day's week,
+  // which was the closest thing to a day view before one existed.
+  const handleDayClick = (date: Date) => router.push(`/day/${localDateKey(date)}`);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);

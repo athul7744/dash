@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { addDays, format, isAfter, isSameDay, isSameMonth, startOfDay } from "date-fns";
 import { NotebookPen } from "lucide-react";
 
@@ -47,14 +48,19 @@ export function WeekJournalDiary({ weekStart }: { weekStart: Date }) {
               key={key}
               className={cn("relative grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-5 py-3", i > 0 && "border-t border-border/40")}
             >
-              <div>
+              {/* The date is the way into that whole day, not just its entry. */}
+              <Link
+                href={`/day/${key}`}
+                title={`Open ${format(d, "d MMMM yyyy")}`}
+                className="rounded-lg transition-opacity hover:opacity-70"
+              >
                 <div className={cn("text-[0.6rem] font-bold uppercase tracking-wide", dayIsToday ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
                   {format(d, "EEE")}
                 </div>
                 <div className={cn("mt-0.5 font-serif text-xl leading-none", dayIsToday ? "text-amber-600 dark:text-amber-400" : "text-foreground")}>
                   {format(d, "d")}
                 </div>
-              </div>
+              </Link>
               {/* Timeline node, centered on the spine. */}
               <span
                 aria-hidden

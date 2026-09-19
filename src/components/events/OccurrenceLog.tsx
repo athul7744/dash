@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import { MapPin, Pencil, Trash2 } from "lucide-react";
 
@@ -8,6 +9,7 @@ import { EventEditDialog } from "@/components/events/EventLogNow";
 import { useOccurrences } from "@/hooks/use-events";
 import { deleteOccurrence, type Occurrence } from "@/lib/events/events";
 import { cn, formatRelativeTime } from "@/lib/shared/utils";
+import { localDateKey } from "@/lib/tracker/day-keys";
 
 const SOURCE_LABEL: Record<Occurrence["source"], string> = { manual: "logged", task: "task", schedule: "scheduled" };
 
@@ -73,7 +75,18 @@ function OccurrenceRow({ occurrence: o, onEdit }: { occurrence: Occurrence; onEd
   const at = o.at ? new Date(o.at) : null;
   return (
     <div className="group flex items-center gap-3 border-b border-border/40 px-4 py-2.5 last:border-b-0 hover:bg-muted/30">
-      <span className="w-24 shrink-0 text-sm font-medium tabular-nums text-foreground">{at ? format(at, "PP") : "—"}</span>
+      {/* The date opens that whole day — every app's record of it, not just this log. */}
+      {at ? (
+        <Link
+          href={`/day/${localDateKey(at)}`}
+          title={`Open ${format(at, "d MMMM yyyy")}`}
+          className="w-24 shrink-0 text-sm font-medium tabular-nums text-foreground transition-colors hover:text-violet-600 dark:hover:text-violet-400"
+        >
+          {format(at, "PP")}
+        </Link>
+      ) : (
+        <span className="w-24 shrink-0 text-sm font-medium tabular-nums text-muted-foreground">—</span>
+      )}
       {o.action ? <span className="shrink-0 text-sm font-medium text-foreground">{o.action}</span> : null}
       {at ? <span className="shrink-0 text-xs text-muted-foreground/60">{formatRelativeTime(at)}</span> : null}
       {o.place ? (

@@ -38,6 +38,8 @@ interface QuoteContent {
   author: string;
   link: string;
   favorite: boolean;
+  /** When it was saved. Absent on quotes kept before this was recorded. */
+  addedAt?: string;
 }
 
 /** Idempotently create the quotes page. Returns its id. */
@@ -72,6 +74,7 @@ export async function createQuote(input: { text?: string; author?: string; link?
     author: input.author ?? "",
     link: input.link?.trim() ?? "",
     favorite: false,
+    addedAt: now,
   };
   await db.execute(
     `INSERT INTO blocks (id, user_id, page_id, parent_block_id, type, content, sort_rank, updated_at)

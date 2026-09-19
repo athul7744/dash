@@ -20,6 +20,8 @@ import { BarChart3, Star } from "lucide-react";
 import { DailyRating, TimeLog, ActivityType } from "@/lib/powersync/AppSchema";
 import { ACTIVITY_CELL_CLASSES } from "@/lib/tracker/activities";
 import { moodByValue, moodDotClass, moodHex, moodRange, type Mood } from "@/lib/tracker/moods";
+import { localDateKey } from "@/lib/tracker/day-keys";
+import { summarizeDay } from "@/lib/tracker/day-summary";
 import { computeMoodYearInsights } from "@/lib/tracker/year-insights";
 import { MoodYearInsights } from "@/components/tracker/year-insights";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -163,24 +165,9 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
   // Day summary for popover
   const dayInfo = useMemo(() => {
     if (!selectedDay) return null;
-    const dateStr = format(selectedDay, "yyyy-MM-dd");
-    const score = ratingMap.get(dateStr);
-
-    // Build activity breakdown for selected day
-    const activities: Record<string, { count: number; hex: string }> = {};
-    for (let hour = 0; hour < 24; hour++) {
-      const key = `${dateStr}|${String(hour).padStart(2, "0")}`;
-      const cell = activityCellMap.get(key);
-      if (!cell) continue;
-
-      if (!activities[cell.activity]) {
-        activities[cell.activity] = { count: 0, hex: cell.hex };
-      }
-      activities[cell.activity].count++;
-    }
-    const totalHours = Object.values(activities).reduce((s, a) => s + a.count, 0);
-
-    return { dateStr, score: score ?? null, activities, totalHours };
+    const dateStr = localDateKey(selectedDay);
+    const summary = summarizeDay(dateStr, (hourKey) => activityCellMap.get(hourKey));
+    return { ...summary, dateStr, score: ratingMap.get(dateStr) ?? null };
   }, [activityCellMap, ratingMap, selectedDay]);
 
   // Close popover on click outside
@@ -333,9 +320,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
           ref={popoverRef}
           day={selectedDay}
           position={popoverPos}
-          activities={Object.entries(dayInfo.activities)
-            .sort(([, a], [, b]) => b.count - a.count)
-            .map(([name, { count, hex }]) => ({ name, count, hex }))}
+          activities={dayInfo.activities}
           totalHours={dayInfo.totalHours}
           onClose={() => { setSelectedDay(null); setPopoverPos(null); }}
           onEditDay={() => { onDayClick?.(selectedDay); setSelectedDay(null); setPopoverPos(null); }}

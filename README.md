@@ -24,6 +24,10 @@ Already keeping notes somewhere else? Point Dash at a Logseq vault and bring it 
 
 Linking isn't limited to notes. Type `[[` in any item — a task (or subtask), bookmark, quote, or event — to link it to any other. Each link shows up as a backlink on the other side, and every linked item becomes a node in the graph, so the graph maps your whole workspace, not just your notes.
 
+### The day
+
+Every app records *when*, so any date opens as a page of its own: the mood you gave it, the hours you tracked with the grid there to fill in, the tasks due and the ones you finished, what you logged, what you saved, and the day's journal entry ready to write in. Step a day either way with the arrows.
+
 ### Quotes
 
 Collect lines worth remembering — each with an optional author and a link back to where you found it. Star your favorites. One resurfaces on the dashboard each day (favorites show up more often), and "Show another" cycles through the rest.

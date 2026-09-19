@@ -8,7 +8,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/notes/import/` — the Logseq/markdown importer (normalizer, property and tag mapping, title allocation, the scan, the writes).
 - `tests/notes/page/` — note-page surfaces rendered in jsdom.
 - `tests/tasks/` — task-specific test entry points and notes about where task suites belong.
-- `tests/tracker/` — tracker-specific test entry points and notes about where tracker suites belong.
+- `tests/tracker/` — tracker-specific logic: the two day-key conventions and the per-day activity rollup.
 - `tests/quotes/` — quotes-specific logic tests.
 - `tests/bookmarks/` — bookmarks-specific logic tests.
 - `tests/events/` — events recurrence-engine, action-vocabulary, and event/occurrence parse tests.
@@ -179,7 +179,10 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 ## Current Tracker Suites
 
 - `tests/tracker/day-keys.test.ts`
-  Covers the tracker date-key helpers: `utcDateKey`/`localDateKey`/`utcDayBounds` formats and `recentNaiveWindow` (2-hour UTC-naive span, midnight crossing).
+  Covers the tracker date-key helpers: `utcDateKey`/`localDateKey`/`utcDayBounds` formats, `recentNaiveWindow` (2-hour UTC-naive span, midnight crossing), `hourCellKey`, and `localDayBounds` — the real-instant window every non-tracker store uses, including the assertion that it differs from the tracker's by exactly the UTC offset (the off-by-a-day this split exists to prevent).
+
+- `tests/tracker/day-summary.test.ts`
+  Covers the per-day activity rollup shared by both year-grid popovers and the Day surface: one hour per filled cell, busiest activity first with name-order ties, colours carried through, an untracked day reading as empty, and a lookup spanning other days counting nothing.
 
 - `tests/tracker/moods.test.ts`
   Covers the configurable mood-scale helpers (`src/lib/tracker/moods.ts`): `moodRange` (bounds + midpoint, empty fallback), `moodTier` (good/bad/neutral classified relative to the scale's range, for any scale length), and `moodByValue`.

@@ -9,7 +9,8 @@ export const tasksTable = new Table({
   link: column.text,
   state: column.text,
   created_at: column.text,
-  updated_at: column.text
+  updated_at: column.text,
+  completed_at: column.text
 });
 
 export const tagsTable = new Table({

@@ -416,6 +416,20 @@ Responsibilities:
 - Uses `ManageTagsDialog` for tag CRUD
 - Uses `MobileBottomFabs` for the floating add action on mobile
 
+**`src/hooks/use-time-grid.ts`** owns the grid itself — activity types, the day window's `time_logs` and `daily_ratings`, the optimistic overlay for both, and the two writers — for *any* set of days, so the week view and the Day surface paint the same cells through one implementation. It exposes `setCell` as an intent ("this hour becomes that activity, or nothing"); the brush stays with each surface. Optimistic entries are dropped by render-time reconciliation guarded on the source data's identity, so there's no extra render pass.
+
+**The day is keyed two ways, and `src/lib/tracker/day-keys.ts` holds both.** `time_logs.start_timestamp` is UTC-naive — local wall-clock parts stamped into a UTC instant — so its day is the *UTC* date of that instant (`utcDateKey`, `utcDayBounds`), while `daily_ratings.rating_date`, the journal key and every other app's timestamp are the *local* day (`localDateKey`, `localDayBounds`). They coincide for tracker rows only because the write pre-shifts. Nothing should derive a day key outside that module: the UTC-naive storage is a known debt whose eventual migration wants one seam, not a scatter of `getUTCHours()` calls.
+
+**`src/lib/tracker/day-summary.ts`** rolls one day's cells up by activity, busiest first — shared by both year grids' popovers and the Day surface.
+
+### The Day surface
+
+`src/app/day/[date]/page.tsx` — `/day/<yyyy-MM-dd>`, a cross-app destination like `/trash`, carrying its own `AppConfig` rather than borrowing Tracker's. It answers "what happened on this day" across every app: mood and hours (`useTimeGrid` + `summarizeDay`), that day's grid column to paint (the same `TimeGrid` and `ActivityToolbar` as the week), tasks due and completed, events logged, what was captured, and the day's journal entry inline (`DailyJournalEntry`, which materializes its page on the first keystroke).
+
+`src/hooks/use-day.ts` holds its reads. Every store it touches timestamps a **real instant**, so they all window on `localDayBounds`; the tracker rows are the exception and go through `useTimeGrid`. **Sections stay separate deliberately** — interleaving UTC-naive blocks with real instants into one chronological feed would order them wrongly by the viewer's UTC offset. That feed is the one thing that needs the UTC-naive migration to land first.
+
+Two stores gained a field for it: `tasks.completed_at` (any edit moves `updated_at`, so it can't answer *when it was finished*) and a quote's `addedAt` (bookmarks already had one; quotes kept before it simply never appear in a day's intake).
+
 Important child components:
 
 - `src/components/tasks/TaskCard.tsx`
@@ -450,11 +464,24 @@ Routing (path-based, shell in the layout):
 
 Responsibilities:
 
-- Loads activity types, time logs, and daily ratings from local SQLite
 - Serves three views: `week`, `activity`, and `mood`
-- Keeps optimistic in-memory overlays for time log and rating changes
+- Renders the toolbar's brush, the week's widgets and the journal strip; the grid's own data and writes come from `useTimeGrid`
 - Renders the shared header and a tracker-specific tab strip
 - Uses `ManageActivitiesDialog` for activity CRUD
+
+**`src/hooks/use-time-grid.ts`** owns the grid itself — activity types, the day window's `time_logs` and `daily_ratings`, the optimistic overlay for both, and the two writers — for *any* set of days, so the week view and the Day surface paint the same cells through one implementation. It exposes `setCell` as an intent ("this hour becomes that activity, or nothing"); the brush stays with each surface. Optimistic entries are dropped by render-time reconciliation guarded on the source data's identity, so there's no extra render pass.
+
+**The day is keyed two ways, and `src/lib/tracker/day-keys.ts` holds both.** `time_logs.start_timestamp` is UTC-naive — local wall-clock parts stamped into a UTC instant — so its day is the *UTC* date of that instant (`utcDateKey`, `utcDayBounds`), while `daily_ratings.rating_date`, the journal key and every other app's timestamp are the *local* day (`localDateKey`, `localDayBounds`). They coincide for tracker rows only because the write pre-shifts. Nothing should derive a day key outside that module: the UTC-naive storage is a known debt whose eventual migration wants one seam, not a scatter of `getUTCHours()` calls.
+
+**`src/lib/tracker/day-summary.ts`** rolls one day's cells up by activity, busiest first — shared by both year grids' popovers and the Day surface.
+
+### The Day surface
+
+`src/app/day/[date]/page.tsx` — `/day/<yyyy-MM-dd>`, a cross-app destination like `/trash`, carrying its own `AppConfig` rather than borrowing Tracker's. It answers "what happened on this day" across every app: mood and hours (`useTimeGrid` + `summarizeDay`), that day's grid column to paint (the same `TimeGrid` and `ActivityToolbar` as the week), tasks due and completed, events logged, what was captured, and the day's journal entry inline (`DailyJournalEntry`, which materializes its page on the first keystroke).
+
+`src/hooks/use-day.ts` holds its reads. Every store it touches timestamps a **real instant**, so they all window on `localDayBounds`; the tracker rows are the exception and go through `useTimeGrid`. **Sections stay separate deliberately** — interleaving UTC-naive blocks with real instants into one chronological feed would order them wrongly by the viewer's UTC offset. That feed is the one thing that needs the UTC-naive migration to land first.
+
+Two stores gained a field for it: `tasks.completed_at` (any edit moves `updated_at`, so it can't answer *when it was finished*) and a quote's `addedAt` (bookmarks already had one; quotes kept before it simply never appear in a day's intake).
 
 Important child components:
 

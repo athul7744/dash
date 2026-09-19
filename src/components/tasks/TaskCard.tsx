@@ -112,9 +112,13 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
     const persistedState = record.state ?? "pending";
     if (nextState === persistedState) {
       cancelUpdate(record.id, "state");
+      cancelUpdate(record.id, "completed_at");
       return;
     }
     debouncedUpdate(record.id, "state", nextState);
+    // When it was finished, which `updated_at` can't answer — any later edit
+    // moves that. Cleared on un-completing, so the day stops claiming it.
+    debouncedUpdate(record.id, "completed_at", nextState === "completed" ? new Date().toISOString() : null);
   }, []);
 
   const handleSaveNew = async () => {

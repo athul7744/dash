@@ -47,12 +47,15 @@ export function useEvent(id: string | null | undefined): { event: EventItem | nu
 type OccurrenceRow = { id: string; content: string | null };
 
 /**
- * Live occurrence log, newest first — all of them, or one thing's (`thingId`),
- * capped by `limit` for the paginated timeline / per-thing detail.
+ * Live occurrence log, newest first — all of them, one thing's (`thingId`), or a
+ * time window (`from`/`to`, half-open, as the Day surface asks for), capped by
+ * `limit` for the paginated timeline / per-thing detail.
  */
-export function useOccurrences(opts: { thingId?: string; limit?: number; enabled?: boolean } = {}): { occurrences: Occurrence[]; isLoading: boolean } {
+export function useOccurrences(
+  opts: { thingId?: string; limit?: number; enabled?: boolean; from?: string; to?: string } = {},
+): { occurrences: Occurrence[]; isLoading: boolean } {
   const userId = useCurrentUserId();
-  const { thingId, limit, enabled = true } = opts;
+  const { thingId, limit, enabled = true, from, to } = opts;
   const pageId = enabled && userId ? systemPageId(userId, "event", EVENTS_KEY) : null;
 
   const where = ["page_id = ?", "type = ?", "deleted_at IS NULL"];
@@ -60,6 +63,11 @@ export function useOccurrences(opts: { thingId?: string; limit?: number; enabled
   if (thingId) {
     where.push(`${OCCURRENCE_SUBJECT_SQL} = ?`);
     args.push(thingId);
+  }
+  if (from && to) {
+    // `$.at` is a real instant, so these bounds are local-day ones.
+    where.push(`json_extract(content, '$.at') >= ?`, `json_extract(content, '$.at') < ?`);
+    args.push(from, to);
   }
   const sql = pageId
     ? `SELECT id, content FROM blocks WHERE ${where.join(" AND ")} ORDER BY json_extract(content, '$.at') DESC${limit ? ` LIMIT ${Math.max(1, Math.floor(limit))}` : ""}`

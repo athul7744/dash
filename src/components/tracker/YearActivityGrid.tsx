@@ -11,6 +11,8 @@ import { cn } from "@/lib/shared/utils";
 import { DEFAULT_ACTIVITY_CATEGORY, type ActivityCategory } from "@/lib/tracker/activities";
 import { TimeLog, ActivityType } from "@/lib/powersync/AppSchema";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { localDateKey } from "@/lib/tracker/day-keys";
+import { summarizeDay } from "@/lib/tracker/day-summary";
 import { computeActivityYearInsights } from "@/lib/tracker/year-insights";
 import { ActivityYearInsights, ActivityYearInsightsSkeleton } from "@/components/tracker/year-insights";
 import { COLOR_HEX } from "./widgets/types";
@@ -205,20 +207,10 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
   // Day summary for selected day
   const daySummary = useMemo(() => {
     if (!selectedDay) return null;
-    const dateKey = format(selectedDay, "yyyy-MM-dd");
-    const activities: Record<string, { count: number; hex: string }> = {};
-    for (let h = 0; h < 24; h++) {
-      const key = `${dateKey}|${String(h).padStart(2, "0")}`;
-      const cell = cellMap.get(key);
-      if (cell) {
-        if (!activities[cell.activity]) {
-          activities[cell.activity] = { count: 0, hex: COLOR_HEX[cell.color] || "#6b7280" };
-        }
-        activities[cell.activity].count++;
-      }
-    }
-    const totalHours = Object.values(activities).reduce((s, a) => s + a.count, 0);
-    return { dateKey, totalHours, activities };
+    return summarizeDay(localDateKey(selectedDay), (hourKey) => {
+      const cell = cellMap.get(hourKey);
+      return cell && { activity: cell.activity, hex: COLOR_HEX[cell.color] || "#6b7280" };
+    });
   }, [selectedDay, cellMap]);
 
   // Year rollups for the insights panel — one pass over the already-built
@@ -343,9 +335,7 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
             ref={popoverRef}
             day={selectedDay}
             position={popoverPos}
-            activities={Object.entries(daySummary.activities)
-              .sort(([, a], [, b]) => b.count - a.count)
-              .map(([name, { count, hex }]) => ({ name, count, hex }))}
+            activities={daySummary.activities}
             totalHours={daySummary.totalHours}
             showBars
             onClose={() => { setSelectedDay(null); setPopoverPos(null); }}

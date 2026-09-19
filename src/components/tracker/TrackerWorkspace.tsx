@@ -1,6 +1,6 @@
 "use client";
 
-import { usePowerSync, useQuery } from "@powersync/react";
+import { usePowerSync } from "@powersync/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, getYear } from "date-fns";
@@ -10,7 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { AppHeader } from "@/components/AppHeader";
 import { ActivityToolbar } from "@/components/tracker/ActivityToolbar";
-import { TimeGrid, GridData, GridCell } from "@/components/tracker/TimeGrid";
+import { TimeGrid, GridCell } from "@/components/tracker/TimeGrid";
 import { ManageActivitiesDialog } from "@/components/tracker/ManageActivitiesDialog";
 import { ManageMoodsDialog } from "@/components/tracker/ManageMoodsDialog";
 import { WeekNavigator, WeekNavigatorFab } from "@/components/tracker/WeekNavigator";
@@ -20,16 +20,15 @@ import { WeekViewSkeleton } from "@/components/tracker/WeekViewSkeleton";
 import { YearActivityGrid } from "@/components/tracker/YearActivityGrid";
 import { YearRatingGrid } from "@/components/tracker/YearRatingGrid";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
-import { TimeLog, ActivityType, DailyRating } from "@/lib/powersync/AppSchema";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { getApp } from "@/lib/shared/apps";
-import { cancelExecute, cancelUpdate, debouncedExecute, debouncedUpdate, flushAllUpdates } from "@/lib/shared/debounced-update";
+import { flushAllUpdates } from "@/lib/shared/debounced-update";
 import { flushAllBlockDocumentPersisters } from "@/lib/notes/editor/block-persister";
 import { cn } from "@/lib/shared/utils";
 import { DURATION, SPRING_SOFT } from "@/lib/shared/motion";
-import { DEFAULT_ACTIVITIES, DEFAULT_ACTIVITY_CATEGORY, type ActivityCategory } from "@/lib/tracker/activities";
+import { DEFAULT_ACTIVITIES } from "@/lib/tracker/activities";
 import { DEFAULT_MOODS } from "@/lib/tracker/moods";
-import { useMoods } from "@/hooks/use-moods";
+import { useTimeGrid } from "@/hooks/use-time-grid";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
@@ -41,16 +40,6 @@ const TRACKER_TABS = [
 ];
 
 type ViewMode = "week" | "activity" | "mood";
-
-interface OptimisticTimeLogChange {
-  rowId: string;
-  activityName: string | null;
-}
-
-interface OptimisticRatingChange {
-  rowId: string;
-  score: number | null;
-}
 
 /**
  * The whole tracker UI. Mounted by `tracker/layout.tsx` (not the page) so it
@@ -78,10 +67,6 @@ export function TrackerWorkspace() {
   const [selectedYear, setSelectedYear] = useState(() => getYear(new Date()));
   const [isManageActivitiesOpen, setIsManageActivitiesOpen] = useState(false);
   const [isManageMoodsOpen, setIsManageMoodsOpen] = useState(false);
-  const [optimisticTimeLogs, setOptimisticTimeLogs] = useState<Map<string, OptimisticTimeLogChange>>(new Map());
-  const [optimisticRatings, setOptimisticRatings] = useState<Map<string, OptimisticRatingChange>>(new Map());
-  const optimisticTimeLogsRef = useRef(optimisticTimeLogs);
-  const optimisticRatingsRef = useRef(optimisticRatings);
   const seededRef = useRef(false);
 
   // Clear the pending view once navigation lands on it (render-time guard, not
@@ -89,14 +74,6 @@ export function TrackerWorkspace() {
   if (pendingView !== null && pendingView === routeView) {
     setPendingView(null);
   }
-
-  useEffect(() => {
-    optimisticTimeLogsRef.current = optimisticTimeLogs;
-  }, [optimisticTimeLogs]);
-
-  useEffect(() => {
-    optimisticRatingsRef.current = optimisticRatings;
-  }, [optimisticRatings]);
 
   useEffect(() => {
     void getCurrentUserId();
@@ -114,14 +91,6 @@ export function TrackerWorkspace() {
       flush();
     };
   }, []);
-
-  // Query activity types from local DB
-  const { data: activityTypes, isLoading: loadingActivities } = useQuery<ActivityType & { id: string }>(
-    "SELECT * FROM activity_types ORDER BY created_at ASC"
-  );
-
-  // The user's configurable mood scale (worst→best).
-  const moods = useMoods();
 
   // Seed defaults on first load if the user has no activity types / moods yet
   useEffect(() => {
@@ -153,21 +122,6 @@ export function TrackerWorkspace() {
     })();
   }, [db]);
 
-  // Build a name→color map from the DB rows
-  const activityColorMap = useMemo(
-    () => Object.fromEntries(activityTypes.map((a) => [a.name, a.color ?? "teal"])),
-    [activityTypes]
-  );
-
-  // Build a name→category map (drives the widgets' productive/rest/sleep semantics)
-  const activityCategoryMap = useMemo<Record<string, ActivityCategory>>(
-    () =>
-      Object.fromEntries(
-        activityTypes.map((a) => [a.name, ((a.category as ActivityCategory) ?? DEFAULT_ACTIVITY_CATEGORY)])
-      ),
-    [activityTypes]
-  );
-
   // Build the 7-day window based on selected week (Mon–Sun)
   const days = useMemo(() => {
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -175,178 +129,9 @@ export function TrackerWorkspace() {
     return eachDayOfInterval({ start: weekStart, end: weekEnd });
   }, [currentDate]);
 
-  const rangeStart = format(days[0], "yyyy-MM-dd'T'00:00:00'+00:00'");
-  const rangeEnd = format(days[days.length - 1], "yyyy-MM-dd'T'23:59:59'+00:00'");
-  const currentDayKeys = useMemo(
-    () => new Set(days.map((day) => format(day, "yyyy-MM-dd"))),
-    [days]
-  );
-
-  // Subscribe to time_logs within the week window
-  const { data: logs, isLoading: loadingLogs } = useQuery<TimeLog & { id: string }>(
-    `SELECT id, activity_name, start_timestamp, duration_minutes
-     FROM time_logs
-     WHERE start_timestamp >= ? AND start_timestamp <= ?
-     ORDER BY start_timestamp ASC`,
-    [rangeStart, rangeEnd]
-  );
-
-  // Pivot logs into grid data
-  const gridData: GridData = useMemo(() => {
-    const map: GridData = new Map();
-    for (const log of logs) {
-      const ts = new Date(log.start_timestamp!);
-      const dateKey = ts.toISOString().slice(0, 10);
-      const hourKey = String(ts.getUTCHours()).padStart(2, "0");
-      map.set(`${dateKey}|${hourKey}`, {
-        id: log.id,
-        activityName: log.activity_name ?? undefined,
-      });
-    }
-    return map;
-  }, [logs]);
-
-  const mergedGridData: GridData = useMemo(() => {
-    const map: GridData = new Map(gridData);
-
-    optimisticTimeLogs.forEach((change, cellKey) => {
-      const [dateKey] = cellKey.split("|");
-      if (!currentDayKeys.has(dateKey)) return;
-
-      if (change.activityName === null) {
-        map.delete(cellKey);
-        return;
-      }
-
-      map.set(cellKey, { id: change.rowId, activityName: change.activityName });
-    });
-
-    return map;
-  }, [currentDayKeys, gridData, optimisticTimeLogs]);
-
-  // Query weekly ratings
-  const weekRangeStartDate = format(days[0], "yyyy-MM-dd");
-  const weekRangeEndDate = format(days[days.length - 1], "yyyy-MM-dd");
-  const { data: weekRatings } = useQuery<DailyRating & { id: string }>(
-    "SELECT * FROM daily_ratings WHERE rating_date >= ? AND rating_date <= ?",
-    [weekRangeStartDate, weekRangeEndDate]
-  );
-
-  const ratingsMap = useMemo(
-    () => new Map(weekRatings.filter((r) => r.rating_date).map((r) => [r.rating_date as string, r.score as number])),
-    [weekRatings]
-  );
-
-  const mergedRatingsMap = useMemo(() => {
-    const map = new Map(ratingsMap);
-
-    optimisticRatings.forEach((change, dateStr) => {
-      if (!currentDayKeys.has(dateStr)) return;
-
-      if (change.score === null) {
-        map.delete(dateStr);
-        return;
-      }
-
-      map.set(dateStr, change.score);
-    });
-
-    return map;
-  }, [currentDayKeys, optimisticRatings, ratingsMap]);
-
-  const currentWeekOptimisticTimeLogs = useMemo(() => {
-    const map = new Map<string, OptimisticTimeLogChange>();
-
-    optimisticTimeLogs.forEach((change, cellKey) => {
-      const [dateKey] = cellKey.split("|");
-      if (!currentDayKeys.has(dateKey)) return;
-      map.set(cellKey, change);
-    });
-
-    return map;
-  }, [currentDayKeys, optimisticTimeLogs]);
-
-  const currentWeekOptimisticRatings = useMemo(() => {
-    const map = new Map<string, OptimisticRatingChange>();
-
-    optimisticRatings.forEach((change, dateStr) => {
-      if (!currentDayKeys.has(dateStr)) return;
-      map.set(dateStr, change);
-    });
-
-    return map;
-  }, [currentDayKeys, optimisticRatings]);
-
-  const ratingsIdMap = useMemo(
-    () => new Map(weekRatings.filter((r) => r.rating_date).map((r) => [r.rating_date as string, r.id])),
-    [weekRatings]
-  );
-
-  // Drop optimistic entries once the persisted data catches up. Done as
-  // render-time reconciliation (guarded on the source data's identity) rather
-  // than an effect, so there's no extra cascading-render pass.
-  const [tlReconcileKey, setTlReconcileKey] = useState<{ keys: typeof currentDayKeys; grid: typeof gridData }>({
-    keys: currentDayKeys,
-    grid: gridData,
-  });
-  if (tlReconcileKey.keys !== currentDayKeys || tlReconcileKey.grid !== gridData) {
-    setTlReconcileKey({ keys: currentDayKeys, grid: gridData });
-    setOptimisticTimeLogs((prev) => {
-      let didChange = false;
-      const next = new Map(prev);
-
-      prev.forEach((change, cellKey) => {
-        const [dateKey] = cellKey.split("|");
-        if (!currentDayKeys.has(dateKey)) return;
-
-        const persisted = gridData.get(cellKey);
-        const matchesPersisted = change.activityName === null
-          ? !persisted
-          : persisted?.id === change.rowId && persisted.activityName === change.activityName;
-
-        if (matchesPersisted) {
-          next.delete(cellKey);
-          didChange = true;
-        }
-      });
-
-      return didChange ? next : prev;
-    });
-  }
-
-  const [ratingReconcileKey, setRatingReconcileKey] = useState<{
-    keys: typeof currentDayKeys;
-    ids: typeof ratingsIdMap;
-    scores: typeof ratingsMap;
-  }>({ keys: currentDayKeys, ids: ratingsIdMap, scores: ratingsMap });
-  if (
-    ratingReconcileKey.keys !== currentDayKeys ||
-    ratingReconcileKey.ids !== ratingsIdMap ||
-    ratingReconcileKey.scores !== ratingsMap
-  ) {
-    setRatingReconcileKey({ keys: currentDayKeys, ids: ratingsIdMap, scores: ratingsMap });
-    setOptimisticRatings((prev) => {
-      let didChange = false;
-      const next = new Map(prev);
-
-      prev.forEach((change, dateStr) => {
-        if (!currentDayKeys.has(dateStr)) return;
-
-        const persistedId = ratingsIdMap.get(dateStr);
-        const persistedScore = ratingsMap.get(dateStr) ?? null;
-        const matchesPersisted = change.score === null
-          ? !persistedId
-          : Boolean(persistedId) && persistedId === change.rowId && persistedScore === change.score;
-
-        if (matchesPersisted) {
-          next.delete(dateStr);
-          didChange = true;
-        }
-      });
-
-      return didChange ? next : prev;
-    });
-  }
+  // Cells, ratings and their writes — shared with the Day surface.
+  const grid = useTimeGrid(days);
+  const { activityTypes, colorMap: activityColorMap, categoryMap: activityCategoryMap, moods } = grid;
 
   // Keep widget props consistent: only update when gridData belongs to current days.
   // useQuery resolves a frame late on week change, so widgets would briefly see
@@ -354,188 +139,35 @@ export function TrackerWorkspace() {
   // (updated at render time when fresh) so the last consistent set survives the
   // stale frame — no ref access during render.
   const isDataStale = useMemo(() => {
-    if (mergedGridData.size === 0) return false; // genuinely empty week — not stale
-    const firstKey = mergedGridData.keys().next().value as string | undefined;
+    if (grid.data.size === 0) return false; // genuinely empty week — not stale
+    const firstKey = grid.data.keys().next().value as string | undefined;
     if (!firstKey) return false;
     const keyDate = firstKey.split("|")[0];
     const startDate = format(days[0], "yyyy-MM-dd");
     const endDate = format(days[days.length - 1], "yyyy-MM-dd");
     return keyDate < startDate || keyDate > endDate;
-  }, [days, mergedGridData]);
+  }, [days, grid.data]);
 
-  const [widgetData, setWidgetData] = useState({ days, data: mergedGridData, ratings: mergedRatingsMap });
+  const [widgetData, setWidgetData] = useState({ days, data: grid.data, ratings: grid.ratings });
   if (
     !isDataStale &&
-    (widgetData.days !== days || widgetData.data !== mergedGridData || widgetData.ratings !== mergedRatingsMap)
+    (widgetData.days !== days || widgetData.data !== grid.data || widgetData.ratings !== grid.ratings)
   ) {
-    setWidgetData({ days, data: mergedGridData, ratings: mergedRatingsMap });
+    setWidgetData({ days, data: grid.data, ratings: grid.ratings });
   }
 
-  // Rating upsert handler
-  const handleRate = useCallback(
-    async (dateStr: string, score: number) => {
-      const existingId = ratingsIdMap.get(dateStr);
-      const persistedScore = ratingsMap.get(dateStr) ?? null;
-      const optimisticEntry = optimisticRatings.get(dateStr);
-      const currentScore = optimisticEntry ? optimisticEntry.score : persistedScore;
-      const nextScore = currentScore === score ? null : score;
+  // The brush lives here; the hook takes the intent.
+  const handleRate = useCallback((dateStr: string, score: number) => void grid.setRating(dateStr, score), [grid]);
 
-      if (!existingId) {
-        cancelExecute(`daily-rating:${dateStr}`);
-
-        if (nextScore === null) {
-          setOptimisticRatings((prev) => {
-            if (!prev.has(dateStr)) return prev;
-            const next = new Map(prev);
-            next.delete(dateStr);
-            return next;
-          });
-          return;
-        }
-
-        const rowId = optimisticEntry?.rowId ?? uuidv4();
-        setOptimisticRatings((prev) => {
-          const next = new Map(prev);
-          next.set(dateStr, { rowId, score: nextScore });
-          return next;
-        });
-
-        const userId = await getCurrentUserId();
-        const latest = optimisticRatingsRef.current.get(dateStr);
-        if (!latest || latest.rowId !== rowId || latest.score !== nextScore) {
-          return;
-        }
-
-        debouncedExecute(
-          `INSERT INTO daily_ratings (id, user_id, rating_date, score, created_at) VALUES (?, ?, ?, ?, datetime('now'))`,
-          [rowId, userId, dateStr, nextScore],
-          `daily-rating:${dateStr}`
-        );
-        return;
-      }
-
-      const entityId = `daily-rating:${existingId}`;
-      cancelExecute(entityId);
-
-      if (nextScore === null) {
-        cancelUpdate(existingId, "score", "daily_ratings");
-        debouncedExecute("DELETE FROM daily_ratings WHERE id = ?", [existingId], entityId);
-        setOptimisticRatings((prev) => {
-          const next = new Map(prev);
-          next.set(dateStr, { rowId: existingId, score: null });
-          return next;
-        });
-        return;
-      }
-
-      if (persistedScore === nextScore) {
-        cancelUpdate(existingId, "score", "daily_ratings");
-        setOptimisticRatings((prev) => {
-          if (!prev.has(dateStr)) return prev;
-          const next = new Map(prev);
-          next.delete(dateStr);
-          return next;
-        });
-        return;
-      }
-
-      debouncedUpdate(existingId, "score", nextScore, "daily_ratings");
-      setOptimisticRatings((prev) => {
-        const next = new Map(prev);
-        next.set(dateStr, { rowId: existingId, score: nextScore });
-        return next;
-      });
-    },
-    [optimisticRatings, ratingsIdMap, ratingsMap]
-  );
-
-  // Cell click handler
   const handleCellClick = useCallback(
-    async (day: Date, hour: number, existing: GridCell | undefined) => {
+    (day: Date, hour: number, existing: GridCell | undefined) => {
       if (!activeActivity) return;
-
-      const dateKey = format(day, "yyyy-MM-dd");
-      const hourKey = String(hour).padStart(2, "0");
-      const cellKey = `${dateKey}|${hourKey}`;
-      const persistedCell = gridData.get(cellKey);
-      const nextActivity = activeActivity === "__eraser__" ? null : activeActivity;
-      const currentActivity = existing?.activityName ?? null;
-
-      if (nextActivity === currentActivity) return;
-
-      const isoTimestamp = new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate(), hour)).toISOString();
-
-      if (!persistedCell?.id) {
-        cancelExecute(`time-log:${cellKey}`);
-
-        if (nextActivity === null) {
-          setOptimisticTimeLogs((prev) => {
-            if (!prev.has(cellKey)) return prev;
-            const next = new Map(prev);
-            next.delete(cellKey);
-            return next;
-          });
-          return;
-        }
-
-        const rowId = optimisticTimeLogs.get(cellKey)?.rowId ?? uuidv4();
-        setOptimisticTimeLogs((prev) => {
-          const next = new Map(prev);
-          next.set(cellKey, { rowId, activityName: nextActivity });
-          return next;
-        });
-
-        const userId = await getCurrentUserId();
-        const latest = optimisticTimeLogsRef.current.get(cellKey);
-        if (!latest || latest.rowId !== rowId || latest.activityName !== nextActivity) {
-          return;
-        }
-
-        debouncedExecute(
-          `INSERT INTO time_logs (id, user_id, activity_name, start_timestamp, duration_minutes, created_at)
-           VALUES (?, ?, ?, ?, 60, ?)`,
-          [rowId, userId, nextActivity, isoTimestamp, new Date().toISOString()],
-          `time-log:${cellKey}`
-        );
-        return;
-      }
-
-      const entityId = `time-log:${persistedCell.id}`;
-      cancelExecute(entityId);
-
-      if (nextActivity === null) {
-        cancelUpdate(persistedCell.id, "activity_name", "time_logs");
-        debouncedExecute("DELETE FROM time_logs WHERE id = ?", [persistedCell.id], entityId);
-        setOptimisticTimeLogs((prev) => {
-          const next = new Map(prev);
-          next.set(cellKey, { rowId: persistedCell.id!, activityName: null });
-          return next;
-        });
-        return;
-      }
-
-      if (persistedCell.activityName === nextActivity) {
-        cancelUpdate(persistedCell.id, "activity_name", "time_logs");
-        setOptimisticTimeLogs((prev) => {
-          if (!prev.has(cellKey)) return prev;
-          const next = new Map(prev);
-          next.delete(cellKey);
-          return next;
-        });
-        return;
-      }
-
-      debouncedUpdate(persistedCell.id, "activity_name", nextActivity, "time_logs");
-      setOptimisticTimeLogs((prev) => {
-        const next = new Map(prev);
-        next.set(cellKey, { rowId: persistedCell.id!, activityName: nextActivity });
-        return next;
-      });
+      void grid.setCell(day, hour, existing, activeActivity === "__eraser__" ? null : activeActivity);
     },
-    [activeActivity, gridData, optimisticTimeLogs]
+    [activeActivity, grid],
   );
 
-  const showSkeleton = loadingActivities || loadingLogs;
+  const showSkeleton = grid.isLoading;
 
   // When clicking a day in the year rating grid, jump to that week
   const handleDayClick = (date: Date) => {
@@ -627,7 +259,7 @@ export function TrackerWorkspace() {
                 </section>
 
                 <section className="min-w-0 overflow-x-hidden">
-                  <TimeGrid days={days} data={mergedGridData} colorMap={activityColorMap} onCellClick={handleCellClick} ratings={mergedRatingsMap} onRate={handleRate} moods={moods} />
+                  <TimeGrid days={days} data={grid.data} colorMap={activityColorMap} onCellClick={handleCellClick} ratings={grid.ratings} onRate={handleRate} moods={moods} />
                 </section>
 
                 {/* Below the full-width grid: analytics on the left, the journal
@@ -651,7 +283,7 @@ export function TrackerWorkspace() {
           <YearActivityGrid
             year={selectedYear}
             onDayClick={handleDayClick}
-            optimisticTimeLogs={currentWeekOptimisticTimeLogs}
+            optimisticTimeLogs={grid.optimisticTimeLogs}
             headerLeft={
               <div className="flex items-center gap-2 shrink-0 pt-1 [touch-action:pan-y]">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -676,8 +308,8 @@ export function TrackerWorkspace() {
             year={selectedYear}
             onDayClick={handleDayClick}
             moods={moods}
-            optimisticRatings={currentWeekOptimisticRatings}
-            optimisticTimeLogs={currentWeekOptimisticTimeLogs}
+            optimisticRatings={grid.optimisticRatings}
+            optimisticTimeLogs={grid.optimisticTimeLogs}
             headerLeft={
               <div className="flex items-center gap-2 shrink-0 [touch-action:pan-y]">
                 <Calendar className="h-4 w-4 text-muted-foreground" />

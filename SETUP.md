@@ -46,7 +46,10 @@ CREATE TABLE public.tasks (
   link TEXT,
   state TEXT DEFAULT 'pending',
   created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  -- When the task was completed. `updated_at` can't answer that: any later edit
+  -- moves it. Drives the Day surface's "completed on this day".
+  completed_at TEXT
 );
 
 -- Tags table (shared by tasks and note page metadata)

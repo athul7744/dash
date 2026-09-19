@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { localDateKey, recentNaiveWindow, utcDateKey, utcDayBounds } from "@/lib/tracker/day-keys";
+import {
+  hourCellKey,
+  localDateKey,
+  localDayBounds,
+  recentNaiveWindow,
+  utcDateKey,
+  utcDayBounds,
+} from "@/lib/tracker/day-keys";
 
 describe("tracker day keys", () => {
   it("utcDateKey returns the UTC calendar date, matching time_logs keying", () => {
@@ -32,5 +39,42 @@ describe("tracker day keys", () => {
     const [start, end] = recentNaiveWindow(new Date(2026, 6, 13, 0, 30, 0), 2);
     expect(end).toBe("2026-07-13T00:30:00.000Z");
     expect(start).toBe("2026-07-12T22:30:00.000Z");
+  });
+});
+
+describe("localDayBounds", () => {
+  it("brackets a local calendar day as real instants", () => {
+    const [from, to] = localDayBounds("2026-07-13");
+    expect(new Date(from).getTime()).toBe(new Date(2026, 6, 13).getTime());
+    expect(new Date(to).getTime()).toBe(new Date(2026, 6, 14).getTime());
+  });
+
+  it("is half-open, so midnight belongs to one day only", () => {
+    const [, endOfFirst] = localDayBounds("2026-07-13");
+    const [startOfNext] = localDayBounds("2026-07-14");
+    expect(endOfFirst).toBe(startOfNext);
+  });
+
+  it("is NOT the tracker's window — the two differ by the UTC offset", () => {
+    // The whole reason both exist: tracker timestamps are UTC-naive, everything
+    // else is a real instant. Using the wrong one moves anything near midnight
+    // to the neighbouring day. They coincide only at UTC.
+    const [trackerStart] = utcDayBounds("2026-07-13");
+    const [realStart] = localDayBounds("2026-07-13");
+    const offsetMinutes = new Date(2026, 6, 13).getTimezoneOffset();
+    expect(new Date(realStart).getTime() - new Date(trackerStart).getTime()).toBe(offsetMinutes * 60 * 1000);
+  });
+
+  it("crosses a month end", () => {
+    const [, to] = localDayBounds("2026-07-31");
+    expect(new Date(to).getTime()).toBe(new Date(2026, 7, 1).getTime());
+  });
+});
+
+describe("hourCellKey", () => {
+  it("pads the hour, so keys sort and match the grid", () => {
+    expect(hourCellKey("2026-07-13", 0)).toBe("2026-07-13|00");
+    expect(hourCellKey("2026-07-13", 9)).toBe("2026-07-13|09");
+    expect(hourCellKey("2026-07-13", 23)).toBe("2026-07-13|23");
   });
 });

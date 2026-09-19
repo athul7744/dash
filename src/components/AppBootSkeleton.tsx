@@ -28,6 +28,8 @@ export function AppBootSkeleton() {
     const view: TrackerView = seg === "activity" || seg === "mood" ? seg : "week";
     return <TrackerLoadingSkeleton view={view} />;
   }
+  // A day reads mostly as tracker data, so it boots the week skeleton's shape.
+  if (path.startsWith("/day")) return <TrackerLoadingSkeleton view="week" />;
   if (path.startsWith("/tasks")) return <TasksLoadingSkeleton />;
   if (path.startsWith("/quotes")) return <QuotesLoadingSkeleton />;
   if (path.startsWith("/bookmarks")) return <BookmarksLoadingSkeleton />;

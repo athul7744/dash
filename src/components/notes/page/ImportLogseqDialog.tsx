@@ -363,8 +363,12 @@ export function ImportLogseqDialog({
 
         {phase === "pick" ? (
           <div className="flex flex-col gap-3 py-4">
-            <Button variant="outline" className="h-auto justify-start gap-3 py-3" onClick={() => void handlePick(true)}>
-              <FolderOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
+            <Button
+              variant="outline"
+              className="h-auto items-start justify-start gap-3 py-3 whitespace-normal"
+              onClick={() => void handlePick(true)}
+            >
+              <FolderOpen className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
               <span className="flex flex-col items-start text-left">
                 <span className="font-medium">Choose a vault folder</span>
                 <span className="text-xs text-muted-foreground">
@@ -372,8 +376,12 @@ export function ImportLogseqDialog({
                 </span>
               </span>
             </Button>
-            <Button variant="outline" className="h-auto justify-start gap-3 py-3" onClick={() => void handlePick(false)}>
-              <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+            <Button
+              variant="outline"
+              className="h-auto items-start justify-start gap-3 py-3 whitespace-normal"
+              onClick={() => void handlePick(false)}
+            >
+              <FileText className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
               <span className="flex flex-col items-start text-left">
                 <span className="font-medium">Choose markdown files</span>
                 <span className="text-xs text-muted-foreground">Text only — local images won&apos;t resolve</span>

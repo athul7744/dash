@@ -359,11 +359,17 @@ function DataSection({ onClose, onImportLogseq }: { onClose: () => void; onImpor
           size="sm"
           disabled={undoing}
           onClick={() => void undoLastImport()}
-          className="w-full justify-start gap-2"
+          // `Button` is whitespace-nowrap by default, which a description under
+          // the label has to undo or it runs off the edge of the sheet.
+          className="h-auto w-full items-start justify-start gap-2 py-2 text-left whitespace-normal"
           title="Moves them to the Trash, where any can be restored"
         >
-          {undoing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
-          <span className="flex min-w-0 flex-col items-start">
+          {undoing ? (
+            <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+          ) : (
+            <Undo2 className="mt-0.5 h-4 w-4 shrink-0" />
+          )}
+          <span className="flex min-w-0 flex-col items-start gap-0.5">
             <span>{undoing ? "Undoing…" : "Undo last import"}</span>
             <span className="text-xs text-muted-foreground">
               {lastImport.pageCount} {lastImport.pageCount === 1 ? "note" : "notes"}
@@ -380,9 +386,9 @@ function DataSection({ onClose, onImportLogseq }: { onClose: () => void; onImpor
           variant="ghost"
           size="sm"
           onClick={() => setShowReset(true)}
-          className="h-auto w-full justify-start gap-2 py-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          className="h-auto w-full items-start justify-start gap-2 py-2 text-left whitespace-normal text-destructive hover:bg-destructive/10 hover:text-destructive"
         >
-          <DatabaseZap className="h-4 w-4 shrink-0" />
+          <DatabaseZap className="mt-0.5 h-4 w-4 shrink-0" />
           <span className="flex min-w-0 flex-col items-start gap-0.5">
             <span>Reset local data</span>
             <span className="text-xs font-normal text-muted-foreground">

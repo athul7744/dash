@@ -1,12 +1,12 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Settings, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { SearchIndexProgressBar } from "@/components/SearchIndexProgressBar";
-import { AppSwitcher } from "@/components/AppSwitcher";
+import { AppSwitcher, OPEN_SETTINGS_EVENT } from "@/components/AppSwitcher";
 import { ImportLogseqDialog } from "@/components/notes/page/ImportLogseqDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { type AppConfig } from "@/lib/shared/apps";
@@ -26,6 +26,15 @@ interface AppHeaderProps {
 export function AppHeader({ app, actions, mobileMenuItems, children }: AppHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // On a phone Settings lives in the switcher FAB, at the bottom where a thumb
+  // is — not in a menu at the top. The dialog stays mounted here, with the
+  // importer it opens.
+  useEffect(() => {
+    const open = () => setSettingsOpen(true);
+    window.addEventListener(OPEN_SETTINGS_EVENT, open);
+    return () => window.removeEventListener(OPEN_SETTINGS_EVENT, open);
+  }, []);
   const [importOpen, setImportOpen] = useState(false);
   const Icon = app.icon;
 
@@ -53,23 +62,18 @@ export function AppHeader({ app, actions, mobileMenuItems, children }: AppHeader
             </div>
             {/* Right: Overflow menu */}
             <div className="flex items-center justify-end w-12">
-              <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-full h-8 w-8 hover:bg-accent transition-colors focus:outline-none">
-                  <MoreVertical className="h-5 w-5" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-max">
-                  {mobileMenuItems ? (
-                    <>
-                      <div className="flex flex-col gap-1" onClickCapture={() => setMobileMenuOpen(false)}>{mobileMenuItems}</div>
-                      <DropdownMenuSeparator />
-                    </>
-                  ) : null}
-                  <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
-                    <span>Settings</span>
-                    <Settings className="ml-auto h-4 w-4 text-muted-foreground" />
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {mobileMenuItems ? (
+                <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                  <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-full h-8 w-8 hover:bg-accent transition-colors focus:outline-none">
+                    <MoreVertical className="h-5 w-5" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-max">
+                    <div className="flex flex-col gap-1" onClickCapture={() => setMobileMenuOpen(false)}>
+                      {mobileMenuItems}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
             </div>
           </div>
 

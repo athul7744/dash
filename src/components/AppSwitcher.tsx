@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Check, LayoutDashboard, Logs, Network, Trash2 } from "lucide-react";
+import { ChevronDown, Check, LayoutDashboard, Logs, Network, Settings, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { APPS, type AppConfig } from "@/lib/shared/apps";
 import { isLogViewerEnabled } from "@/lib/shared/logger";
@@ -15,6 +15,20 @@ interface AppSwitcherProps {
   current?: AppConfig;
   /** "sm" for mobile (smaller text), "md" for desktop */
   size?: "sm" | "md" | "fab";
+}
+
+/**
+ * Asks whoever owns the settings dialog to open it.
+ *
+ * The switcher is the mobile FAB, which is where cross-app destinations live, but
+ * Settings is a dialog rather than a route — and `AppHeader` already mounts it
+ * (alongside the importer it opens). An event keeps that single mount instead of
+ * giving the switcher a second copy.
+ */
+export const OPEN_SETTINGS_EVENT = "dash:open-settings";
+
+export function dispatchOpenSettings() {
+  window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT));
 }
 
 export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
@@ -157,6 +171,21 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
                 {active && <Check className="hidden h-4 w-4 text-muted-foreground sm:block" />}
               </Link>
             ))}
+            {/* Mobile only: on desktop the header still carries the gear. */}
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                dispatchOpenSettings();
+              }}
+              title="Settings"
+              aria-label="Settings"
+              className="flex flex-1 items-center justify-center gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent/50 sm:hidden"
+            >
+              <div className="rounded-md bg-muted p-1.5">
+                <Settings className="h-4 w-4 text-foreground" />
+              </div>
+            </button>
           </div>
         </PopoverContent>
       </Popover>

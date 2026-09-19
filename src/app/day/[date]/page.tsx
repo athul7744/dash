@@ -17,9 +17,19 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { addDays, format, isValid, parseISO } from "date-fns";
-import { Bookmark as BookmarkIcon, CalendarDays, ChevronLeft, ChevronRight, FileText, Quote as QuoteIcon } from "lucide-react";
+import {
+  Bookmark as BookmarkIcon,
+  CalendarDays,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Quote as QuoteIcon,
+} from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ActivityToolbar } from "@/components/tracker/ActivityToolbar";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { DailyJournalEntry } from "@/components/journal/DailyJournalEntry";
@@ -79,6 +89,8 @@ export default function DayPage() {
 
   const grid = useTimeGrid(days);
   const [activeActivity, setActiveActivity] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const isToday = dateKey === localDateKey(new Date());
   const tasks = useDayTasks(dateKey);
   const { occurrences } = useDayOccurrences(dateKey);
   const captures = useDayCaptures(dateKey);
@@ -104,11 +116,38 @@ export default function DayPage() {
 
       <div className="skeleton-settle-in mx-auto max-w-3xl space-y-6 px-[var(--app-gutter-x)] py-6 pb-40">
         <header className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">{format(date, "EEEE")}</h1>
-            <p className="text-sm text-muted-foreground">{format(date, "d MMMM yyyy")}</p>
-          </div>
+          {/* The date itself is the picker: two arrows alone make last month a
+              dozen clicks. */}
+          <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+            <PopoverTrigger className="-mx-2 rounded-lg px-2 py-1 text-left transition-colors hover:bg-accent">
+              <h1 className="font-heading text-2xl font-semibold tracking-tight">{format(date, "EEEE")}</h1>
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                {format(date, "d MMMM yyyy")}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </p>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={date}
+                defaultMonth={date}
+                onSelect={(picked) => {
+                  setPickerOpen(false);
+                  if (picked) router.push(`/day/${localDateKey(picked)}`);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
           <div className="flex items-center gap-1">
+            {!isToday ? (
+              <button
+                type="button"
+                onClick={() => router.push(`/day/${localDateKey(new Date())}`)}
+                className="rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                Today
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => step(-1)}

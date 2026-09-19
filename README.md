@@ -26,7 +26,7 @@ Linking isn't limited to notes. Type `[[` in any item — a task (or subtask), b
 
 ### The day
 
-Every app records *when*, so any date opens as a page of its own: the mood you gave it, the hours you tracked with the grid there to fill in, the tasks due and the ones you finished, what you logged, what you saved, and the day's journal entry ready to write in. Step a day either way with the arrows.
+Every app records *when*, so any date opens as a page of its own — reach one by typing a date into ⌘K ("sep 15", "yesterday"), from the calendar in its header, or from any date you can see in a note, a heatmap or an event log: the mood you gave it, the hours you tracked with the grid there to fill in, the tasks due and the ones you finished, what you logged, what you saved, and the day's journal entry ready to write in. Step a day either way with the arrows.
 
 ### Quotes
 

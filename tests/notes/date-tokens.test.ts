@@ -1,6 +1,12 @@
 /// <reference types="vitest/globals" />
 
-import { formatDateLabel, formatDateToken, getRelativeDate, parseDateToken } from "@/lib/notes/date-tokens";
+import {
+  formatDateLabel,
+  formatDateToken,
+  getRelativeDate,
+  parseDateToken,
+  parseDayQuery,
+} from "@/lib/notes/date-tokens";
 import { localDateKey } from "@/lib/tracker/day-keys";
 
 describe("formatDateToken", () => {
@@ -106,5 +112,38 @@ describe("a chip's label round-trips to a day key", () => {
   it("gives back nothing for a label that isn't a date", () => {
     // The chip stays inert rather than routing somewhere arbitrary.
     expect(parseDateToken("someday")).toBeNull();
+  });
+});
+
+describe("parseDayQuery", () => {
+  it("reads a date with no year as this year", () => {
+    // `new Date("sep 15")` lands in 2001, which would send someone typing a
+    // date into the palette twenty-five years back.
+    const parsed = parseDayQuery("sep 15");
+    expect(parsed?.getFullYear()).toBe(new Date().getFullYear());
+    expect(parsed?.getMonth()).toBe(8);
+    expect(parsed?.getDate()).toBe(15);
+  });
+
+  it("keeps a year that was given", () => {
+    expect(localDateKey(parseDayQuery("2026-09-15")!)).toBe("2026-09-15");
+    expect(localDateKey(parseDayQuery("Sep 15, 2026")!)).toBe("2026-09-15");
+  });
+
+  it("reads the words people actually type", () => {
+    expect(localDateKey(parseDayQuery("today")!)).toBe(localDateKey(new Date()));
+    expect(localDateKey(parseDayQuery("Yesterday")!)).toBe(localDateKey(getRelativeDate("yesterday")));
+  });
+
+  it("refuses a bare number", () => {
+    // Otherwise searching for "12" offers a day in December that nobody asked for.
+    expect(parseDayQuery("12")).toBeNull();
+    expect(parseDayQuery("2026")).toBeNull();
+  });
+
+  it("refuses text that isn't a date", () => {
+    expect(parseDayQuery("meeting notes")).toBeNull();
+    expect(parseDayQuery("")).toBeNull();
+    expect(parseDayQuery("   ")).toBeNull();
   });
 });

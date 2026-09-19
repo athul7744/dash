@@ -30,7 +30,7 @@ import { useSearchIndexReady } from "@/hooks/use-search-index";
 import { searchEntities } from "@/lib/search/query";
 import { stripHighlight } from "@/lib/search/match-query";
 import { stripRefs, type RefKind } from "@/lib/links/tokens";
-import { parseDateToken } from "@/lib/notes/date-tokens";
+import { parseDayQuery } from "@/lib/notes/date-tokens";
 import { systemPageId } from "@/lib/notes/system-pages";
 import { localDateKey } from "@/lib/tracker/day-keys";
 import type { Task } from "@/lib/powersync/AppSchema";
@@ -62,7 +62,7 @@ export function useEntitySearch(query: string, excludeId?: string | null): Entit
   // inserted, since an edge endpoint has to be a real row.
   const dayHits = useMemo<EntitySearchResult[]>(() => {
     if (!userId || !q) return [];
-    const parsed = parseDateToken(q);
+    const parsed = parseDayQuery(q);
     if (!parsed) return [];
     const key = localDateKey(parsed);
     return [

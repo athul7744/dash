@@ -16,6 +16,7 @@ import { useQuery } from "@powersync/react";
 import { CalendarDays, ChevronDown, ChevronUp, Network, Plus, Trash2, X, Zap } from "lucide-react";
 
 import { useSearchIndexReady } from "@/hooks/use-search-index";
+import { formatDateLabel, parseDayQuery } from "@/lib/notes/date-tokens";
 import { systemPageKey } from "@/lib/notes/notes";
 import { localDateKey } from "@/lib/tracker/day-keys";
 import { useEntitiesByTag } from "@/hooks/use-entity-tags";
@@ -372,9 +373,16 @@ function CommandPaletteResults({
   // The workspace graph maps every app, so it's a first-class "Go to" target
   // rather than living only inside Notes.
   const showGraph = matchCmd("Graph");
-  // Every other way to a day starts from a date already on screen; this is the
-  // one that works from nothing.
-  const showToday = matchCmd("Today");
+  // Every other way to a day starts from a date already on screen. Here a date
+  // is *recognised*: "sep 15", "2026-09-15", "yesterday" — and "today", which is
+  // just the same rule with a word for it.
+  const dayCommand = useMemo(() => {
+    const parsed = parseDayQuery(q) ?? (matchCmd("Today") ? new Date() : null);
+    if (!parsed) return null;
+    const key = localDateKey(parsed);
+    return { key, label: key === localDateKey(new Date()) ? "Today" : formatDateLabel(parsed) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
   const showTrash = matchCmd("Trash");
   const createCmds = useMemo(
     () => CREATE_APPS.map((id) => getApp(id)).filter((app) => matchCmd(`New ${SINGULAR[app.id]}`)),
@@ -525,7 +533,7 @@ function CommandPaletteResults({
     actionCmds.length === 0 &&
     navCmds.length === 0 &&
     !showGraph &&
-    !showToday &&
+    !dayCommand &&
     !showTrash &&
     createCmds.length === 0 &&
     tasks.length === 0 &&
@@ -619,7 +627,7 @@ function CommandPaletteResults({
         </CommandGroup>
       ) : null}
 
-      {navCmds.length > 0 || showGraph || showToday || showTrash ? (
+      {navCmds.length > 0 || showGraph || dayCommand || showTrash ? (
         <CommandGroup heading="Go to">
           {navCmds.map((app) => {
             const Icon = app.icon;
@@ -650,17 +658,17 @@ function CommandPaletteResults({
               <span className="min-w-0 flex-1 truncate text-sm text-foreground">Graph</span>
             </CommandItem>
           ) : null}
-          {showToday ? (
+          {dayCommand ? (
             <CommandItem
-              key="nav:today"
-              value="nav:today"
-              onSelect={() => onNavigate(`/day/${localDateKey(new Date())}`)}
+              key="nav:day"
+              value="nav:day"
+              onSelect={() => onNavigate(`/day/${dayCommand.key}`)}
               className="items-center gap-3 rounded-lg px-3 py-2"
             >
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                 <CalendarDays className="h-3.5 w-3.5" />
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm text-foreground">Today</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-foreground">{dayCommand.label}</span>
             </CommandItem>
           ) : null}
           {showTrash ? (

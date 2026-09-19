@@ -32,33 +32,35 @@ function EventCardBone() {
  */
 export function EventsLoadingSkeleton() {
   return (
-    <>
+    <div className="flex h-full w-full min-w-0 flex-col overflow-hidden bg-background">
       <AppHeader app={eventsApp} />
-      <div className="mx-auto max-w-7xl px-[var(--app-gutter-x)] py-8 pb-40">
-        {/* Segmented tab control (All / Scheduled / Overdue / Timeline) */}
-        <div className="mt-2 flex items-center justify-center sm:mt-4">
-          <div className="inline-flex gap-1 rounded-full border border-border/60 bg-card/50 p-1">
-            <Skeleton className="h-6 w-12 rounded-full" />
-            <Skeleton className="h-6 w-20 rounded-full" />
-            <Skeleton className="h-6 w-16 rounded-full" />
-            <Skeleton className="h-6 w-20 rounded-full" />
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="mx-auto max-w-7xl px-[var(--app-gutter-x)] py-8 pb-40">
+          {/* Segmented tab control (All / Scheduled / Overdue / Timeline) */}
+          <div className="mt-2 flex items-center justify-center sm:mt-4">
+            <div className="inline-flex gap-1 rounded-full border border-border/60 bg-card/50 p-1">
+              <Skeleton className="h-6 w-12 rounded-full" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+              <Skeleton className="h-6 w-16 rounded-full" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+            </div>
           </div>
-        </div>
 
-        <div className="mt-6 mb-6 flex items-baseline gap-3">
-          <Skeleton className="h-3 w-24" />
-          <div className="h-px flex-1 bg-border/40" />
-        </div>
+          <div className="mt-6 mb-6 flex items-baseline gap-3">
+            <Skeleton className="h-3 w-24" />
+            <div className="h-px flex-1 bg-border/40" />
+          </div>
 
-        <SkeletonWave className="columns-1 gap-5 md:columns-2 lg:columns-3">
-          <EventCardBone />
-          <EventCardBone />
-          <EventCardBone />
-          <EventCardBone />
-          <EventCardBone />
-          <EventCardBone />
-        </SkeletonWave>
+          <SkeletonWave className="columns-1 gap-5 md:columns-2 lg:columns-3">
+            <EventCardBone />
+            <EventCardBone />
+            <EventCardBone />
+            <EventCardBone />
+            <EventCardBone />
+            <EventCardBone />
+          </SkeletonWave>
+          </div>
       </div>
-    </>
+    </div>
   );
 }

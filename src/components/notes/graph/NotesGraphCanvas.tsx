@@ -5,9 +5,8 @@ import { Maximize2, Minus, Plus } from "lucide-react";
 
 import { buildAdjacency, neighborhood, type GraphLink } from "@/lib/notes/graph";
 import type { GraphCluster, GraphViewNode } from "@/hooks/use-note-graph";
-import { REF_KIND_LABEL, refKindAccentVar, type RefKind } from "@/lib/links/tokens";
+import { REF_KIND_LABEL, refKindAccentVar, type RefKind, REF_KIND_ICON } from "@/lib/links/tokens";
 import { isEmoji } from "@/components/notes/SpriteIcon";
-import { getApp } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 import { nodeRadius, useForceSimulation, type SimLink, type SimNode } from "./useForceSimulation";
 
@@ -82,7 +81,7 @@ function NodeIcon({ meta, r }: { meta: GraphViewNode; r: number }) {
       </svg>
     );
   }
-  const Icon = getApp(`${meta.kind}s`).icon;
+  const Icon = REF_KIND_ICON[meta.kind];
   const size = r * 1.15;
   return (
     <Icon

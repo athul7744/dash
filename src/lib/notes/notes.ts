@@ -241,6 +241,21 @@ export async function createNoteFromText(title: string, body: string): Promise<s
 }
 
 /**
+ * The `key` a system page was created under — a journal page's `yyyy-MM-dd`.
+ *
+ * `systemPageId` is a one-way uuidv5, so a page id can't be turned back into the
+ * day it belongs to. A day reference carries the page id (an `edges` endpoint has
+ * to be a real row), and opening one needs the date, so it reads it back.
+ */
+export async function systemPageKey(pageId: string): Promise<string | null> {
+  const rows = await db.getAll<{ key: string | null }>(
+    "SELECT json_extract(properties, '$.key') AS key FROM pages WHERE id = ? LIMIT 1",
+    [pageId],
+  );
+  return rows[0]?.key ?? null;
+}
+
+/**
  * Idempotently create a feature-owned "system page" (see system-pages.ts) with a
  * single empty starter block. Located/created by its deterministic id, so the
  * title-uniqueness guard in createNotePage is bypassed. Returns the page id.

@@ -5,6 +5,12 @@
  * bookmarks, quotes, and events against a query and returns a flat, capped,
  * ordered list.
  *
+ * Days are the exception: they aren't searched but *recognised*. A query that
+ * reads as a date offers that day, whether or not anything has been written on
+ * it — the day exists regardless, and linking one is how Tracker joins the
+ * graph. Days are deliberately absent from the search index (365 mostly-empty
+ * pages a year would swamp it), so this is computed, not queried.
+ *
  * When the FTS5 index is ready it runs a ranked, full-text query (finds text
  * inside note bodies, not just titles). Until then — or if FTS5 is unavailable —
  * it falls back to the original in-JS substring match over each app's hooks, so
@@ -14,6 +20,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@powersync/react";
 
+import { useCurrentUserId } from "@/hooks/use-current-user-id";
+import { journalPageTitle } from "@/hooks/use-journal";
 import { useAllNotePages } from "@/hooks/use-notes";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useQuotes } from "@/hooks/use-quotes";
@@ -22,6 +30,9 @@ import { useSearchIndexReady } from "@/hooks/use-search-index";
 import { searchEntities } from "@/lib/search/query";
 import { stripHighlight } from "@/lib/search/match-query";
 import { stripRefs, type RefKind } from "@/lib/links/tokens";
+import { parseDateToken } from "@/lib/notes/date-tokens";
+import { systemPageId } from "@/lib/notes/system-pages";
+import { localDateKey } from "@/lib/tracker/day-keys";
 import type { Task } from "@/lib/powersync/AppSchema";
 import { getLinkHost } from "@/lib/tasks/tasks";
 
@@ -44,6 +55,25 @@ const PER_KIND = 6;
 export function useEntitySearch(query: string, excludeId?: string | null): EntitySearchResult[] {
   const q = query.trim();
   const ready = useSearchIndexReady();
+  const userId = useCurrentUserId();
+
+  // A day is offered when the query reads as one. Its id is the journal page's,
+  // which is deterministic — the page itself is created when the reference is
+  // inserted, since an edge endpoint has to be a real row.
+  const dayHits = useMemo<EntitySearchResult[]>(() => {
+    if (!userId || !q) return [];
+    const parsed = parseDateToken(q);
+    if (!parsed) return [];
+    const key = localDateKey(parsed);
+    return [
+      {
+        kind: "day" as const,
+        id: systemPageId(userId, "journal", key),
+        label: journalPageTitle(parsed).replace(/^Journal · /, ""),
+        sublabel: key,
+      },
+    ];
+  }, [q, userId]);
 
   // --- JS fallback (also covers the pre-ready window) ---
   const { data: allTasks = [] } = useQuery<TaskRow>(
@@ -130,6 +160,8 @@ export function useEntitySearch(query: string, excludeId?: string | null): Entit
     };
   }, [ready, q, excludeId]);
 
-  // Ready + typing → ranked FTS. Empty query or not-yet-built → the fallback list.
-  return ready && q ? ftsResults : fallback;
+  // Ready + typing → ranked FTS. Empty query or not-yet-built → the fallback
+  // list. A recognised day leads either, since it's the most literal match there is.
+  const results = ready && q ? ftsResults : fallback;
+  return useMemo(() => [...dayHits, ...results], [dayHits, results]);
 }

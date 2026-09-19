@@ -16,6 +16,7 @@ import { useQuery } from "@powersync/react";
 import { ChevronDown, ChevronUp, Network, Plus, Trash2, X, Zap } from "lucide-react";
 
 import { useSearchIndexReady } from "@/hooks/use-search-index";
+import { systemPageKey } from "@/lib/notes/notes";
 import { useEntitiesByTag } from "@/hooks/use-entity-tags";
 import { searchEntities, type SearchHit } from "@/lib/search/query";
 import { toHighlightSegments } from "@/lib/search/match-query";
@@ -199,13 +200,21 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
   }, [openPalette]);
 
   // A reference chip anywhere dispatches OPEN_ENTITY_EVENT; open its target
-  // (notes navigate, the other four open in the shared popup).
+  // (notes and days navigate, the other four open in the shared popup).
   useEffect(() => {
     const onOpen = (event: Event) => {
       const detail = (event as CustomEvent<OpenEntityDetail>).detail;
       if (!detail?.id) return;
       if (detail.kind === "note") {
         router.push(`/notes/${detail.id}`);
+        return;
+      }
+      if (detail.kind === "day") {
+        // The reference carries the journal page's id, since an edge endpoint has
+        // to be a real row; the route wants the date that page belongs to.
+        void systemPageKey(detail.id).then((key) => {
+          if (key) router.push(`/day/${key}`);
+        });
         return;
       }
       setSelected({ kind: detail.kind, id: detail.id });

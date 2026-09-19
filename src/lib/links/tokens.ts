@@ -10,7 +10,40 @@
  * Pure and side-effect free so it can be unit tested without a DB or DOM.
  */
 
-export type RefKind = "note" | "task" | "bookmark" | "quote" | "event";
+import {
+  Bookmark,
+  CalendarClock,
+  CalendarDays,
+  FileText,
+  ListTodo,
+  Quote,
+  type LucideIcon,
+} from "lucide-react";
+
+/**
+ * `day` is the odd one: it isn't a table but a calendar date, anchored on the
+ * journal page that date already owns (a real `pages` row with a deterministic
+ * id). That's what lets a day carry links, backlinks and a graph node without a
+ * store of its own — and what brings Tracker, which is keyed by date rather than
+ * by id, into the graph at all.
+ */
+export type RefKind = "note" | "task" | "bookmark" | "quote" | "event" | "day";
+
+/**
+ * The icon each kind wears.
+ *
+ * Not `getApp(`${kind}s`)`, which every consumer used to do: a day is a kind
+ * without an app (there is no "Days" in the switcher), and the string-concat
+ * lookup can't say so.
+ */
+export const REF_KIND_ICON: Record<RefKind, LucideIcon> = {
+  note: FileText,
+  task: ListTodo,
+  bookmark: Bookmark,
+  quote: Quote,
+  event: CalendarClock,
+  day: CalendarDays,
+};
 
 /** ProseMirror node name for an id-bound reference chip (see EntityRefNode). */
 export const ENTITY_REF_NODE_TYPE = "entityRef";
@@ -22,6 +55,7 @@ export const REF_KIND_HUE: Record<RefKind, string> = {
   bookmark: "sky",
   quote: "rose",
   event: "violet",
+  day: "teal",
 };
 
 /** CSS accent color for a kind, e.g. `var(--color-indigo-500)`. */
@@ -34,6 +68,7 @@ export const REF_KIND_LABEL: Record<RefKind, string> = {
   bookmark: "Bookmarks",
   quote: "Quotes",
   event: "Events",
+  day: "Days",
 };
 
 export type RefToken = {
@@ -44,7 +79,7 @@ export type RefToken = {
   id?: string;
 };
 
-const REF_KINDS = "note|task|bookmark|quote|event";
+const REF_KINDS = "note|task|bookmark|quote|event|day";
 
 /**
  * A fresh regex each call — a shared global regex carries `lastIndex` state

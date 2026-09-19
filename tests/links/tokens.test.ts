@@ -49,3 +49,31 @@ describe("formatRefToken", () => {
     expect(formatRefToken({ label: "we|ird]]", kind: "task", id: "1" })).toBe("[[weird|task:1]]");
   });
 });
+
+describe("day references", () => {
+  it("parses a day token like any other kind", () => {
+    // `day` had to be added to the kind list *inside* the token regex, not just
+    // the type — a kind the regex doesn't know reads as a plain label.
+    const [token] = parseRefTokens("see [[Tue, Sep 15, 2026|day:0d6ba1ec-6d4e-5f3a-9c2b-1f0e8a7d4c33]]");
+    expect(token).toEqual({
+      label: "Tue, Sep 15, 2026",
+      kind: "day",
+      id: "0d6ba1ec-6d4e-5f3a-9c2b-1f0e8a7d4c33",
+    });
+  });
+
+  it("round-trips through formatRefToken", () => {
+    const token = formatRefToken({
+      label: "Tue, Sep 15, 2026",
+      kind: "day",
+      id: "0d6ba1ec-6d4e-5f3a-9c2b-1f0e8a7d4c33",
+    });
+    expect(parseRefTokens(token)[0]?.kind).toBe("day");
+  });
+
+  it("strips to its label like every other kind", () => {
+    expect(stripRefs("on [[Tue, Sep 15, 2026|day:0d6ba1ec-6d4e-5f3a-9c2b-1f0e8a7d4c33]] I ran")).toBe(
+      "on Tue, Sep 15, 2026 I ran",
+    );
+  });
+});

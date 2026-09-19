@@ -14,8 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { LocalGraphPanel } from "@/components/notes/graph/LocalGraphPanel";
 import { OPEN_ENTITY_EVENT, dispatchOpenEntity } from "@/components/links/EntityRefNode";
 import { useBacklinks } from "@/hooks/use-links";
-import { getApp } from "@/lib/shared/apps";
-import { refKindAccentVar } from "@/lib/links/tokens";
+import { refKindAccentVar, REF_KIND_ICON } from "@/lib/links/tokens";
 import { cn } from "@/lib/shared/utils";
 
 export function LinkedFrom({ targetId, className }: { targetId?: string | null; className?: string }) {
@@ -56,7 +55,7 @@ export function LinkedFrom({ targetId, className }: { targetId?: string | null; 
           </div>
           <div className="max-h-48 space-y-0.5 overflow-y-auto">
             {backlinks.map((b) => {
-              const Icon = getApp(`${b.kind}s`).icon;
+              const Icon = REF_KIND_ICON[b.kind];
               return (
                 <button
                   key={`${b.kind}:${b.id}`}

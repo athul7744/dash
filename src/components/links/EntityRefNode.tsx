@@ -18,8 +18,7 @@ import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tip
 
 import type { CSSProperties } from "react";
 
-import { formatRefTokenFromAttrs, refKindAccentVar, ENTITY_REF_NODE_TYPE, type RefKind } from "@/lib/links/tokens";
-import { getApp } from "@/lib/shared/apps";
+import { formatRefTokenFromAttrs, refKindAccentVar, ENTITY_REF_NODE_TYPE, type RefKind, REF_KIND_ICON } from "@/lib/links/tokens";
 
 export const ENTITY_REF_NODE = ENTITY_REF_NODE_TYPE;
 
@@ -37,8 +36,7 @@ function EntityRefChip({ node }: NodeViewProps) {
   const kind = (node.attrs.kind as RefKind | null) ?? "note";
   const id = node.attrs.id as string | null;
   const label = (node.attrs.label as string) || "Untitled";
-  const app = getApp(`${kind}s`);
-  const Icon = app.icon;
+  const Icon = REF_KIND_ICON[kind];
 
   return (
     <NodeViewWrapper as="span" className="entity-ref-chip-wrap" data-entity-ref="true">

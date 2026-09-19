@@ -14,13 +14,14 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { isValid, parseISO } from "date-fns";
 import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/core";
 
 import { getPageReferenceQuery } from "@/lib/notes/editor-document-helpers";
 import { useEntitySearch, type EntitySearchResult } from "@/hooks/use-entity-search";
-import { ENTITY_REF_NODE_TYPE } from "@/lib/links/tokens";
-import { getApp } from "@/lib/shared/apps";
+import { ensureJournalPage } from "@/hooks/use-journal";
+import { ENTITY_REF_NODE_TYPE, REF_KIND_ICON, refKindAccentVar } from "@/lib/links/tokens";
 import { cn } from "@/lib/shared/utils";
 
 /** Caret position in viewport coordinates (from ProseMirror coordsAtPos). */
@@ -104,13 +105,21 @@ export function RefMenuLayer({
   );
 }
 
-/** Chip icon in the app's accent, keyed by entity kind. */
+/**
+ * Chip icon in the kind's accent.
+ *
+ * Keyed off `REF_KIND_ICON` rather than `getApp(`${kind}s`)`: a day has no app
+ * behind it, and that lookup silently falls back to the first app rather than
+ * saying so.
+ */
 function KindIcon({ kind }: { kind: EntitySearchResult["kind"] }) {
-  const app = getApp(`${kind}s`);
-  const Icon = app.icon;
+  const Icon = REF_KIND_ICON[kind];
   return (
-    <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-md", app.accent.iconBg)}>
-      <Icon className={cn("h-3 w-3", app.accent.iconText)} />
+    <span
+      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
+      style={{ backgroundColor: `color-mix(in oklab, ${refKindAccentVar(kind)} 12%, transparent)` }}
+    >
+      <Icon className="h-3 w-3" style={{ color: refKindAccentVar(kind) }} />
     </span>
   );
 }
@@ -154,6 +163,14 @@ function RefMenuResults({
   const insert = useCallback(
     (result: EntitySearchResult | undefined) => {
       if (!result) return;
+      // A day's page is created on the way in: the reference resolves against a
+      // real row, and until something is written the day has none. Fire and
+      // forget — the chip carries the id either way, and the edge reconciles
+      // when the block is saved.
+      if (result.kind === "day" && result.sublabel) {
+        const parsed = parseISO(result.sublabel);
+        if (isValid(parsed)) void ensureJournalPage(parsed);
+      }
       editor
         .chain()
         .focus()

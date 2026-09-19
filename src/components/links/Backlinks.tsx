@@ -11,8 +11,7 @@ import { CornerUpLeft } from "lucide-react";
 
 import { dispatchOpenEntity } from "@/components/links/EntityRefNode";
 import { useBacklinks } from "@/hooks/use-links";
-import { getApp } from "@/lib/shared/apps";
-import { refKindAccentVar, type RefKind } from "@/lib/links/tokens";
+import { refKindAccentVar, type RefKind, REF_KIND_ICON } from "@/lib/links/tokens";
 import { cn } from "@/lib/shared/utils";
 
 export function Backlinks({
@@ -36,7 +35,7 @@ export function Backlinks({
         Linked from
       </span>
       {backlinks.map((b) => {
-        const Icon = getApp(`${b.kind}s`).icon;
+        const Icon = REF_KIND_ICON[b.kind];
         return (
           <button
             key={`${b.kind}:${b.id}`}

@@ -416,22 +416,6 @@ Responsibilities:
 - Uses `ManageTagsDialog` for tag CRUD
 - Uses `MobileBottomFabs` for the floating add action on mobile
 
-**`src/hooks/use-time-grid.ts`** owns the grid itself — activity types, the day window's `time_logs` and `daily_ratings`, the optimistic overlay for both, and the two writers — for *any* set of days, so the week view and the Day surface paint the same cells through one implementation. It exposes `setCell` as an intent ("this hour becomes that activity, or nothing"); the brush stays with each surface. Optimistic entries are dropped by render-time reconciliation guarded on the source data's identity, so there's no extra render pass.
-
-**The day is keyed two ways, and `src/lib/tracker/day-keys.ts` holds both.** `time_logs.start_timestamp` is UTC-naive — local wall-clock parts stamped into a UTC instant — so its day is the *UTC* date of that instant (`utcDateKey`, `utcDayBounds`), while `daily_ratings.rating_date`, the journal key and every other app's timestamp are the *local* day (`localDateKey`, `localDayBounds`). They coincide for tracker rows only because the write pre-shifts. Nothing should derive a day key outside that module: the UTC-naive storage is a known debt whose eventual migration wants one seam, not a scatter of `getUTCHours()` calls.
-
-**`src/lib/tracker/day-summary.ts`** rolls one day's cells up by activity, busiest first — shared by both year grids' popovers and the Day surface.
-
-### The Day surface
-
-`src/app/day/[date]/page.tsx` — `/day/<yyyy-MM-dd>`, a cross-app destination like `/trash`, carrying its own `AppConfig` rather than borrowing Tracker's. It answers "what happened on this day" across every app: mood and hours (`useTimeGrid` + `summarizeDay`), that day's grid column to paint (the same `TimeGrid` and `ActivityToolbar` as the week), tasks due and completed, events logged, what was captured, and the day's journal entry inline (`DailyJournalEntry`, which materializes its page on the first keystroke).
-
-`src/hooks/use-day.ts` holds its reads. Every store it touches timestamps a **real instant**, so they all window on `localDayBounds`; the tracker rows are the exception and go through `useTimeGrid`. **Sections stay separate deliberately** — interleaving UTC-naive blocks with real instants into one chronological feed would order them wrongly by the viewer's UTC offset. That feed is the one thing that needs the UTC-naive migration to land first.
-
-**The dates already on screen lead here.** A `{date}` chip in a note opens its day (`DateTokenNode` renders through a React NodeView for that, parsing its label back to a date since the attr holds only what it displays); a day in either year heatmap opens it rather than jumping to that day's week; the journal strip's day headings and an occurrence's date are links. Task due chips are deliberately left alone — their click opens the calendar editor, and repointing it would cost the ability to change a due date.
-
-Two stores gained a field for it: `tasks.completed_at` (any edit moves `updated_at`, so it can't answer *when it was finished*) and a quote's `addedAt` (bookmarks already had one; quotes kept before it simply never appear in a day's intake).
-
 Important child components:
 
 - `src/components/tasks/TaskCard.tsx`
@@ -482,6 +466,10 @@ Responsibilities:
 `src/app/day/[date]/page.tsx` — `/day/<yyyy-MM-dd>`, a cross-app destination like `/trash`, carrying its own `AppConfig` rather than borrowing Tracker's. It answers "what happened on this day" across every app: mood and hours (`useTimeGrid` + `summarizeDay`), that day's grid column to paint (the same `TimeGrid` and `ActivityToolbar` as the week), tasks due and completed, events logged, what was captured, and the day's journal entry inline (`DailyJournalEntry`, which materializes its page on the first keystroke).
 
 `src/hooks/use-day.ts` holds its reads. Every store it touches timestamps a **real instant**, so they all window on `localDayBounds`; the tracker rows are the exception and go through `useTimeGrid`. **Sections stay separate deliberately** — interleaving UTC-naive blocks with real instants into one chronological feed would order them wrongly by the viewer's UTC offset. That feed is the one thing that needs the UTC-naive migration to land first.
+
+**A day is a linkable entity.** `[[Sep 15, 2026|day:<id>]]` is a reference like any other, so a day carries backlinks and appears in the graph — which is how Tracker, keyed by date rather than by id, joins it at all. The anchor is the journal page that date already owns (a real `pages` row with a deterministic id), so nothing new is stored: `RefKind` gains `day`, `classifyEntityRow` reads a `journal` page as one (it used to fall through and read as a note), and the `[[` picker *recognises* a day rather than searching for one — a query that parses as a date offers it, whether or not anything is written there. Inserting the reference creates that page, since an edge endpoint has to be a real row, and `DailyJournalEntry` stops pruning an empty day that something links to. Opening one routes to `/day/<key>`, read back from the page's `key` (`systemPageKey`) because `systemPageId` is one-way. `REF_KIND_ICON` replaces the ``getApp(`${kind}s`)`` lookup wherever a day can appear: a day has no app, and that lookup silently falls back to the first one.
+
+**Days stay out of the search index** (`NOTE_PAGE_FILTER` excludes system pages): a year of mostly-empty journal pages would swamp results. Worth revisiting by indexing only days that have content.
 
 **The dates already on screen lead here.** A `{date}` chip in a note opens its day (`DateTokenNode` renders through a React NodeView for that, parsing its label back to a date since the attr holds only what it displays); a day in either year heatmap opens it rather than jumping to that day's week; the journal strip's day headings and an occurrence's date are links. Task due chips are deliberately left alone — their click opens the calendar editor, and repointing it would cost the ability to change a due date.
 

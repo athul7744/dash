@@ -29,6 +29,13 @@ export type EntityJoinRow = {
   page_kind: string | null;
 };
 
+/** "Journal · Tue, Sep 15, 2026" → "Tue, Sep 15, 2026"; a day wears its date. */
+function dayLabel(pageTitle: string | null): string {
+  const title = (pageTitle ?? "").trim();
+  const withoutPrefix = title.replace(/^Journal\s*·\s*/, "");
+  return withoutPrefix || title || "A day";
+}
+
 export function classifyEntityRow(row: EntityJoinRow): ResolvedEntity | null {
   if (row.task_id) {
     return { kind: "task", id: row.source_id, label: stripRefs(row.task_title ?? "") || "Untitled task" };
@@ -47,6 +54,13 @@ export function classifyEntityRow(row: EntityJoinRow): ResolvedEntity | null {
     case "event": {
       const e = parseEventContent(row.block_content);
       return { kind: "event", id: row.source_id, label: stripRefs(e.title ?? "") || "Untitled event" };
+    }
+    case "journal": {
+      // A journal page is a calendar day — the anchor a day reference points at,
+      // and Tracker's only way into the graph. Without this it fell through to
+      // `default` and read as an ordinary note.
+      if (!row.page_id) return null;
+      return { kind: "day", id: row.page_id, label: dayLabel(row.page_title) };
     }
     default:
       // A block on a note page → the note itself (collapse block → page).

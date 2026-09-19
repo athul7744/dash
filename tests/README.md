@@ -73,8 +73,11 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 
 ## Current Links Suites
 
+- `tests/links/resolve.test.ts`
+  Covers turning an edge endpoint back into the thing it points at (`classifyEntityRow`): a block on a note page collapsing to the note, a journal page reading as a **day** rather than a note (the mislabelling that kept Tracker out of the graph), tasks, and a soft-deleted row resolving to nothing so trashed things leave backlinks while their edges survive.
+
 - `tests/links/tokens.test.ts`
-  Covers the cross-app reference token grammar (`src/lib/links/tokens.ts`): parsing bare `[[Title]]` and id-bound `[[label|kind:id]]` tokens, `stripRefs` reducing tokens to labels, and `formatRefToken`/`normalizeRefLabel` round-tripping (including stripping grammar characters from labels).
+  Covers the cross-app reference token grammar (`src/lib/links/tokens.ts`): parsing bare `[[Title]]` and id-bound `[[label|kind:id]]` tokens (including `day`, whose kind had to reach the regex's kind list and not just the type), `stripRefs` reducing tokens to labels, and `formatRefToken`/`normalizeRefLabel` round-tripping (including stripping grammar characters from labels).
 
 ## Single-Document Editor Suites (`tests/notes/editor/`)
 

@@ -21,7 +21,7 @@ export type GraphViewNode = GraphNode & { tagId: string | null };
 export type GraphCluster = { kind: RefKind; count: number; nodes: GraphViewNode[] };
 
 /** Cluster/legend ordering. */
-const KIND_ORDER: RefKind[] = ["note", "task", "bookmark", "quote", "event"];
+const KIND_ORDER: RefKind[] = ["note", "task", "bookmark", "quote", "event", "day"];
 
 /** One entry in the tag legend / filter, with how many pages carry it. */
 export type GraphTagLegendEntry = {
@@ -85,6 +85,9 @@ function resolveSource(row: EdgeResolveRow): Endpoint | null {
   if (row.s_task) return { id: row.s_raw, kind: "task" };
   if (row.s_block) {
     if (row.s_page_kind == null) return row.s_page ? { id: row.s_page, kind: "note" } : null;
+    // A block written in a day's journal collapses to the day, the way a note's
+    // blocks collapse to the note.
+    if (row.s_page_kind === "journal") return row.s_page ? { id: row.s_page, kind: "day" } : null;
     return { id: row.s_raw, kind: row.s_page_kind as RefKind };
   }
   return null;
@@ -93,8 +96,11 @@ function resolveSource(row: EdgeResolveRow): Endpoint | null {
 function resolveTarget(row: EdgeResolveRow): Endpoint | null {
   if (row.t_task) return { id: row.t_raw, kind: "task" };
   if (row.t_page_direct && row.t_page_kind == null) return { id: row.t_raw, kind: "note" };
+  // A day reference points straight at the journal page that anchors it.
+  if (row.t_page_direct && row.t_page_kind === "journal") return { id: row.t_raw, kind: "day" };
   if (row.t_block) {
     if (row.t_block_page_kind == null) return row.t_page ? { id: row.t_page, kind: "note" } : null;
+    if (row.t_block_page_kind === "journal") return row.t_page ? { id: row.t_page, kind: "day" } : null;
     return { id: row.t_raw, kind: row.t_block_page_kind as RefKind };
   }
   return null;
@@ -118,6 +124,11 @@ export function useNoteGraph(): NoteGraphData {
   const { bookmarks } = useBookmarks();
   const { quotes } = useQuotes();
   const { events } = useEvents();
+  // Days that exist at all; only the linked ones become nodes below, or a year
+  // of journal pages would bury the graph.
+  const { data: journalPages = [] } = useQuery<{ id: string; title: string | null }>(
+    "SELECT id, title FROM pages WHERE json_extract(properties, '$.kind') = 'journal' AND deleted_at IS NULL",
+  );
   const pageTags = useEntityTags(useMemo(() => pages.map((p) => p.id), [pages]));
 
   return useMemo(() => {
@@ -150,13 +161,28 @@ export function useNoteGraph(): NoteGraphData {
       ...events.map((e) => ({ id: e.id, kind: "event" as RefKind, title: stripRefs(e.title || "") || "Untitled event", emoji: null, tagColor: kindColor("event") })),
     ];
 
-    // Resolve edges to node-id pairs; keep only those between known nodes.
-    const inputs = [...noteInputs, ...nonNoteInputs];
+    // Resolve edges first: a day is a node only if something links to it, so the
+    // endpoints decide which days exist here.
+    const endpoints = edgeRows.map((row) => ({ s: resolveSource(row), t: resolveTarget(row) }));
+    const linkedDayIds = new Set<string>();
+    for (const { s, t } of endpoints) {
+      if (s?.kind === "day") linkedDayIds.add(s.id);
+      if (t?.kind === "day") linkedDayIds.add(t.id);
+    }
+    const dayInputs = journalPages
+      .filter((page) => linkedDayIds.has(page.id))
+      .map((page) => ({
+        id: page.id,
+        kind: "day" as RefKind,
+        title: (page.title ?? "").replace(/^Journal · /, "").trim() || "A day",
+        emoji: null,
+        tagColor: kindColor("day"),
+      }));
+
+    const inputs = [...noteInputs, ...nonNoteInputs, ...dayInputs];
     const knownIds = new Set(inputs.map((n) => n.id));
     const pairs: PageEdgeRow[] = [];
-    for (const row of edgeRows) {
-      const s = resolveSource(row);
-      const t = resolveTarget(row);
+    for (const { s, t } of endpoints) {
       if (!s || !t) continue;
       if (knownIds.has(s.id) && knownIds.has(t.id)) pairs.push({ source: s.id, target: t.id });
     }
@@ -206,5 +232,5 @@ export function useNoteGraph(): NoteGraphData {
       noteClusterTags,
       isLoading: isLoadingPages || isLoadingEdges || isLoadingTags,
     };
-  }, [pages, pageTags, edgeRows, allTags, rootTasks, bookmarks, quotes, events, isLoadingPages, isLoadingEdges, isLoadingTags]);
+  }, [pages, pageTags, edgeRows, allTags, rootTasks, bookmarks, quotes, events, journalPages, isLoadingPages, isLoadingEdges, isLoadingTags]);
 }

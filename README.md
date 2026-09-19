@@ -22,7 +22,7 @@ A structured editor for thinking and writing. Create pages, nest blocks into out
 
 Already keeping notes somewhere else? Point Dash at a Logseq vault and bring it across — the outline structure, checkboxes, images, banners and `[[links]]` all survive — including images that lived at a web address, so they keep working offline once they're yours. A page's banner arrives cropped the way you left it. Every file is listed with what it found inside, so you tick the ones you want, and you decide where their properties and tags land: onto fields you already have, into new ones, or left aside. Nothing is imported twice. And because you only really know an import worked once you've read a few of the pages, the undo waits for you: open the notes, look around, and if something came across wrong, Settings offers to undo the last import — the whole batch goes to the Trash, where any of it can still be restored.
 
-Linking isn't limited to notes. Type `[[` in any item — a task (or subtask), bookmark, quote, or event — to link it to any other. Each link shows up as a backlink on the other side, and every linked item becomes a node in the graph, so the graph maps your whole workspace, not just your notes.
+Linking isn't limited to notes. Type `[[` in any item — a task (or subtask), bookmark, quote, or event — to link it to any other, and type a date to link the day itself. Each link shows up as a backlink on the other side, and every linked item becomes a node in the graph, so the graph maps your whole workspace, not just your notes.
 
 ### The day
 

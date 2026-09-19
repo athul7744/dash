@@ -41,15 +41,15 @@ function TimeGridSkeleton() {
       <div className="overflow-x-auto overscroll-y-none [touch-action:pan-x_pan-y]">
         <table className="border-separate border-spacing-0 w-max min-w-full text-xs">
           <thead>
-            <tr className="border-b border-border">
-              <th className="sticky left-0 z-10 bg-muted px-1 py-2 w-[52px] border-r border-b border-border">
+            <tr>
+              <th className="sticky left-0 z-30 bg-muted px-1 py-2 w-[52px] border-r border-b border-border">
                 <Skeleton className="h-3 w-8 mx-auto" />
               </th>
-              <th className="sticky left-[52px] z-10 bg-muted px-3 py-2 w-[120px] border-r border-b border-border">
+              <th className="sticky left-[52px] z-30 bg-muted px-3 py-2 w-[120px] border-r border-b border-border">
                 <Skeleton className="h-3 w-10" />
               </th>
               {Array.from({ length: 24 }).map((_, h) => (
-                <th key={h} className="px-1 py-2 text-center font-medium text-muted-foreground min-w-[44px] border-l border-border">
+                <th key={h} className={`px-1 py-2 text-center font-medium text-muted-foreground min-w-[44px] border-b border-border ${h > 0 ? "border-l" : ""}`}>
                   {String(h).padStart(2, "0")}
                 </th>
               ))}
@@ -57,15 +57,15 @@ function TimeGridSkeleton() {
           </thead>
           <tbody>
             {Array.from({ length: 7 }).map((_, row) => (
-              <tr key={row} className="border-t border-border">
-                <td className="sticky left-0 z-10 bg-muted px-1 py-1 border-r border-border w-[52px]">
+              <tr key={row}>
+                <td className="sticky left-0 z-20 bg-muted px-1 py-1 border-r border-border w-[52px]">
                   <Skeleton className="h-4 w-4 rounded-full mx-auto" />
                 </td>
-                <td className="sticky left-[52px] z-10 bg-muted px-3 py-2 w-[120px] border-r border-border">
+                <td className="sticky left-[52px] z-20 bg-muted px-3 py-2 w-[120px] border-r border-border">
                   <Skeleton className="h-3 w-16" />
                 </td>
                 {Array.from({ length: 24 }).map((_, h) => (
-                  <td key={h} className="border-l border-border h-9 min-w-[44px]">
+                  <td key={h} className={`border-border h-9 min-w-[44px] ${h > 0 ? "border-l" : ""}`}>
                     {/* randomly fill ~20% of cells */}
                     {((row * 24 + h) * 7 + row) % 5 === 0 && (
                       <Skeleton className="h-full w-full rounded-none" />
@@ -189,7 +189,7 @@ function WeeklyJournalSkeleton() {
 export function WeekViewSkeleton() {
   return (
     <>
-      <section>
+      <section className="mb-3">
         <ToolbarSkeleton />
       </section>
       <section>

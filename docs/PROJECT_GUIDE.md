@@ -487,6 +487,8 @@ Important child components:
 - `src/components/tracker/TimeGrid.tsx`
   - Main 7-day x 24-hour time grid
   - Clicking a cell writes or clears a time log entry
+  - Rules run vertically only — hour columns are separated, days are not, so a day reads as one unbroken strip. The sticky Mood and Day columns force `border-separate`, under which borders on a `<tr>` are ignored, so every rule is a border on a cell and only one side of a shared edge draws it (`hourBorder`). Sticky columns sit at `z-20`/`z-30`, above the `z-10` a cell takes on hover, so a hovered cell's ring never paints over the Day column as the grid scrolls under it. `WeekViewSkeleton` mirrors the same rules so the grid doesn't shift when it swaps in
+  - The grid is flat by design; its one shadow is `STICKY_EDGE_SHADOW`, cast by the Day column once `scrollLeft > 0` to show the hours passing underneath it
 
 - `src/components/tracker/WeekNavigator.tsx`
   - Desktop header navigator plus mobile FAB navigator

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { hourCellKey } from "@/lib/tracker/day-keys";
 import { cn } from "@/lib/shared/utils";
 import { ACTIVITY_CELL_CLASSES } from "@/lib/tracker/activities";
@@ -14,6 +14,26 @@ import {
 } from "@/components/ui/select";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+/**
+ * The grid rules vertically only: hour columns are separated, days are not, so a
+ * day reads as one unbroken strip of time.
+ *
+ * `border-separate` is required for sticky cells to work, and under it borders
+ * set on a `<tr>` are ignored and two neighbours each drawing an edge stack into
+ * a double-width line. So the rules live on the cells, and only one side of a
+ * shared edge draws one — hour 00 leaves its left edge to the sticky Day
+ * column's `border-r`.
+ */
+const hourBorder = (hour: number) => (hour > 0 ? "border-l border-border" : "");
+
+/**
+ * The grid's only shadow. The Mood and Day columns are sticky, and until the
+ * grid has scrolled they sit flush with the hours; casting an edge only once
+ * `scrollLeft > 0` is what tells you the hours pass *underneath* them rather
+ * than ending there. Everything else stays flat.
+ */
+const STICKY_EDGE_SHADOW = "shadow-[8px_0_12px_-8px_rgba(15,23,42,0.45)] dark:shadow-[8px_0_14px_-8px_rgba(0,0,0,0.8)]";
 
 export interface GridCell {
   /** PowerSync row id, if a log exists for this cell */
@@ -44,6 +64,12 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
   const wrapperRef = useRef<HTMLDivElement>(null);
   const currentTimeCellRef = useRef<HTMLTableCellElement>(null);
 
+  const [scrolledX, setScrolledX] = useState(false);
+
+  const now = new Date();
+  const todayKey = format(now, "yyyy-MM-dd");
+  const currentHour = now.getHours();
+
   useEffect(() => {
     const wrapper = wrapperRef.current;
     const currentCell = currentTimeCellRef.current;
@@ -61,6 +87,7 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
   return (
     <div
       ref={wrapperRef}
+      onScroll={(event) => setScrolledX(event.currentTarget.scrollLeft > 0)}
       className="overflow-x-auto rounded-lg border border-border overscroll-y-none [touch-action:pan-x_pan-y]"
       key={weekKey}
     >
@@ -72,19 +99,26 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
       `}</style>
       <table className="border-separate border-spacing-0 w-max min-w-full text-xs">
         <thead>
-          <tr className="border-b border-border">
+          <tr>
             {ratings && (
-              <th className="sticky left-0 z-10 bg-muted px-1 py-2 text-center font-semibold text-muted-foreground w-[52px] border-r border-b border-border">
+              <th className="sticky left-0 z-30 bg-muted px-1 py-2 text-center font-semibold text-muted-foreground w-[52px] border-r border-b border-border">
                 Mood
               </th>
             )}
-            <th className={cn("sticky z-10 bg-muted px-3 py-2 text-left font-semibold text-muted-foreground w-[120px] border-r border-b border-border", ratings ? "left-[52px]" : "left-0")}>
+            <th className={cn(
+              "sticky z-30 bg-muted px-3 py-2 text-left font-semibold text-muted-foreground w-[120px] border-r border-b border-border transition-shadow duration-200",
+              ratings ? "left-[52px]" : "left-0",
+              scrolledX && STICKY_EDGE_SHADOW,
+            )}>
               Day
             </th>
             {HOURS.map((h) => (
               <th
                 key={h}
-                className="px-1 py-2 text-center font-medium text-muted-foreground min-w-[44px] border-l border-border tabular-nums"
+                className={cn(
+                  "px-1 py-2 text-center font-medium text-muted-foreground min-w-[44px] border-b border-border tabular-nums",
+                  hourBorder(h),
+                )}
               >
                 {String(h).padStart(2, "0")}
               </th>
@@ -94,19 +128,16 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
         <tbody>
           {days.map((day, rowIdx) => {
             const dateKey = format(day, "yyyy-MM-dd");
-            const now = new Date();
-            const todayKey = format(now, "yyyy-MM-dd");
-            const currentHour = now.getHours();
             const currentScore = ratings?.get(dateKey) ?? null;
             const currentRating = moodByValue(moods, currentScore);
             return (
               <tr
                 key={dateKey}
-                className="border-t border-border animate-[rowSlideIn_0.25s_ease-out_both]"
+                className="animate-[rowSlideIn_0.25s_ease-out_both]"
                 style={{ animationDelay: `${rowIdx * 40}ms` }}
               >
                 {ratings && (
-                  <td className="sticky left-0 z-10 bg-muted px-1 py-1 border-r border-border w-[52px] box-border">
+                  <td className="sticky left-0 z-20 bg-muted px-1 py-1 border-r border-border w-[52px] box-border">
                     <Select
                       value={currentScore != null ? currentScore : null}
                       onValueChange={(v: number | null) => v != null && onRate?.(dateKey, Number(v))}
@@ -130,7 +161,11 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
                     </Select>
                   </td>
                 )}
-                <td className={cn("sticky z-10 bg-muted px-3 py-2 font-medium text-muted-foreground whitespace-nowrap w-[120px] border-r border-border", ratings ? "left-[52px]" : "left-0")}>
+                <td className={cn(
+                  "sticky z-20 bg-muted px-3 py-2 font-medium text-muted-foreground whitespace-nowrap w-[120px] border-r border-border transition-shadow duration-200",
+                  ratings ? "left-[52px]" : "left-0",
+                  scrolledX && STICKY_EDGE_SHADOW,
+                )}>
                   {format(day, "EEE, MMM d")}
                 </td>
                 {HOURS.map((h) => {
@@ -150,8 +185,12 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
                       ref={isCurrentTimeCell ? currentTimeCellRef : null}
                       onClick={() => onCellClick(day, h, cell)}
                       className={cn(
-                        "border-l border-border cursor-pointer text-center select-none transition-colors",
+                        "cursor-pointer text-center select-none transition-colors",
+                        hourBorder(h),
                         "h-9 min-w-[44px]",
+                        // Below the sticky columns' z-20: the hover ring is drawn
+                        // outside the cell, so a lifted cell would otherwise paint
+                        // over the Day column as the grid scrolls under it.
                         "hover:ring-2 hover:ring-primary/40 hover:z-10",
                         cellClasses ?? "hover:bg-accent/50"
                       )}

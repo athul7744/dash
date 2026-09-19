@@ -249,7 +249,7 @@ export function TrackerWorkspace() {
               <WeekViewSkeleton />
             ) : (
               <div className={cn("min-w-0 overflow-x-hidden transition-opacity duration-150", isDataStale && "opacity-70")}>
-                <section className="min-w-0 overflow-x-hidden [touch-action:pan-y]">
+                <section className="mb-3 min-w-0 overflow-x-hidden [touch-action:pan-y]">
                   <ActivityToolbar
                     activities={activityTypes.map((a) => ({ name: a.name ?? "", color: a.color ?? "teal" }))}
                     active={activeActivity}

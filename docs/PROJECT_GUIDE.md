@@ -471,6 +471,8 @@ Responsibilities:
 
 **Days stay out of the search index** (`NOTE_PAGE_FILTER` excludes system pages): a year of mostly-empty journal pages would swamp results. Worth revisiting by indexing only days that have content.
 
+**⌘K → "Today"** is the way in that doesn't start from a date: every other route here is a date already on screen, so it sits under *Go to* beside Graph and Trash. A day wears a deeper green than Tracker's teal (`REF_KIND_SHADE` carries the darker shade) — near enough to read as time, far enough not to be mistaken for the tracker.
+
 **The dates already on screen lead here.** A `{date}` chip in a note opens its day (`DateTokenNode` renders through a React NodeView for that, parsing its label back to a date since the attr holds only what it displays); a day in either year heatmap opens it rather than jumping to that day's week; the journal strip's day headings and an occurrence's date are links. Task due chips are deliberately left alone — their click opens the calendar editor, and repointing it would cost the ability to change a due date.
 
 Two stores gained a field for it: `tasks.completed_at` (any edit moves `updated_at`, so it can't answer *when it was finished*) and a quote's `addedAt` (bookmarks already had one; quotes kept before it simply never appear in a day's intake).

@@ -55,11 +55,20 @@ export const REF_KIND_HUE: Record<RefKind, string> = {
   bookmark: "sky",
   quote: "rose",
   event: "violet",
-  day: "teal",
+  day: "emerald",
 };
 
+/**
+ * Accent shade per kind (500 unless stated).
+ *
+ * A day runs darker so its green sits apart from Tracker's teal, which is the
+ * neighbour it's most easily confused with.
+ */
+const REF_KIND_SHADE: Partial<Record<RefKind, number>> = { day: 600 };
+
 /** CSS accent color for a kind, e.g. `var(--color-indigo-500)`. */
-export const refKindAccentVar = (kind: RefKind) => `var(--color-${REF_KIND_HUE[kind]}-500)`;
+export const refKindAccentVar = (kind: RefKind) =>
+  `var(--color-${REF_KIND_HUE[kind]}-${REF_KIND_SHADE[kind] ?? 500})`;
 
 /** Plural label per kind (headings, legends, cluster pucks). */
 export const REF_KIND_LABEL: Record<RefKind, string> = {

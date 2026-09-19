@@ -80,7 +80,7 @@ export const DayPopover = forwardRef<HTMLDivElement, DayPopoverProps>(
               onClick={onEditDay}
               className="w-full text-xs font-medium py-1.5 rounded bg-accent text-foreground hover:bg-accent/80 transition-colors"
             >
-              Edit day
+              Open day
             </button>
           </div>
         )}

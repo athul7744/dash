@@ -43,9 +43,11 @@ const dayApp: AppConfig = {
   href: "/day",
   icon: CalendarDays,
   accent: {
-    iconBg: "bg-violet-500/10 dark:bg-violet-500/20",
-    iconText: "text-violet-600 dark:text-violet-400",
-    hoverText: "hover:text-violet-700 dark:hover:text-violet-300",
+    // A deeper green than Tracker's teal: near enough to read as time, far
+    // enough not to be mistaken for the tracker itself.
+    iconBg: "bg-emerald-600/10 dark:bg-emerald-500/20",
+    iconText: "text-emerald-700 dark:text-emerald-400",
+    hoverText: "hover:text-emerald-800 dark:hover:text-emerald-300",
   },
 };
 

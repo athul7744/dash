@@ -1,3 +1,24 @@
+import { cancelUpdate, debouncedUpdate } from "@/lib/shared/debounced-update";
+
+/**
+ * Move a task between done and not, recording *when* it was finished.
+ *
+ * Both halves belong together: `completed_at` is what the Day surface reads for
+ * "finished on this day", and `updated_at` can't stand in for it — any later
+ * edit moves that. Every surface that ticks a task goes through here so none of
+ * them can write one without the other.
+ */
+export function setTaskState(id: string, nextState: string) {
+  debouncedUpdate(id, "state", nextState);
+  debouncedUpdate(id, "completed_at", nextState === "completed" ? new Date().toISOString() : null);
+}
+
+/** Drop a pending state write for a task (it never changed after all). */
+export function cancelTaskStateWrite(id: string) {
+  cancelUpdate(id, "state");
+  cancelUpdate(id, "completed_at");
+}
+
 /**
  * Priority color definitions for task indicators.
  */

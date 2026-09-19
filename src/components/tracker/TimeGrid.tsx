@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { hourCellKey } from "@/lib/tracker/day-keys";
 import { cn } from "@/lib/shared/utils";
 import { ACTIVITY_CELL_CLASSES } from "@/lib/tracker/activities";
 import { moodByValue, moodDotClass, type Mood } from "@/lib/tracker/moods";
@@ -133,7 +134,7 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
                   {format(day, "EEE, MMM d")}
                 </td>
                 {HOURS.map((h) => {
-                  const key = `${dateKey}|${String(h).padStart(2, "0")}`;
+                  const key = hourCellKey(dateKey, h);
                   const cell = data.get(key);
                   const color = cell?.activityName
                     ? colorMap[cell.activityName]

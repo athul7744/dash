@@ -35,3 +35,20 @@ describe("parseQuoteContent", () => {
     expect(parseQuoteContent(null)).toEqual({ text: "", author: "", link: "", favorite: false });
   });
 });
+
+describe("a quote's capture time", () => {
+  it("survives a read", () => {
+    // `updateQuote` and `toggleFavorite` write `{...parsed, ...patch}` back, so
+    // a field this drops is erased by the next edit — and the quote silently
+    // leaves the day it was saved on.
+    const parsed = parseQuoteContent(
+      JSON.stringify({ text: "t", author: "a", link: "", favorite: false, addedAt: "2026-09-15T10:00:00.000Z" }),
+    );
+    expect(parsed.addedAt).toBe("2026-09-15T10:00:00.000Z");
+  });
+
+  it("is absent, not invented, for a quote kept before it was recorded", () => {
+    expect(parseQuoteContent(JSON.stringify({ text: "t" })).addedAt).toBeUndefined();
+    expect(parseQuoteContent("not json").addedAt).toBeUndefined();
+  });
+});

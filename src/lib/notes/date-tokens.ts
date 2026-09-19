@@ -1,4 +1,4 @@
-import { format, isValid } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 
 export type RelativeDateOffset = "today" | "tomorrow" | "yesterday" | "next-week" | "next-month" | "next-year";
 
@@ -48,6 +48,13 @@ const RELATIVE_WORDS: Record<string, RelativeDateOffset> = {
  * - A bare number is not a date. "12" would parse as December, which makes
  *   searching for "12" offer a day nobody asked for.
  */
+const MONTH = "(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*";
+const ORDINAL_DAY = "\\d{1,2}(?:st|nd|rd|th)?";
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_FIRST = new RegExp(`^${MONTH}\\s+${ORDINAL_DAY}(?:,?\\s*\\d{4})?$`, "i");
+const DAY_FIRST = new RegExp(`^${ORDINAL_DAY}\\s+${MONTH}(?:,?\\s*\\d{4})?$`, "i");
+const NUMERIC_DAY = /^\d{1,2}\/\d{1,2}(?:\/\d{2,4})?$/;
+
 export function parseDayQuery(raw: string): Date | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -55,14 +62,21 @@ export function parseDayQuery(raw: string): Date | null {
   const relative = RELATIVE_WORDS[trimmed.toLowerCase()];
   if (relative) return getRelativeDate(relative);
 
-  // `new Date` is far too willing: it reads "meeting notes 2026" as January,
-  // and "12" as December. Require the shape of a date first — a month name,
-  // or digits around a separator.
-  const looksLikeDate =
-    /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(trimmed) || /\d[/-]\d/.test(trimmed);
-  if (!looksLikeDate) return null;
+  // ISO parsed as *local* midnight: `new Date("2026-09-15")` is UTC midnight,
+  // which is the day before anywhere west of it.
+  if (ISO_DAY.test(trimmed)) {
+    const parsed = parseISO(trimmed);
+    return isValid(parsed) ? parsed : null;
+  }
 
-  const withYear = /\d{4}/.test(trimmed) ? trimmed : `${trimmed} ${new Date().getFullYear()}`;
+  // Only the shapes a person writes a date in. `new Date` will take almost
+  // anything: "summary" reads as March (it contains "mar"), "meeting notes 2026"
+  // as January. Matching the whole string is what keeps ordinary words out.
+  if (!MONTH_FIRST.test(trimmed) && !DAY_FIRST.test(trimmed) && !NUMERIC_DAY.test(trimmed)) return null;
+
+  // Ordinals ("15th Sep") defeat `new Date`, and a missing year means this one.
+  const plain = trimmed.replace(/(\d{1,2})(st|nd|rd|th)\b/gi, "$1");
+  const withYear = /\d{4}/.test(plain) ? plain : `${plain} ${new Date().getFullYear()}`;
   return parseDateToken(withYear);
 }
 

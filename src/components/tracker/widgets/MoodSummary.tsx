@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { Lightbulb, Smile } from "lucide-react";
+import { hourCellKey } from "@/lib/tracker/day-keys";
 import { cn } from "@/lib/shared/utils";
 import { WidgetProps, COLOR_HEX } from "./types";
 import { moodByValue, moodHex, moodRange, moodTier } from "@/lib/tracker/moods";
@@ -28,7 +29,7 @@ export function MoodSummary({ days, data, colorMap, categoryMap, ratings, moods 
     if (bestDate) {
       const counts: Record<string, number> = {};
       for (let h = 0; h < 24; h++) {
-        const key = `${bestDate}|${String(h).padStart(2, "0")}`;
+        const key = hourCellKey(bestDate, h);
         const cell = data.get(key);
         if (cell?.activityName && categoryMap[cell.activityName] !== "sleep") {
           counts[cell.activityName] = (counts[cell.activityName] || 0) + 1;
@@ -53,7 +54,7 @@ export function MoodSummary({ days, data, colorMap, categoryMap, ratings, moods 
     for (const [dateStr, score] of ratings) {
       let sleep = 0;
       for (let h = 0; h < 24; h++) {
-        const key = `${dateStr}|${String(h).padStart(2, "0")}`;
+        const key = hourCellKey(dateStr, h);
         const an = data.get(key)?.activityName;
         if (an && categoryMap[an] === "sleep") sleep++;
       }
@@ -84,7 +85,7 @@ export function MoodSummary({ days, data, colorMap, categoryMap, ratings, moods 
     const counts: Record<string, number> = {};
     let sleepHours = 0;
     for (let h = 0; h < 24; h++) {
-      const key = `${selectedDay}|${String(h).padStart(2, "0")}`;
+      const key = hourCellKey(selectedDay, h);
       const cell = data.get(key);
       if (cell?.activityName) {
         if (categoryMap[cell.activityName] === "sleep") {

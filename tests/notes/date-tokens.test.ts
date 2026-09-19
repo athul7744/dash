@@ -135,15 +135,40 @@ describe("parseDayQuery", () => {
     expect(localDateKey(parseDayQuery("Yesterday")!)).toBe(localDateKey(getRelativeDate("yesterday")));
   });
 
+  it("reads a day-first date, with or without an ordinal", () => {
+    expect(localDateKey(parseDayQuery("15 Sep 2026")!)).toBe("2026-09-15");
+    expect(localDateKey(parseDayQuery("15th Sep 2026")!)).toBe("2026-09-15");
+  });
+
   it("refuses a bare number", () => {
     // Otherwise searching for "12" offers a day in December that nobody asked for.
     expect(parseDayQuery("12")).toBeNull();
     expect(parseDayQuery("2026")).toBeNull();
   });
 
+  it("refuses ordinary words that happen to contain a month", () => {
+    // `new Date` reads "summary" as March — it contains "mar" — and "meeting
+    // notes 2026" as January. Day results lead the `[[` picker, so a word like
+    // this would otherwise insert a date reference on Enter.
+    expect(parseDayQuery("summary")).toBeNull();
+    expect(parseDayQuery("marketing")).toBeNull();
+    expect(parseDayQuery("september planning")).toBeNull();
+    expect(parseDayQuery("meeting notes 2026")).toBeNull();
+  });
+
   it("refuses text that isn't a date", () => {
     expect(parseDayQuery("meeting notes")).toBeNull();
     expect(parseDayQuery("")).toBeNull();
     expect(parseDayQuery("   ")).toBeNull();
+  });
+
+  it("reads an ISO day as local, not UTC", () => {
+    // `new Date("2026-09-15")` is UTC midnight, so anywhere west of UTC it is
+    // still the 14th locally — the palette would open the wrong day.
+    const parsed = parseDayQuery("2026-09-15")!;
+    expect(parsed.getFullYear()).toBe(2026);
+    expect(parsed.getMonth()).toBe(8);
+    expect(parsed.getDate()).toBe(15);
+    expect(parsed.getHours()).toBe(0);
   });
 });

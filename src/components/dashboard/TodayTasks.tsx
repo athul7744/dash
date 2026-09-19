@@ -12,10 +12,9 @@ import { db } from "@/lib/powersync/db";
 import { getApp } from "@/lib/shared/apps";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { stripRefs } from "@/lib/links/tokens";
-import { debouncedUpdate } from "@/lib/shared/debounced-update";
 import { DURATION, EASE } from "@/lib/shared/motion";
 import { cn } from "@/lib/shared/utils";
-import { getDueDateInfo } from "@/lib/tasks/tasks";
+import { getDueDateInfo, setTaskState } from "@/lib/tasks/tasks";
 
 type TaskRow = Task & { id: string };
 
@@ -56,7 +55,7 @@ export function TodayTasks() {
 
   const complete = (id: string) => {
     setCompletedIds((prev) => new Set(prev).add(id));
-    debouncedUpdate(id, "state", "completed");
+    setTaskState(id, "completed");
   };
 
   const addTask = async (event: React.KeyboardEvent<HTMLInputElement>) => {

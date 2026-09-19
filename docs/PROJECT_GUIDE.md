@@ -475,6 +475,8 @@ Responsibilities:
 
 **The dates already on screen lead here.** A `{date}` chip in a note opens its day (`DateTokenNode` renders through a React NodeView for that, parsing its label back to a date since the attr holds only what it displays); a day in either year heatmap opens it rather than jumping to that day's week; the journal strip's day headings and an occurrence's date are links. Task due chips are deliberately left alone — their click opens the calendar editor, and repointing it would cost the ability to change a due date.
 
+Both surfaces that tick a task go through `setTaskState` (`lib/tasks/tasks.ts`), which writes the state and `completed_at` together — the dashboard used to write only the state, so a task finished there never showed on its day. `journalPageTitle` / `dayLabelFromPageTitle` (`system-pages.ts`) are likewise the only place the `Journal · ` prefix is built and taken off, since three readers strip it.
+
 Two stores gained a field for it: `tasks.completed_at` (any edit moves `updated_at`, so it can't answer *when it was finished*) and a quote's `addedAt` (bookmarks already had one; quotes kept before it simply never appear in a day's intake).
 
 Important child components:

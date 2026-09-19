@@ -12,7 +12,6 @@
  */
 
 import { useQuery } from "@powersync/react";
-import { useMemo } from "react";
 
 import { useOccurrences } from "@/hooks/use-events";
 import { BOOKMARKS_KEY, BOOKMARK_BLOCK_TYPE, parseBookmarkContent, type Bookmark } from "@/lib/bookmarks/bookmarks";
@@ -119,24 +118,4 @@ export function useDayCaptures(dateKey: string): DayCaptures {
     notes,
     isLoading: loadingBookmarks || loadingQuotes || loadingNotes,
   };
-}
-
-/** True when the day recorded nothing at all — the empty state's one question. */
-export function useDayIsEmpty(parts: {
-  hours: number;
-  tasks: DayTasks;
-  occurrences: number;
-  captures: DayCaptures;
-}): boolean {
-  return useMemo(
-    () =>
-      parts.hours === 0 &&
-      parts.tasks.due.length === 0 &&
-      parts.tasks.completed.length === 0 &&
-      parts.occurrences === 0 &&
-      parts.captures.bookmarks.length === 0 &&
-      parts.captures.quotes.length === 0 &&
-      parts.captures.notes.length === 0,
-    [parts],
-  );
 }

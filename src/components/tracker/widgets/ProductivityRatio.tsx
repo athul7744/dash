@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { format, isAfter, startOfDay } from "date-fns";
 import { BarChart3, Zap } from "lucide-react";
+import { hourCellKey } from "@/lib/tracker/day-keys";
 import { cn } from "@/lib/shared/utils";
 import { WidgetProps, COLOR_HEX } from "./types";
 import { categoryToProductivityBucket } from "@/lib/tracker/activities";
@@ -73,7 +74,7 @@ export function ProductivityRatio({ days, data, colorMap, categoryMap }: WidgetP
 
       if (!isFuture) {
         for (let h = 0; h < 24; h++) {
-          const key = `${dateKey}|${String(h).padStart(2, "0")}`;
+          const key = hourCellKey(dateKey, h);
           const cell = data.get(key);
           if (!cell?.activityName) continue;
           counts[categoryToProductivityBucket(categoryMap[cell.activityName])]++;

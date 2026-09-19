@@ -12,6 +12,7 @@ import { useEntityTags } from "@/hooks/use-entity-tags";
 import { buildGraph, type GraphNode, type NoteGraph, type PageEdgeRow } from "@/lib/notes/graph";
 import { refTypeSql } from "@/lib/links/links";
 import { stripRefs, REF_KIND_HUE, type RefKind } from "@/lib/links/tokens";
+import { dayLabelFromPageTitle } from "@/lib/notes/system-pages";
 import type { Tag, Task } from "@/lib/powersync/AppSchema";
 
 /** A graph node plus the id of the tag that colors it (for legend/filtering). */
@@ -174,7 +175,7 @@ export function useNoteGraph(): NoteGraphData {
       .map((page) => ({
         id: page.id,
         kind: "day" as RefKind,
-        title: (page.title ?? "").replace(/^Journal · /, "").trim() || "A day",
+        title: dayLabelFromPageTitle(page.title),
         emoji: null,
         tagColor: kindColor("day"),
       }));

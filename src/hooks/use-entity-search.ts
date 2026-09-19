@@ -31,7 +31,7 @@ import { searchEntities } from "@/lib/search/query";
 import { stripHighlight } from "@/lib/search/match-query";
 import { stripRefs, type RefKind } from "@/lib/links/tokens";
 import { parseDayQuery } from "@/lib/notes/date-tokens";
-import { systemPageId } from "@/lib/notes/system-pages";
+import { dayLabelFromPageTitle, systemPageId } from "@/lib/notes/system-pages";
 import { localDateKey } from "@/lib/tracker/day-keys";
 import type { Task } from "@/lib/powersync/AppSchema";
 import { getLinkHost } from "@/lib/tasks/tasks";
@@ -69,7 +69,7 @@ export function useEntitySearch(query: string, excludeId?: string | null): Entit
       {
         kind: "day" as const,
         id: systemPageId(userId, "journal", key),
-        label: journalPageTitle(parsed).replace(/^Journal · /, ""),
+        label: dayLabelFromPageTitle(journalPageTitle(parsed)),
         sublabel: key,
       },
     ];

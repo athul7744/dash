@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { format, isAfter, startOfDay } from "date-fns";
 import { Moon } from "lucide-react";
+import { hourCellKey } from "@/lib/tracker/day-keys";
 import { cn } from "@/lib/shared/utils";
 import { WidgetProps } from "./types";
 import { WidgetHeader, HatchedEmpty } from "./shared";
@@ -18,7 +19,7 @@ export function SleepStats({ days, data, categoryMap }: WidgetProps) {
       if (isAfter(startOfDay(day), today)) continue;
       let sleepHours = 0;
       for (let h = 0; h < 24; h++) {
-        const key = `${dateKey}|${String(h).padStart(2, "0")}`;
+        const key = hourCellKey(dateKey, h);
         const cell = data.get(key);
         if (cell?.activityName && categoryMap[cell.activityName] === "sleep") sleepHours++;
       }

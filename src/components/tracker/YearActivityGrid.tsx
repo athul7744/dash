@@ -11,7 +11,7 @@ import { cn } from "@/lib/shared/utils";
 import { DEFAULT_ACTIVITY_CATEGORY, type ActivityCategory } from "@/lib/tracker/activities";
 import { TimeLog, ActivityType } from "@/lib/powersync/AppSchema";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { localDateKey } from "@/lib/tracker/day-keys";
+import { localDateKey, hourCellKey } from "@/lib/tracker/day-keys";
 import { summarizeDay } from "@/lib/tracker/day-summary";
 import { computeActivityYearInsights } from "@/lib/tracker/year-insights";
 import { ActivityYearInsights, ActivityYearInsightsSkeleton } from "@/components/tracker/year-insights";
@@ -525,7 +525,7 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
       const toF = toFilterRef.current;
       const p = filterProgressRef.current;
       for (let h = 0; h < 24; h++) {
-        const key = `${dateKey}|${String(h).padStart(2, "0")}`;
+        const key = hourCellKey(dateKey, h);
         const cell = cellMap.get(key);
         const x = h * cellStride;
         const hex = cell ? COLOR_HEX[cell.color] || "#6b7280" : undefined;
@@ -654,7 +654,7 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
     }
     const day = allDays[hit.row];
     const dateKey = format(day, "yyyy-MM-dd");
-    const key = `${dateKey}|${String(hit.col).padStart(2, "0")}`;
+    const key = hourCellKey(dateKey, hit.col);
     const cell = cellMap.get(key);
     if (cell) {
       const rect = canvasRef.current!.getBoundingClientRect();

@@ -11,6 +11,7 @@
 import { parseBookmarkContent } from "@/lib/bookmarks/bookmarks";
 import { parseQuoteContent } from "@/lib/quotes/quotes";
 import { parseEventContent } from "@/lib/events/events";
+import { dayLabelFromPageTitle } from "@/lib/notes/system-pages";
 import { stripRefs, type RefKind } from "@/lib/links/tokens";
 
 export type ResolvedEntity = { kind: RefKind; id: string; label: string };
@@ -28,13 +29,6 @@ export type EntityJoinRow = {
   /** `json_extract(page.properties,'$.kind')` — null for real note pages. */
   page_kind: string | null;
 };
-
-/** "Journal · Tue, Sep 15, 2026" → "Tue, Sep 15, 2026"; a day wears its date. */
-function dayLabel(pageTitle: string | null): string {
-  const title = (pageTitle ?? "").trim();
-  const withoutPrefix = title.replace(/^Journal\s*·\s*/, "");
-  return withoutPrefix || title || "A day";
-}
 
 export function classifyEntityRow(row: EntityJoinRow): ResolvedEntity | null {
   if (row.task_id) {
@@ -60,7 +54,7 @@ export function classifyEntityRow(row: EntityJoinRow): ResolvedEntity | null {
       // and Tracker's only way into the graph. Without this it fell through to
       // `default` and read as an ordinary note.
       if (!row.page_id) return null;
-      return { kind: "day", id: row.page_id, label: dayLabel(row.page_title) };
+      return { kind: "day", id: row.page_id, label: dayLabelFromPageTitle(row.page_title) };
     }
     default:
       // A block on a note page → the note itself (collapse block → page).

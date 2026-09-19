@@ -52,6 +52,11 @@ CREATE TABLE public.tasks (
   completed_at TEXT
 );
 
+-- A database created before `completed_at` needs it added, or the first time a
+-- task is ticked the upload is rejected (42703) and that batch is discarded:
+--   ALTER TABLE public.tasks ADD COLUMN completed_at TEXT;
+-- The sync stream selects *, so no PowerSync change goes with it.
+
 -- Tags table (shared by tasks and note page metadata)
 CREATE TABLE public.tags (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

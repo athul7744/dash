@@ -6,7 +6,7 @@ import { format } from "date-fns";
 
 import { useCurrentUserId } from "@/hooks/use-current-user-id";
 import { ensureSystemPage } from "@/lib/notes/notes";
-import { systemPageId } from "@/lib/notes/system-pages";
+import { JOURNAL_TITLE_PREFIX, systemPageId } from "@/lib/notes/system-pages";
 
 /** The journal page key for a given day — one lazily-created page per date. */
 export function journalDayKey(date: Date): string {
@@ -15,7 +15,7 @@ export function journalDayKey(date: Date): string {
 
 /** What a day's journal page is titled — also the label a day reference wears. */
 export function journalPageTitle(date: Date): string {
-  return `Journal · ${format(date, "EEE, MMM d, yyyy")}`;
+  return `${JOURNAL_TITLE_PREFIX}${format(date, "EEE, MMM d, yyyy")}`;
 }
 
 /**

@@ -29,6 +29,8 @@ export interface Quote {
   /** Optional source URL the quote came from. */
   link: string;
   favorite: boolean;
+  /** When it was saved. Absent on quotes kept before this was recorded. */
+  addedAt?: string;
   sortRank: string;
 }
 
@@ -56,6 +58,9 @@ export function parseQuoteContent(raw: string | null | undefined): QuoteContent 
       author: typeof parsed.author === "string" ? parsed.author : "",
       link: typeof parsed.link === "string" ? parsed.link : "",
       favorite: parsed.favorite === true,
+      // Carried through, or an edit would erase when the quote was saved and it
+      // would drop out of that day's intake.
+      addedAt: typeof parsed.addedAt === "string" ? parsed.addedAt : undefined,
     };
   } catch {
     return { text: "", author: "", link: "", favorite: false };

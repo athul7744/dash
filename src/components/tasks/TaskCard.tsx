@@ -14,9 +14,9 @@ import {
 import { v4 as uuidv4 } from "uuid";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { useDerivedState } from "@/hooks/use-derived-state";
-import { debouncedUpdate, debouncedExecute, flushUpdate, cancelExecute, cancelUpdate } from "@/lib/shared/debounced-update";
+import { debouncedUpdate, debouncedExecute, flushUpdate, cancelExecute } from "@/lib/shared/debounced-update";
 import { cn } from "@/lib/shared/utils";
-import { PRIORITY_COLORS, PRIORITY_LEVELS } from "@/lib/tasks/tasks";
+import { cancelTaskStateWrite, setTaskState, PRIORITY_COLORS, PRIORITY_LEVELS } from "@/lib/tasks/tasks";
 import { LinkedFrom } from "@/components/links/LinkedFrom";
 import { RefField } from "@/components/links/RefField";
 import { reconcileEntityRefs } from "@/lib/links/links";
@@ -111,14 +111,10 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
   const persistStateChange = React.useCallback((record: Task, nextState: string) => {
     const persistedState = record.state ?? "pending";
     if (nextState === persistedState) {
-      cancelUpdate(record.id, "state");
-      cancelUpdate(record.id, "completed_at");
+      cancelTaskStateWrite(record.id);
       return;
     }
-    debouncedUpdate(record.id, "state", nextState);
-    // When it was finished, which `updated_at` can't answer — any later edit
-    // moves that. Cleared on un-completing, so the day stops claiming it.
-    debouncedUpdate(record.id, "completed_at", nextState === "completed" ? new Date().toISOString() : null);
+    setTaskState(record.id, nextState);
   }, []);
 
   const handleSaveNew = async () => {

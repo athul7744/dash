@@ -23,3 +23,19 @@ export const SYSTEM_PAGE_NAMESPACE = "b6f0e4a2-1c7d-4f3a-9e58-2a4c8d5b1f90";
 export function systemPageId(userId: string, kind: SystemPageKind, key: string): string {
   return uuidv5(`${kind}:${userId}:${key}`, SYSTEM_PAGE_NAMESPACE);
 }
+
+/**
+ * What a day's journal page is titled with, and how that title reads as a day.
+ *
+ * A day reference wears the date, not the page's name, so three places take the
+ * prefix back off — the ref resolver, the graph, the `[[` picker. Built and
+ * stripped here so changing the title can't leave one of them showing
+ * "Journal · Tue, Sep 15, 2026" while the others show the date.
+ */
+export const JOURNAL_TITLE_PREFIX = "Journal · ";
+
+export function dayLabelFromPageTitle(pageTitle: string | null | undefined): string {
+  const title = (pageTitle ?? "").trim();
+  const label = title.startsWith(JOURNAL_TITLE_PREFIX) ? title.slice(JOURNAL_TITLE_PREFIX.length).trim() : title;
+  return label || "A day";
+}

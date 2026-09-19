@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { format, isAfter, startOfDay } from "date-fns";
 import { Moon, BarChart3 } from "lucide-react";
+import { hourCellKey } from "@/lib/tracker/day-keys";
 import { cn } from "@/lib/shared/utils";
 import { WidgetProps, COLOR_HEX } from "./types";
 import { WidgetHeader, ToggleButton, DismissButton, WheelOverlay } from "./shared";
@@ -20,7 +21,7 @@ export function DailyStacks({ days, data, colorMap, categoryMap }: WidgetProps) 
       let total = 0;
 
       for (let h = 0; h < 24; h++) {
-        const key = `${dateKey}|${String(h).padStart(2, "0")}`;
+        const key = hourCellKey(dateKey, h);
         const cell = data.get(key);
         if (cell?.activityName) {
           if (excludeSleep && categoryMap[cell.activityName] === "sleep") continue;

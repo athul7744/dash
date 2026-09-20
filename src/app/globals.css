@@ -641,6 +641,60 @@ body[data-display-font="bricolage"] {
   color: var(--color-foreground);
 }
 
+/* The edit form stands in for the card, so the block keeps its place in the
+   document while you change where it points. */
+.note-link-embed-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--color-border) 65%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in oklab, var(--color-card) 50%, transparent);
+}
+
+.note-link-embed-form input {
+  width: 100%;
+  border: 1px solid color-mix(in oklab, var(--color-border) 60%, transparent);
+  border-radius: 0.5rem;
+  background: var(--color-background);
+  padding: 0.375rem 0.5rem;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.note-link-embed-form input:focus-visible {
+  border-color: var(--color-ring);
+}
+
+.note-link-embed-form input:disabled {
+  opacity: 0.6;
+}
+
+.note-link-embed-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.note-link-embed-form-actions button {
+  border-radius: 0.5rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-muted-foreground);
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.note-link-embed-form-actions button:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: var(--color-foreground);
+}
+
+.note-link-embed-form-actions button:disabled {
+  opacity: 0.5;
+}
+
 /* Reduced motion still needs the actions to appear — only the fade goes. */
 @media (prefers-reduced-motion: reduce) {
   .note-link-embed-actions,

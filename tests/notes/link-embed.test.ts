@@ -17,6 +17,7 @@ import {
   linkEmbedMarkdown,
   linkEmbedSearchText,
   linkEmbedText,
+  mergeLinkEmbedEdit,
   parseLinkEmbedAttrs,
 } from "@/lib/notes/link-embed";
 
@@ -127,5 +128,58 @@ describe("isEmbeddableUrl", () => {
     expect(isEmbeddableUrl("see https://example.com")).toBe(false);
     expect(isEmbeddableUrl("")).toBe(false);
     expect(isEmbeddableUrl("example.com")).toBe(false);
+  });
+});
+
+describe("mergeLinkEmbedEdit", () => {
+  const current = buildLinkEmbedAttrs(
+    "https://example.com/old",
+    { title: "Old Page", description: "Old copy.", image: "x", host: "example.com" },
+    "att-old",
+  );
+
+  it("relabels without touching anything else", () => {
+    // The address didn't change, so nothing was re-fetched and nothing else moves.
+    const next = mergeLinkEmbedEdit(current, { url: current.url, title: "My label" }, null);
+    expect(next).toEqual({ ...current, title: "My label" });
+  });
+
+  it("re-reads the page when the address changes", () => {
+    const next = mergeLinkEmbedEdit(
+      current,
+      { url: "https://other.com/new", title: current.title },
+      { metadata: { title: "New Page", description: "New copy.", host: "other.com" }, imageAttachmentId: "att-new" },
+    );
+    expect(next).toEqual({
+      url: "https://other.com/new",
+      title: "New Page",
+      description: "New copy.",
+      image: "att-new",
+      host: "other.com",
+    });
+  });
+
+  it("keeps a title you typed yourself across an address change", () => {
+    const next = mergeLinkEmbedEdit(
+      current,
+      { url: "https://other.com/new", title: "My label" },
+      { metadata: { title: "New Page" }, imageAttachmentId: null },
+    );
+    expect(next.title).toBe("My label");
+  });
+
+  it("replaces a title left over from the old page", () => {
+    // Untouched, so it describes a page this card no longer points at.
+    const next = mergeLinkEmbedEdit(
+      current,
+      { url: "https://other.com/new", title: current.title },
+      { metadata: { title: "New Page" }, imageAttachmentId: null },
+    );
+    expect(next.title).toBe("New Page");
+  });
+
+  it("still lands a card when the new address can't be read", () => {
+    const next = mergeLinkEmbedEdit(current, { url: "https://other.com/new", title: "" }, { metadata: null, imageAttachmentId: null });
+    expect(next).toMatchObject({ url: "https://other.com/new", title: "", image: null, host: "other.com" });
   });
 });

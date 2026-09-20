@@ -74,6 +74,40 @@ export function buildLinkEmbedAttrs(
   };
 }
 
+/** What a re-fetch produced, when the address changed. */
+export interface LinkEmbedRefetch {
+  metadata: LinkMetadata | null;
+  imageAttachmentId: string | null;
+}
+
+/**
+ * Apply an edit to a card.
+ *
+ * The two fields answer different questions, so they behave differently. The
+ * title is a label — yours to set, and kept. The URL says which page the card
+ * describes, so changing it makes everything else stale: description, host and
+ * thumbnail are all re-read from the new page.
+ *
+ * The one judgement call is the title on a changed address. A title you typed
+ * yourself survives; one you left as the old page's is replaced, because it
+ * describes a page the card no longer points at.
+ *
+ * `refetch` is null when the address didn't change — then nothing but the label
+ * moves, and no network was touched.
+ */
+export function mergeLinkEmbedEdit(
+  current: LinkEmbedAttrs,
+  next: { url: string; title: string },
+  refetch: LinkEmbedRefetch | null,
+): LinkEmbedAttrs {
+  const title = next.title.trim();
+  if (!refetch) return { ...current, title };
+
+  const rebuilt = buildLinkEmbedAttrs(next.url, refetch.metadata, refetch.imageAttachmentId);
+  const keptOwnTitle = title !== current.title;
+  return { ...rebuilt, title: keptOwnTitle ? title : rebuilt.title };
+}
+
 /** Read a node's attrs back, tolerating anything missing or the wrong type. */
 export function parseLinkEmbedAttrs(attrs: Record<string, unknown> | null | undefined): LinkEmbedAttrs {
   const url = str(attrs?.url);

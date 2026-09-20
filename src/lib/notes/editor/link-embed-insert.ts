@@ -21,6 +21,7 @@ import {
   buildLinkEmbedAttrs,
   isEmbeddableUrl,
   LINK_EMBED_NODE_TYPE,
+  type LinkEmbedRefetch,
   type LinkMetadata,
 } from "@/lib/notes/link-embed";
 import { discardStoredBytes, insertAttachmentRow, storeFileBytes, type StoredBytes } from "@/lib/storage/attachments";
@@ -112,4 +113,26 @@ export async function insertLinkEmbed(
   await flushAllBlockDocumentPersisters();
   if (thumbnail) await insertAttachmentRow(thumbnail);
   return true;
+}
+
+/**
+ * Re-read a card's page for an edit that changed the address.
+ *
+ * The same two lookups the insert makes, and the same tolerance: a page that
+ * can't be reached leaves a card with its new URL and host and nothing else,
+ * which is still a working link.
+ *
+ * The thumbnail is stored against the block that already exists, so unlike the
+ * insert there is no ordering to arrange — the caller writes the attachment row
+ * once the edited attrs are saved. The card's previous image is left where it
+ * is, as a replaced page banner is: it is owned by this block and goes when the
+ * block does.
+ */
+export async function refetchLinkEmbed(
+  url: string,
+  blockId: string,
+): Promise<LinkEmbedRefetch & { stored: StoredBytes | null }> {
+  const metadata = await fetchMetadata(url);
+  const thumbnail = await storeThumbnail(metadata?.image, blockId);
+  return { metadata, imageAttachmentId: thumbnail?.id ?? null, stored: thumbnail };
 }

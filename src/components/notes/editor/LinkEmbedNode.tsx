@@ -15,18 +15,29 @@
 
 import { Node, mergeAttributes } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
-import { Check, Copy, ExternalLink, Link2, Trash2 } from "lucide-react";
+import { Check, Copy, ExternalLink, Link2, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { useImageSource } from "@/hooks/use-image-source";
 import { BLOCK_CONTENT_GROUP } from "@/lib/notes/editor/block-schema";
-import { LINK_EMBED_NODE_TYPE, linkEmbedText, parseLinkEmbedAttrs } from "@/lib/notes/link-embed";
+import { refetchLinkEmbed } from "@/lib/notes/editor/link-embed-insert";
+import { insertAttachmentRow } from "@/lib/storage/attachments";
+import {
+  isEmbeddableUrl,
+  LINK_EMBED_NODE_TYPE,
+  linkEmbedText,
+  mergeLinkEmbedEdit,
+  parseLinkEmbedAttrs,
+} from "@/lib/notes/link-embed";
 
-function LinkEmbedCard({ node, deleteNode }: ReactNodeViewProps) {
+function LinkEmbedCard({ node, deleteNode, updateAttributes, editor, getPos }: ReactNodeViewProps) {
   const attrs = parseLinkEmbedAttrs(node.attrs);
   const { url, title, description, host } = attrs;
   const image = useImageSource(attrs.image);
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ url, title });
+  const [saving, setSaving] = useState(false);
 
   const copy = () => {
     void navigator.clipboard?.writeText(url).then(() => {
@@ -34,6 +45,92 @@ function LinkEmbedCard({ node, deleteNode }: ReactNodeViewProps) {
       setTimeout(() => setCopied(false), 1200);
     });
   };
+
+  const openEditor = () => {
+    setDraft({ url, title });
+    setEditing(true);
+  };
+
+  /**
+   * The thumbnail has to be stored against a real block, and the card's own
+   * block is the one wrapping this node.
+   */
+  const owningBlockId = (): string | null => {
+    try {
+      const pos = getPos();
+      if (typeof pos !== "number") return null;
+      const blockId = editor.state.doc.resolve(pos).parent.attrs?.blockId;
+      return typeof blockId === "string" ? blockId : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const save = async () => {
+    if (saving) return;
+    const nextUrl = draft.url.trim();
+    if (!isEmbeddableUrl(nextUrl)) return;
+
+    const addressChanged = nextUrl !== url;
+    const blockId = owningBlockId();
+    setSaving(true);
+    try {
+      // Only a changed address is worth a round trip; a relabel is local.
+      const refetch = addressChanged && blockId ? await refetchLinkEmbed(nextUrl, blockId) : null;
+      updateAttributes(mergeLinkEmbedEdit(attrs, { url: nextUrl, title: draft.title }, refetch));
+      if (refetch?.stored) await insertAttachmentRow(refetch.stored);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <NodeViewWrapper className="note-link-embed" contentEditable={false}>
+        <form
+          className="note-link-embed-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void save();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              setEditing(false);
+            }
+          }}
+        >
+          <input
+            autoFocus
+            type="text"
+            value={draft.url}
+            onChange={(event) => setDraft((d) => ({ ...d, url: event.target.value }))}
+            placeholder="https://…"
+            aria-label="Web address"
+            disabled={saving}
+          />
+          <input
+            type="text"
+            value={draft.title}
+            onChange={(event) => setDraft((d) => ({ ...d, title: event.target.value }))}
+            placeholder="Title"
+            aria-label="Card title"
+            disabled={saving}
+          />
+          <div className="note-link-embed-form-actions">
+            <button type="button" onClick={() => setEditing(false)} disabled={saving}>
+              Cancel
+            </button>
+            <button type="submit" disabled={saving || !isEmbeddableUrl(draft.url)}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </form>
+      </NodeViewWrapper>
+    );
+  }
 
   return (
     <NodeViewWrapper className="note-link-embed" contentEditable={false}>
@@ -51,6 +148,9 @@ function LinkEmbedCard({ node, deleteNode }: ReactNodeViewProps) {
         </button>
         <button type="button" title="Copy link" aria-label="Copy link" onClick={copy}>
           {copied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+        </button>
+        <button type="button" title="Edit link" aria-label="Edit link" onClick={openEditor}>
+          <Pencil className="h-3.5 w-3.5" aria-hidden />
         </button>
         <button type="button" title="Remove card" aria-label="Remove card" onClick={() => deleteNode()}>
           <Trash2 className="h-3.5 w-3.5" aria-hidden />

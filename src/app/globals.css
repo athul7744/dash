@@ -775,13 +775,20 @@ body[data-display-font="bricolage"] {
    full width, so the rail is wide enough to stay near that shape: a narrower one
    centre-crops a third off each side and takes the words with it. */
 .note-link-embed-thumb {
+  position: relative;
   flex: 0 0 auto;
   width: 11rem;
   align-self: stretch;
   background: color-mix(in oklab, var(--color-muted) 60%, transparent);
 }
 
+/* Pinned rather than sized at 100%: the rail's height comes from flex stretch,
+   which a percentage height doesn't reliably resolve against — the image fell
+   back to its intrinsic ratio and left a gap under any banner wider than the
+   rail's own shape. */
 .note-link-embed-thumb img {
+  position: absolute;
+  inset: 0;
   height: 100%;
   width: 100%;
   object-fit: cover;
@@ -805,6 +812,7 @@ body[data-display-font="bricolage"] {
     /* Stacked, there is room to show the banner at its own shape. */
     aspect-ratio: 1.91;
     height: auto;
+    align-self: auto;
   }
 }
 

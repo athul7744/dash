@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PowerSyncProvider } from "@/components/powersync-provider";
 import { CaptureProvider } from "@/components/capture/CaptureProvider";
+import { AppUpdateWatcher } from "@/components/AppUpdateWatcher";
 import { CommandPaletteProvider } from "@/components/command/CommandPaletteProvider";
 import { PreventZoom } from "@/components/PreventZoom";
 import { ToastProvider } from "@/components/toast/ToastProvider";
@@ -82,6 +83,8 @@ export default function RootLayout({
                 palette's entity popup both render cards that toast, and a
                 provider can only be used from inside its own subtree. */}
             <ToastProvider>
+              {/* Inside the toast provider: an update offer is a toast. */}
+              <AppUpdateWatcher />
               <CaptureProvider>
                 <CommandPaletteProvider>
                   {/* App Shell Layout structure will be placed here or inside individual pages */}

@@ -13,6 +13,7 @@ import {
   Mail,
   Monitor,
   Moon,
+  RefreshCw,
   Sun,
   Loader2,
   type LucideIcon,
@@ -35,6 +36,8 @@ import {
 } from "@/components/ui/drawer";
 import { formatRelativeTime } from "@/lib/shared/utils";
 import { ResetLocalDataDialog } from "@/components/ResetLocalDataDialog";
+import { useToast } from "@/components/toast/ToastProvider";
+import { applyUpdate, checkForUpdate } from "@/lib/shared/app-update";
 import {
   LAST_IMPORT_BATCH_QUERY,
   toImportBatchSummary,
@@ -319,6 +322,24 @@ function NotificationsSection({ open }: { open: boolean }) {
 function DataSection({ onClose, onImportLogseq }: { onClose: () => void; onImportLogseq?: () => void }) {
   const [showReset, setShowReset] = useState(false);
   const [undoing, setUndoing] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const { toast } = useToast();
+
+  // An installed app has no reload gesture, so this is the deliberate way to
+  // pull in a deployment. Applying reloads the page, so nothing follows it.
+  const checkUpdate = async () => {
+    if (checkingUpdate) return;
+    setCheckingUpdate(true);
+    try {
+      if (await checkForUpdate()) {
+        await applyUpdate();
+        return;
+      }
+      toast({ message: "You're on the latest version." });
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
 
   // Mounted only while Settings is open, so this doesn't run app-wide.
   const { data: batchRows = [] } = useQuery<LastImportBatchRow>(LAST_IMPORT_BATCH_QUERY);
@@ -336,6 +357,16 @@ function DataSection({ onClose, onImportLogseq }: { onClose: () => void; onImpor
 
   return (
     <SettingsSection title="Data">
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={checkingUpdate}
+        onClick={() => void checkUpdate()}
+        className="w-full justify-start gap-2"
+      >
+        {checkingUpdate ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+        {checkingUpdate ? "Checking…" : "Check for updates"}
+      </Button>
       {onImportLogseq ? (
         <Button
           variant="ghost"

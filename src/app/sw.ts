@@ -13,7 +13,13 @@ declare const self: ServiceWorkerGlobalScope;
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
-  skipWaiting: true,
+  // The new worker waits instead of taking over on its own, and the app asks it
+  // to step in (`SKIP_WAITING`, which Serwist only listens for when this is
+  // false — see `lib/shared/app-update.ts`). Two reasons: an installed app has
+  // no reload gesture, so an update has to be *offered* rather than assumed;
+  // and a worker that activates under a running page leaves it asking for JS
+  // chunks the new deployment no longer has.
+  skipWaiting: false,
   clientsClaim: true,
   // navigationPreload disabled: navigations are served cache-first below, so a
   // parallel network preload would just be wasted work on every launch.

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePowerSync } from "@powersync/react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, getYear } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
@@ -25,7 +25,7 @@ import { getApp } from "@/lib/shared/apps";
 import { flushAllUpdates } from "@/lib/shared/debounced-update";
 import { flushAllBlockDocumentPersisters } from "@/lib/notes/editor/block-persister";
 import { cn } from "@/lib/shared/utils";
-import { DURATION, SPRING_SOFT } from "@/lib/shared/motion";
+import { SPRING_SOFT } from "@/lib/shared/motion";
 import { DEFAULT_ACTIVITIES } from "@/lib/tracker/activities";
 import { DEFAULT_MOODS } from "@/lib/tracker/moods";
 import { useTimeGrid } from "@/hooks/use-time-grid";
@@ -75,6 +75,14 @@ export function TrackerWorkspace() {
   if (pendingView !== null && pendingView === routeView) {
     setPendingView(null);
   }
+
+  // Each view is built the first time it is opened and kept mounted after.
+  // Switching tabs then shows and hides panels instead of tearing one down and
+  // building the next — a year heatmap that unmounts loses its queries, so
+  // coming back to it started from nothing and drew a full skeleton over data
+  // the app already had, on every switch.
+  const [visited, setVisited] = useState<Set<ViewMode>>(() => new Set([view]));
+  if (!visited.has(view)) setVisited(new Set(visited).add(view));
 
   useEffect(() => {
     void getCurrentUserId();
@@ -229,20 +237,9 @@ export function TrackerWorkspace() {
       </div>
 
       <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto px-[var(--app-gutter-x)] py-4 pb-[var(--mobile-bottom-fab-clearance)] sm:pb-4 md:py-8">
-        <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={view}
-          initial={reduce ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          // Instant exit so mode="wait" mounts the incoming view (and its
-          // skeleton) immediately instead of holding on the old view's fade.
-          exit={{ opacity: 0, transition: { duration: 0 } }}
-          transition={{ duration: reduce ? 0 : DURATION.fast }}
-          className="space-y-4"
-        >
         {/* Week View */}
-        {view === "week" && (
-          <>
+        {visited.has("week") && (
+          <div className={cn("space-y-4", view !== "week" && "hidden")}>
             <WeekNavigator currentDate={currentDate} onDateChange={setCurrentDate} />
 
             {showSkeleton ? (
@@ -274,60 +271,62 @@ export function TrackerWorkspace() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
 
         {/* Year Activity Heatmap */}
-        {view === "activity" && (
-          <YearActivityGrid
-            year={selectedYear}
-            onDayClick={handleDayClick}
-            optimisticTimeLogs={grid.optimisticTimeLogs}
-            headerLeft={
-              <div className="flex items-center gap-2 shrink-0 pt-1 [touch-action:pan-y]">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedYear} onValueChange={(v: number | null) => v != null && setSelectedYear(parseInt(String(v), 10))}>
-                  <SelectTrigger size="sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((y) => (
-                      <SelectItem key={y} value={y}>{y}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            }
-          />
+        {visited.has("activity") && (
+          <div className={cn("space-y-4", view !== "activity" && "hidden")}>
+            <YearActivityGrid
+              year={selectedYear}
+              onDayClick={handleDayClick}
+              optimisticTimeLogs={grid.optimisticTimeLogs}
+              headerLeft={
+                <div className="flex items-center gap-2 shrink-0 pt-1 [touch-action:pan-y]">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Select value={selectedYear} onValueChange={(v: number | null) => v != null && setSelectedYear(parseInt(String(v), 10))}>
+                    <SelectTrigger size="sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map((y) => (
+                        <SelectItem key={y} value={y}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              }
+            />
+          </div>
         )}
 
         {/* Year Rating Heatmap */}
-        {view === "mood" && (
-          <YearRatingGrid
-            year={selectedYear}
-            onDayClick={handleDayClick}
-            moods={moods}
-            optimisticRatings={grid.optimisticRatings}
-            optimisticTimeLogs={grid.optimisticTimeLogs}
-            headerLeft={
-              <div className="flex items-center gap-2 shrink-0 [touch-action:pan-y]">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedYear} onValueChange={(v: number | null) => v != null && setSelectedYear(parseInt(String(v), 10))}>
-                  <SelectTrigger size="sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((y) => (
-                      <SelectItem key={y} value={y}>{y}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            }
-          />
+        {visited.has("mood") && (
+          <div className={cn("space-y-4", view !== "mood" && "hidden")}>
+            <YearRatingGrid
+              year={selectedYear}
+              onDayClick={handleDayClick}
+              moods={moods}
+              optimisticRatings={grid.optimisticRatings}
+              optimisticTimeLogs={grid.optimisticTimeLogs}
+              headerLeft={
+                <div className="flex items-center gap-2 shrink-0 [touch-action:pan-y]">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Select value={selectedYear} onValueChange={(v: number | null) => v != null && setSelectedYear(parseInt(String(v), 10))}>
+                    <SelectTrigger size="sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map((y) => (
+                        <SelectItem key={y} value={y}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              }
+            />
+          </div>
         )}
-        </motion.div>
-        </AnimatePresence>
       </div>
 
       <MobileBottomFabs

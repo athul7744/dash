@@ -15,19 +15,47 @@
 
 import { Node, mergeAttributes } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
-import { Link2 } from "lucide-react";
+import { Check, Copy, ExternalLink, Link2, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { useImageSource } from "@/hooks/use-image-source";
 import { BLOCK_CONTENT_GROUP } from "@/lib/notes/editor/block-schema";
 import { LINK_EMBED_NODE_TYPE, linkEmbedText, parseLinkEmbedAttrs } from "@/lib/notes/link-embed";
 
-function LinkEmbedCard({ node }: ReactNodeViewProps) {
+function LinkEmbedCard({ node, deleteNode }: ReactNodeViewProps) {
   const attrs = parseLinkEmbedAttrs(node.attrs);
   const { url, title, description, host } = attrs;
   const image = useImageSource(attrs.image);
+  const [copied, setCopied] = useState(false);
+
+  const copy = () => {
+    void navigator.clipboard?.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    });
+  };
 
   return (
     <NodeViewWrapper className="note-link-embed" contentEditable={false}>
+      {/* A card's own actions. The editor's link toolbar can't serve one: that
+          edits a link *mark*, and a card is a node — there is no mark to change,
+          and removing it means removing the block. */}
+      <div className="note-link-embed-actions">
+        <button
+          type="button"
+          title="Open in browser"
+          aria-label="Open in browser"
+          onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+        >
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+        </button>
+        <button type="button" title="Copy link" aria-label="Copy link" onClick={copy}>
+          {copied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+        </button>
+        <button type="button" title="Remove card" aria-label="Remove card" onClick={() => deleteNode()}>
+          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      </div>
       {/* The anchor is the whole card. `contentEditable={false}` above means the
           editor treats it as one unit, so a plain link here behaves. */}
       <a href={url} target="_blank" rel="noreferrer noopener" className="note-link-embed-card" title={url}>

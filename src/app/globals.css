@@ -596,7 +596,57 @@ body[data-display-font="bricolage"] {
    a fixed rail and the text takes the rest — a long title wraps to two lines and
    stops, so cards in a list stay the same height. */
 .note-link-embed {
+  position: relative;
   margin: 0.5rem 0;
+}
+
+/* The card's own actions, over its top-right corner. Hidden until the card is
+   hovered or one of them has focus, so the card stays a card when you're just
+   reading — the same bargain the block grip makes. */
+.note-link-embed-actions {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  border: 1px solid color-mix(in oklab, var(--color-border) 60%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in oklab, var(--color-popover) 92%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 14px -8px rgb(15 23 42 / 0.5);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.note-link-embed:hover > .note-link-embed-actions,
+.note-link-embed-actions:focus-within {
+  opacity: 1;
+}
+
+.note-link-embed-actions button {
+  display: grid;
+  place-items: center;
+  height: 1.5rem;
+  width: 1.5rem;
+  border-radius: 0.375rem;
+  color: var(--color-muted-foreground);
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.note-link-embed-actions button:hover {
+  background: var(--color-accent);
+  color: var(--color-foreground);
+}
+
+/* Reduced motion still needs the actions to appear — only the fade goes. */
+@media (prefers-reduced-motion: reduce) {
+  .note-link-embed-actions,
+  .note-link-embed-actions button {
+    transition: none;
+  }
 }
 
 .note-link-embed-card {

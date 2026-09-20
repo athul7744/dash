@@ -34,6 +34,7 @@ import { useJournalEntryDays } from "@/hooks/use-journal";
 import { useBacklinks } from "@/hooks/use-links";
 import { useTimeGrid } from "@/hooks/use-time-grid";
 import { getDueDateInfo } from "@/lib/tasks/tasks";
+import { stripRefs } from "@/lib/links/tokens";
 import { dayApp } from "@/lib/shared/destinations";
 import { systemPageId } from "@/lib/notes/system-pages";
 import { localDateKey } from "@/lib/tracker/day-keys";
@@ -215,7 +216,7 @@ export default function DayPage() {
               {tasks.completed.map((task) => (
                 <li key={task.id}>
                   <EntityRow kind="task" id={task.id} done trailing="done">
-                    {task.title}
+                    {stripRefs(task.title ?? "") || "Untitled task"}
                   </EntityRow>
                 </li>
               ))}
@@ -226,7 +227,7 @@ export default function DayPage() {
                     id={task.id}
                     trailing={task.due_date ? getDueDateInfo(new Date(task.due_date)).label : "due"}
                   >
-                    {task.title}
+                    {stripRefs(task.title ?? "") || "Untitled task"}
                   </EntityRow>
                 </li>
               ))}
@@ -280,7 +281,7 @@ export default function DayPage() {
               {captures.quotes.map((quote) => (
                 <li key={quote.id}>
                   <EntityRow kind="quote" id={quote.id}>
-                    {quote.text}
+                    {stripRefs(quote.text ?? "") || "Untitled quote"}
                   </EntityRow>
                 </li>
               ))}

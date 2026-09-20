@@ -43,6 +43,11 @@ export async function ensureJournalPage(date: Date): Promise<string> {
  * reference has a row to resolve against, and that page has no blocks. Asking
  * for the page instead would make every linked day read as written on, so a day
  * you have only mentioned would open its editor rather than its prompt.
+ *
+ * It asks whether a block exists, not whether it holds text, so a day emptied
+ * down to one blank block still counts as written on — a linked day isn't
+ * pruned when it empties, so that block survives. Rare, and the alternative is
+ * digging for text inside every block's JSON.
  */
 export function useJournalEntryDays(dates: Date[]): Set<string> {
   const userId = useCurrentUserId();

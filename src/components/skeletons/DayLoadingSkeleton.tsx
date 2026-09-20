@@ -2,10 +2,8 @@
 
 import { AppHeader } from "@/components/AppHeader";
 import { Skeleton, SkeletonWave } from "@/components/ui/skeleton";
+import { TimeGridSkeleton } from "@/components/tracker/TimeGridSkeleton";
 import { dayApp } from "@/lib/shared/destinations";
-
-/** One hour column of the day's grid — 24, at the same 44px pitch as `TimeGrid`. */
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 /**
  * Cold-start and route skeleton for `/day/<yyyy-MM-dd>`. It borrowed Tracker's
@@ -68,43 +66,7 @@ export function DayLoadingSkeleton() {
                 <Skeleton key={i} className="h-7 w-20 shrink-0 rounded-full" />
               ))}
             </div>
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="border-separate border-spacing-0 w-max min-w-full text-xs">
-                <thead>
-                  <tr>
-                    <th className="sticky left-0 z-30 bg-muted px-1 py-2 w-[52px] border-r border-b border-border">
-                      <Skeleton className="h-3 w-8 mx-auto" />
-                    </th>
-                    <th className="sticky left-[52px] z-30 bg-muted px-3 py-2 w-[120px] border-r border-b border-border">
-                      <Skeleton className="h-3 w-10" />
-                    </th>
-                    {HOURS.map((h) => (
-                      <th
-                        key={h}
-                        className={`px-1 py-2 text-center font-medium text-muted-foreground min-w-[44px] border-b border-border ${h > 0 ? "border-l" : ""}`}
-                      >
-                        {String(h).padStart(2, "0")}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="sticky left-0 z-20 bg-muted px-1 py-1 border-r border-border w-[52px]">
-                      <Skeleton className="size-4 rounded-full mx-auto" />
-                    </td>
-                    <td className="sticky left-[52px] z-20 bg-muted px-3 py-2 w-[120px] border-r border-border">
-                      <Skeleton className="h-3 w-16" />
-                    </td>
-                    {HOURS.map((h) => (
-                      <td key={h} className={`border-border h-9 min-w-[44px] ${h > 0 ? "border-l" : ""}`}>
-                        {h % 5 === 0 && <Skeleton className="h-full w-full rounded-none" />}
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <TimeGridSkeleton rows={1} />
           </div>
         </section>
 

@@ -40,7 +40,7 @@ export const graphApp: AppConfig = {
     // and the only warm dark in the set. Notes' amber is the neighbour to watch
     // — the graph is most often reached from there — so this stays on the brown
     // side of orange, where the amber never goes.
-    iconBg: "bg-orange-800/10 dark:bg-orange-700/20",
+    iconBg: "bg-orange-500/10 dark:bg-orange-500/20",
     iconText: "text-orange-800 dark:text-orange-400",
     hoverText: "hover:text-orange-900 dark:hover:text-orange-300",
   },

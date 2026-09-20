@@ -47,6 +47,11 @@ const toastPresenceReduced = {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  // Above every layer that can raise one (dialog 50, alert dialog 60/61, the
+  // editor's `[[` menu 80). A toast reports what just happened, so a modal it
+  // was raised from must never hide it — an undo offered from inside a dialog is
+  // worse than no undo, since the action still happened.
+
   const nextId = useRef(1);
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
   const reduce = useReducedMotion();
@@ -75,7 +80,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ toast }}>
       {children}
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5rem)] z-50 flex flex-col items-center gap-2 px-[var(--app-gutter-x,1rem)] sm:bottom-[calc(env(safe-area-inset-bottom)+1.5rem)]"
+        className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5rem)] z-[90] flex flex-col items-center gap-2 px-[var(--app-gutter-x,1rem)] sm:bottom-[calc(env(safe-area-inset-bottom)+1.5rem)]"
         role="region"
         aria-live="polite"
       >

@@ -21,7 +21,7 @@ import { useState } from "react";
 import { useImageSource } from "@/hooks/use-image-source";
 import { BLOCK_CONTENT_GROUP } from "@/lib/notes/editor/block-schema";
 import { refetchLinkEmbed } from "@/lib/notes/editor/link-embed-insert";
-import { insertAttachmentRow } from "@/lib/storage/attachments";
+import { deleteAttachmentById, insertAttachmentRow } from "@/lib/storage/attachments";
 import {
   isEmbeddableUrl,
   LINK_EMBED_NODE_TYPE,
@@ -77,8 +77,15 @@ function LinkEmbedCard({ node, deleteNode, updateAttributes, editor, getPos }: R
     try {
       // Only a changed address is worth a round trip; a relabel is local.
       const refetch = addressChanged && blockId ? await refetchLinkEmbed(nextUrl, blockId) : null;
-      updateAttributes(mergeLinkEmbedEdit(attrs, { url: nextUrl, title: draft.title }, refetch));
+      const next = mergeLinkEmbedEdit(attrs, { url: nextUrl, title: draft.title }, refetch);
+      updateAttributes(next);
       if (refetch?.stored) await insertAttachmentRow(refetch.stored);
+
+      // The replaced thumbnail, once nothing points at it. Deleted by id, not by
+      // block: the new one is owned by the same block, so clearing the block's
+      // attachments would take it too. Left behind it would still show in the
+      // page's Files rail, since its block is very much alive.
+      if (attrs.image && attrs.image !== next.image) await deleteAttachmentById(attrs.image);
       setEditing(false);
     } finally {
       setSaving(false);

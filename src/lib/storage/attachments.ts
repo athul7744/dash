@@ -184,3 +184,19 @@ async function purgeFiles(rows: Array<{ id: string; file_path: string | null }>)
     log.warn("Attachment delete failed (orphan sweep will retry)", err, paths);
   }
 }
+
+/**
+ * Delete one attachment by id, looking its path up first.
+ *
+ * For a caller replacing an entity's file when the entity owns more than one —
+ * a link card's thumbnail lives on the same block as the card, so
+ * `deleteEntityAttachments` would take the replacement with it.
+ */
+export async function deleteAttachmentById(id: string, ctx: DbContext = db): Promise<void> {
+  const rows = await ctx.getAll<{ id: string; file_path: string }>(
+    "SELECT id, file_path FROM attachments WHERE id = ?",
+    [id],
+  );
+  const row = rows[0];
+  if (row) await deleteAttachment(row);
+}

@@ -121,9 +121,7 @@ export async function insertLinkEmbed(
  *
  * The thumbnail is stored against the block that already exists, so unlike the
  * insert there is no ordering to arrange — the caller writes the attachment row
- * once the edited attrs are saved. The card's previous image is left where it
- * is, as a replaced page banner is: it is owned by this block and goes when the
- * block does.
+ * once the edited attrs are saved, and drops the one it replaced.
  */
 export async function refetchLinkEmbed(
   url: string,

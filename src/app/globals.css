@@ -782,15 +782,19 @@ body[data-display-font="bricolage"] {
   background: color-mix(in oklab, var(--color-muted) 60%, transparent);
 }
 
-/* Pinned rather than sized at 100%: the rail's height comes from flex stretch,
-   which a percentage height doesn't reliably resolve against — the image fell
-   back to its intrinsic ratio and left a gap under any banner wider than the
-   rail's own shape. */
+/* Pinned to the rail, so it fills whatever height the card's text gives it.
+   Scoped under `.ProseMirror` to outrank that stylesheet's own `img` rule, which
+   ties on specificity and would otherwise win on source order: its `height:auto`
+   makes a *replaced* element take its intrinsic height and ignore `bottom` —
+   the gap — and its radius rounds the image inside a square rail. */
+.ProseMirror .note-link-embed-thumb img,
 .note-link-embed-thumb img {
   position: absolute;
   inset: 0;
   height: 100%;
   width: 100%;
+  max-width: none;
+  border-radius: 0;
   object-fit: cover;
   display: block;
 }

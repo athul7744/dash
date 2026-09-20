@@ -40,7 +40,7 @@ import { SearchPopup } from "@/components/ui/search-popup";
 import { EntityPopup, type EntityRef } from "@/components/command/EntityPopup";
 import { OPEN_ENTITY_EVENT, type OpenEntityDetail } from "@/components/links/EntityRefNode";
 import { useCapture } from "@/components/capture/CaptureProvider";
-import { useAllNotePages } from "@/hooks/use-notes";
+import { useAllNotePagesWithPreview } from "@/hooks/use-notes";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useEvents } from "@/hooks/use-events";
@@ -331,9 +331,12 @@ function CommandPaletteResults({
   const { data: allTasks = [] } = useQuery<TaskRow>(
     "SELECT * FROM tasks WHERE state != 'trashed' AND parent_id IS NULL ORDER BY updated_at DESC",
   );
-  const { pages } = useAllNotePages();
+  // This component only mounts while the palette is open, so it can afford the
+  // summaries it matches on and shows as snippets.
+  const { pages } = useAllNotePagesWithPreview(true);
   const { filteredSearchPages, allNormalizedPages } = useNotesPageDerivedState({
     allPages: pages,
+    searchPages: pages,
     recentPages: pages,
     pageSearchQuery: deferredQuery,
   });

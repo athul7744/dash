@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { SEARCH_POPUP_CLOSE_ANIMATION_MS } from "@/components/ui/search-popup";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { useAllNotePages, useFavoriteNotePages, useRecentNotePages } from "@/hooks/use-notes";
+import { useAllNotePages, useAllNotePagesWithPreview, useFavoriteNotePages, useRecentNotePages } from "@/hooks/use-notes";
 import { useSettled } from "@/hooks/use-settled";
 import { createStarterPage, normalizeNotePageTitle, updateNotePageProperties } from "@/lib/notes/notes";
 import { flushAllBlockDocumentPersisters } from "@/lib/notes/editor/block-persister";
@@ -132,6 +132,8 @@ export function NotesWorkspace() {
 
   // ─── Overview-level data ─────────────────────────────────────────────────
   const { pages: allPages = [] } = useAllNotePages();
+  // Summaries cost a block read per page, so they wait for the popup that shows them.
+  const { pages: searchPages = [] } = useAllNotePagesWithPreview(isPageSearchOpen);
   // Recently accessed loads incrementally as the user scrolls (infinite scroll).
   const [recentLimit, setRecentLimit] = useState(RECENT_PAGE_SIZE);
   const { pages: recentPages = [], isLoading: isLoadingRecentPages } = useRecentNotePages(recentLimit);
@@ -157,6 +159,7 @@ export function NotesWorkspace() {
     tagDirectory,
   } = useNotesPageDerivedState({
     allPages,
+    searchPages,
     recentPages,
     favoritePageRows,
     pageSearchQuery,

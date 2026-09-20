@@ -13,7 +13,15 @@ import { type NormalizedNotePage, type TagDirectoryEntry } from "./types";
 import { getPageDescription, normalizePageEmoji, parseProperties, resolveNoteTags } from "./utils";
 
 type UseNotesPageDerivedStateParams = {
+  /** Every page, without summaries — the title/emoji index and the tag directory. */
   allPages: NotePageRow[];
+  /**
+   * The same pages *with* summaries, loaded only while the search popup is open.
+   * Search reads and displays summaries; nothing else does, and fetching one per
+   * page is what made opening notes slow. Empty when the popup is closed, which
+   * is also when nothing reads `filteredSearchPages`.
+   */
+  searchPages: NotePageRow[];
   recentPages: NotePageRow[];
   /** Full favorites set (see useFavoriteNotePages). Optional for consumers (e.g. search) that don't render favorites. */
   favoritePageRows?: NotePageRow[];
@@ -43,6 +51,7 @@ function normalizePages(
 
 export function useNotesPageDerivedState({
   allPages,
+  searchPages,
   recentPages,
   favoritePageRows = [],
   pageSearchQuery,
@@ -61,9 +70,10 @@ export function useNotesPageDerivedState({
     [availableTags, recentPages, tagsByPage]
   );
 
+  // Search's own list: the same pages, but carrying the summaries it matches on.
   const allNormalizedPages = useMemo<NormalizedNotePage[]>(
-    () => normalizePages(allPages, availableTags, tagsByPage),
-    [allPages, availableTags, tagsByPage]
+    () => normalizePages(searchPages, availableTags, tagsByPage),
+    [searchPages, availableTags, tagsByPage]
   );
 
   const notePageTitles = useMemo(() => {

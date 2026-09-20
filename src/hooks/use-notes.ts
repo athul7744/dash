@@ -69,6 +69,17 @@ export function useNoteBlocks(pageId?: string | null) {
 // The note-page SELECT list: page columns plus a `preview_content` correlated
 // subquery (the first block's content). Shared by the recent/favorite/all
 // queries so the subquery lives in one place.
+/**
+ * Page columns without the preview.
+ *
+ * The preview below reads a whole block's JSON per page, which is worth it for a
+ * handful of cards and not for a list of every page in the vault.
+ */
+const NOTE_PAGE_COLUMNS = [
+  "SELECT id, user_id, title, properties, created_at, updated_at",
+  "FROM pages",
+].join(" ");
+
 const NOTE_PAGE_SELECT = [
   "SELECT id, user_id, title, properties, created_at, updated_at,",
   "  (SELECT content FROM blocks WHERE page_id = pages.id ORDER BY sort_rank ASC LIMIT 1) AS preview_content",
@@ -107,15 +118,38 @@ export function useFavoriteNotePages() {
   };
 }
 
+/**
+ * Every page, for the things that only need to know a page exists — the wikilink
+ * title index, the tag directory. No preview: this one is always mounted while
+ * the notes workspace is, and pulling a block's JSON for every page in the vault
+ * to build a summary nobody is looking at is the expensive half of opening
+ * notes. Summaries come from `useAllNotePagesWithPreview`, on demand.
+ */
 export function useAllNotePages() {
   const { data = [], isLoading } = useQuery<NotePageRow>(
-    [NOTE_PAGE_SELECT, NOTE_PAGE_WHERE, "ORDER BY title COLLATE NOCASE ASC, updated_at DESC, created_at DESC"].join(" ")
+    [NOTE_PAGE_COLUMNS, NOTE_PAGE_WHERE, "ORDER BY title COLLATE NOCASE ASC, updated_at DESC, created_at DESC"].join(" ")
   );
 
   return {
     pages: data,
     isLoading,
   };
+}
+
+/**
+ * The same list with each page's summary, for the page-search popup — which
+ * searches summaries and shows them, and is open a fraction of the time. Off
+ * until `enabled`, so the cost lands when the popup opens rather than on every
+ * visit to notes.
+ */
+export function useAllNotePagesWithPreview(enabled: boolean) {
+  const { data = [] } = useQuery<NotePageRow>(
+    enabled
+      ? [NOTE_PAGE_SELECT, NOTE_PAGE_WHERE, "ORDER BY title COLLATE NOCASE ASC, updated_at DESC, created_at DESC"].join(" ")
+      : EMPTY_PAGE_QUERY,
+  );
+
+  return { pages: data };
 }
 
 /**

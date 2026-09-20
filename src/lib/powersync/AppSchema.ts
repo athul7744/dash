@@ -1,17 +1,35 @@
 import { column, Schema, Table } from '@powersync/web';
 
-export const tasksTable = new Table({
-  user_id: column.text,
-  parent_id: column.text,
-  title: column.text,
-  due_date: column.text,
-  priority: column.text,
-  link: column.text,
-  state: column.text,
-  created_at: column.text,
-  updated_at: column.text,
-  completed_at: column.text
-});
+/**
+ * Indexes here are local to this device's SQLite database — PowerSync builds
+ * them over the same `json_extract` expressions its views select, so a query
+ * written against the view uses them. Nothing about them reaches Supabase, and
+ * adding one needs no migration: the next launch rebuilds the index.
+ *
+ * Every index below backs a filter that runs on a screen the user opens often,
+ * or one that re-runs on every write to its table. A column that is only ever
+ * read back by id is left alone — `id` is the primary key already, and each
+ * extra index is paid for on every insert.
+ */
+
+export const tasksTable = new Table(
+  {
+    user_id: column.text,
+    parent_id: column.text,
+    title: column.text,
+    due_date: column.text,
+    priority: column.text,
+    link: column.text,
+    state: column.text,
+    created_at: column.text,
+    updated_at: column.text,
+    completed_at: column.text
+  },
+  // `parent`: the subtask lookup the tasks list and the entity popup run for
+  // every visible parent. `due` and `completed`: the day surface's two windows
+  // and the dashboard's dated list.
+  { indexes: { parent: ['parent_id'], due: ['due_date'], completed: ['completed_at'] } }
+);
 
 export const tagsTable = new Table({
   user_id: column.text,
@@ -20,13 +38,19 @@ export const tagsTable = new Table({
   created_at: column.text
 });
 
-export const timeLogsTable = new Table({
-  user_id: column.text,
-  activity_name: column.text,
-  start_timestamp: column.text,
-  duration_minutes: column.integer,
-  created_at: column.text
-});
+export const timeLogsTable = new Table(
+  {
+    user_id: column.text,
+    activity_name: column.text,
+    start_timestamp: column.text,
+    duration_minutes: column.integer,
+    created_at: column.text
+  },
+  // Every tracker read is a window over this column, and painting one cell
+  // re-runs all of them — the week grid, the year grids and the dashboard's
+  // hours.
+  { indexes: { start: ['start_timestamp'] } }
+);
 
 export const activityTypesTable = new Table({
   user_id: column.text,
@@ -36,12 +60,16 @@ export const activityTypesTable = new Table({
   created_at: column.text
 });
 
-export const dailyRatingsTable = new Table({
-  user_id: column.text,
-  rating_date: column.text,
-  score: column.integer,
-  created_at: column.text
-});
+export const dailyRatingsTable = new Table(
+  {
+    user_id: column.text,
+    rating_date: column.text,
+    score: column.integer,
+    created_at: column.text
+  },
+  // One day (the mood picker, the hero) or a range of them (the year grid).
+  { indexes: { date: ['rating_date'] } }
+);
 
 export const moodsTable = new Table({
   user_id: column.text,
@@ -97,15 +125,20 @@ export const entityTagsTable = new Table(
   { indexes: { by_tag: ['tag_id'], by_entity: ['entity_id'] } }
 );
 
-export const attachmentsTable = new Table({
-  user_id: column.text,
-  page_id: column.text,
-  block_id: column.text,
-  file_path: column.text,
-  sync_state: column.text,
-  mime_type: column.text,
-  file_name: column.text
-});
+export const attachmentsTable = new Table(
+  {
+    user_id: column.text,
+    page_id: column.text,
+    block_id: column.text,
+    file_path: column.text,
+    sync_state: column.text,
+    mime_type: column.text,
+    file_name: column.text
+  },
+  // A card looks its preview image up by owner, one query per card on screen,
+  // and this table grows with every image the app ever downloads.
+  { indexes: { block: ['block_id'], page: ['page_id'] } }
+);
 
 export const propertyDefinitionsTable = new Table({
   user_id: column.text,

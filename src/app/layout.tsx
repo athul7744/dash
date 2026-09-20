@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { PowerSyncProvider } from "@/components/powersync-provider";
 import { CaptureProvider } from "@/components/capture/CaptureProvider";
 import { AppUpdateWatcher } from "@/components/AppUpdateWatcher";
+import { FlushOnHide } from "@/components/FlushOnHide";
 import { CommandPaletteProvider } from "@/components/command/CommandPaletteProvider";
 import { PreventZoom } from "@/components/PreventZoom";
 import { ToastProvider } from "@/components/toast/ToastProvider";
@@ -82,6 +83,8 @@ export default function RootLayout({
             {/* Outermost of the three: the capture sheet and the command
                 palette's entity popup both render cards that toast, and a
                 provider can only be used from inside its own subtree. */}
+            {/* Below PowerSync, so pending edits have a database to land in. */}
+            <FlushOnHide />
             <ToastProvider>
               {/* Inside the toast provider: an update offer is a toast. */}
               <AppUpdateWatcher />

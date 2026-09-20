@@ -15,12 +15,15 @@ import type { EditorView } from "@tiptap/pm/view";
 import { insertLinkEmbed } from "@/lib/notes/editor/link-embed-insert";
 import { LINK_EMBED_NODE_TYPE } from "@/lib/notes/link-embed";
 
+/** Just enough of an inserted block to read the embed's attrs back out. */
+type EmbedBlock = { content: { type: string; attrs: Record<string, unknown> }[] };
+
 const { calls, insertBlockNodes, flush, storeFileBytes, insertAttachmentRow, discardStoredBytes, fetchRemoteImage } =
   vi.hoisted(() => {
     const calls: string[] = [];
     return {
       calls,
-      insertBlockNodes: vi.fn(() => {
+      insertBlockNodes: vi.fn((_view: unknown, _blocks: EmbedBlock[], _at?: number) => {
         calls.push("insertBlockNodes");
         return true;
       }),
@@ -54,8 +57,7 @@ const view = {} as EditorView;
 
 /** The `linkEmbed` attrs of the block that was inserted. */
 const insertedAttrs = () => {
-  const blocks = insertBlockNodes.mock.calls[0]?.[1] as { content: { type: string; attrs: Record<string, unknown> }[] }[];
-  const node = blocks[0].content[0];
+  const node = insertBlockNodes.mock.calls[0][1][0].content[0];
   expect(node.type).toBe(LINK_EMBED_NODE_TYPE);
   return node.attrs;
 };

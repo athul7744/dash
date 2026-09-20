@@ -337,7 +337,11 @@ class LinkToolbarView {
   private linkAt(target: EventTarget | null): HTMLElement | null {
     if (!(target instanceof HTMLElement)) return null;
     const a = target.closest("a[href]") as HTMLElement | null;
-    return a && this.view.dom.contains(a) ? a : null;
+    if (!a || !this.view.dom.contains(a)) return null;
+    // A link card is a whole node, not a link mark: there is no mark to edit or
+    // remove, and its text spans a block rather than a run of inline content.
+    if (a.closest("[data-link-embed], .note-link-embed")) return null;
+    return a;
   }
 
   private onOver = (event: Event) => {
@@ -411,7 +415,12 @@ class LinkToolbarView {
   private show(anchor: HTMLElement) {
     const from = this.view.posAtDOM(anchor, 0);
     const text = anchor.textContent ?? "";
-    const to = from + text.length;
+    // The end is inferred from the rendered text, which is a guess — an anchor
+    // wrapping anything but plain text measures longer than the positions it
+    // covers. Clamp, so a wrong guess can't hand ProseMirror a position past the
+    // end of the document (`removeMark` there throws rather than no-ops).
+    const to = Math.min(from + text.length, this.view.state.doc.content.size);
+    if (from < 0 || to <= from) return;
     const linkType = this.view.state.schema.marks.link;
     const node = this.view.state.doc.nodeAt(from);
     const mark = linkType ? node?.marks.find((m) => m.type === linkType) : undefined;

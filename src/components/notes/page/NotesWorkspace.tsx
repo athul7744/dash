@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, ChevronDown, ChevronUp, Columns3, Files, Network, NotebookTabs, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Redo2, Tag as TagIcon, Undo2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Columns3, Files, Network, NotebookTabs, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Redo2, Tag as TagIcon, Undo2 } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
@@ -34,7 +34,6 @@ import { NotesEditorChromeBar } from "@/components/notes/page/NotesEditorChromeB
 import { NotePageShell, type NotePageShellHandle } from "@/components/notes/page/NotePageShell";
 import { NotesNavigationRail, NotesNavigationRailHeader } from "@/components/notes/page/NotesNavigationRail";
 import { NotesOverview } from "@/components/notes/page/NotesOverview";
-import { NotesGraphView } from "@/components/notes/graph/NotesGraphView";
 import { NotesPageSearchPopup } from "@/components/notes/page/NotesPageSearchPopup";
 import { useNotesPageDerivedState } from "@/components/notes/page/useNotesPageDerivedState";
 import { useNotesLayoutState } from "@/components/notes/page/useNotesLayoutState";
@@ -65,11 +64,11 @@ const RECENT_PAGE_SIZE = 16;
 export function NotesWorkspace() {
   const router = useRouter();
   const pathname = usePathname();
-  // The first path segment selects the surface: `/notes/graph` is the vault
-  // graph, `/notes/<id>` opens that note, bare `/notes` is the overview.
+  // The first path segment selects the surface: `/notes/<id>` opens that note,
+  // bare `/notes` is the overview. The vault graph is its own route (`/graph`),
+  // since it maps every app rather than only this one.
   const slug = pathname.startsWith("/notes/") ? decodeURIComponent(pathname.slice("/notes/".length).split("/")[0]) : null;
-  const graphView = slug === "graph";
-  const selectedPageId = graphView ? null : (slug || null);
+  const selectedPageId = slug || null;
   const navStack = usePageNavStack();
   const [isCreatingPage, setIsCreatingPage] = useState(false);
   const [isPageSearchOpen, setIsPageSearchOpen] = useState(false);
@@ -482,7 +481,7 @@ export function NotesWorkspace() {
       onTouchStart={handleMobileEdgeSwipeStart}
       onTouchEnd={handleMobileEdgeSwipeEnd}
     >
-      {!graphView && (isDisplayingOverview || showEditorAppHeader) ? (
+      {isDisplayingOverview || showEditorAppHeader ? (
         <AppHeader
           app={notesApp}
           mobileMenuItems={isDisplayingOverview ? (
@@ -505,7 +504,7 @@ export function NotesWorkspace() {
               <ManagePropertiesDialog open={isManagePropertiesOpen} onOpenChange={setIsManagePropertiesOpen} hideTrigger />
               <button
                 type="button"
-                onClick={() => startTransition(() => { router.push("/notes/graph"); })}
+                onClick={() => startTransition(() => { router.push("/graph"); })}
                 className={HEADER_ACTION_NEUTRAL}
               >
                 <Network className="h-4 w-4" />
@@ -527,17 +526,10 @@ export function NotesWorkspace() {
 
       <main className={cn(
         "flex-1 overflow-x-hidden px-[var(--app-gutter-x)]",
-        graphView
-          ? "overflow-hidden py-3 sm:py-4 md:py-6"
-          : isDisplayingOverview
+        isDisplayingOverview
           ? "overflow-y-auto pb-[var(--mobile-bottom-fab-clearance)] pt-0 sm:overflow-y-auto sm:pb-4 md:pt-0 md:pb-8"
           : "overflow-y-auto py-4 pb-[var(--mobile-bottom-fab-clearance)] sm:overflow-hidden sm:pb-4 md:py-8 md:pb-8",
       )}>
-        {graphView ? (
-          <div className="mx-auto h-full min-h-0 max-w-[1600px]">
-            <NotesGraphView onOpenPage={(pageId) => openPageById(pageId)} onExit={() => startTransition(() => { router.push("/notes"); })} />
-          </div>
-        ) : (
         <div className="mx-auto max-w-[1600px] space-y-4 sm:flex sm:h-full sm:min-h-0 sm:flex-col sm:space-y-0">
           {isDisplayingOverview ? (
             <NotesOverview
@@ -549,7 +541,7 @@ export function NotesWorkspace() {
               recentHasMore={recentHasMore}
               onLoadMoreRecent={loadMoreRecent}
               onOpenSearch={() => setIsPageSearchOpen(true)}
-              onOpenGraph={() => startTransition(() => { router.push("/notes/graph"); })}
+              onOpenGraph={() => startTransition(() => { router.push("/graph"); })}
               onSelectPage={(pageId) => openPageById(pageId)}
               onToggleFavorite={togglePageFavorite}
             />
@@ -697,25 +689,13 @@ export function NotesWorkspace() {
             </>
           )}
         </div>
-        )}
       </main>
 
       <MobileBottomFabs
         app={notesApp}
-        centerUseShell={isDisplayingOverview || navStack.stack.length > 0 || graphView}
-        centerShellClassName={(!isDisplayingOverview && navStack.stack.length > 0) || graphView ? "max-w-[55vw] px-2.5 py-1.5" : undefined}
-        centerContent={graphView ? (
-          <Button
-            onClick={() => startTransition(() => { router.push("/notes"); })}
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 rounded-full px-3 text-xs font-medium text-foreground"
-            aria-label="Back to overview"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Overview
-          </Button>
-        ) : isDisplayingOverview ? (
+        centerUseShell={isDisplayingOverview || navStack.stack.length > 0}
+        centerShellClassName={!isDisplayingOverview && navStack.stack.length > 0 ? "max-w-[55vw] px-2.5 py-1.5" : undefined}
+        centerContent={isDisplayingOverview ? (
           <button
             type="button"
             onClick={handleCreateStarterPage}

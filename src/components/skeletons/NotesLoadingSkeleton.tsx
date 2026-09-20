@@ -11,7 +11,7 @@ const notesApp = getApp("notes");
  * fallback) and the cold-start boot skeleton so both look identical.
  *
  * `mode` mirrors the notes page's own surfaces: "overview" (`/notes`),
- * "editor" (`/notes/<id>`), and "graph" (`/notes/graph`, which is chrome-less).
+ * "editor" (`/notes/<id>`), and "graph" (`/graph`, which is chrome-less).
  * The boot skeleton and loading fallback read the URL to pick.
  */
 export function NotesLoadingSkeleton({ mode = "overview" }: { mode?: "overview" | "editor" | "graph" }) {

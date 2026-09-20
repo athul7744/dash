@@ -28,23 +28,8 @@ import {
 import { Skeleton, SkeletonWave } from "@/components/ui/skeleton";
 import { useTrashedItems, type TrashedItem } from "@/hooks/use-trash";
 import { purgeEntities, restoreEntities, restoreEntity, purgeEntity, type TrashKind } from "@/lib/shared/trash";
-import { type AppConfig } from "@/lib/shared/apps";
+import { trashApp } from "@/lib/shared/destinations";
 import { cn, formatRelativeTime } from "@/lib/shared/utils";
-
-// A synthetic app config so the shared AppHeader can render a Trash identity
-// (Trash isn't a real app — it's a cross-app destination, like Graph).
-const trashApp: AppConfig = {
-  id: "trash",
-  name: "Trash",
-  description: "Restore or permanently delete removed items",
-  href: "/trash",
-  icon: Trash2,
-  accent: {
-    iconBg: "bg-slate-500/10 dark:bg-slate-500/20",
-    iconText: "text-slate-600 dark:text-slate-400",
-    hoverText: "hover:text-slate-700 dark:hover:text-slate-300",
-  },
-};
 
 const KIND_META: Record<TrashKind, { label: string; icon: LucideIcon; accent: string }> = {
   task: { label: "Task", icon: ListTodo, accent: "text-indigo-600 dark:text-indigo-400" },

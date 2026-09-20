@@ -34,7 +34,7 @@ import { useJournalEntryDays } from "@/hooks/use-journal";
 import { useBacklinks } from "@/hooks/use-links";
 import { useTimeGrid } from "@/hooks/use-time-grid";
 import { getDueDateInfo } from "@/lib/tasks/tasks";
-import { dayApp } from "@/lib/shared/day-app";
+import { dayApp } from "@/lib/shared/destinations";
 import { systemPageId } from "@/lib/notes/system-pages";
 import { localDateKey } from "@/lib/tracker/day-keys";
 import { summarizeDay } from "@/lib/tracker/day-summary";

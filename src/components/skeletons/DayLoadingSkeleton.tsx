@@ -2,7 +2,7 @@
 
 import { AppHeader } from "@/components/AppHeader";
 import { Skeleton, SkeletonWave } from "@/components/ui/skeleton";
-import { dayApp } from "@/lib/shared/day-app";
+import { dayApp } from "@/lib/shared/destinations";
 
 /** One hour column of the day's grid — 24, at the same 44px pitch as `TimeGrid`. */
 const HOURS = Array.from({ length: 24 }, (_, i) => i);

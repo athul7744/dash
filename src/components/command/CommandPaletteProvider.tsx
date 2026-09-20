@@ -649,7 +649,7 @@ function CommandPaletteResults({
             <CommandItem
               key="nav:graph"
               value="nav:graph"
-              onSelect={() => onNavigate("/notes/graph")}
+              onSelect={() => onNavigate("/graph")}
               className="items-center gap-3 rounded-lg px-3 py-2"
             >
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">

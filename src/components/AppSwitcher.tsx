@@ -34,7 +34,7 @@ export function dispatchOpenSettings() {
 export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const isGraph = pathname === "/notes/graph";
+  const isGraph = pathname === "/graph";
   const isTrash = pathname === "/trash";
   const [open, setOpen] = useState(false);
   const [logDialogOpen, setLogDialogOpen] = useState(false);
@@ -45,7 +45,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
       if (current && app.id === current.id) return;
       router.prefetch(app.href);
     });
-    router.prefetch("/notes/graph");
+    router.prefetch("/graph");
     router.prefetch("/trash");
   }, [current, router]);
 
@@ -150,7 +150,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
           <div className="flex gap-1 sm:flex-col sm:gap-0">
             {[
               { href: "/", label: "Dashboard", Icon: LayoutDashboard, active: !current && !isGraph && !isTrash },
-              { href: "/notes/graph", label: "Graph", Icon: Network, active: isGraph },
+              { href: "/graph", label: "Graph", Icon: Network, active: isGraph },
               { href: "/trash", label: "Trash", Icon: Trash2, active: isTrash },
             ].map(({ href, label, Icon, active }) => (
               <Link

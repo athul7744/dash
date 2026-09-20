@@ -9,7 +9,13 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async redirects() {
+    return [
+      // The graph moved out of the notes app once it started mapping every app.
+      // Kept so older bookmarks and installed shortcuts still land.
+      { source: "/notes/graph", destination: "/graph", permanent: true },
+    ];
+  },
 };
 
 export default withSerwist(nextConfig);

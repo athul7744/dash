@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 /**
  * The notes shell lives here, not in the page, so it persists across
- * `[[...slug]]` surface changes (overview / note / graph) — the route loading
+ * `[[...slug]]` surface changes (overview / note) — the route loading
  * boundary only wraps `children` (a null page), so the rail never flashes.
  */
 export default function NotesLayout({ children }: { children: React.ReactNode }) {

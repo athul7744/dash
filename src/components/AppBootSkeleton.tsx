@@ -37,11 +37,10 @@ export function AppBootSkeleton() {
   if (path.startsWith("/events")) {
     return /^\/events\/.+/.test(path) ? <EventDetailLoadingSkeleton /> : <EventsLoadingSkeleton />;
   }
+  if (path.startsWith("/graph")) return <NotesLoadingSkeleton mode="graph" />;
   if (path.startsWith("/notes")) {
-    // `/notes/graph` boots the graph skeleton, `/notes/<id>` the editor, bare
-    // `/notes` the overview.
-    const mode = path === "/notes/graph" ? "graph" : /^\/notes\/.+/.test(path) ? "editor" : "overview";
-    return <NotesLoadingSkeleton mode={mode} />;
+    // `/notes/<id>` boots the editor, bare `/notes` the overview.
+    return <NotesLoadingSkeleton mode={/^\/notes\/.+/.test(path) ? "editor" : "overview"} />;
   }
   return <DashboardLoadingSkeleton />;
 }

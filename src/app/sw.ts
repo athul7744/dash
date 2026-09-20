@@ -23,6 +23,29 @@ const serwist = new Serwist({
   clientsClaim: true,
   // navigationPreload disabled: navigations are served cache-first below, so a
   // parallel network preload would just be wasted work on every launch.
+  /**
+   * A data page's URL is one of many — a note, a day — so caching each would
+   * grow with the vault and still miss the one you open next. Each falls back to
+   * its section's precached shell instead: those pages carry no server-rendered
+   * content (the notes route renders `null`, the day surface reads the date off
+   * the path), so the shell hydrates, the client router sees the real URL, and
+   * the right thing renders from local SQLite.
+   *
+   * Only reached when the strategy above could not produce a response, which
+   * offline means "never visited this URL".
+   */
+  fallbacks: {
+    entries: [
+      {
+        url: "/notes",
+        matcher: ({ request }) => request.mode === "navigate" && new URL(request.url).pathname.startsWith("/notes/"),
+      },
+      {
+        url: "/day",
+        matcher: ({ request }) => request.mode === "navigate" && new URL(request.url).pathname.startsWith("/day/"),
+      },
+    ],
+  },
   runtimeCaching: [
     // Serve the app shell + RSC payloads cache-first for instant launch and
     // instant in-app navigation. This is a single-user local-first app — data

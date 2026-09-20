@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { parseMetadataHtml } from "@/lib/bookmarks/metadata";
 import { isBlockedHost } from "@/lib/bookmarks/ssrf";
+import { oembedEndpoint, parseOembed } from "@/lib/bookmarks/oembed";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -78,9 +79,62 @@ export async function GET(request: Request) {
     }
     void reader.cancel();
 
-    return NextResponse.json({ ...parseMetadataHtml(html), host });
+    const scraped = parseMetadataHtml(html);
+    return NextResponse.json({ ...(await fillFromOembed(target.toString(), html, scraped)), host });
   } catch {
-    return NextResponse.json({ host });
+    // Even a page we couldn't read may have a known oEmbed provider.
+    const fallback = await fillFromOembed(target.toString(), "", { title: "", description: "", image: "" });
+    return NextResponse.json({ ...fallback, host });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Fill whatever scraping missed from the page's oEmbed endpoint, if it has one.
+ *
+ * Only the gaps: a title or image found in the HTML is the page's own answer and
+ * is left alone. Skipped entirely when nothing is missing, so the ordinary site
+ * costs no extra request.
+ */
+async function fillFromOembed(
+  pageUrl: string,
+  html: string,
+  scraped: { title: string; description: string; image: string },
+): Promise<{ title: string; description: string; image: string }> {
+  if (scraped.title && scraped.image) return scraped;
+
+  const endpoint = oembedEndpoint(pageUrl, html);
+  if (!endpoint) return scraped;
+
+  // A discovered endpoint comes from the page, so it gets the same guard the
+  // page did — otherwise a hostile page names an internal host and we fetch it.
+  let target: URL;
+  try {
+    target = new URL(endpoint);
+  } catch {
+    return scraped;
+  }
+  if (target.protocol !== "https:" && target.protocol !== "http:") return scraped;
+  if (isBlockedHost(target.hostname)) return scraped;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(target.toString(), {
+      signal: controller.signal,
+      redirect: "follow",
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+    });
+    if (!res.ok) return scraped;
+    const embed = parseOembed(await res.json());
+    return {
+      title: scraped.title || embed.title,
+      description: scraped.description,
+      image: scraped.image || embed.image,
+    };
+  } catch {
+    return scraped;
   } finally {
     clearTimeout(timeout);
   }

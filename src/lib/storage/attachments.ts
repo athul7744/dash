@@ -200,3 +200,26 @@ export async function deleteAttachmentById(id: string, ctx: DbContext = db): Pro
   const row = rows[0];
   if (row) await deleteAttachment(row);
 }
+
+/**
+ * Leave a block owning exactly one file: `keepId`, and nothing else.
+ *
+ * A block holds one content node, so it has one image at a time — whatever came
+ * before is a version nobody can reach. Nothing else will reclaim those: the
+ * orphan sweep looks for Storage objects with no live row, and these rows are
+ * live, and the details rail won't offer to delete a block-owned file because
+ * doing so would strand the block that points at it.
+ *
+ * So the block tidies its own history whenever it stores a new file. Pass the
+ * id that must survive — never an empty one, or this clears the block.
+ */
+export async function keepOnlyBlockAttachment(blockId: string, keepId: string, ctx: DbContext = db): Promise<void> {
+  if (!blockId || !keepId) return;
+  const rows = await ctx.getAll<{ id: string; file_path: string }>(
+    "SELECT id, file_path FROM attachments WHERE block_id = ? AND id != ?",
+    [blockId, keepId],
+  );
+  if (rows.length === 0) return;
+  await ctx.execute("DELETE FROM attachments WHERE block_id = ? AND id != ?", [blockId, keepId]);
+  void purgeFiles(rows);
+}

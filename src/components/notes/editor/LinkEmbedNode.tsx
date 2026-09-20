@@ -21,7 +21,11 @@ import { useState } from "react";
 import { useImageSource } from "@/hooks/use-image-source";
 import { BLOCK_CONTENT_GROUP } from "@/lib/notes/editor/block-schema";
 import { refetchLinkEmbed } from "@/lib/notes/editor/link-embed-insert";
-import { deleteAttachmentById, insertAttachmentRow } from "@/lib/storage/attachments";
+import {
+  deleteEntityAttachments,
+  insertAttachmentRow,
+  keepOnlyBlockAttachment,
+} from "@/lib/storage/attachments";
 import {
   isEmbeddableUrl,
   LINK_EMBED_NODE_TYPE,
@@ -81,11 +85,14 @@ function LinkEmbedCard({ node, deleteNode, updateAttributes, editor, getPos }: R
       updateAttributes(next);
       if (refetch?.stored) await insertAttachmentRow(refetch.stored);
 
-      // The replaced thumbnail, once nothing points at it. Deleted by id, not by
-      // block: the new one is owned by the same block, so clearing the block's
-      // attachments would take it too. Left behind it would still show in the
-      // page's Files rail, since its block is very much alive.
-      if (attrs.image && attrs.image !== next.image) await deleteAttachmentById(attrs.image);
+      // Leave the block owning just this card's thumbnail. Not only the one id
+      // being replaced: a card edited before this cleaned up still carries those
+      // earlier versions, and nothing else will ever reclaim them — the orphan
+      // sweep only looks for files with no row, and the rail won't delete a
+      // block-owned file because that would strand the block pointing at it.
+      if (blockId && next.image) await keepOnlyBlockAttachment(blockId, next.image);
+      // A new address with no picture of its own: the block should now own none.
+      else if (blockId && attrs.image) await deleteEntityAttachments(blockId);
       setEditing(false);
     } finally {
       setSaving(false);

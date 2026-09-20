@@ -46,8 +46,10 @@ describe("parseMetadataHtml", () => {
       title: "",
       description: "",
       image: "",
+      titleFromOg: false,
+      descriptionFromOg: false,
     });
-    expect(parseMetadataHtml("")).toEqual({ title: "", description: "", image: "" });
+    expect(parseMetadataHtml("")).toMatchObject({ title: "", description: "", image: "" });
   });
 });
 
@@ -61,6 +63,7 @@ describe("metadata deep in a head full of script", () => {
     expect(parseMetadataHtml(html)).toMatchObject({
       title: "A Video",
       image: "https://i.example.com/t.jpg",
+      titleFromOg: true,
     });
   });
 
@@ -68,6 +71,28 @@ describe("metadata deep in a head full of script", () => {
     // What a too-small cap produces: the parser is fine, it simply never
     // received the tags.
     const truncated = `<html><head><script>${"x".repeat(1024)}</script>`;
-    expect(parseMetadataHtml(truncated)).toEqual({ title: "", description: "", image: "" });
+    expect(parseMetadataHtml(truncated)).toMatchObject({ title: "", description: "", image: "" });
+  });
+});
+
+describe("where a value came from", () => {
+  it("marks an og title and description as the page's own answer", () => {
+    const html = `<meta property="og:title" content="A Post"><meta property="og:description" content="About it.">`;
+    expect(parseMetadataHtml(html)).toMatchObject({ titleFromOg: true, descriptionFromOg: true });
+  });
+
+  it("marks a <title> element and a plain description as the site's", () => {
+    // What a page rendered in the browser serves a fetcher: non-empty, and
+    // about the site rather than the page. YouTube's shell is exactly this.
+    const html = `<html><head><title> - YouTube</title><meta name="description" content="Enjoy the videos and music you love…"></head>`;
+    const parsed = parseMetadataHtml(html);
+    expect(parsed.title).toBe("- YouTube");
+    expect(parsed.titleFromOg).toBe(false);
+    expect(parsed.descriptionFromOg).toBe(false);
+  });
+
+  it("prefers og over the fallbacks when both are there", () => {
+    const html = `<html><head><title>Site Name</title><meta property="og:title" content="The Page"></head>`;
+    expect(parseMetadataHtml(html)).toMatchObject({ title: "The Page", titleFromOg: true });
   });
 });

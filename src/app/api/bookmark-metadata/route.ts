@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { parseMetadataHtml } from "@/lib/bookmarks/metadata";
+import { parseMetadataHtml, type PageMetadata } from "@/lib/bookmarks/metadata";
 import { isBlockedHost } from "@/lib/bookmarks/ssrf";
 import { oembedEndpoint, parseOembed } from "@/lib/bookmarks/oembed";
 import { createClient } from "@/lib/supabase/server";
@@ -79,30 +79,35 @@ export async function GET(request: Request) {
     }
     void reader.cancel();
 
-    const scraped = parseMetadataHtml(html);
-    return NextResponse.json({ ...(await fillFromOembed(target.toString(), html, scraped)), host });
+    return NextResponse.json({ ...(await fillFromOembed(target.toString(), html, parseMetadataHtml(html))), host });
   } catch {
     // Even a page we couldn't read may have a known oEmbed provider.
-    const fallback = await fillFromOembed(target.toString(), "", { title: "", description: "", image: "" });
+    const fallback = await fillFromOembed(target.toString(), "", parseMetadataHtml(""));
     return NextResponse.json({ ...fallback, host });
   } finally {
     clearTimeout(timeout);
   }
 }
 
+type Metadata = { title: string; description: string; image: string };
+
 /**
- * Fill whatever scraping missed from the page's oEmbed endpoint, if it has one.
+ * Fill what scraping missed from the page's oEmbed endpoint, if it has one.
  *
- * Only the gaps: a title or image found in the HTML is the page's own answer and
- * is left alone. Skipped entirely when nothing is missing, so the ordinary site
- * costs no extra request.
+ * What counts as "missed" is the whole point. An `og:` tag is the page's answer
+ * about itself and is always kept. A `<title>` element and a `name="description"`
+ * are the *site's* — usually the same thing, but not on a page built in the
+ * browser: YouTube's shell says " - YouTube" and describes YouTube, non-empty
+ * and useless, which is why filling only empty fields left a video titled after
+ * the site. So when the provider answers about this page, its title wins over a
+ * site-level one, and a site-level description is dropped rather than shown —
+ * oEmbed carries no description, and nothing is better than boilerplate.
+ *
+ * Skipped when the page already gave its own title and an image, so an ordinary
+ * site costs no extra request.
  */
-async function fillFromOembed(
-  pageUrl: string,
-  html: string,
-  scraped: { title: string; description: string; image: string },
-): Promise<{ title: string; description: string; image: string }> {
-  if (scraped.title && scraped.image) return scraped;
+async function fillFromOembed(pageUrl: string, html: string, scraped: PageMetadata): Promise<Metadata> {
+  if (scraped.titleFromOg && scraped.image) return scraped;
 
   const endpoint = oembedEndpoint(pageUrl, html);
   if (!endpoint) return scraped;
@@ -128,9 +133,11 @@ async function fillFromOembed(
     });
     if (!res.ok) return scraped;
     const embed = parseOembed(await res.json());
+    const providerAnswered = Boolean(embed.title || embed.image);
+    const siteLevelOnly = providerAnswered && !scraped.descriptionFromOg;
     return {
-      title: scraped.title || embed.title,
-      description: scraped.description,
+      title: scraped.titleFromOg ? scraped.title : embed.title || scraped.title,
+      description: siteLevelOnly ? "" : scraped.description,
       image: scraped.image || embed.image,
     };
   } catch {

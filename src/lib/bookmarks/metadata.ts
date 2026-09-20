@@ -7,6 +7,17 @@ export interface PageMetadata {
   title: string;
   description: string;
   image: string;
+  /**
+   * Whether each value is the page's own answer about *itself* (an `og:` tag) or
+   * a site-level fallback — the `<title>` element, or `name="description"`.
+   *
+   * The difference matters for a page rendered in the browser, which serves a
+   * fetcher a shell: YouTube's `<title>` is " - YouTube" and its description is
+   * boilerplate about YouTube, both of them about the site rather than the
+   * video. Non-empty, so a caller that only checks for emptiness keeps them.
+   */
+  titleFromOg: boolean;
+  descriptionFromOg: boolean;
 }
 
 /** Common named HTML entities that appear in titles/descriptions. */
@@ -71,9 +82,13 @@ function metaContent(html: string, prop: string): string {
 export function parseMetadataHtml(html: string): PageMetadata {
   const safe = html ?? "";
   const titleTag = safe.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "";
+  const ogTitle = metaContent(safe, "og:title");
+  const ogDescription = metaContent(safe, "og:description");
   return {
-    title: metaContent(safe, "og:title") || decodeEntities(titleTag),
-    description: metaContent(safe, "og:description") || metaContent(safe, "description"),
+    title: ogTitle || decodeEntities(titleTag),
+    description: ogDescription || metaContent(safe, "description"),
     image: metaContent(safe, "og:image"),
+    titleFromOg: Boolean(ogTitle),
+    descriptionFromOg: Boolean(ogDescription),
   };
 }

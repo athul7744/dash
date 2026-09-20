@@ -30,6 +30,9 @@ const APP_SHELLS = [
   "/quotes",
   "/bookmarks",
   "/events",
+  // The stand-in the service worker serves for any `/events/<id>` it has never
+  // seen; the detail surface reads the real id off the URL.
+  "/events/_",
   "/graph",
   "/trash",
 ];

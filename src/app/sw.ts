@@ -44,6 +44,10 @@ const serwist = new Serwist({
         url: "/day",
         matcher: ({ request }) => request.mode === "navigate" && new URL(request.url).pathname.startsWith("/day/"),
       },
+      {
+        url: "/events/_",
+        matcher: ({ request }) => request.mode === "navigate" && /^\/events\/.+/.test(new URL(request.url).pathname),
+      },
     ],
   },
   runtimeCaching: [

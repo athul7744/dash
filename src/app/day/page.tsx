@@ -1,4 +1,8 @@
-// The surface lives in a component so both `/day` (today, and the prerendered
-// shell the service worker serves for any date offline) and `/day/<date>` render
-// exactly the same thing — it reads the date from the URL either way.
-export { DaySurface as default } from "@/components/day/DaySurface";
+import { DaySurface } from "@/components/day/DaySurface";
+
+// Bare `/day` is today. It is also the page the service worker serves for any
+// `/day/<date>` it has never seen — the surface reads the date off the URL, so
+// one prerendered page covers every date (see `fallbacks` in sw.ts).
+export default function DayPage() {
+  return <DaySurface />;
+}

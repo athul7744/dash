@@ -1,4 +1,9 @@
-// The surface lives in a component so both `/day` (today, and the prerendered
-// shell the service worker serves for any date offline) and `/day/<date>` render
-// exactly the same thing — it reads the date from the URL either way.
-export { DaySurface as default } from "@/components/day/DaySurface";
+import { DaySurface } from "@/components/day/DaySurface";
+
+// The surface reads its date from the path, so this renders exactly what `/day`
+// does. A plain wrapper rather than a re-export: Next can't read a route's
+// segment config through `export { X as default } from …`, which silently cost
+// `/events/[id]` its prerendering.
+export default function DayDatePage() {
+  return <DaySurface />;
+}

@@ -13,6 +13,7 @@ import { BookmarksLoadingSkeleton } from "@/components/skeletons/BookmarksLoadin
 import { useBookmarksPage, useBookmarkFacets, useBookmarkSearch } from "@/hooks/use-bookmarks";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useEntityTags } from "@/hooks/use-entity-tags";
+import { useEntityImages } from "@/hooks/use-entity-image";
 import { useSearchIndexReady } from "@/hooks/use-search-index";
 import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { createBookmark } from "@/lib/bookmarks/bookmarks";
@@ -84,7 +85,10 @@ export default function BookmarksPage() {
   const sentinelRef = useInfiniteScroll(() => setLoadedCount((n) => n + PAGE_SIZE), hasMore && !resultsLoading);
 
   // Tags for the visible cards, batched into one query (entity_tags).
-  const bookmarkTags = useEntityTags(bookmarks.map((b) => b.id));
+  const bookmarkIds = useMemo(() => bookmarks.map((b) => b.id), [bookmarks]);
+  const bookmarkTags = useEntityTags(bookmarkIds);
+  // One attachments query for every card on screen, not one per card.
+  const bookmarkImages = useEntityImages(bookmarkIds);
 
   const addBookmark = async () => {
     if (!urlToAdd) return;
@@ -235,6 +239,7 @@ export default function BookmarksPage() {
                         loading={fetchingIds.includes(bookmark.id)}
                         allTags={allTags}
                         tagIds={bookmarkTags.get(bookmark.id) ?? []}
+                        image={bookmarkImages.get(bookmark.id) ?? null}
                       />
                     </div>
                   ))}

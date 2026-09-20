@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useOptimisticTagIds } from "@/hooks/use-entity-tags";
-import { useEntityImage } from "@/hooks/use-entity-image";
+import { useAttachmentUrl } from "@/hooks/use-attachment-url";
+import type { EntityImageRow } from "@/hooks/use-entity-image";
 import { Check, CheckCircle2, Circle, Copy, Ellipsis, ExternalLink, Loader2, RefreshCw, Star, Tag as TagIcon, Trash2, X } from "lucide-react";
 
 import { Favicon } from "@/components/tasks/Favicon";
@@ -44,6 +45,7 @@ export function BookmarkCard({
   loading = false,
   allTags,
   tagIds = [],
+  image = null,
 }: {
   bookmark: Bookmark;
   autoFocus?: boolean;
@@ -53,6 +55,8 @@ export function BookmarkCard({
   allTags: Tag[];
   /** Tag ids from entity_tags (batched by the list); membership's source of truth. */
   tagIds?: string[];
+  /** Preview image row from `attachments` (batched by the list), if it has one. */
+  image?: EntityImageRow | null;
 }) {
   const [title, setTitle] = useState(bookmark.title);
   const [note, setNote] = useState(bookmark.note);
@@ -63,7 +67,7 @@ export function BookmarkCard({
   const { focusedRef, schedule, flush } = useDebouncedSave();
 
   const host = getLinkHost(bookmark.url) ?? bookmark.url;
-  const previewUrl = useEntityImage(bookmark.id);
+  const previewUrl = useAttachmentUrl(image);
   const trash = useTrashAction();
   const busy = loading || refetching;
   const [selectedTagIds, setSelectedTagIds] = useOptimisticTagIds(tagIds);

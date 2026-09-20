@@ -126,7 +126,11 @@ function EventDetail({ event }: { event: EventItem }) {
         </Link>
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] lg:items-start lg:gap-8">
           {/* ── LEFT: overview ── */}
-          <div className="min-w-0">
+          {/* A container, so what is inside can lay itself out against this
+              column rather than the viewport. Crossing `lg` makes this column
+              *narrower* — a half-width grid cell instead of the full max-w-2xl
+              — so a viewport breakpoint gets it backwards. */}
+          <div className="@container min-w-0">
             {/* ── hero ── */}
             <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -182,11 +186,12 @@ function EventDetail({ event }: { event: EventItem }) {
           </div>
         </div>
 
-        {/* ── schedule strip (compact, read-only) — stacks on mobile so the
-            description isn't squeezed thin between the two actions ── */}
-        <div className="mt-6 flex flex-col gap-3 rounded-xl border border-border/65 bg-card/50 p-4 sm:flex-row sm:items-center">
-          <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
-            <CalendarClock className="mt-0.5 h-4.5 w-4.5 shrink-0 text-violet-500 dark:text-violet-400 sm:mt-0" />
+        {/* ── schedule strip (compact, read-only) — the description sits beside
+            the two actions only when this column is wide enough for both;
+            otherwise it stacks, rather than wrapping one word per line ── */}
+        <div className="mt-6 flex flex-col gap-3 rounded-xl border border-border/65 bg-card/50 p-4 @xl:flex-row @xl:items-center">
+          <div className="flex min-w-0 flex-1 items-start gap-3 @xl:items-center">
+            <CalendarClock className="mt-0.5 h-4.5 w-4.5 shrink-0 text-violet-500 dark:text-violet-400 @xl:mt-0" />
             <p className="min-w-0 flex-1 text-sm text-muted-foreground">
               {describeSchedule({ schedule: s, daysBefore: event.daysBefore, active: event.active }, next)}
             </p>

@@ -621,7 +621,7 @@ Route: `src/app/bookmarks/page.tsx`. Bookmarks are `type:"bookmark"` blocks on o
 
 ## Events App Structure
 
-Routes: `src/app/events/page.tsx` (the grid) + `src/app/events/[id]/page.tsx` (single-subject detail). The Events app is an **occurrence log** — a dated history of things that happen — that also schedules tasks. An occurrence can attach to *any* entity, not just an event.
+Routes: `src/app/events/page.tsx` (the grid) + `src/app/events/[id]/page.tsx` (single-subject detail). The detail page's left column is a `@container` (Tailwind v4, no plugin): crossing `lg` turns it from the full `max-w-2xl` into a ~500px grid cell, so it gets *narrower* as the viewport grows and a viewport breakpoint reads backwards. Anything inside that has to choose a layout — the schedule strip, which sits its description beside two buttons only when there is room — measures that column with `@xl:` instead. The Events app is an **occurrence log** — a dated history of things that happen — that also schedules tasks. An occurrence can attach to *any* entity, not just an event.
 
 Two block types on one hidden system page (`kind:"event"`, key `"log"`, title "Events") — no schema change:
 

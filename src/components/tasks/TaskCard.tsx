@@ -17,6 +17,7 @@ import { useDerivedState } from "@/hooks/use-derived-state";
 import { debouncedUpdate, debouncedExecute, flushUpdate, cancelExecute } from "@/lib/shared/debounced-update";
 import { cn } from "@/lib/shared/utils";
 import { cancelTaskStateWrite, setTaskState, PRIORITY_COLORS, PRIORITY_LEVELS } from "@/lib/tasks/tasks";
+import { haptic } from "@/lib/shared/haptics";
 import { LinkedFrom } from "@/components/links/LinkedFrom";
 import { RefField } from "@/components/links/RefField";
 import { reconcileEntityRefs } from "@/lib/links/links";
@@ -117,6 +118,7 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
       cancelTaskStateWrite(record.id);
       return;
     }
+    haptic();
     setTaskState(record.id, nextState);
   }, []);
 

@@ -154,6 +154,59 @@
 body {
   --font-heading: var(--font-fraunces), Georgia, serif;
 }
+
+/* ── Installed-app behaviour ──────────────────────────────────────────────────
+   The tells that give a standalone PWA away as a browser. None of these change
+   how the app looks; they remove things the browser adds. */
+
+html,
+body {
+  /* The loudest one: on Android a downward swipe at the top of any scroller
+     fires pull-to-refresh and *reloads the app*. On iOS the rubber band drags
+     the page off its background. Neither happens in a native app. */
+  overscroll-behavior: none;
+  /* The grey flash on every tap. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* An inner scroller keeps its own bounce but never hands the overscroll to the
+   document, so reaching the end of a list can't pull the page. */
+main,
+[data-scroll-container] {
+  overscroll-behavior: contain;
+}
+
+/* Long-pressing a link or image opens the browser's own menu ("Open in new
+   tab", "Save image") — the clearest possible statement that this is a web
+   page. Our own controls cover what those offer. */
+body {
+  -webkit-touch-callout: none;
+}
+
+/* Chrome isn't selectable; content is. A long press on a button or a tab should
+   act on it, not raise text-selection handles — but a note, a quote, a task
+   title and anything else you wrote stays selectable and copyable, which is the
+   line native apps draw too. */
+button,
+label,
+summary,
+[role="button"],
+[role="tab"],
+[role="menuitem"],
+[role="option"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* …and typing surfaces always are, whatever wraps them. */
+input,
+textarea,
+[contenteditable="true"],
+.ProseMirror {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
 body[data-display-font="hanken"] {
   --font-heading: var(--font-hanken), system-ui, sans-serif;
 }

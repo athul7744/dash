@@ -36,6 +36,7 @@ import {
   debouncedUpdate,
 } from "@/lib/shared/debounced-update";
 import { DEFAULT_ACTIVITY_CATEGORY, type ActivityCategory } from "@/lib/tracker/activities";
+import { haptic } from "@/lib/shared/haptics";
 import { hourCellKey, localDateKey, utcDateKey, utcDayBounds } from "@/lib/tracker/day-keys";
 import type { Mood } from "@/lib/tracker/moods";
 
@@ -350,6 +351,7 @@ export function useTimeGrid(days: Date[]): TimeGridModel {
       const currentActivity = existing?.activityName ?? null;
 
       if (activity === currentActivity) return;
+      haptic();
 
       // Local wall-clock parts as a UTC instant: the tracker's storage contract.
       const isoTimestamp = new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate(), hour)).toISOString();

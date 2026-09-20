@@ -15,6 +15,7 @@ import { stripRefs } from "@/lib/links/tokens";
 import { DURATION, EASE } from "@/lib/shared/motion";
 import { cn } from "@/lib/shared/utils";
 import { getDueDateInfo, setTaskState } from "@/lib/tasks/tasks";
+import { haptic } from "@/lib/shared/haptics";
 
 type TaskRow = Task & { id: string };
 
@@ -54,6 +55,7 @@ export function TodayTasks() {
   const hidden = due.length - visible.length;
 
   const complete = (id: string) => {
+    haptic();
     setCompletedIds((prev) => new Set(prev).add(id));
     setTaskState(id, "completed");
   };

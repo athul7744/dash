@@ -721,6 +721,19 @@ Important implementation notes:
 
 The notes app follows that same pattern, so new shell behavior should extend the shared primitives instead of introducing app-only chrome.
 
+## Installed-App Feel
+
+Dash is installed as a PWA, and the things that give a standalone web app away as a browser are mostly small. `globals.css` carries them together under one heading:
+
+- **`overscroll-behavior: none`** on `html`/`body`, `contain` on scroll containers. The loudest tell: on Android a downward swipe at the top of a scroller fires pull-to-refresh and *reloads the app*; on iOS the rubber band drags the page off its background
+- **`-webkit-tap-highlight-color: transparent`** — the grey flash on every tap
+- **`-webkit-touch-callout: none`** on the body — long-pressing a link or image otherwise opens the browser's own "Open in new tab / Save image" menu. Typing surfaces opt back in
+- **`user-select: none` on chrome only** (buttons, labels, tabs, menu items). A long press on a control should act on it, not raise selection handles — but a note, a quote and a task title stay selectable, which is the line native apps draw too
+
+`src/lib/shared/haptics.ts` is the other half: a short buzz on actions that *commit* a change — a task ticked, an hour painted, something trashed with an undo. Deliberately sparse, since haptics stop meaning anything when everything buzzes, and never on navigation. `navigator.vibrate` is Android/Chrome only — iOS has no API for it at all — so it is a bonus, and anything that buzzes must also show what happened. Reduced-motion silences it: there is no "reduce haptics" query, and it reuses an escape hatch the user already has.
+
+Not yet done: `viewport-fit=cover` for an edge-to-edge layout under the notch. It needs `env(safe-area-inset-*)` applied across the header and side gutters, and verifying on a real device, so it is its own piece of work.
+
 ## Motion System
 
 Animation is standardized on the [Motion](https://motion.dev) library (`motion/react`) with one shared vocabulary so the whole app feels consistent (calm and subtle: short durations, one house easing curve, small offsets).

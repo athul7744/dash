@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 
 import { useToast } from "@/components/toast/ToastProvider";
+import { haptic } from "@/lib/shared/haptics";
 import { softDeleteEntity, restoreEntity, cascadeOccurrences, type TrashKind } from "@/lib/shared/trash";
 
 function short(label?: string): string {
@@ -20,6 +21,7 @@ export function useTrashAction(): (kind: TrashKind, id: string, label?: string) 
   const { toast } = useToast();
   return useCallback(
     (kind, id, label) => {
+      haptic("undoable");
       void softDeleteEntity(kind, id);
       const name = short(label);
       toast({

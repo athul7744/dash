@@ -22,7 +22,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { SEARCH_POPUP_CLOSE_ANIMATION_MS } from "@/components/ui/search-popup";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { useAllNotePages, useFavoriteNotePages, useNoteCounts, useRecentNotePages } from "@/hooks/use-notes";
+import { useAllNotePages, useFavoriteNotePages, useRecentNotePages } from "@/hooks/use-notes";
+import { useSettled } from "@/hooks/use-settled";
 import { createStarterPage, normalizeNotePageTitle, updateNotePageProperties } from "@/lib/notes/notes";
 import { flushAllBlockDocumentPersisters } from "@/lib/notes/editor/block-persister";
 import { getApp, HEADER_ACTION_BASE, HEADER_ACTION_NEUTRAL } from "@/lib/shared/apps";
@@ -130,7 +131,6 @@ export function NotesWorkspace() {
   }, []);
 
   // ─── Overview-level data ─────────────────────────────────────────────────
-  const { isLoading: isLoadingCounts } = useNoteCounts();
   const { pages: allPages = [] } = useAllNotePages();
   // Recently accessed loads incrementally as the user scrolls (infinite scroll).
   const [recentLimit, setRecentLimit] = useState(RECENT_PAGE_SIZE);
@@ -180,7 +180,10 @@ export function NotesWorkspace() {
     });
   }, [tagDirectory, setTagDirectoryOpen]);
 
-  const isLoading = isLoadingCounts || isLoadingRecentPages;
+  // Settled once, not "loading right now": the recent-pages query re-runs on
+  // every block write, and gating the overview on its raw flag sent the whole
+  // screen back to a skeleton each time you returned to it.
+  const isLoading = !useSettled(isLoadingRecentPages);
 
   // Local toggle for absolute/relative updated time display in top bar
   const [showAbsoluteUpdatedTime, setShowAbsoluteUpdatedTime] = useState(false);

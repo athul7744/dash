@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@powersync/react";
 
 import { useCurrentUserId } from "@/hooks/use-current-user-id";
+import { useSettled } from "@/hooks/use-settled";
 import { systemPageId, type SystemPageKind } from "@/lib/notes/system-pages";
 
 /** A raw block row from a system page: `{ id, content, sort_rank }`. */
@@ -38,10 +39,7 @@ export function useSystemPageBlocks<T>(
   const args = pageId ? [pageId, blockType] : [];
   const { data = [], isLoading, isFetching } = useQuery<SystemPageBlockRow>(query, args, { reportFetching: true });
 
-  const [settled, setSettled] = useState(false);
-  if (!settled && pageId !== null && !isLoading && !isFetching) {
-    setSettled(true);
-  }
+  const settled = useSettled(pageId === null || isLoading || isFetching);
 
   const items = useMemo(() => data.map(parse), [data, parse]);
   return { items, isLoading: !settled };
@@ -79,10 +77,7 @@ export function useSystemPageBlocksPaged<T>(
     pageId ? [pageId, blockType, ...whereArgs] : [],
   );
 
-  const [settled, setSettled] = useState(false);
-  if (!settled && pageId !== null && !isLoading && !isFetching) {
-    setSettled(true);
-  }
+  const settled = useSettled(pageId === null || isLoading || isFetching);
 
   const items = useMemo(() => data.map(parse), [data, parse]);
   return { items, total: countRows[0]?.c ?? 0, isLoading: !settled };

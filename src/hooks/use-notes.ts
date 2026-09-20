@@ -5,7 +5,6 @@ import { useQuery } from "@powersync/react";
 import { refTypeSql } from "@/lib/links/links";
 import type { AttachmentRecord, BlockRecord, PageRecord } from "@/lib/powersync/AppSchema";
 
-type NoteCountRow = { count: number };
 
 export type NotePageRow = PageRecord & { id: string; preview_content?: string | null };
 export type NoteBlockRow = BlockRecord & { id: string };
@@ -66,24 +65,6 @@ export function useNoteBlocks(pageId?: string | null) {
   };
 }
 
-export function useNoteCounts() {
-  const { data: pageRows = [], isLoading: isLoadingPages } = useQuery<NoteCountRow>(
-    "SELECT COUNT(*) AS count FROM pages WHERE deleted_at IS NULL"
-  );
-  const { data: blockRows = [], isLoading: isLoadingBlocks } = useQuery<NoteCountRow>(
-    "SELECT COUNT(*) AS count FROM blocks WHERE deleted_at IS NULL"
-  );
-  const { data: edgeRows = [], isLoading: isLoadingEdges } = useQuery<NoteCountRow>(
-    "SELECT COUNT(*) AS count FROM edges"
-  );
-
-  return {
-    pageCount: pageRows[0]?.count ?? 0,
-    blockCount: blockRows[0]?.count ?? 0,
-    edgeCount: edgeRows[0]?.count ?? 0,
-    isLoading: isLoadingPages || isLoadingBlocks || isLoadingEdges
-  };
-}
 
 // The note-page SELECT list: page columns plus a `preview_content` correlated
 // subquery (the first block's content). Shared by the recent/favorite/all

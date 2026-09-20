@@ -77,8 +77,10 @@ export function EntityPopup({
     if (pathAtOpen.current !== pathname) onOpenChange(false);
   }, [item, pathname, onOpenChange]);
 
+  // Both lookups exclude trashed rows, the way every list query does — so an
+  // entity deleted from the card's own menu stops resolving here too.
   const { data: taskRows = [] } = useQuery<TaskRow>(
-    isTask ? "SELECT * FROM tasks WHERE id = ?" : EMPTY_TASK,
+    isTask ? "SELECT * FROM tasks WHERE id = ? AND state != 'trashed'" : EMPTY_TASK,
     isTask ? [item.id] : [],
   );
   const { data: subtasks = [] } = useQuery<TaskRow>(
@@ -86,7 +88,7 @@ export function EntityPopup({
     isTask ? [item.id] : [],
   );
   const { data: blockRows = [] } = useQuery<BlockRow>(
-    isBlock ? "SELECT id, content, sort_rank FROM blocks WHERE id = ?" : EMPTY_BLOCK,
+    isBlock ? "SELECT id, content, sort_rank FROM blocks WHERE id = ? AND deleted_at IS NULL" : EMPTY_BLOCK,
     isBlock ? [item.id] : [],
   );
   const { data: allTags = [] } = useQuery<Tag>(item?.kind === "bookmark" ? "SELECT id, name, color FROM tags" : EMPTY_TAGS);
@@ -94,6 +96,23 @@ export function EntityPopup({
   const taskRow = taskRows[0];
   const blockRow = blockRows[0];
   const ready = isTask ? Boolean(taskRow) : isBlock ? Boolean(blockRow) : false;
+
+  // Deleting from the card's own menu trashes the row, which then stops
+  // resolving above — close rather than sit over something that no longer
+  // exists. Keyed on the id that last resolved, so neither the first frame of a
+  // fresh lookup nor switching straight to another item closes it.
+  const resolvedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!item) {
+      resolvedFor.current = null;
+      return;
+    }
+    if (ready) {
+      resolvedFor.current = item.id;
+      return;
+    }
+    if (resolvedFor.current === item.id) onOpenChange(false);
+  }, [item, ready, onOpenChange]);
 
   // Tags (task/bookmark/event) — the same batched lookup the list pages use; the
   // card seeds its optimistic state from this. Quotes carry no tags.

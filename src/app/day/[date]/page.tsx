@@ -6,7 +6,7 @@
  * Tracker is the only app with no per-entity anchor — its rows are keyed by date
  * rather than by an id — so the day itself is the join. This page is the reader:
  * what you wrote, what you tracked, what you meant to do, what you logged and
- * what you kept, for a single `yyyy-MM-dd`. Writing leads, because it is the
+ * what you saved, for a single `yyyy-MM-dd`. Writing leads, because it is the
  * one thing here you come to *do* rather than to read.
  *
  * Sections stay separate on purpose. Tracker's timestamps are UTC-naive while
@@ -265,7 +265,7 @@ export default function DayPage() {
 
         {captures.bookmarks.length + captures.quotes.length + captures.notes.length > 0 ? (
           <Section
-            title="Kept"
+            title="Saved"
             count={captures.bookmarks.length + captures.quotes.length + captures.notes.length}
           >
             <ul className="space-y-1.5">

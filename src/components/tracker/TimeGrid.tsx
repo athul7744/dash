@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { hourCellKey } from "@/lib/tracker/day-keys";
+import Link from "next/link";
+import { hourCellKey, localDateKey } from "@/lib/tracker/day-keys";
 import { cn } from "@/lib/shared/utils";
 import { ACTIVITY_CELL_CLASSES } from "@/lib/tracker/activities";
 import { moodByValue, moodDotClass, type Mood } from "@/lib/tracker/moods";
@@ -60,14 +61,14 @@ interface TimeGridProps {
 
 export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, moods }: TimeGridProps) {
   // Key for animation reset when week changes
-  const weekKey = days.length > 0 ? format(days[0], "yyyy-MM-dd") : "";
+  const weekKey = days.length > 0 ? localDateKey(days[0]) : "";
   const wrapperRef = useRef<HTMLDivElement>(null);
   const currentTimeCellRef = useRef<HTMLTableCellElement>(null);
 
   const [scrolledX, setScrolledX] = useState(false);
 
   const now = new Date();
-  const todayKey = format(now, "yyyy-MM-dd");
+  const todayKey = localDateKey(now);
   const currentHour = now.getHours();
 
   useEffect(() => {
@@ -127,7 +128,7 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
         </thead>
         <tbody>
           {days.map((day, rowIdx) => {
-            const dateKey = format(day, "yyyy-MM-dd");
+            const dateKey = localDateKey(day);
             const currentScore = ratings?.get(dateKey) ?? null;
             const currentRating = moodByValue(moods, currentScore);
             return (
@@ -162,11 +163,20 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
                   </td>
                 )}
                 <td className={cn(
-                  "sticky z-20 bg-muted px-3 py-2 font-medium text-muted-foreground whitespace-nowrap w-[120px] border-r border-border transition-shadow duration-200",
+                  "sticky z-20 bg-muted p-0 font-medium text-muted-foreground whitespace-nowrap w-[120px] border-r border-border transition-shadow duration-200",
                   ratings ? "left-[52px]" : "left-0",
                   scrolledX && STICKY_EDGE_SHADOW,
                 )}>
-                  {format(day, "EEE, MMM d")}
+                  {/* The cell is the target, not just the words: padding moves
+                      onto the link so the hit area is the column's full width
+                      and the row's full height. */}
+                  <Link
+                    href={`/day/${dateKey}`}
+                    title={`Open ${format(day, "d MMMM yyyy")}`}
+                    className="flex h-full w-full items-center px-3 py-2 transition-colors hover:text-emerald-700 dark:hover:text-emerald-400"
+                  >
+                    {format(day, "EEE, MMM d")}
+                  </Link>
                 </td>
                 {HOURS.map((h) => {
                   const key = hourCellKey(dateKey, h);

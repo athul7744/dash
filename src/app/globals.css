@@ -703,6 +703,15 @@ body[data-display-font="bricolage"] {
   }
 }
 
+/* The editor tints and underlines every anchor (`.ProseMirror a[href]`), which
+   is right for a link in a sentence and wrong for a card. Scoped under
+   `.ProseMirror` so it outranks those rules rather than racing them by order. */
+.ProseMirror a.note-link-embed-card,
+.ProseMirror a.note-link-embed-card:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
 .note-link-embed-card {
   display: flex;
   align-items: stretch;
@@ -739,6 +748,7 @@ body[data-display-font="bricolage"] {
 }
 
 .note-link-embed-title {
+  color: var(--color-foreground);
   font-weight: 600;
   line-height: 1.35;
   /* Two lines, so a wordy title can't set the height of every card in a list. */

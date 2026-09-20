@@ -50,3 +50,24 @@ describe("parseMetadataHtml", () => {
     expect(parseMetadataHtml("")).toEqual({ title: "", description: "", image: "" });
   });
 });
+
+describe("metadata deep in a head full of script", () => {
+  it("still finds the og tags", () => {
+    // Real case: YouTube's og tags sit ~685 KB into the page, behind inline
+    // script. The route's byte cap decides whether the parser ever sees this —
+    // at 512 KB a video link came back with no title, description or image.
+    const filler = `<script>${"x".repeat(600 * 1024)}</script>`;
+    const html = `<html><head>${filler}<meta property="og:title" content="A Video"><meta property="og:image" content="https://i.example.com/t.jpg"></head><body></body></html>`;
+    expect(parseMetadataHtml(html)).toMatchObject({
+      title: "A Video",
+      image: "https://i.example.com/t.jpg",
+    });
+  });
+
+  it("finds nothing when the head was cut short of them", () => {
+    // What a too-small cap produces: the parser is fine, it simply never
+    // received the tags.
+    const truncated = `<html><head><script>${"x".repeat(1024)}</script>`;
+    expect(parseMetadataHtml(truncated)).toEqual({ title: "", description: "", image: "" });
+  });
+});

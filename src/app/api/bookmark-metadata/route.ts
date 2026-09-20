@@ -13,7 +13,10 @@ import { createClient } from "@/lib/supabase/server";
  */
 
 const FETCH_TIMEOUT_MS = 5000;
-const MAX_BYTES = 512 * 1024; // 512 KB is plenty for <head> metadata.
+// The read stops at `</head>`, so this cap only binds on pages whose head is
+// mostly script — and those are common enough to matter: YouTube puts its og
+// tags 685 KB in, so at 512 KB a video link came back with nothing at all.
+const MAX_BYTES = 1024 * 1024;
 const USER_AGENT =
   "Mozilla/5.0 (compatible; DashBookmarks/1.0; +https://dash.local)";
 

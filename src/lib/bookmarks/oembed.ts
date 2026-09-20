@@ -40,18 +40,30 @@ const DISCOVERY = [
  * outright) can still reach a known provider.
  */
 export function oembedEndpoint(pageUrl: string, html = ""): string | null {
-  for (const pattern of DISCOVERY) {
-    const href = html.match(pattern)?.[1];
-    // A discovered endpoint already names the page it is about.
-    if (href) return href.replace(/&amp;/g, "&");
-  }
-
   let host: string;
   try {
     host = new URL(pageUrl).hostname.toLowerCase();
   } catch {
     return null;
   }
+
+  for (const pattern of DISCOVERY) {
+    const href = html.match(pattern)?.[1];
+    if (!href) continue;
+    // A discovered endpoint already names the page it is about — but it is also
+    // chosen by the page, which makes it the one attacker-controlled URL this
+    // server would fetch. Confining it to the page's own host means a hostile
+    // page can only point us back at itself; the blocked-host guard alone would
+    // still follow a redirect somewhere private. Cross-host providers are the
+    // ones we vetted below.
+    const decoded = href.replace(/&amp;/g, "&");
+    try {
+      if (new URL(decoded).hostname.toLowerCase() === host) return decoded;
+    } catch {
+      /* relative or malformed — fall through to a known provider */
+    }
+  }
+
   const provider = KNOWN_PROVIDERS.find((candidate) => candidate.host(host));
   return provider ? `${provider.endpoint}?format=json&url=${encodeURIComponent(pageUrl)}` : null;
 }

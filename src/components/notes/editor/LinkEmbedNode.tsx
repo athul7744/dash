@@ -80,7 +80,7 @@ function LinkEmbedCard({ node, deleteNode, updateAttributes, editor, getPos }: R
     setSaving(true);
     try {
       // Only a changed address is worth a round trip; a relabel is local.
-      const refetch = addressChanged && blockId ? await refetchLinkEmbed(nextUrl, blockId) : null;
+      const refetch = addressChanged ? await refetchLinkEmbed(nextUrl, blockId) : null;
       const next = mergeLinkEmbedEdit(attrs, { url: nextUrl, title: draft.title }, refetch);
       updateAttributes(next);
       if (refetch?.stored) await insertAttachmentRow(refetch.stored);

@@ -125,9 +125,12 @@ export async function insertLinkEmbed(
  */
 export async function refetchLinkEmbed(
   url: string,
-  blockId: string,
+  blockId: string | null,
 ): Promise<LinkEmbedRefetch & { stored: StoredBytes | null }> {
   const metadata = await fetchMetadata(url);
-  const thumbnail = await storeThumbnail(metadata?.image, blockId);
+  // Only the thumbnail needs a block to be stored against. Without one the card
+  // still re-reads its page — a card that kept pointing at the old address
+  // because we couldn't find its block would be the worse failure by far.
+  const thumbnail = blockId ? await storeThumbnail(metadata?.image, blockId) : null;
   return { metadata, imageAttachmentId: thumbnail?.id ?? null, stored: thumbnail };
 }

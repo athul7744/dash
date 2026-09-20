@@ -178,6 +178,19 @@ describe("mergeLinkEmbedEdit", () => {
     expect(next.title).toBe("New Page");
   });
 
+  it("carries a new address through even when nothing could be re-read", () => {
+    // The caller failed to re-read — offline, or it couldn't find the card's
+    // block. Keeping the old URL would silently discard the edit and leave the
+    // card pointing somewhere the user just changed it away from.
+    const next = mergeLinkEmbedEdit(current, { url: "https://other.com/new", title: current.title }, null);
+    expect(next.url).toBe("https://other.com/new");
+    expect(next.host).toBe("other.com");
+  });
+
+  it("keeps the old address when the new one is blank", () => {
+    expect(mergeLinkEmbedEdit(current, { url: "   ", title: "x" }, null).url).toBe(current.url);
+  });
+
   it("still lands a card when the new address can't be read", () => {
     const next = mergeLinkEmbedEdit(current, { url: "https://other.com/new", title: "" }, { metadata: null, imageAttachmentId: null });
     expect(next).toMatchObject({ url: "https://other.com/new", title: "", image: null, host: "other.com" });

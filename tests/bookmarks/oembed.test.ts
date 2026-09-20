@@ -43,6 +43,24 @@ describe("oembedEndpoint", () => {
     expect(oembedEndpoint("https://youtube.com.evil.test/watch?v=abc")).toBeNull();
   });
 
+  it("refuses an endpoint on someone else's host", () => {
+    // The href is chosen by the page, which makes it the one attacker-picked URL
+    // this server would fetch. The blocked-host guard alone would still follow a
+    // redirect from a public host to a private one.
+    const html = `<link rel="alternate" type="application/json+oembed" href="https://evil.test/oembed?url=http://169.254.169.254/">`;
+    expect(oembedEndpoint("https://site.example/post", html)).toBeNull();
+  });
+
+  it("falls back to a known provider when discovery points elsewhere", () => {
+    const html = `<link rel="alternate" type="application/json+oembed" href="https://evil.test/oembed">`;
+    expect(oembedEndpoint("https://www.youtube.com/watch?v=abc", html)).toContain("youtube.com/oembed");
+  });
+
+  it("ignores a relative href rather than guessing at it", () => {
+    const html = `<link rel="alternate" type="application/json+oembed" href="/oembed?url=x">`;
+    expect(oembedEndpoint("https://site.example/post", html)).toBeNull();
+  });
+
   it("has nothing to offer an ordinary page", () => {
     expect(oembedEndpoint("https://example.com/post", "<head><title>Hi</title></head>")).toBeNull();
     expect(oembedEndpoint("not a url")).toBeNull();

@@ -92,8 +92,9 @@ export interface LinkEmbedRefetch {
  * yourself survives; one you left as the old page's is replaced, because it
  * describes a page the card no longer points at.
  *
- * `refetch` is null when the address didn't change — then nothing but the label
- * moves, and no network was touched.
+ * `refetch` is null when nothing was re-read — normally because the address
+ * didn't change. The address is carried through regardless: a caller that
+ * couldn't re-read should still not silently keep pointing at the old page.
  */
 export function mergeLinkEmbedEdit(
   current: LinkEmbedAttrs,
@@ -101,9 +102,10 @@ export function mergeLinkEmbedEdit(
   refetch: LinkEmbedRefetch | null,
 ): LinkEmbedAttrs {
   const title = next.title.trim();
-  if (!refetch) return { ...current, title };
+  const url = next.url.trim() || current.url;
+  if (!refetch) return { ...current, url, host: embedHost(url) || current.host, title };
 
-  const rebuilt = buildLinkEmbedAttrs(next.url, refetch.metadata, refetch.imageAttachmentId);
+  const rebuilt = buildLinkEmbedAttrs(url, refetch.metadata, refetch.imageAttachmentId);
   const keptOwnTitle = title !== current.title;
   return { ...rebuilt, title: keptOwnTitle ? title : rebuilt.title };
 }

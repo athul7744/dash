@@ -134,7 +134,12 @@ async function fillFromOembed(pageUrl: string, html: string, scraped: PageMetada
     if (!res.ok) return scraped;
     const embed = parseOembed(await res.json());
     const providerAnswered = Boolean(embed.title || embed.image);
-    const siteLevelOnly = providerAnswered && !scraped.descriptionFromOg;
+    // Dropping a site-level description is only right for a page that said
+    // nothing about *itself* — the shell signature. A page with an og:image but
+    // no og:title reaches here too, and its `name="description"` is very likely
+    // the real thing.
+    const isShell = !scraped.titleFromOg && !scraped.image;
+    const siteLevelOnly = providerAnswered && isShell && !scraped.descriptionFromOg;
     return {
       title: scraped.titleFromOg ? scraped.title : embed.title || scraped.title,
       description: siteLevelOnly ? "" : scraped.description,

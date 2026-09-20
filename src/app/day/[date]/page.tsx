@@ -5,8 +5,9 @@
  *
  * Tracker is the only app with no per-entity anchor — its rows are keyed by date
  * rather than by an id — so the day itself is the join. This page is the reader:
- * what you tracked, what you meant to do, what you logged, what you kept, and
- * what you wrote, for a single `yyyy-MM-dd`.
+ * what you wrote, what you tracked, what you meant to do, what you logged and
+ * what you kept, for a single `yyyy-MM-dd`. Writing leads, because it is the
+ * one thing here you come to *do* rather than to read.
  *
  * Sections stay separate on purpose. Tracker's timestamps are UTC-naive while
  * everything else is a real instant, so interleaving them into one chronological
@@ -155,6 +156,10 @@ export default function DayPage() {
           </div>
         </header>
 
+        <Section title="Journal">
+          <DailyJournalEntry date={date} placeholder="Write about this day…" hasEntry={hasJournalEntry} />
+        </Section>
+
         <Section title="The day">
           <div className="space-y-3 rounded-2xl border border-border/60 bg-card/50 p-4">
             <MoodPicker dateKey={dateKey} prompt="How was it?" />
@@ -288,10 +293,6 @@ export default function DayPage() {
             </ul>
           </Section>
         ) : null}
-
-        <Section title="Journal">
-          <DailyJournalEntry date={date} placeholder="Write about this day…" hasEntry={hasJournalEntry} />
-        </Section>
 
         {linkedFrom.length > 0 ? (
           <Section title="Linked from" count={linkedFrom.length}>

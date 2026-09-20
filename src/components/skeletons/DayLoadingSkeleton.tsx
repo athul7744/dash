@@ -10,8 +10,8 @@ import { dayApp } from "@/lib/shared/destinations";
  * week skeleton before, which is a seven-row grid and a wall of widgets —
  * nothing like this page, so the boot screen rearranged itself on settle.
  *
- * Mirrors the real order: date header, the summary card, one grid row, two of
- * the list sections, and the journal.
+ * Mirrors the real order: date header, the journal, the summary card, one
+ * grid row, and two of the list sections.
  *
  * It carries its own shell, as the tracker and tasks skeletons do. On a cold
  * boot this renders *instead of* the layout's `<main>` (see PowerSyncProvider),
@@ -35,6 +35,15 @@ export function DayLoadingSkeleton() {
             <Skeleton className="size-8 rounded-full" />
           </div>
         </div>
+
+        {/* journal */}
+        <section className="space-y-2">
+          <Skeleton className="h-3 w-16" />
+          <div className="space-y-2 py-1.5">
+            <Skeleton className="h-3.5 w-11/12" />
+            <Skeleton className="h-3.5 w-2/3" />
+          </div>
+        </section>
 
         {/* the day: mood, hours, activity breakdown */}
         <section className="space-y-2">
@@ -88,15 +97,6 @@ export function DayLoadingSkeleton() {
             </SkeletonWave>
           </section>
         ))}
-
-        {/* journal */}
-        <section className="space-y-2">
-          <Skeleton className="h-3 w-16" />
-          <div className="space-y-2 py-1.5">
-            <Skeleton className="h-3.5 w-11/12" />
-            <Skeleton className="h-3.5 w-2/3" />
-          </div>
-        </section>
       </div>
     </div>
   );

@@ -71,6 +71,18 @@ export function writePageBanner(pageId: string, properties: PageProperties, next
   });
 }
 
+/**
+ * The banner image a replacement makes redundant, or null to keep everything.
+ *
+ * Named because it decides a file deletion. Nothing goes when there was no
+ * banner, and nothing goes when the same picture was chosen again — one of the
+ * ways to set a banner is to reuse a file already on the page, so the previous
+ * and the next can be the same row.
+ */
+export function bannerImageToDiscard(previous: string | null | undefined, next: string): string | null {
+  return previous && previous !== next ? previous : null;
+}
+
 const MAX_MB = Math.round(MAX_ATTACHMENT_BYTES / (1024 * 1024));
 
 /**

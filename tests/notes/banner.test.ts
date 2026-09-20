@@ -21,6 +21,7 @@ vi.mock("@/lib/storage/remote-image", () => ({
 }));
 
 import {
+  bannerImageToDiscard,
   attachBannerFile,
   attachBannerFromUrl,
   clampAlign,
@@ -169,5 +170,23 @@ describe("nextAlignFromDrag", () => {
 
   it("holds still when the frame has no measured height", () => {
     expect(nextAlignFromDrag({ startAlign: 40, dy: 80, height: 0 })).toBe(40);
+  });
+});
+
+describe("bannerImageToDiscard", () => {
+  it("names the image a replacement makes redundant", () => {
+    expect(bannerImageToDiscard("old-file", "new-file")).toBe("old-file");
+  });
+
+  it("keeps everything when there was no banner", () => {
+    expect(bannerImageToDiscard(null, "new-file")).toBeNull();
+    expect(bannerImageToDiscard(undefined, "new-file")).toBeNull();
+  });
+
+  it("keeps the file when the same picture is chosen again", () => {
+    // Setting a banner can mean reusing a file already on the page, so the
+    // previous and the next are the same row — deleting it would take the
+    // banner with it.
+    expect(bannerImageToDiscard("same-file", "same-file")).toBeNull();
   });
 });

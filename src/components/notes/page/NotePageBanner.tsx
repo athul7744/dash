@@ -23,12 +23,14 @@ import type { NoteAttachmentRow } from "@/hooks/use-notes";
 import {
   attachBannerFile,
   attachBannerFromUrl,
+  bannerImageToDiscard,
   DEFAULT_BANNER_ALIGN,
   nextAlignFromDrag,
   readPageBanner,
   writePageBanner,
 } from "@/lib/notes/banner";
 import { pickImageFiles } from "@/lib/notes/editor/image-insert";
+import { deleteAttachmentById } from "@/lib/storage/attachments";
 import { cn } from "@/lib/shared/utils";
 
 type BannerProps = {
@@ -231,10 +233,17 @@ function BannerSourcePopover({
   const apply = async (store: () => Promise<string>) => {
     setBusy(true);
     try {
+      const replaced = readPageBanner(pageProperties)?.attachmentId ?? null;
       const attachmentId = await store();
       // A new image starts centred: keeping the old crop would apply a position
       // chosen for a different picture.
       writePageBanner(pageId, pageProperties, { attachmentId, align: DEFAULT_BANNER_ALIGN });
+
+      // The image this one replaced, once the page no longer points at it — by
+      // id, since a banner is stored against the *page* and clearing the page's
+      // attachments would take every file on it.
+      const discard = bannerImageToDiscard(replaced, attachmentId);
+      if (discard) await deleteAttachmentById(discard);
       setUrlDraft("");
       setOpen(false);
     } catch (error) {

@@ -25,9 +25,7 @@ import {
   type LinkMetadata,
 } from "@/lib/notes/link-embed";
 import { discardStoredBytes, insertAttachmentRow, storeFileBytes, type StoredBytes } from "@/lib/storage/attachments";
-import { downscaleImage, THUMBNAIL_MAX_WIDTH } from "@/lib/storage/downscale";
-import { fetchRemoteImage, imageFileNameFromUrl } from "@/lib/storage/remote-image";
-import { isAllowed } from "@/lib/storage/paths";
+import { fetchPreviewImage } from "@/lib/storage/remote-image";
 
 export interface LinkEmbedInsertOptions {
   /** Document position to insert at. Defaults to the selection. */
@@ -58,24 +56,10 @@ async function fetchMetadata(url: string): Promise<LinkMetadata | null> {
  */
 async function storeThumbnail(imageUrl: string | undefined, blockId: string): Promise<StoredBytes | null> {
   if (!imageUrl) return null;
-  const fetched = await fetchRemoteImage(imageUrl);
-  if (!fetched) return null;
-
-  // Bounded before storing: an og:image is routinely 2400px for a rail a tenth
-  // that wide, and the browser's one-pass reduction at that ratio is what makes
-  // a banner look ragged. Costs less to sync, too.
-  const blob = await downscaleImage(fetched, THUMBNAIL_MAX_WIDTH);
-  const mimeType = blob.type || "image/jpeg";
-  if (!mimeType.startsWith("image/") || !isAllowed(mimeType, blob.size)) return null;
-
-  // Re-encoding changes the format, and `extFor` trusts a file name's extension
-  // over the mime type — so drop the original's rather than store webp bytes
-  // under a `.png` key.
-  const named = imageFileNameFromUrl(imageUrl, "preview");
-  const fileName = blob === fetched ? named : named.replace(/\.[^.]+$/, "");
-
+  const preview = await fetchPreviewImage(imageUrl);
+  if (!preview) return null;
   try {
-    return await storeFileBytes(blob, { blockId }, { fileName, mimeType });
+    return await storeFileBytes(preview.blob, { blockId }, { fileName: preview.fileName, mimeType: preview.mimeType });
   } catch {
     return null;
   }

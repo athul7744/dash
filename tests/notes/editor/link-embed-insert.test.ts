@@ -18,7 +18,7 @@ import { LINK_EMBED_NODE_TYPE } from "@/lib/notes/link-embed";
 /** Just enough of an inserted block to read the embed's attrs back out. */
 type EmbedBlock = { content: { type: string; attrs: Record<string, unknown> }[] };
 
-const { calls, insertBlockNodes, flush, storeFileBytes, insertAttachmentRow, discardStoredBytes, fetchRemoteImage } =
+const { calls, insertBlockNodes, flush, storeFileBytes, insertAttachmentRow, discardStoredBytes, fetchPreviewImage } =
   vi.hoisted(() => {
     const calls: string[] = [];
     return {
@@ -40,18 +40,18 @@ const { calls, insertBlockNodes, flush, storeFileBytes, insertAttachmentRow, dis
       discardStoredBytes: vi.fn(async () => {
         calls.push("discardStoredBytes");
       }),
-      fetchRemoteImage: vi.fn(async () => new Blob(["x"], { type: "image/png" })),
+      fetchPreviewImage: vi.fn(async () => ({
+        blob: new Blob(["x"], { type: "image/webp" }),
+        fileName: "preview",
+        mimeType: "image/webp",
+      })),
     };
   });
 
 vi.mock("@/lib/notes/editor/markdown-paste", () => ({ insertBlockNodes }));
 vi.mock("@/lib/notes/editor/block-persister", () => ({ flushAllBlockDocumentPersisters: flush }));
 vi.mock("@/lib/storage/attachments", () => ({ storeFileBytes, insertAttachmentRow, discardStoredBytes }));
-vi.mock("@/lib/storage/remote-image", () => ({
-  fetchRemoteImage,
-  imageFileNameFromUrl: () => "preview.png",
-}));
-vi.mock("@/lib/storage/paths", () => ({ isAllowed: () => true }));
+vi.mock("@/lib/storage/remote-image", () => ({ fetchPreviewImage }));
 
 const view = {} as EditorView;
 
@@ -103,8 +103,8 @@ describe("insertLinkEmbed", () => {
     expect(insertAttachmentRow).not.toHaveBeenCalled();
   });
 
-  it("lands a card with no thumbnail when the image can't be fetched", async () => {
-    fetchRemoteImage.mockResolvedValueOnce(null as unknown as Blob);
+  it("lands a card with no thumbnail when the image can't be fetched or kept", async () => {
+    fetchPreviewImage.mockResolvedValueOnce(null as unknown as { blob: Blob; fileName: string; mimeType: string });
     await expect(insertLinkEmbed(view, "https://example.com/post")).resolves.toBe(true);
     expect(insertedAttrs().image).toBeNull();
     expect(insertAttachmentRow).not.toHaveBeenCalled();

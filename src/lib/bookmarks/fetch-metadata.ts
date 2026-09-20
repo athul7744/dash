@@ -1,7 +1,7 @@
 import { updateBookmark } from "@/lib/bookmarks/bookmarks";
 import type { PageMetadata } from "@/lib/bookmarks/metadata";
 import { attachFile, deleteEntityAttachments } from "@/lib/storage/attachments";
-import { fetchRemoteImage, imageFileNameFromUrl } from "@/lib/storage/remote-image";
+import { fetchPreviewImage } from "@/lib/storage/remote-image";
 
 /**
  * Client-side wrapper over the server metadata proxy (`/api/bookmark-metadata`).
@@ -18,15 +18,17 @@ export async function fetchBookmarkMetadata(url: string): Promise<Partial<PageMe
 }
 
 /** Store a bookmark's preview image (og:image) as its attachment, replacing any
- * prior one. Fetched through the server image proxy to dodge CORS. Best-effort. */
+ * prior one. Fetched through the server image proxy to dodge CORS, and bounded
+ * on the way in — an og:image is routinely far larger than any card draws it.
+ * Best-effort. */
 async function persistBookmarkImage(id: string, imageUrl: string): Promise<void> {
   try {
-    const blob = await fetchRemoteImage(imageUrl);
-    if (!blob) return;
+    const preview = await fetchPreviewImage(imageUrl);
+    if (!preview) return;
     await deleteEntityAttachments(id); // one preview per bookmark
-    await attachFile(blob, { blockId: id }, {
-      fileName: imageFileNameFromUrl(imageUrl, "preview"),
-      mimeType: blob.type,
+    await attachFile(preview.blob, { blockId: id }, {
+      fileName: preview.fileName,
+      mimeType: preview.mimeType,
     });
   } catch {
     /* best-effort — no preview is fine */

@@ -716,6 +716,9 @@ body[data-display-font="bricolage"] {
   display: flex;
   align-items: stretch;
   gap: 0.875rem;
+  /* Floor the height so a card with no description can't squeeze the thumbnail
+     into a sliver, which crops an og banner to nothing. */
+  min-height: 6.5rem;
   overflow: hidden;
   border: 1px solid color-mix(in oklab, var(--color-border) 65%, transparent);
   border-radius: 0.75rem;
@@ -768,9 +771,12 @@ body[data-display-font="bricolage"] {
   overflow: hidden;
 }
 
+/* An og:image is almost always a ~1.9:1 banner whose logo and headline run its
+   full width, so the rail is wide enough to stay near that shape: a narrower one
+   centre-crops a third off each side and takes the words with it. */
 .note-link-embed-thumb {
   flex: 0 0 auto;
-  width: 8.5rem;
+  width: 11rem;
   align-self: stretch;
   background: color-mix(in oklab, var(--color-muted) 60%, transparent);
 }
@@ -796,7 +802,9 @@ body[data-display-font="bricolage"] {
 
   .note-link-embed-thumb {
     width: 100%;
-    height: 8rem;
+    /* Stacked, there is room to show the banner at its own shape. */
+    aspect-ratio: 1.91;
+    height: auto;
   }
 }
 

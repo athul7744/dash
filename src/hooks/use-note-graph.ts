@@ -67,7 +67,7 @@ const EDGE_RESOLVE_QUERY = [
   `WHERE ${refTypeSql("e")}`,
 ].join(" ");
 
-type EdgeResolveRow = {
+export type EdgeResolveRow = {
   s_raw: string; t_raw: string;
   s_task: string | null; s_block: string | null; s_page: string | null; s_page_kind: string | null;
   t_task: string | null; t_block: string | null; t_page: string | null; t_block_page_kind: string | null;
@@ -82,7 +82,7 @@ export function tagColorToCss(color: string | null | undefined): string | null {
   return name ? `var(--color-${name}-500)` : null;
 }
 
-function resolveSource(row: EdgeResolveRow): Endpoint | null {
+export function resolveSource(row: EdgeResolveRow): Endpoint | null {
   if (row.s_task) return { id: row.s_raw, kind: "task" };
   if (row.s_block) {
     if (row.s_page_kind == null) return row.s_page ? { id: row.s_page, kind: "note" } : null;
@@ -94,7 +94,7 @@ function resolveSource(row: EdgeResolveRow): Endpoint | null {
   return null;
 }
 
-function resolveTarget(row: EdgeResolveRow): Endpoint | null {
+export function resolveTarget(row: EdgeResolveRow): Endpoint | null {
   if (row.t_task) return { id: row.t_raw, kind: "task" };
   if (row.t_page_direct && row.t_page_kind == null) return { id: row.t_raw, kind: "note" };
   // A day reference points straight at the journal page that anchors it.

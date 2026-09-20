@@ -49,36 +49,42 @@ export type NoteGraph = {
   links: GraphLink[];
 };
 
-/** Stable, order-independent key for an undirected pair. */
-function pairKey(a: string, b: string): string {
-  return a < b ? `${a}${b}` : `${b}${a}`;
-}
-
 /**
  * Collapse block->page edge rows into an undirected, deduped page->page graph.
  * Only pages present in `pages` become nodes; edges touching an unknown page
  * (e.g. an unresolved link) or a self-link are dropped.
+ *
+ * Pairs are held in a nested map rather than under a concatenated key, so the
+ * two ids are never packed into one string and pulled apart again. The version
+ * that did was broken by a commit stripping the NUL bytes it used as the
+ * separator: every link then pointed at a single character, no node reached
+ * degree 1, and the whole vault rendered as orphan clusters.
  */
 export function buildGraph(pages: GraphPageInput[], edgeRows: PageEdgeRow[]): NoteGraph {
   const known = new Set(pages.map((p) => p.id));
-  const weights = new Map<string, number>();
+  /** lower id -> higher id -> the link, so each unordered pair is held once. */
+  const pairs = new Map<string, Map<string, GraphLink>>();
 
   for (const row of edgeRows) {
-    const source = row.source;
-    const target = row.target;
+    const { source, target } = row;
     if (!source || !target || source === target) continue;
     if (!known.has(source) || !known.has(target)) continue;
-    const key = pairKey(source, target);
-    weights.set(key, (weights.get(key) ?? 0) + 1);
+    const [lo, hi] = source < target ? [source, target] : [target, source];
+    let byTarget = pairs.get(lo);
+    if (!byTarget) {
+      byTarget = new Map();
+      pairs.set(lo, byTarget);
+    }
+    const existing = byTarget.get(hi);
+    if (existing) existing.weight += 1;
+    else byTarget.set(hi, { source: lo, target: hi, weight: 1 });
   }
 
+  const links = [...pairs.values()].flatMap((byTarget) => [...byTarget.values()]);
   const degree = new Map<string, number>();
-  const links: GraphLink[] = [];
-  for (const [key, weight] of weights) {
-    const [source, target] = key.split("");
-    links.push({ source, target, weight });
-    degree.set(source, (degree.get(source) ?? 0) + 1);
-    degree.set(target, (degree.get(target) ?? 0) + 1);
+  for (const link of links) {
+    degree.set(link.source, (degree.get(link.source) ?? 0) + 1);
+    degree.set(link.target, (degree.get(link.target) ?? 0) + 1);
   }
 
   const nodes: GraphNode[] = pages.map((p) => ({

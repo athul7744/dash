@@ -66,7 +66,10 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
   // title + all saved subtask titles whenever any of them change (deduped in
   // reconcileEntityRefs). Derived from persisted props, so edges track saved
   // state and never race in-flight edits.
-  const subtaskTitlesKey = subtasks.map((st) => st.title ?? "").join("");
+  // JSON rather than a joined string: the separator this used to rely on was a
+  // NUL byte, and a commit that stripped those left the titles running together
+  // — so moving a word between two subtasks changed nothing the effect could see.
+  const subtaskTitlesKey = JSON.stringify(subtasks.map((st) => st.title ?? ""));
   React.useEffect(() => {
     if (isNew) return;
     void reconcileEntityRefs(task.id, [task.title ?? "", ...subtasks.map((st) => st.title ?? "")]);

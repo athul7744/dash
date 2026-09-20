@@ -20,6 +20,7 @@ import {
   type SlashScope,
 } from "@/components/notes/NoteBlockEditorSlash";
 import { insertImageFiles, pickImageFiles } from "@/lib/notes/editor/image-insert";
+import { insertLinkEmbed } from "@/lib/notes/editor/link-embed-insert";
 import { applySlashCommand, getSlashContext, type SlashContext } from "@/lib/notes/editor/slash-single";
 import { useToast } from "@/components/toast/ToastProvider";
 import { Calendar } from "@/components/ui/calendar";
@@ -69,6 +70,12 @@ export function SlashMenuLayer({
   // that inserts the chosen date into the block the slash was typed in.
   const [datePicker, setDatePicker] = useState<{ command: SlashCommand; ctx: SlashContext; left: number; top: number } | null>(null);
   const datePickerRef = useRef<HTMLDivElement | null>(null);
+  // Open when the user chooses "Link preview": a URL field anchored at the
+  // caret, which turns the address into a card in the block the slash was in.
+  const [linkPrompt, setLinkPrompt] = useState<{ command: SlashCommand; ctx: SlashContext; left: number; top: number } | null>(null);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [fetchingLink, setFetchingLink] = useState(false);
+  const linkPromptRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const indexRef = useRef(0);
@@ -165,11 +172,35 @@ export function SlashMenuLayer({
         });
         return;
       }
+      // "Link preview" asks for the address first. The slash text stays put
+      // (doc unchanged) so `ctx` is still valid when one is given.
+      if (command.custom === "link-embed") {
+        setLinkPrompt({ command, ctx, left: caret?.left ?? 0, top: caret?.bottom ?? 0 });
+        setLinkUrl("");
+        close();
+        return;
+      }
       applySlashCommand(editor, command, ctx);
       close();
     },
     [editor, close, caret, toast],
   );
+
+  const submitLink = useCallback(async () => {
+    if (!editor || !linkPrompt || fetchingLink) return;
+    const url = linkUrl.trim();
+    if (!url) return;
+    setFetchingLink(true);
+    try {
+      // Clear the slash text first, so the card lands where it was typed.
+      applySlashCommand(editor, { ...linkPrompt.command, createContent: emptyDocument }, linkPrompt.ctx);
+      await insertLinkEmbed(editor.view, url, { onError: (message) => toast({ message }) });
+    } finally {
+      setFetchingLink(false);
+      setLinkPrompt(null);
+      editor.commands.focus();
+    }
+  }, [editor, linkPrompt, linkUrl, fetchingLink, toast]);
 
   const pickDate = useCallback(
     (date: Date | undefined) => {
@@ -209,6 +240,30 @@ export function SlashMenuLayer({
       window.removeEventListener("mousedown", onDown, true);
     };
   }, [datePicker, editor]);
+
+  // Dismiss the link prompt on Escape or an outside click, as the date picker does.
+  useEffect(() => {
+    if (!linkPrompt) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        setLinkPrompt(null);
+        editor?.commands.focus();
+      }
+    };
+    const onDown = (event: MouseEvent) => {
+      if (linkPromptRef.current && !linkPromptRef.current.contains(event.target as Node)) {
+        setLinkPrompt(null);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("mousedown", onDown, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("mousedown", onDown, true);
+    };
+  }, [linkPrompt, editor]);
 
   // Intercept nav keys before ProseMirror (capture phase).
   useEffect(() => {
@@ -255,6 +310,43 @@ export function SlashMenuLayer({
         style={{ left: datePicker.left, top: datePicker.top + 6 }}
       >
         <Calendar mode="single" autoFocus onSelect={pickDate} />
+      </div>
+    );
+  }
+
+  if (linkPrompt) {
+    return (
+      <div
+        ref={linkPromptRef}
+        data-slash-link-prompt="true"
+        className="absolute z-50 w-72 rounded-xl border border-border/60 bg-popover/95 p-2 text-popover-foreground shadow-lg backdrop-blur-sm"
+        style={{ left: linkPrompt.left, top: linkPrompt.top + 6 }}
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitLink();
+          }}
+          className="flex items-center gap-1.5"
+        >
+          <input
+            autoFocus
+            type="url"
+            value={linkUrl}
+            onChange={(event) => setLinkUrl(event.target.value)}
+            placeholder="https://…"
+            disabled={fetchingLink}
+            aria-label="Web address to preview"
+            className="min-w-0 flex-1 rounded-lg border border-border/60 bg-background px-2 py-1.5 text-sm outline-none focus-visible:border-ring disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            disabled={fetchingLink || !linkUrl.trim()}
+            className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+          >
+            {fetchingLink ? "Adding…" : "Add"}
+          </button>
+        </form>
       </div>
     );
   }

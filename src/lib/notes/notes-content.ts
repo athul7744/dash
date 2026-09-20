@@ -1,5 +1,6 @@
 import { formatRefTokenFromAttrs, ENTITY_REF_NODE_TYPE } from "@/lib/links/tokens";
 import { DATE_TOKEN_NODE_TYPE, dateLabelToToken } from "@/lib/notes/date-tokens";
+import { LINK_EMBED_NODE_TYPE, linkEmbedMarkdown, linkEmbedSearchText, parseLinkEmbedAttrs } from "@/lib/notes/link-embed";
 
 /** The `{MMM d, yyyy}` token a dateToken node stands for (text extraction/markdown). */
 function dateTokenToText(attrs: Record<string, unknown> | null): string {
@@ -223,6 +224,13 @@ export function extractNoteText(raw: unknown) {
       parts.push(dateTokenToText(getNodeAttrs(value)));
     }
 
+    // A linkEmbed atom has no `.text` either. Its title and description are the
+    // only copy of the linked page here, so they belong in the text the search
+    // index reads — and the URL keeps the link itself findable.
+    if (value.type === LINK_EMBED_NODE_TYPE) {
+      parts.push(linkEmbedSearchText(parseLinkEmbedAttrs(getNodeAttrs(value))));
+    }
+
     if (Array.isArray(value.content)) {
       for (const child of value.content) {
         visit(child);
@@ -359,6 +367,12 @@ function serializeMarkdownBlock(node: unknown): string {
 
   if (node.type === "horizontalRule") {
     return "---";
+  }
+
+  if (node.type === LINK_EMBED_NODE_TYPE) {
+    // A card exports as the link it was made from — markdown has no card, and a
+    // link is what round-trips back in.
+    return linkEmbedMarkdown(parseLinkEmbedAttrs(getNodeAttrs(node)));
   }
 
   if (node.type === "mathBlock") {

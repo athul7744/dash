@@ -1,5 +1,5 @@
 import type { Editor, JSONContent } from "@tiptap/core";
-import { Calendar, CalendarDays, CalendarPlus, Code2, Database, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Minus, Paintbrush, Quote, Sigma, Table2, TextCursorInput, Type, type LucideIcon } from "lucide-react";
+import { Calendar, CalendarDays, CalendarPlus, Code2, Database, Heading1, Heading2, Heading3, Heading4, Heading5, ImageIcon, Link2, ListTodo, Minus, Paintbrush, Quote, Sigma, SquareArrowOutUpRight, Table2, TextCursorInput, Type, type LucideIcon } from "lucide-react";
 
 import { DATE_TOKEN_NODE_TYPE, formatDateLabel, getRelativeDate } from "@/lib/notes/date-tokens";
 import { encodeQueryConfig } from "@/lib/notes/query-block-content";
@@ -20,7 +20,7 @@ export type SlashCommand = {
   blockType?: string;
   /** Marks a command handled specially by the menu UI (e.g. opening a picker)
    *  instead of inserting `createContent` directly. */
-  custom?: "date-picker" | "image-picker";
+  custom?: "date-picker" | "image-picker" | "link-embed";
 };
 
 function createParagraphNode(text: string): JSONContent {
@@ -253,6 +253,18 @@ export const slashCommands: SlashCommand[] = [
     icon: Link2,
     keywords: ["link", "url", "anchor"],
     createContent: () => createScaffoldDocument("[label](https://example.com)"),
+  },
+  {
+    id: "link-embed",
+    section: "media",
+    title: "Link preview",
+    description: "Paste a web address; keep it as a card.",
+    shortcut: "/embed",
+    icon: SquareArrowOutUpRight,
+    keywords: ["embed", "link", "url", "preview", "bookmark", "card", "website"],
+    custom: "link-embed",
+    // The prompt replaces the slash text with the card; nothing to insert here.
+    createContent: () => emptyDocument(),
   },
   {
     id: "image",

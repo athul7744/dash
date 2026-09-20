@@ -59,6 +59,7 @@ import { NotesDocument, BlockNode, asBlockContent, BLOCK_CONTENT_GROUP } from ".
 import { BlockIdPlugin } from "./block-id-plugin";
 import { BlockNormalize } from "./block-normalize";
 import { ImageAdopt } from "./image-adopt";
+import { LinkEmbedNode } from "@/components/notes/editor/LinkEmbedNode";
 
 export function buildNoteEditorExtensions(): Extensions {
   const lowlight = createLowlight(common);
@@ -100,6 +101,7 @@ export function buildNoteEditorExtensions(): Extensions {
     asBlockContent(MathBlock),
     TaskLine,
     QueryBlock,
+    LinkEmbedNode,
 
     // Inline nodes / marks / table + task children — unchanged.
     Text,

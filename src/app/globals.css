@@ -591,6 +591,101 @@ body[data-display-font="bricolage"] {
   font-size: 0;
 }
 
+/* ── Link preview card ───────────────────────────────────────────────────────
+   A `linkEmbed` block: the whole card is the anchor. Sized so the thumbnail is
+   a fixed rail and the text takes the rest — a long title wraps to two lines and
+   stops, so cards in a list stay the same height. */
+.note-link-embed {
+  margin: 0.5rem 0;
+}
+
+.note-link-embed-card {
+  display: flex;
+  align-items: stretch;
+  gap: 0.875rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--color-border) 65%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in oklab, var(--color-card) 50%, transparent);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.note-link-embed-card:hover {
+  border-color: var(--color-border);
+  background: color-mix(in oklab, var(--color-accent) 40%, transparent);
+}
+
+.note-link-embed-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 0 0.75rem 0.875rem;
+}
+
+.note-link-embed-host {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.6875rem;
+  color: var(--color-muted-foreground);
+}
+
+.note-link-embed-title {
+  font-weight: 600;
+  line-height: 1.35;
+  /* Two lines, so a wordy title can't set the height of every card in a list. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.note-link-embed-description {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-muted-foreground);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.note-link-embed-thumb {
+  flex: 0 0 auto;
+  width: 8.5rem;
+  align-self: stretch;
+  background: color-mix(in oklab, var(--color-muted) 60%, transparent);
+}
+
+.note-link-embed-thumb img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* On a narrow column the thumbnail rail would leave the text no room, so the
+   card stacks and the image becomes a banner. */
+@media (max-width: 30rem) {
+  .note-link-embed-card {
+    flex-direction: column-reverse;
+    gap: 0;
+  }
+
+  .note-link-embed-body {
+    padding: 0.75rem 0.875rem;
+  }
+
+  .note-link-embed-thumb {
+    width: 100%;
+    height: 8rem;
+  }
+}
+
 .ProseMirror h1,
 .ProseMirror h2,
 .ProseMirror h3,

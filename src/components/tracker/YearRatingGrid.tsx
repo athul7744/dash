@@ -40,9 +40,16 @@ interface YearRatingGridProps {
   moods: Mood[];
   optimisticRatings?: Map<string, { score: number | null }>;
   optimisticTimeLogs?: Map<string, { activityName: string | null }>;
+  /**
+   * Whether this view is the one on screen. A hidden view stays mounted (the
+   * workspace keeps each tab alive so returning to it is instant), but its
+   * floating Insights button is portalled to <body>, where the wrapper's
+   * `hidden` can't reach it — so it has to be told.
+   */
+  active?: boolean;
 }
 
-export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimisticRatings, optimisticTimeLogs }: YearRatingGridProps) {
+export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimisticRatings, optimisticTimeLogs, active = true }: YearRatingGridProps) {
   const range = moodRange(moods);
   const cellBgClass = (score: number | null | undefined): string | null => {
     const mood = moodByValue(moods, score);
@@ -265,7 +272,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
 
       {/* Below lg, open the insights from a centered floating button (matches
           Activity). Portalled to <body> so it's viewport-fixed (see `mounted`). */}
-      {mounted &&
+      {mounted && active &&
         createPortal(
           <button
             type="button"
@@ -282,7 +289,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
           document.body,
         )}
 
-      <Dialog open={insightsOpen} onOpenChange={setInsightsOpen}>
+      <Dialog open={insightsOpen && active} onOpenChange={setInsightsOpen}>
         <DialogContent className="grid max-h-[85vh] grid-rows-[auto_minmax(0,1fr)]">
           <DialogTitle className="pr-8 font-heading">Mood · {year}</DialogTitle>
           <div className="min-h-0">

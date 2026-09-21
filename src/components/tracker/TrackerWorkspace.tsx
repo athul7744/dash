@@ -278,6 +278,7 @@ export function TrackerWorkspace() {
         {visited.has("activity") && (
           <div className={cn("space-y-4", view !== "activity" && "hidden")}>
             <YearActivityGrid
+              active={view === "activity"}
               year={selectedYear}
               onDayClick={handleDayClick}
               optimisticTimeLogs={grid.optimisticTimeLogs}
@@ -304,6 +305,7 @@ export function TrackerWorkspace() {
         {visited.has("mood") && (
           <div className={cn("space-y-4", view !== "mood" && "hidden")}>
             <YearRatingGrid
+              active={view === "mood"}
               year={selectedYear}
               onDayClick={handleDayClick}
               moods={moods}

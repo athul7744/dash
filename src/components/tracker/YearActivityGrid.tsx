@@ -95,9 +95,16 @@ interface YearActivityGridProps {
   /** Optional element rendered to the left of the activity filter toolbar */
   headerLeft?: React.ReactNode;
   optimisticTimeLogs?: Map<string, { activityName: string | null }>;
+  /**
+   * Whether this view is the one on screen. A hidden view stays mounted (the
+   * workspace keeps each tab alive so returning to it is instant), but its
+   * floating Insights button is portalled to <body>, where the wrapper's
+   * `hidden` can't reach it — so it has to be told.
+   */
+  active?: boolean;
 }
 
-export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeLogs }: YearActivityGridProps) {
+export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeLogs, active = true }: YearActivityGridProps) {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
@@ -385,7 +392,7 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
       {/* Below lg (mobile + tablet), the grid is too narrow to sit beside the
           panel, so open the summary from a floating button into a dialog.
           Portalled to <body> so it's viewport-fixed (see `mounted` above). */}
-      {mounted &&
+      {mounted && active &&
         createPortal(
           <button
             type="button"
@@ -402,7 +409,7 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
           document.body,
         )}
 
-      <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+      <Dialog open={summaryOpen && active} onOpenChange={setSummaryOpen}>
         <DialogContent className="grid max-h-[85vh] grid-rows-[auto_minmax(0,1fr)]">
           <DialogTitle className="pr-8 font-heading">This year · {year}</DialogTitle>
           <div className="min-h-0">

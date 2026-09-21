@@ -24,6 +24,7 @@ import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { useEntityTags } from "@/hooks/use-entity-tags";
 import { hasPendingWrites, flushAllUpdates } from "@/lib/shared/debounced-update";
+import { useAllTags } from '@/hooks/use-tags';
 
 const tasksApp = getApp("tasks");
 
@@ -55,10 +56,9 @@ export default function Home() {
 
   const [newTasks, setNewTasks] = useState<Task[]>([]);
 
-  // Tags for the filter row. Cached like the task list: the skeleton waits on
-  // both, so leaving this one uncached kept the flash the cache was meant to
-  // remove.
-  const { data: allTags, isLoading: loadingTags } = useCachedQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
+  // The skeleton waits on the tags as well as the tasks, so this has to be
+  // cached too or the flash comes back.
+  const { tags: allTags, isLoading: loadingTags } = useAllTags();
 
   // Dynamic filter builder — applied to TOP-LEVEL tasks only (subtasks are loaded
   // per visible parent below). The stable `id` tiebreaker keeps the ordering

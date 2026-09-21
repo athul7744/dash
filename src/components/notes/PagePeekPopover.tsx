@@ -13,6 +13,7 @@ import { useEntityTags } from "@/hooks/use-entity-tags";
 import type { Tag as TagRecord } from "@/lib/powersync/AppSchema";
 import { ReadOnlyBlockRenderer } from "./ReadOnlyBlockRenderer";
 import type { PeekTarget } from "./usePagePeek";
+import { useAllTags } from "@/hooks/use-tags";
 
 type PagePeekPage = {
   id: string;
@@ -46,7 +47,7 @@ export function PagePeekPopover({
   const popoverRef = useRef<HTMLDivElement>(null);
   const { page, isLoading: isLoadingPage } = usePageByTitle(target.pageTitle);
   const { blocks, isLoading: isLoadingBlocks } = useNoteBlocks(page?.id);
-  const { data: allTags = [] } = useQuery<TagRecord & { id: string }>("SELECT id, name, color FROM tags ORDER BY name ASC");
+  const { tags: allTags } = useAllTags();
 
   const properties = useMemo(() => parseProperties(page?.properties ?? null), [page?.properties]);
   const emoji = (properties.emoji as string) ?? null;

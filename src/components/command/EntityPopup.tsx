@@ -14,8 +14,9 @@ import { type ThingAggregate } from "@/hooks/use-events";
 import { parseBookmarkContent, type Bookmark } from "@/lib/bookmarks/bookmarks";
 import { parseQuoteContent, type Quote } from "@/lib/quotes/quotes";
 import { parseEventContent, OCCURRENCE_BLOCK_TYPE, OCCURRENCE_SUBJECT_SQL, type EventItem } from "@/lib/events/events";
-import type { Task, Tag } from "@/lib/powersync/AppSchema";
+import type { Task } from "@/lib/powersync/AppSchema";
 import { cn } from "@/lib/shared/utils";
+import { useAllTags } from "@/hooks/use-tags";
 
 /** Any single item the palette (or a dashboard nudge) can open in a popup. */
 export type EntityRef = { kind: "task" | "bookmark" | "quote" | "event"; id: string };
@@ -25,7 +26,6 @@ type BlockRow = { id: string; content: string | null; sort_rank: string | null }
 
 const EMPTY_TASK = "SELECT * FROM tasks WHERE 1 = 0";
 const EMPTY_BLOCK = "SELECT id, content, sort_rank FROM blocks WHERE 1 = 0";
-const EMPTY_TAGS = "SELECT id, name, color FROM tags WHERE 1 = 0";
 
 const TITLE: Record<EntityRef["kind"], string> = {
   task: "Task",
@@ -91,7 +91,7 @@ export function EntityPopup({
     isBlock ? "SELECT id, content, sort_rank FROM blocks WHERE id = ? AND deleted_at IS NULL" : EMPTY_BLOCK,
     isBlock ? [item.id] : [],
   );
-  const { data: allTags = [] } = useQuery<Tag>(item?.kind === "bookmark" ? "SELECT id, name, color FROM tags" : EMPTY_TAGS);
+  const { tags: allTags } = useAllTags();
 
   const taskRow = taskRows[0];
   const blockRow = blockRows[0];

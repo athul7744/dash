@@ -44,12 +44,13 @@ import { useAllNotePagesWithPreview } from "@/hooks/use-notes";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useEvents } from "@/hooks/use-events";
-import type { Task, Tag } from "@/lib/powersync/AppSchema";
+import type { Task } from "@/lib/powersync/AppSchema";
 import { APPS, getApp } from "@/lib/shared/apps";
 import { stripRefs } from "@/lib/links/tokens";
 import { cn } from "@/lib/shared/utils";
 import { getDueDateInfo, getLinkHost } from "@/lib/tasks/tasks";
 import { getTagColorClasses, getTagDotClass } from "@/lib/tasks/colors";
+import { useAllTags } from "@/hooks/use-tags";
 
 type TaskRow = Task & { id: string };
 const MAX_RESULTS = 8;
@@ -98,7 +99,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
   const inputRef = useRef<HTMLInputElement>(null);
   const pendingCaretRef = useRef<number | null>(null);
   // Loaded early so the input chip can resolve a tag's colour.
-  const { data: allTags = [] } = useQuery<Tag>("SELECT id, name, color FROM tags ORDER BY name ASC");
+  const { tags: allTags } = useAllTags();
 
   const openPalette = useCallback(() => {
     setQuery("");
@@ -343,7 +344,7 @@ function CommandPaletteResults({
   const { bookmarks } = useBookmarks();
   const { quotes } = useQuotes();
   const { events } = useEvents();
-  const { data: allTags = [] } = useQuery<Tag>("SELECT id, name, color FROM tags ORDER BY name ASC");
+  const { tags: allTags } = useAllTags();
 
   // --- kind + tag filters (parsed as chips; combine, at most one each) ---
   const chips = useMemo(() => parseChips(query), [query]);

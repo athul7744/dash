@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { useQuery } from "@powersync/react";
 import { CheckCircle2, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +11,7 @@ import { Tag } from "@/lib/powersync/AppSchema";
 import { cn } from "@/lib/shared/utils";
 import { getTagColorClasses, getTagDotClass } from "@/lib/tasks/colors";
 import { createTag } from "@/lib/tasks/tags";
+import { useAllTags } from "@/hooks/use-tags";
 
 type TagSelectorDensity = "compact" | "default";
 
@@ -55,7 +55,7 @@ export function TagSelector({
 }: TagSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: allTags = [] } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
+  const { tags: allTags } = useAllTags();
 
   const variant = VARIANTS[density];
   const hasReachedLimit = maxSelected !== undefined && selectedTagIds.length >= maxSelected;

@@ -1,7 +1,6 @@
 "use client";
 
 import { useDeferredValue, useMemo, useRef, useState } from "react";
-import { useQuery } from "@powersync/react";
 import { Bookmark as BookmarkIcon, Loader2, Plus, Search, X } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
@@ -18,10 +17,10 @@ import { useSearchIndexReady } from "@/hooks/use-search-index";
 import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { createBookmark } from "@/lib/bookmarks/bookmarks";
 import { refreshBookmarkTitle } from "@/lib/bookmarks/fetch-metadata";
-import { Tag } from "@/lib/powersync/AppSchema";
 import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 import { getTagColorClasses } from "@/lib/tasks/colors";
+import { useAllTags } from "@/hooks/use-tags";
 
 const bookmarksApp = getApp("bookmarks");
 const PAGE_SIZE = 24;
@@ -37,7 +36,7 @@ function looksLikeUrl(text: string): boolean {
 }
 
 export default function BookmarksPage() {
-  const { data: allTags = [] } = useQuery<Tag>("SELECT id, name, color FROM tags");
+  const { tags: allTags } = useAllTags();
   // One field does both: type to search, paste/type a link + Enter to add.
   const [query, setQuery] = useState("");
   const [filterTagIds, setFilterTagIds] = useState<string[]>([]);

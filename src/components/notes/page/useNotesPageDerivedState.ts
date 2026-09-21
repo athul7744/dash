@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@powersync/react";
 import { useMemo } from "react";
 
 import type { NotePageRow } from "@/hooks/use-notes";
@@ -11,6 +10,7 @@ import type { Tag } from "@/lib/powersync/AppSchema";
 
 import { type NormalizedNotePage, type TagDirectoryEntry } from "./types";
 import { getPageDescription, normalizePageEmoji, parseProperties, resolveNoteTags } from "./utils";
+import { useAllTags } from "@/hooks/use-tags";
 
 type UseNotesPageDerivedStateParams = {
   /** Every page, without summaries — the title/emoji index and the tag directory. */
@@ -56,7 +56,7 @@ export function useNotesPageDerivedState({
   favoritePageRows = [],
   pageSearchQuery,
 }: UseNotesPageDerivedStateParams) {
-  const { data: availableTags = [] } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
+  const { tags: availableTags } = useAllTags();
 
   // Tag membership for every page in view, batched from entity_tags.
   const pageIds = useMemo(

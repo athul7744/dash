@@ -1,17 +1,16 @@
 "use client";
 
 import type { Editor } from "@tiptap/core";
-import { useQuery } from "@powersync/react";
 
 import { SingleBlockEditor } from "@/components/notes/editor/SingleBlockEditor";
 import { NotesEditorMainSkeleton } from "@/components/notes/NotesPageSkeleton";
 import type { NoteAttachmentRow } from "@/hooks/use-notes";
-import { Tag } from "@/lib/powersync/AppSchema";
 
 import { AddBannerChip, NotePageBanner } from "./NotePageBanner";
 import { NotesEditorHeader } from "./NotesEditorHeader";
 import { NotePageProperties } from "./NotePageProperties";
 import type { NotesEditorRenderableContent } from "./types";
+import { useAllTags } from "@/hooks/use-tags";
 
 export function NotesEditorContent({
   editorContent,
@@ -67,7 +66,7 @@ export function NotesEditorContent({
   onPeekPageReference?: (title: string, rect: DOMRect) => void;
   onSingleEditorChange?: (editor: Editor | null) => void;
 }) {
-  const { data: allTags = [], isLoading: isLoadingTags } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
+  const { tags: allTags, isLoading: isLoadingTags } = useAllTags();
 
   if (showSelectedPageLoading) {
     return (

@@ -13,7 +13,8 @@ import { buildGraph, type GraphNode, type NoteGraph, type PageEdgeRow } from "@/
 import { refTypeSql } from "@/lib/links/links";
 import { stripRefs, REF_KIND_HUE, type RefKind } from "@/lib/links/tokens";
 import { dayLabelFromPageTitle } from "@/lib/notes/system-pages";
-import type { Tag, Task } from "@/lib/powersync/AppSchema";
+import type { Task } from "@/lib/powersync/AppSchema";
+import { useAllTags } from "@/hooks/use-tags";
 
 /** A graph node plus the id of the tag that colors it (for legend/filtering). */
 export type GraphViewNode = GraphNode & { tagId: string | null };
@@ -116,9 +117,7 @@ export function resolveTarget(row: EdgeResolveRow): Endpoint | null {
 export function useNoteGraph(): NoteGraphData {
   const { pages, isLoading: isLoadingPages } = useAllNotePages();
   const { data: edgeRows = [], isLoading: isLoadingEdges } = useQuery<EdgeResolveRow>(EDGE_RESOLVE_QUERY);
-  const { data: allTags = [], isLoading: isLoadingTags } = useQuery<Tag>(
-    "SELECT id, name, color FROM tags ORDER BY name ASC",
-  );
+  const { tags: allTags, isLoading: isLoadingTags } = useAllTags();
   const { data: rootTasks = [] } = useQuery<Pick<Task, "id" | "title">>(
     "SELECT id, title FROM tasks WHERE parent_id IS NULL AND state != 'trashed'",
   );

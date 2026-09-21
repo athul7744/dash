@@ -3,7 +3,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { Editor } from "@tiptap/core";
 
-import { useQuery } from "@powersync/react";
 
 import {
   useLinkedNoteReferences,
@@ -17,7 +16,6 @@ import {
 import { usePropertyDefinitions } from "@/hooks/use-property-definitions";
 import { useSettledTimestamp } from "@/hooks/use-settled-timestamp";
 import { useEntityTags, useOptimisticTagIds } from "@/hooks/use-entity-tags";
-import type { Tag } from "@/lib/powersync/AppSchema";
 
 import { NotesEditorContent } from "./NotesEditorContent";
 import { NotesEditorMainSkeleton } from "@/components/notes/NotesPageSkeleton";
@@ -25,6 +23,7 @@ import { buildNoteBlockTree, flattenNoteBlockTree } from "@/lib/notes/notes-tree
 import { useNotePageActions } from "./useNotePageActions";
 import { buildOutlineEntries, formatTimestampLabel, normalizePageEmoji, parseProperties, resolveNoteTags } from "./utils";
 import type { NormalizedNotePage, OutlineEntry } from "./types";
+import { useAllTags } from "@/hooks/use-tags";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,7 +59,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   const { attachments, isLoading: isLoadingAttachments } = usePageAttachments(pageId);
   const { references: linkedReferences, isLoading: isLoadingLinkedReferences } = useLinkedNoteReferences(pageId);
   const { isLoading: isLoadingPropertyDefs } = usePropertyDefinitions();
-  const { data: availableTags = [] } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
+  const { tags: availableTags } = useAllTags();
 
   // ─── Page-level derived state ──────────────────────────────────────────────
   const pageProperties = useMemo(

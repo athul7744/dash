@@ -51,6 +51,7 @@ import { ensurePropertyDefinitions } from "@/lib/notes/properties";
 import { softDeleteEntity } from "@/lib/shared/trash";
 import { yieldToUI } from "@/lib/shared/utils";
 import { ensureTagIdsByName } from "@/lib/tasks/tags";
+import { useAllTags } from "@/hooks/use-tags";
 
 type Phase = "pick" | "scanning" | "review" | "mapping" | "running" | "done";
 
@@ -77,7 +78,14 @@ export function ImportLogseqDialog({
   const { data: definitions = [] } = useQuery<{ id: string; name: string; type: PropertyType }>(
     "SELECT id, name, type FROM property_definitions ORDER BY name ASC",
   );
-  const { data: tags = [] } = useQuery<{ id: string; name: string }>("SELECT id, name FROM tags ORDER BY name ASC");
+  // The census matches imported tag names against existing ones, so a row
+  // without a name cannot take part — the old query claimed a non-null `name`
+  // for a nullable column rather than saying so.
+  const { tags: allTags } = useAllTags();
+  const tags = useMemo(
+    () => allTags.flatMap((tag) => (tag.name ? [{ id: tag.id, name: tag.name }] : [])),
+    [allTags],
+  );
 
   const [phase, setPhase] = useState<Phase>("pick");
   const [scan, setScan] = useState<VaultScan | null>(null);

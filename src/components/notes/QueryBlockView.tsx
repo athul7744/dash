@@ -24,7 +24,6 @@ import { PropertyIcon } from "@/components/notes/PropertyIcon";
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { usePropertyDefinitions } from "@/hooks/use-property-definitions";
 import { useEntityTags } from "@/hooks/use-entity-tags";
-import type { Tag as TagRecord } from "@/lib/powersync/AppSchema";
 import type { QueryBlockConfig, QueryFilterCondition, QuerySortConfig } from "@/lib/notes/query-block";
 import { BUILT_IN_PROPERTIES, OPERATORS_BY_TYPE } from "@/lib/notes/query-block";
 import { encodeQueryConfig } from "@/lib/notes/query-block-content";
@@ -34,6 +33,7 @@ import { normalizePageEmoji, parseProperties } from "@/components/notes/page/uti
 import { type QueryResultRow, parseConfig, buildQuerySQL, getPropertyName } from "./query-block-sql";
 import { FilterRow } from "./QueryBlockFilters";
 import { InlineCellValue } from "./QueryBlockCells";
+import { useAllTags } from "@/hooks/use-tags";
 
 // Result-table column widths (px). The title column flexes from this minimum;
 // data columns are fixed. Kept as constants so the inner wrapper's computed
@@ -152,7 +152,7 @@ export function QueryBlockView({
   const config = useMemo(() => parseConfig(content), [content]);
   const { definitions } = usePropertyDefinitions();
   const [isEditing, setIsEditing] = useState(config.filters.length === 0);
-  const { data: allTags = [] } = useQuery<TagRecord & { id: string }>("SELECT id, name, color FROM tags ORDER BY name ASC");
+  const { tags: allTags } = useAllTags();
 
   const { sql, params } = useMemo(() => buildQuerySQL(config, definitions), [config, definitions]);
   const { data: results = [] } = useQuery<QueryResultRow>(sql, params);

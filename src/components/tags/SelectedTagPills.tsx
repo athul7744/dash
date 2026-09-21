@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQuery } from "@powersync/react";
 
 import { Tag } from "@/lib/powersync/AppSchema";
 import { cn } from "@/lib/shared/utils";
 import { getTagColorClasses } from "@/lib/tasks/colors";
+import { useAllTags } from "@/hooks/use-tags";
 
 /**
  * Read-only display of a card's selected tags as wrapping pills, resolved from
@@ -14,7 +14,7 @@ import { getTagColorClasses } from "@/lib/tasks/colors";
  * the chosen tags render below via this component.
  */
 export function SelectedTagPills({ tagIds, className }: { tagIds: string[]; className?: string }) {
-  const { data: allTags = [] } = useQuery<Tag>("SELECT id, name, color FROM tags");
+  const { tags: allTags } = useAllTags();
   const tags = useMemo(
     () => tagIds.map((id) => allTags.find((t) => t.id === id)).filter((t): t is Tag => Boolean(t)),
     [tagIds, allTags],

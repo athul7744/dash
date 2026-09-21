@@ -1,12 +1,12 @@
 import * as React from "react";
-import { usePowerSync, useQuery } from "@powersync/react";
+import { usePowerSync } from "@powersync/react";
 import { Tag as TagIcon } from "lucide-react";
 import { ManageNamedColorItemsDialog, type ManagedColorDraft } from "@/components/ManageNamedColorItemsDialog";
-import { Tag } from "@/lib/powersync/AppSchema";
 import { cancelExecute, debouncedExecute } from "@/lib/shared/debounced-update";
 import { TAG_COLORS, getTagColorClasses, getTagDotClass } from "@/lib/tasks/colors";
 import { createTag } from "@/lib/tasks/tags";
 import { deleteTagLinks } from "@/lib/tags/entity-tags";
+import { useAllTags } from "@/hooks/use-tags";
 
 interface ManageTagsDialogProps {
   children?: React.ReactNode;
@@ -17,7 +17,7 @@ interface ManageTagsDialogProps {
 
 export function ManageTagsDialog({ children, open, onOpenChange, hideTrigger = false }: ManageTagsDialogProps) {
   const db = usePowerSync();
-  const { data: tags } = useQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
+  const { tags } = useAllTags();
 
   const handleDeleteTag = async (id: string) => {
     cancelExecute(id);

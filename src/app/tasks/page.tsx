@@ -55,8 +55,10 @@ export default function Home() {
 
   const [newTasks, setNewTasks] = useState<Task[]>([]);
 
-  // Fetch Tags for the Filter
-  const { data: allTags = [], isLoading: loadingTags } = useQuery("SELECT * FROM tags ORDER BY name ASC");
+  // Tags for the filter row. Cached like the task list: the skeleton waits on
+  // both, so leaving this one uncached kept the flash the cache was meant to
+  // remove.
+  const { data: allTags, isLoading: loadingTags } = useCachedQuery<Tag>("SELECT * FROM tags ORDER BY name ASC");
 
   // Dynamic filter builder — applied to TOP-LEVEL tasks only (subtasks are loaded
   // per visible parent below). The stable `id` tiebreaker keeps the ordering
@@ -265,7 +267,9 @@ export default function Home() {
                 pills.push({
                   id: `tag-${tag.id}`,
                   type: 'tag',
-                  label: tag.name,
+                  // A tag row can carry a null name; the pill rendered nothing
+                  // for it before, and still does.
+                  label: tag.name ?? '',
                   isActive: true,
                   activeClass: getTagColorClasses(tag.color || 'slate'),
                   onClick: () => setFilterTags(filterTags.filter(id => id !== tag.id))

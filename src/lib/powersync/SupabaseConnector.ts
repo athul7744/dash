@@ -43,7 +43,7 @@ export const JSON_COLUMNS: Record<string, Set<string>> = {
 };
 
 /** Parse known JSON columns from text back to objects for Supabase upload. */
-export function parseJsonColumns(table: string, opData: Record<string, any> | undefined): Record<string, any> {
+export function parseJsonColumns(table: string, opData: Record<string, unknown> | undefined): Record<string, unknown> {
   if (!opData) return {};
   const jsonCols = JSON_COLUMNS[table];
   if (!jsonCols) return { ...opData };

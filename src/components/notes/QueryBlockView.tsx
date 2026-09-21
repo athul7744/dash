@@ -20,6 +20,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/shared/utils";
+import { PropertyIcon } from "@/components/notes/PropertyIcon";
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { usePropertyDefinitions } from "@/hooks/use-property-definitions";
 import { useEntityTags } from "@/hooks/use-entity-tags";
@@ -27,12 +28,10 @@ import type { Tag as TagRecord } from "@/lib/powersync/AppSchema";
 import type { QueryBlockConfig, QueryFilterCondition, QuerySortConfig } from "@/lib/notes/query-block";
 import { BUILT_IN_PROPERTIES, OPERATORS_BY_TYPE } from "@/lib/notes/query-block";
 import { encodeQueryConfig } from "@/lib/notes/query-block-content";
-import type { PropertyType } from "@/components/notes/page/types";
 import { parseCustomPropertyValues } from "@/lib/notes/properties";
 import { normalizePageEmoji, parseProperties } from "@/components/notes/page/utils";
 
 import { type QueryResultRow, parseConfig, buildQuerySQL, getPropertyName } from "./query-block-sql";
-import { PROPERTY_TYPE_ICONS, getPropertyIcon, getPropertyCustomIcon } from "./query-block-helpers";
 import { FilterRow } from "./QueryBlockFilters";
 import { InlineCellValue } from "./QueryBlockCells";
 
@@ -77,8 +76,6 @@ function ColumnChooser({
         <p className="px-2 py-1 text-[11px] font-medium text-muted-foreground">Show columns</p>
         <div className="max-h-52 overflow-y-auto space-y-0.5">
           {allProperties.map((prop) => {
-            const propCustomIcon = getPropertyCustomIcon(prop.id, definitions);
-            const PropIcon = PROPERTY_TYPE_ICONS[(prop.type as PropertyType | "title" | "date_meta")] ?? PROPERTY_TYPE_ICONS.text;
             const isSelected = columns.includes(prop.id);
             return (
               <button
@@ -89,11 +86,11 @@ function ColumnChooser({
                 )}
                 onClick={() => toggle(prop.id)}
               >
-                {propCustomIcon ? (
-                  <SpriteIcon name={propCustomIcon} size={14} className="shrink-0" />
-                ) : (
-                  <PropIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                )}
+                <PropertyIcon
+                  propertyId={prop.id}
+                  definitions={definitions}
+                  className="h-3.5 w-3.5 text-muted-foreground"
+                />
                 <span className="truncate">{prop.name}</span>
                 {isSelected && <Check className="h-3 w-3 ml-auto text-muted-foreground" />}
               </button>
@@ -262,15 +259,14 @@ export function QueryBlockView({
                   />
                 </div>
                 {columns.map((colId) => {
-                  const customIcon = getPropertyCustomIcon(colId, definitions);
-                  const ColIcon = getPropertyIcon(colId, definitions);
                   return (
                     <div key={colId} className="shrink-0 flex items-center gap-1 border-l border-border/30 px-3 py-2" style={{ width: DATA_COL_PX }}>
-                      {customIcon ? (
-                        <SpriteIcon name={customIcon} size={12} className="shrink-0" />
-                      ) : (
-                        <ColIcon className="h-3 w-3 shrink-0 opacity-60" />
-                      )}
+                      <PropertyIcon
+                        propertyId={colId}
+                        definitions={definitions}
+                        size={12}
+                        className="h-3 w-3 opacity-60"
+                      />
                       <SortableHeader
                         label={getPropertyName(colId, definitions)}
                         propertyId={colId}

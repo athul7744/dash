@@ -35,9 +35,8 @@ describe("debouncedUpdate comparators", () => {
       1000
     );
 
-    const result = await flushUpdate("page-1", "pages");
+    await flushUpdate("page-1", "pages");
 
-    expect(result).toBeUndefined();
     expect(debouncedExecuteMock).not.toHaveBeenCalled();
   });
 
@@ -52,9 +51,8 @@ describe("debouncedUpdate comparators", () => {
 
     debouncedUpdate("page-1", "properties", nextProperties, "pages", 1000);
 
-    const result = await flushUpdate("page-1", "pages");
+    await flushUpdate("page-1", "pages");
 
-    expect(result).toBe(true);
     expect(debouncedExecuteMock).toHaveBeenCalledTimes(1);
 
     const sql = String(debouncedExecuteMock.mock.calls[0]?.[0] ?? "");

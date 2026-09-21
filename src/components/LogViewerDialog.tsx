@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useMemo, useSyncExternalStore } from "react";
 import { Logs } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getRecentLogs, subscribeToLogs, type LogEntry } from "@/lib/shared/logger";
@@ -45,12 +45,9 @@ const LogRow = memo(function LogRow({ log }: { log: LogEntry }) {
 });
 
 export function LogViewerDialog({ open, onOpenChange }: LogViewerDialogProps) {
-  const [logs, setLogs] = useState(() => getRecentLogs());
-
-  useEffect(() => {
-    setLogs(getRecentLogs());
-    return subscribeToLogs(() => setLogs(getRecentLogs()));
-  }, []);
+  // The log buffer is an external store, so it is read as one rather than
+  // mirrored into state from an effect.
+  const logs = useSyncExternalStore(subscribeToLogs, getRecentLogs, getRecentLogs);
 
   const counts = useMemo(() => {
     return logs.reduce(

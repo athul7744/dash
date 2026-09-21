@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+
+import { useDerivedState } from "@/hooks/use-derived-state";
 
 /**
  * Optimistic override for values that are edited locally but owned by an
@@ -13,10 +15,7 @@ import { useCallback, useEffect, useState } from "react";
  */
 export function useOptimisticValue<T>(upstream: T): [T, (next: T) => void] {
   const upstreamKey = JSON.stringify(upstream ?? null);
-  const [optimistic, setOptimistic] = useState<{ value: T } | null>(null);
-  useEffect(() => {
-    setOptimistic(null);
-  }, [upstreamKey]);
-  const setOptimisticValue = useCallback((next: T) => setOptimistic({ value: next }), []);
+  const [optimistic, setOptimistic] = useDerivedState<string, { value: T } | null>(upstreamKey, () => null);
+  const setOptimisticValue = useCallback((next: T) => setOptimistic({ value: next }), [setOptimistic]);
   return [optimistic ? optimistic.value : upstream, setOptimisticValue];
 }

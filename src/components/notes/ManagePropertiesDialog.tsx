@@ -336,8 +336,16 @@ export function ManagePropertiesDialog({
     return [...edited, ...pending];
   }, [dbDefinitions, optimisticAdds, optimisticDeletes, optimisticEdits]);
 
-  // Clear optimistic state as DB catches up
-  React.useEffect(() => {
+  // Clear optimistic state as the DB catches up.
+  //
+  // Adjusted during the render that brings the new rows in, rather than in an
+  // effect afterwards: an overlay that outlives the row it was standing in for
+  // is drawn once more before it clears, which is a visible flicker on a list
+  // this short. On the first render there is nothing to reconcile, so this only
+  // does work when the query actually returns something new.
+  const [reconciledAgainst, setReconciledAgainst] = React.useState(dbDefinitions);
+  if (reconciledAgainst !== dbDefinitions) {
+    setReconciledAgainst(dbDefinitions);
     const dbIds = new Set(dbDefinitions.map((d) => d.id));
     // Clear adds that are now in DB
     setOptimisticAdds((prev) => {
@@ -366,7 +374,7 @@ export function ManagePropertiesDialog({
       }
       return next.size === prev.size ? prev : next;
     });
-  }, [dbDefinitions]);
+  }
 
   const [newName, setNewName] = React.useState("");
   const [newType, setNewType] = React.useState<PropertyType>("text");

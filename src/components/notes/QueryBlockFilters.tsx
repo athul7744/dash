@@ -18,14 +18,14 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/shared/utils";
 import { getTagColorClasses, getTagDotClass } from "@/lib/tasks/colors";
-import { SpriteIcon } from "@/components/notes/SpriteIcon";
+import { PropertyIcon } from "@/components/notes/PropertyIcon";
 import type { PropertyDefinitionRow } from "@/hooks/use-property-definitions";
 import type { Tag as TagRecord } from "@/lib/powersync/AppSchema";
 import type { QueryFilterCondition, QueryFilterOperator } from "@/lib/notes/query-block";
 import { BUILT_IN_PROPERTIES, OPERATORS_BY_TYPE } from "@/lib/notes/query-block";
 import type { PropertyType } from "@/components/notes/page/types";
 import { getPropertyType, parseDuration } from "./query-block-sql";
-import { PROPERTY_TYPE_ICONS, getPropertyIcon, getPropertyCustomIcon, getOptionBadgeStyle } from "./query-block-helpers";
+import { getOptionBadgeStyle } from "./query-block-helpers";
 
 // --- Property selector popover ---
 function PropertySelector({
@@ -43,27 +43,24 @@ function PropertySelector({
     ...definitions.map((d) => ({ id: d.id, name: d.name, type: d.type })),
   ];
   const current = allProperties.find((p) => p.id === propertyId);
-  const customIcon = getPropertyCustomIcon(propertyId, definitions);
-  const Icon = getPropertyIcon(propertyId, definitions);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className="flex h-7 items-center gap-1.5 rounded-md border border-border/60 bg-background px-2 text-xs font-medium shadow-xs hover:bg-muted/50 transition-colors cursor-pointer"
       >
-        {customIcon ? (
-          <SpriteIcon name={customIcon} size={13} className="shrink-0" />
-        ) : (
-          <Icon className="h-3 w-3 text-muted-foreground shrink-0" />
-        )}
+        <PropertyIcon
+          propertyId={propertyId}
+          definitions={definitions}
+          size={13}
+          className="h-3 w-3 text-muted-foreground"
+        />
         <span className="truncate max-w-[80px]">{current?.name ?? "Property"}</span>
         <ChevronDown className="h-3 w-3 text-muted-foreground/60" />
       </PopoverTrigger>
       <PopoverContent className="w-48 p-1" align="start">
         <div className="max-h-52 overflow-y-auto space-y-0.5">
           {allProperties.map((prop) => {
-            const propCustomIcon = getPropertyCustomIcon(prop.id, definitions);
-            const PropIcon = PROPERTY_TYPE_ICONS[(prop.type as PropertyType | "title" | "date_meta")] ?? PROPERTY_TYPE_ICONS.text;
             return (
               <button
                 key={prop.id}
@@ -73,11 +70,11 @@ function PropertySelector({
                 )}
                 onClick={() => { onChange(prop.id); setOpen(false); }}
               >
-                {propCustomIcon ? (
-                  <SpriteIcon name={propCustomIcon} size={14} className="shrink-0" />
-                ) : (
-                  <PropIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                )}
+                <PropertyIcon
+                  propertyId={prop.id}
+                  definitions={definitions}
+                  className="h-3.5 w-3.5 text-muted-foreground"
+                />
                 <span className="truncate">{prop.name}</span>
                 {prop.id === propertyId && <Check className="h-3 w-3 ml-auto text-muted-foreground" />}
               </button>

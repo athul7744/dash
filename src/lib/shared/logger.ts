@@ -14,6 +14,14 @@ export interface LogEntry {
 
 let nextLogId = 1;
 const recentLogs: LogEntry[] = [];
+/**
+ * `recentLogs` newest-first, rebuilt on each write.
+ *
+ * Held rather than derived on demand because the log viewer subscribes to this
+ * store with `useSyncExternalStore`, which compares snapshots by identity: a
+ * fresh array per read would look like a change on every render.
+ */
+let snapshot: LogEntry[] = [];
 const listeners = new Set<() => void>();
 
 function formatArg(arg: unknown): string {
@@ -50,6 +58,7 @@ function recordLog(level: LogLevel, args: unknown[]) {
     recentLogs.splice(0, recentLogs.length - LOG_LIMIT);
   }
 
+  snapshot = [...recentLogs].reverse();
   listeners.forEach((listener) => listener());
 }
 
@@ -57,8 +66,8 @@ export function isLogViewerEnabled() {
   return logViewerEnabled;
 }
 
-export function getRecentLogs() {
-  return [...recentLogs].reverse();
+export function getRecentLogs(): readonly LogEntry[] {
+  return snapshot;
 }
 
 export function subscribeToLogs(listener: () => void) {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -278,12 +278,12 @@ export function InlineCellValue({
   // Built-in read-only columns
   if (propertyId === "__created_at__" || propertyId === "__updated_at__") {
     const dateStr = value as string | null;
-    if (!dateStr) return <span className="text-muted-foreground/40">—</span>;
-    try {
-      return <span>{format(parseISO(dateStr), "MMM d, yyyy")}</span>;
-    } catch {
-      return <span className="text-muted-foreground/40">—</span>;
-    }
+    // Checked rather than caught: a throw from inside returned JSX escapes to
+    // the nearest error boundary, which for an unreadable date means losing the
+    // whole table instead of one cell.
+    const parsed = dateStr ? parseISO(dateStr) : null;
+    if (!parsed || !isValid(parsed)) return <span className="text-muted-foreground/40">—</span>;
+    return <span>{format(parsed, "MMM d, yyyy")}</span>;
   }
 
   if (propertyId === "__tags__") {

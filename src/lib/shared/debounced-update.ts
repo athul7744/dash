@@ -149,16 +149,16 @@ export function cancelUpdate(id: string, field: string, table?: string) {
   });
 }
 
-export async function flushUpdate(id: string, table?: string): Promise<any> {
+export async function flushUpdate(id: string, table?: string): Promise<void> {
   const entries = getPendingUpdateEntries(id, table);
-  if (entries.length === 0) return undefined;
+  if (entries.length === 0) return;
 
-  const executions = await Promise.all(entries.map(async ([pendingKey, pending]) => {
+  await Promise.all(entries.map(async ([pendingKey, pending]) => {
     clearTimeout(pending.timer);
     pendingUpdates.delete(pendingKey);
 
     const keys = Object.keys(pending.fields);
-    if (keys.length === 0) return undefined;
+    if (keys.length === 0) return;
 
     const currentRow = await db.getOptional<Record<string, SQLValue>>(
       `SELECT ${keys.join(', ')} FROM ${pending.table} WHERE id = ? LIMIT 1`,
@@ -169,9 +169,7 @@ export async function flushUpdate(id: string, table?: string): Promise<any> {
       ? keys.filter((field) => !areSQLValuesEqual(pending.table, field, currentRow[field], pending.fields[field]))
       : keys;
 
-    if (changedKeys.length === 0) {
-      return undefined;
-    }
+    if (changedKeys.length === 0) return;
 
     const setClauses = changedKeys.map((field) => `${field} = ?`);
     const values = changedKeys.map((field) => pending.fields[field]);
@@ -186,20 +184,13 @@ export async function flushUpdate(id: string, table?: string): Promise<any> {
     );
 
     await pending.afterFlush?.();
-    return true;
   }));
-
-  const completedExecutions = executions.filter(Boolean);
-  if (completedExecutions.length === 0) return undefined;
-  if (completedExecutions.length === 1) return completedExecutions[0];
-
-  return completedExecutions;
 }
 
 interface PendingExecute {
   id?: string;
   sql: string;
-  params: any[];
+  params: SQLValue[];
   afterFlush?: AfterFlushCallback;
 }
 
@@ -208,7 +199,7 @@ let executeTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function debouncedExecute(
   sql: string,
-  params: any[],
+  params: SQLValue[],
   entityId?: string,
   debounceMs = DEBOUNCE_MS,
   afterFlush?: AfterFlushCallback
@@ -260,7 +251,7 @@ export function hasPendingWrites(): boolean {
 export async function flushAllUpdates() {
   await flushExecutes();
 
-  const updatePromises: (Promise<any> | undefined)[] = [];
+  const updatePromises: Promise<void>[] = [];
   const pendingIds = new Set(Array.from(pendingUpdates.values(), (pending) => pending.id));
   for (const id of pendingIds) {
     updatePromises.push(flushUpdate(id));

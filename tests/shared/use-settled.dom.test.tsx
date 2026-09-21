@@ -3,10 +3,10 @@
 /**
  * "Has this loaded once" versus "is this loading right now".
  *
- * A watched query re-runs whenever a table it reads is written, and its loading
- * flag goes back up while it does. A surface gated on the raw flag falls back to
- * a skeleton every time anything underneath it changes, so returning to a screen
- * looks like opening it for the first time.
+ * A watched query re-runs whenever a table it reads is written and reports that
+ * it is fetching while it does. A surface gated on the raw flag falls back to a
+ * skeleton every time anything underneath it changes, even though the rows it is
+ * already showing are fine.
  *
  * The rule is one-way on purpose — which is both the point and the thing that
  * could regress without anyone noticing.

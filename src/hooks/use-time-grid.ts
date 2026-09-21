@@ -22,6 +22,8 @@
  */
 
 import { useQuery } from "@powersync/react";
+
+import { useCachedQuery } from "@/hooks/use-cached-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
@@ -86,7 +88,7 @@ export function useTimeGrid(days: Date[]): TimeGridModel {
     optimisticRatingsRef.current = optimisticRatings;
   }, [optimisticRatings]);
 
-  const { data: activityTypes, isLoading: loadingActivities } = useQuery<ActivityType & { id: string }>(
+  const { data: activityTypes, isLoading: loadingActivities } = useCachedQuery<ActivityType & { id: string }>(
     "SELECT * FROM activity_types ORDER BY created_at ASC",
   );
   const moods = useMoods();
@@ -112,7 +114,9 @@ export function useTimeGrid(days: Date[]): TimeGridModel {
   const [, rangeEnd] = utcDayBounds(localDateKey(days[days.length - 1]));
   const dayKeys = useMemo(() => new Set(days.map((day) => localDateKey(day))), [days]);
 
-  const { data: logs, isLoading: loadingLogs } = useQuery<TimeLog & { id: string }>(
+  // Cached per week, so stepping back to a week you were just looking at — or
+  // returning to the tracker at all — shows it rather than rebuilding it.
+  const { data: logs, isLoading: loadingLogs } = useCachedQuery<TimeLog & { id: string }>(
     `SELECT id, activity_name, start_timestamp, duration_minutes
      FROM time_logs
      WHERE start_timestamp >= ? AND start_timestamp <= ?

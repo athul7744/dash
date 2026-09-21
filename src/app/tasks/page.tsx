@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery } from '@powersync/react';
+
+import { useCachedQuery } from '@/hooks/use-cached-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Plus, CheckCircle2, Filter, Tag as TagIcon, X, ListTodo, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -83,7 +85,7 @@ export default function Home() {
   const orderBy = `ORDER BY CASE WHEN due_date IS NULL OR due_date = '' THEN 1 ELSE 0 END, due_date ASC, CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END ASC, id ASC`;
 
   // One page of top-level tasks (the DB does the paging — only these rows land in JS).
-  const { data: topLevelTasks = [], isLoading: loadingTasks } = useQuery<Task>(
+  const { data: topLevelTasks, isLoading: loadingTasks } = useCachedQuery<Task>(
     `SELECT * FROM tasks WHERE ${whereClause} ${orderBy} LIMIT ?`,
     [...filterArgs, loadedCount],
   );

@@ -4,6 +4,7 @@ import { SupabaseConnector } from './SupabaseConnector';
 import { logger as log } from '../shared/logger';
 import { ensureSearchIndex, primeSearchIndexLocal, buildSearchIndexAfterSync, resetSearchIndex } from '../search/search-index';
 import { primeAttachmentsLocal, syncAttachmentsAfterSync } from '../storage/attachment-sync';
+import { clearRememberedQueries } from '@/hooks/use-cached-query';
 
 export const db = new PowerSyncDatabase({
   schema: AppSchema,
@@ -67,6 +68,9 @@ export const resetLocalDatabase = async () => {
   log.info("Disconnected from cloud");
   // Delete all local data
   await db.disconnectAndClear();
+  // Remembered query results describe rows that no longer exist; a screen must
+  // not paint them back over an empty database.
+  clearRememberedQueries();
   log.info("Local data cleared");
   // Reset flags so we can re-initialize
   isLocalReady = false;

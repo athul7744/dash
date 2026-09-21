@@ -2,6 +2,8 @@
 
 import { useQuery } from "@powersync/react";
 
+import { useCachedQuery } from "@/hooks/use-cached-query";
+
 import { refTypeSql } from "@/lib/links/links";
 import type { AttachmentRecord, BlockRecord, PageRecord } from "@/lib/powersync/AppSchema";
 
@@ -91,7 +93,7 @@ const NOTE_PAGE_SELECT = [
 const NOTE_PAGE_WHERE = "WHERE json_extract(properties, '$.kind') IS NULL AND deleted_at IS NULL";
 
 export function useRecentNotePages(limit = 8) {
-  const { data = [], isLoading } = useQuery<NotePageRow>(
+  const { data, isLoading } = useCachedQuery<NotePageRow>(
     [NOTE_PAGE_SELECT, NOTE_PAGE_WHERE, "ORDER BY updated_at DESC, created_at DESC", "LIMIT ?"].join(" "),
     [limit]
   );
@@ -103,7 +105,7 @@ export function useRecentNotePages(limit = 8) {
 }
 
 export function useFavoriteNotePages() {
-  const { data = [], isLoading } = useQuery<NotePageRow>(
+  const { data, isLoading } = useCachedQuery<NotePageRow>(
     [
       NOTE_PAGE_SELECT,
       NOTE_PAGE_WHERE,
@@ -126,7 +128,7 @@ export function useFavoriteNotePages() {
  * notes. Summaries come from `useAllNotePagesWithPreview`, on demand.
  */
 export function useAllNotePages() {
-  const { data = [], isLoading } = useQuery<NotePageRow>(
+  const { data, isLoading } = useCachedQuery<NotePageRow>(
     [NOTE_PAGE_COLUMNS, NOTE_PAGE_WHERE, "ORDER BY title COLLATE NOCASE ASC, updated_at DESC, created_at DESC"].join(" ")
   );
 

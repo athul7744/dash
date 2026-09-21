@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import { useQuery } from "@powersync/react";
 
+import { useCachedQuery } from "@/hooks/use-cached-query";
+
 import { useCurrentUserId } from "@/hooks/use-current-user-id";
 import { useSettled } from "@/hooks/use-settled";
 import { systemPageId, type SystemPageKind } from "@/lib/notes/system-pages";
@@ -37,9 +39,12 @@ export function useSystemPageBlocks<T>(
 
   const query = pageId ? LIST_QUERY : EMPTY_QUERY;
   const args = pageId ? [pageId, blockType] : [];
-  const { data = [], isLoading, isFetching } = useQuery<SystemPageBlockRow>(query, args, { reportFetching: true });
+  // Cached, so returning to this app paints the rows it last showed instead of
+  // assembling the list again; `isLoading` from it means "nothing to show",
+  // which is already false when there is something remembered.
+  const { data, isLoading } = useCachedQuery<SystemPageBlockRow>(query, args);
 
-  const settled = useSettled(pageId === null || isLoading || isFetching);
+  const settled = useSettled(pageId === null || isLoading);
 
   const items = useMemo(() => data.map(parse), [data, parse]);
   return { items, isLoading: !settled };
@@ -70,14 +75,14 @@ export function useSystemPageBlocksPaged<T>(
     ? `SELECT id, content, sort_rank FROM blocks WHERE page_id = ? AND type = ? AND deleted_at IS NULL${filter} ORDER BY sort_rank ASC LIMIT ?`
     : EMPTY_QUERY;
   const listArgs = pageId ? [pageId, blockType, ...whereArgs, opts.limit] : [];
-  const { data = [], isLoading, isFetching } = useQuery<SystemPageBlockRow>(listQuery, listArgs, { reportFetching: true });
+  const { data, isLoading } = useCachedQuery<SystemPageBlockRow>(listQuery, listArgs);
 
   const { data: countRows = [] } = useQuery<{ c: number }>(
     pageId ? `SELECT COUNT(*) AS c FROM blocks WHERE page_id = ? AND type = ? AND deleted_at IS NULL${filter}` : COUNT_EMPTY,
     pageId ? [pageId, blockType, ...whereArgs] : [],
   );
 
-  const settled = useSettled(pageId === null || isLoading || isFetching);
+  const settled = useSettled(pageId === null || isLoading);
 
   const items = useMemo(() => data.map(parse), [data, parse]);
   return { items, total: countRows[0]?.c ?? 0, isLoading: !settled };

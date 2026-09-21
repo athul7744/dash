@@ -11,7 +11,7 @@
  * written in.
  */
 
-import { useQuery } from "@powersync/react";
+import { useCachedQuery } from "@/hooks/use-cached-query";
 
 import { useOccurrences } from "@/hooks/use-events";
 import { BOOKMARKS_KEY, BOOKMARK_BLOCK_TYPE, parseBookmarkContent, type Bookmark } from "@/lib/bookmarks/bookmarks";
@@ -39,14 +39,14 @@ const TASK_SELECT = "SELECT * FROM tasks WHERE state != 'trashed' AND parent_id 
 export function useDayTasks(dateKey: string): DayTasks {
   const [from, to] = localDayBounds(dateKey);
 
-  const { data: due = [], isLoading: loadingDue } = useQuery<Task & { id: string }>(
+  const { data: due, isLoading: loadingDue } = useCachedQuery<Task & { id: string }>(
     `${TASK_SELECT} AND due_date >= ? AND due_date < ? ORDER BY due_date ASC`,
     [from, to],
   );
 
   // Not filtered to the day's due tasks: what you finished today is its own
   // fact, and most of it was due some other day or not at all.
-  const { data: completed = [], isLoading: loadingCompleted } = useQuery<Task & { id: string }>(
+  const { data: completed, isLoading: loadingCompleted } = useCachedQuery<Task & { id: string }>(
     `${TASK_SELECT} AND completed_at >= ? AND completed_at < ? ORDER BY completed_at ASC`,
     [from, to],
   );
@@ -114,7 +114,7 @@ export function useDayCaptures(dateKey: string): DayCaptures {
     { limit: CAPTURE_LIMIT, ...window, whereArgs: [from, to] },
   );
 
-  const { data: notes = [], isLoading: loadingNotes } = useQuery<DayNote>(
+  const { data: notes, isLoading: loadingNotes } = useCachedQuery<DayNote>(
     `SELECT id, title FROM pages
      WHERE created_at >= ? AND created_at < ?
        AND json_extract(properties, '$.kind') IS NULL

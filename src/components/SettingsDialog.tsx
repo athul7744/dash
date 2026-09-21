@@ -55,6 +55,7 @@ import {
   type PushState,
 } from "@/lib/shared/notifications";
 import { cn } from "@/lib/shared/utils";
+import { clearRememberedQueries } from "@/hooks/use-cached-query";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -152,6 +153,8 @@ function AccountSection({ onClose }: { onClose: () => void }) {
 
   const handleLogout = async () => {
     await createClient().auth.signOut();
+    // Nothing of this account's should be on screen for the next one.
+    clearRememberedQueries();
     onClose();
     router.push("/login");
     router.refresh();

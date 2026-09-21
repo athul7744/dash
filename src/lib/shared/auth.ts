@@ -20,3 +20,17 @@ export async function getCurrentUserId(): Promise<string> {
   cachedUserId = session?.user?.id || "";
   return cachedUserId;
 }
+
+/**
+ * The id if it has already been resolved this session, else null.
+ *
+ * `getCurrentUserId` caches, but it is a promise, so anything awaiting it
+ * renders once without an id however many times it has been called before. A
+ * screen that derives a system page from the id therefore had nothing to query
+ * on its first render — a skeleton frame on every visit, for a value that was
+ * sitting in a variable. Callers that can use it synchronously read this and
+ * keep the promise as the fallback for the first resolution.
+ */
+export function cachedUserIdOrNull(): string | null {
+  return cachedUserId || null;
+}

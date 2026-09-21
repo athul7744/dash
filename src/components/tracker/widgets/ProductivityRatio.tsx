@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { format, isAfter, startOfDay } from "date-fns";
 import { BarChart3, Zap } from "lucide-react";
 import { hourCellKey } from "@/lib/tracker/day-keys";
+import { useDerivedState } from "@/hooks/use-derived-state";
 import { cn } from "@/lib/shared/utils";
 import { WidgetProps, COLOR_HEX } from "./types";
 import { categoryToProductivityBucket } from "@/lib/tracker/activities";
@@ -15,14 +16,11 @@ export function ProductivityRatio({ days, data, colorMap, categoryMap }: WidgetP
   const today = startOfDay(new Date());
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [showDaily, setShowDaily] = useState(false);
-  const [animated, setAnimated] = useState(false);
-  const prevShowDailyRef = useRef(showDaily);
-
-  // Synchronously reset animated to false when showDaily changes (before paint)
-  if (prevShowDailyRef.current !== showDaily) {
-    prevShowDailyRef.current = showDaily;
-    setAnimated(false);
-  }
+  // Switching between the weekly and daily shape restarts the bars from zero.
+  // Derived from `showDaily` so the reset happens during the render that
+  // changes it, before paint — a ref read during render is neither guaranteed
+  // to be up to date nor allowed to schedule this.
+  const [animated, setAnimated] = useDerivedState(showDaily, () => false);
 
   // After rendering with animated=false, schedule animated=true for next frame
   useEffect(() => {
@@ -32,7 +30,7 @@ export function ProductivityRatio({ days, data, colorMap, categoryMap }: WidgetP
       });
       return () => cancelAnimationFrame(id);
     }
-  }, [animated]);
+  }, [animated, setAnimated]);
 
   const stats = useMemo(() => {
     const validDates = new Set(days.filter((d) => !isAfter(startOfDay(d), today)).map((d) => format(d, "yyyy-MM-dd")));

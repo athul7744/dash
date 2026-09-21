@@ -105,16 +105,16 @@ function useWeekNavigatorControls(currentDate: Date, onDateChange: (date: Date) 
   const goToPrev = () => onDateChange(subWeeks(currentDate, 1));
   const goToNext = () => onDateChange(addWeeks(currentDate, 1));
 
-  const handleWeekChange = (value: any) => {
-    const newWeek = parseInt(String(value), 10);
-    const newDate = setWeek(currentDate, newWeek, { weekStartsOn: 1 });
-    onDateChange(newDate);
+  // The week and year items carry numbers, so the Select hands one back; null
+  // is the cleared state, which these two never offer.
+  const handleWeekChange = (value: number | null) => {
+    if (value === null) return;
+    onDateChange(setWeek(currentDate, value, { weekStartsOn: 1 }));
   };
 
-  const handleYearChange = (value: any) => {
-    const newYear = parseInt(String(value), 10);
-    const newDate = setYear(currentDate, newYear);
-    onDateChange(newDate);
+  const handleYearChange = (value: number | null) => {
+    if (value === null) return;
+    onDateChange(setYear(currentDate, value));
   };
 
   const currentYear = new Date().getFullYear();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useLayoutEffect } from "react";
 import { cn } from "@/lib/shared/utils";
 
 interface WheelItem {
@@ -10,9 +10,13 @@ interface WheelItem {
   percentage: number;
 }
 
+/** Height assumed until the container has been measured. */
+const FALLBACK_HEIGHT = 200;
+
 export function WheelList({ items }: { items: WheelItem[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(FALLBACK_HEIGHT);
   const itemHeight = 36;
 
   const handleScroll = useCallback(() => {
@@ -29,7 +33,25 @@ export function WheelList({ items }: { items: WheelItem[] }) {
     }
   }, [handleScroll]);
 
-  const containerHeight = containerRef.current?.clientHeight || 200;
+  // Measured rather than read off the ref during render: a ref read gives the
+  // height from the *previous* commit — zero on the first paint, which put every
+  // item's scale and opacity on a 200px guess — and never notices a resize.
+  // Layout effect, so the real height lands before the first paint.
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const next = el.clientHeight || FALLBACK_HEIGHT;
+      setContainerHeight((prev) => (prev === next ? prev : next));
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const centerY = scrollTop + containerHeight / 2;
 
   return (

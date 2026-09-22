@@ -70,15 +70,18 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico, icon.svg, etc.
-     * - manifest.json
-     * - sw.js (service worker)
-     * - swe-worker-*.js (serwist workers)
-     * - workbox-*.js
+     * Match every page, and nothing static:
+     * - _next/static, _next/image (build output and image optimisation)
+     * - sw.js, swe-worker-*.js, workbox-*.js (the service worker and its helpers)
+     * - any path ending in a static file's extension — the icons, the web
+     *   manifest, robots.txt, the emoji sprite, everything else in `public/`
+     *
+     * By extension rather than by name, so a file added to `public/` skips the
+     * sign-in check without anyone remembering to list it. A static file that
+     * goes through it can be answered with the login page, and the service
+     * worker precaches whatever answer it gets. Nothing private lives in
+     * `public/`.
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|icon-.*\\.png|manifest\\.json|robots\\.txt|sw\\.js|swe-worker-.*\\.js|workbox-.*\\.js).*)',
+    '/((?!_next/static|_next/image|sw\\.js|swe-worker-.*\\.js|workbox-.*\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|txt|woff2?)$).*)',
   ],
 }

@@ -44,6 +44,17 @@ const APP_SHELLS = [
 const SHELL_REVISION = `${Date.now()}`;
 
 /**
+ * Folded into every `public/` file's revision. Bump it when a precached copy is
+ * known to be wrong while the file itself is fine.
+ *
+ * A revision is otherwise the file's own hash, and the service worker never
+ * fetches an entry again while its revision is unchanged — right for a good
+ * copy, and permanent for a bad one. Nothing on the device can repair an entry
+ * like that; only a new revision makes every installed copy fetch it again.
+ */
+const PUBLIC_ASSET_GENERATION = "2";
+
+/**
  * Everything in `public/`, hashed.
  *
  * Supplying `additionalPrecacheEntries` *replaces* the plugin's own scan of this
@@ -59,7 +70,7 @@ function publicAssets(dir = path.join(process.cwd(), "public"), prefix = ""): { 
     if (statSync(full).isDirectory()) return publicAssets(full, `${prefix}${name}/`);
     return [{
       url: `/${prefix}${name}`,
-      revision: createHash("md5").update(readFileSync(full)).digest("hex"),
+      revision: createHash("md5").update(PUBLIC_ASSET_GENERATION).update(readFileSync(full)).digest("hex"),
     }];
   });
 }

@@ -3,6 +3,8 @@ import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { ExpirationPlugin, Serwist, StaleWhileRevalidate } from "serwist";
 
+import { refuseRedirectedPrecache } from "@/lib/shared/precache-guard";
+
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
     __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
@@ -13,6 +15,9 @@ declare const self: ServiceWorkerGlobalScope;
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
+  // A redirect at install time is the auth gate, never a moved file — see
+  // `precache-guard.ts` for why following it is worse than failing the install.
+  precacheOptions: { plugins: [refuseRedirectedPrecache] },
   // The new worker waits instead of taking over on its own, and the app asks it
   // to step in (`SKIP_WAITING`, which Serwist only listens for when this is
   // false — see `lib/shared/app-update.ts`). Two reasons: an installed app has

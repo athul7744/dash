@@ -1,13 +1,86 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 
 const NOTES_DESKTOP_PANEL_PREFERENCE_KEY = "notes.desktop-panels";
 
+type DesktopPanelPreference = {
+  showDesktopDetailsRail: boolean;
+  showDesktopPagesRail: boolean;
+};
+
+const DEFAULT_DESKTOP_PANEL_PREFERENCE: DesktopPanelPreference = {
+  showDesktopDetailsRail: false,
+  showDesktopPagesRail: true,
+};
+
+const desktopPanelPreferenceListeners = new Set<() => void>();
+let cachedDesktopPanelPreferenceRaw: string | null | undefined;
+let cachedDesktopPanelPreference = DEFAULT_DESKTOP_PANEL_PREFERENCE;
+
+function readDesktopPanelPreference(): DesktopPanelPreference {
+  const rawPreference = window.localStorage.getItem(NOTES_DESKTOP_PANEL_PREFERENCE_KEY);
+  if (rawPreference === cachedDesktopPanelPreferenceRaw) return cachedDesktopPanelPreference;
+
+  cachedDesktopPanelPreferenceRaw = rawPreference;
+  if (!rawPreference) {
+    cachedDesktopPanelPreference = DEFAULT_DESKTOP_PANEL_PREFERENCE;
+    return cachedDesktopPanelPreference;
+  }
+
+  try {
+    const parsedPreference = JSON.parse(rawPreference) as Partial<DesktopPanelPreference>;
+    cachedDesktopPanelPreference = {
+      showDesktopDetailsRail:
+        typeof parsedPreference.showDesktopDetailsRail === "boolean"
+          ? parsedPreference.showDesktopDetailsRail
+          : DEFAULT_DESKTOP_PANEL_PREFERENCE.showDesktopDetailsRail,
+      showDesktopPagesRail:
+        typeof parsedPreference.showDesktopPagesRail === "boolean"
+          ? parsedPreference.showDesktopPagesRail
+          : DEFAULT_DESKTOP_PANEL_PREFERENCE.showDesktopPagesRail,
+    };
+  } catch {
+    cachedDesktopPanelPreference = DEFAULT_DESKTOP_PANEL_PREFERENCE;
+  }
+
+  return cachedDesktopPanelPreference;
+}
+
+function subscribeToDesktopPanelPreference(callback: () => void) {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === NOTES_DESKTOP_PANEL_PREFERENCE_KEY) callback();
+  };
+  desktopPanelPreferenceListeners.add(callback);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    desktopPanelPreferenceListeners.delete(callback);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function writeDesktopPanelPreference(next: DesktopPanelPreference) {
+  const rawPreference = JSON.stringify(next);
+  window.localStorage.setItem(NOTES_DESKTOP_PANEL_PREFERENCE_KEY, rawPreference);
+  cachedDesktopPanelPreferenceRaw = rawPreference;
+  cachedDesktopPanelPreference = next;
+  desktopPanelPreferenceListeners.forEach((listener) => listener());
+}
+
 export function useNotesLayoutState() {
   const [showEditorAppHeader, setShowEditorAppHeader] = useState(false);
-  const [showDesktopPagesRail, setShowDesktopPagesRail] = useState(true);
-  const [showDesktopDetailsRail, setShowDesktopDetailsRail] = useState(false);
+  const desktopPanelPreference = useSyncExternalStore(
+    subscribeToDesktopPanelPreference,
+    readDesktopPanelPreference,
+    () => DEFAULT_DESKTOP_PANEL_PREFERENCE,
+  );
+  const setShowDesktopPagesRail = useCallback((showDesktopPagesRail: boolean) => {
+    writeDesktopPanelPreference({ ...readDesktopPanelPreference(), showDesktopPagesRail });
+  }, []);
+  const setShowDesktopDetailsRail = useCallback((showDesktopDetailsRail: boolean) => {
+    writeDesktopPanelPreference({ ...readDesktopPanelPreference(), showDesktopDetailsRail });
+  }, []);
+  const { showDesktopPagesRail, showDesktopDetailsRail } = desktopPanelPreference;
   const [isMobilePagesDrawerOpen, setIsMobilePagesDrawerOpen] = useState(false);
   const [isMobileDetailsDrawerOpen, setIsMobileDetailsDrawerOpen] = useState(false);
   const [pageRailSectionOpen, setPageRailSectionOpen] = useState({
@@ -23,40 +96,6 @@ export function useNotesLayoutState() {
     attachments: true,
     timeline: true,
   });
-
-  useEffect(() => {
-    try {
-      const rawPreference = window.localStorage.getItem(NOTES_DESKTOP_PANEL_PREFERENCE_KEY);
-      if (!rawPreference) {
-        return;
-      }
-
-      const parsedPreference = JSON.parse(rawPreference) as {
-        showDesktopDetailsRail?: boolean;
-        showDesktopPagesRail?: boolean;
-      };
-
-      if (typeof parsedPreference.showDesktopPagesRail === "boolean") {
-        setShowDesktopPagesRail(parsedPreference.showDesktopPagesRail);
-      }
-
-      if (typeof parsedPreference.showDesktopDetailsRail === "boolean") {
-        setShowDesktopDetailsRail(parsedPreference.showDesktopDetailsRail);
-      }
-    } catch {
-      window.localStorage.removeItem(NOTES_DESKTOP_PANEL_PREFERENCE_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      NOTES_DESKTOP_PANEL_PREFERENCE_KEY,
-      JSON.stringify({
-        showDesktopPagesRail,
-        showDesktopDetailsRail,
-      })
-    );
-  }, [showDesktopDetailsRail, showDesktopPagesRail]);
 
   const togglePageRailSection = (section: keyof typeof pageRailSectionOpen) => {
     setPageRailSectionOpen((current) => ({

@@ -272,6 +272,7 @@ Responsibilities:
 
 - Registers the notes app in the shared shell and launcher.
 - Orchestrates the overview, editor, and graph surfaces from the path (see Routing above).
+- Keeps the desktop pages/details rail preference in `useNotesLayoutState` as a `useSyncExternalStore`-backed `localStorage` store, with the default rail layout as the server snapshot so hydration stays consistent.
 - Reads pages, blocks, backlinks, attachments, and mentions from local SQLite through `src/hooks/use-notes.ts`.
 - Resolves note page tag ids from the `entity_tags` table (batched via `useEntityTags`) through the shared `tags` table.
 - Supports custom page properties stored in `pages.properties.custom`, resolved against workspace-wide `property_definitions`.

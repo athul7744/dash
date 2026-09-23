@@ -101,7 +101,7 @@ describe("parseCustomPropertyValues", () => {
   });
 
   it("returns empty object for null properties", () => {
-    expect(parseCustomPropertyValues(null as any)).toEqual({});
+    expect(parseCustomPropertyValues(null as unknown as Record<string, unknown>)).toEqual({});
   });
 
   it("extracts custom object from properties", () => {

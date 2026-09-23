@@ -2,8 +2,8 @@
 
 export {};
 
-const debouncedExecuteMock = vi.fn<(...args: any[]) => Promise<any>>(async () => undefined);
-const debouncedGetOptionalMock = vi.fn<(...args: any[]) => Promise<any>>(async () => null);
+const debouncedExecuteMock = vi.fn<(...args: [sql: string, params?: unknown[]]) => Promise<void>>(async () => undefined);
+const debouncedGetOptionalMock = vi.fn<(...args: [sql: string, params?: unknown[]]) => Promise<Record<string, unknown> | null>>(async () => null);
 
 vi.mock("@/lib/powersync/db", () => ({
   db: {

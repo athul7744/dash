@@ -9,9 +9,9 @@ const EDGE_ID_NAMESPACE = "9b17a01f-3454-4db0-8f39-7f093ac0f56b";
 type EdgeRow = { id: string; target_id: string; type: string };
 type PageRow = { id: string; title: string | null };
 
-const notesExecuteMock = vi.fn<(...args: any[]) => Promise<any>>(async () => undefined);
-const notesGetAllMock = vi.fn<(...args: any[]) => Promise<any>>(async () => []);
-const notesGetOptionalMock = vi.fn<(...args: any[]) => Promise<any>>(async () => null);
+const notesExecuteMock = vi.fn<(...args: [sql: string, params?: unknown[]]) => Promise<void>>(async () => undefined);
+const notesGetAllMock = vi.fn<(...args: [sql: string, params?: unknown[]]) => Promise<unknown[]>>(async () => []);
+const notesGetOptionalMock = vi.fn<(...args: [sql: string, params?: unknown[]]) => Promise<unknown>>(async () => null);
 const notesGetCurrentUserIdMock = vi.fn(async () => "user-1");
 
 vi.mock("@/lib/powersync/db", () => ({

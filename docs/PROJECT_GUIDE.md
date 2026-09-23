@@ -219,7 +219,7 @@ Important convention:
 - `src/hooks/use-derived-state.ts` — `useDerivedState(source, transform)`: local editable state that re-syncs from a prop via adjust-during-render (the endorsed alternative to a setState-in-effect), used by `TaskCard`
 - `src/hooks/use-autosize-textarea.ts` — grows a textarea to fit its content, recomputing on width/masonry-column changes (quote + bookmark cards)
 - `src/hooks/use-display-font.ts` — reads/writes the selected display font via `useSyncExternalStore` + `localStorage`, applying it to `<body data-display-font>`
-- `src/hooks/use-settled-timestamp.ts` — debounced timestamp display that waits for pending writes to settle
+- `src/hooks/use-settled-timestamp.ts` — page-keyed timestamp display that keeps the last settled value while debounced writes are pending, adopts the DB timestamp once writes finish, and refreshes relative labels on the shared time tick; the hook owns page changes rather than requiring a reset effect from its caller
 - `src/hooks/use-edge-swipe.ts` — mobile edge swipe gesture detection
 - `src/hooks/use-page-nav-stack.ts` — page navigation stack with sessionStorage persistence (used by breadcrumb)
 - `src/hooks/use-property-definitions.ts` — reactive query hook for workspace property definitions

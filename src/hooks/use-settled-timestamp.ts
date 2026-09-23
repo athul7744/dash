@@ -10,13 +10,38 @@ type TimestampLabel = { relative: string; absolute: string } | null;
 
 export function useSettledTimestamp(
   selectedPage: { id: string; updated_at: string | null } | undefined | null,
-  initialTimestamp: TimestampLabel,
 ) {
-  const [stableUpdatedTimestamp, setStableUpdatedTimestamp] = useState<TimestampLabel>(null);
+  const relativeTimeTick = useRelativeTimeTick(30000);
+  const pageId = selectedPage?.id ?? null;
+  const updatedAt = selectedPage?.updated_at ?? null;
+  const [timestampState, setTimestampState] = useState(() => ({
+    pageId,
+    relativeTimeTick,
+    updatedAt,
+    value: formatTimestampLabel(updatedAt),
+  }));
   const [showAbsoluteUpdatedTime, setShowAbsoluteUpdatedTime] = useState(false);
   const absoluteUpdatedTimeTimeoutRef = useRef<number | null>(null);
-  const pendingUpdatedTimestampRef = useRef<TimestampLabel>(null);
-  const settleUpdatedTimestampTimeoutRef = useRef<number | null>(null);
+
+  if (timestampState.pageId !== pageId) {
+    setTimestampState({
+      pageId,
+      relativeTimeTick,
+      updatedAt,
+      value: formatTimestampLabel(updatedAt),
+    });
+    setShowAbsoluteUpdatedTime(false);
+  } else if (
+    !hasPendingWrites() &&
+    (timestampState.updatedAt !== updatedAt || timestampState.relativeTimeTick !== relativeTimeTick)
+  ) {
+    setTimestampState({
+      pageId,
+      relativeTimeTick,
+      updatedAt,
+      value: formatTimestampLabel(updatedAt),
+    });
+  }
 
   const revealAbsoluteUpdatedTime = () => {
     setShowAbsoluteUpdatedTime(true);
@@ -31,75 +56,32 @@ export function useSettledTimestamp(
     }, 3000);
   };
 
-  const resetTimestamp = (nextTimestamp: TimestampLabel) => {
-    setShowAbsoluteUpdatedTime(false);
-    setStableUpdatedTimestamp(nextTimestamp);
-  };
-
   useEffect(() => {
-    pendingUpdatedTimestampRef.current = initialTimestamp;
+    if (!pageId || !hasPendingWrites()) return;
 
-    if (!selectedPage) {
-      if (settleUpdatedTimestampTimeoutRef.current !== null) {
-        window.clearTimeout(settleUpdatedTimestampTimeoutRef.current);
-        settleUpdatedTimestampTimeoutRef.current = null;
-      }
-      setStableUpdatedTimestamp(null);
-      return;
-    }
-
-    if (!hasPendingWrites()) {
-      if (settleUpdatedTimestampTimeoutRef.current !== null) {
-        window.clearTimeout(settleUpdatedTimestampTimeoutRef.current);
-        settleUpdatedTimestampTimeoutRef.current = null;
-      }
-      setStableUpdatedTimestamp(initialTimestamp);
-      return;
-    }
-
-    if (settleUpdatedTimestampTimeoutRef.current !== null) {
-      return;
-    }
+    let timeoutId: number | null = null;
 
     const waitForSettledTimestamp = () => {
       if (hasPendingWrites()) {
-        settleUpdatedTimestampTimeoutRef.current = window.setTimeout(waitForSettledTimestamp, 240);
+        timeoutId = window.setTimeout(waitForSettledTimestamp, 240);
         return;
       }
 
-      settleUpdatedTimestampTimeoutRef.current = null;
-      setStableUpdatedTimestamp(pendingUpdatedTimestampRef.current);
+      timeoutId = null;
+      setTimestampState({
+        pageId,
+        relativeTimeTick,
+        updatedAt,
+        value: formatTimestampLabel(updatedAt),
+      });
     };
 
-    settleUpdatedTimestampTimeoutRef.current = window.setTimeout(waitForSettledTimestamp, 240);
+    timeoutId = window.setTimeout(waitForSettledTimestamp, 240);
 
     return () => {
-      if (settleUpdatedTimestampTimeoutRef.current !== null) {
-        window.clearTimeout(settleUpdatedTimestampTimeoutRef.current);
-        settleUpdatedTimestampTimeoutRef.current = null;
-      }
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
     };
-  }, [selectedPage?.id, selectedPage?.updated_at]);
-
-  const relativeTimeTick = useRelativeTimeTick(30000);
-
-  useEffect(() => {
-    if (!selectedPage || hasPendingWrites()) {
-      return;
-    }
-
-    const nextTimestamp = formatTimestampLabel(selectedPage.updated_at ?? null);
-    setStableUpdatedTimestamp((currentTimestamp) => {
-      if (
-        currentTimestamp?.relative === nextTimestamp?.relative &&
-        currentTimestamp?.absolute === nextTimestamp?.absolute
-      ) {
-        return currentTimestamp;
-      }
-
-      return nextTimestamp;
-    });
-  }, [relativeTimeTick, selectedPage?.id, selectedPage?.updated_at]);
+  }, [pageId, relativeTimeTick, updatedAt]);
 
   useEffect(() => {
     return () => {
@@ -110,9 +92,8 @@ export function useSettledTimestamp(
   }, []);
 
   return {
-    stableUpdatedTimestamp,
+    stableUpdatedTimestamp: timestampState.value as TimestampLabel,
     showAbsoluteUpdatedTime,
     revealAbsoluteUpdatedTime,
-    resetTimestamp,
   };
 }

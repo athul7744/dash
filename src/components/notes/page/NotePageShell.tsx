@@ -82,7 +82,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   const pageSummary = typeof pageProperties.summary === "string" ? pageProperties.summary : null;
   // Memoized so the forwarded shell handle keeps a stable identity across renders.
   const createdTimestamp = useMemo(() => formatTimestampLabel(page?.created_at ?? null), [page?.created_at]);
-  const updatedTimestamp = formatTimestampLabel(page?.updated_at ?? null);
 
   // ─── Draft state ───────────────────────────────────────────────────────────
   const [pageTitleDraft, setPageTitleDraft] = useState("");
@@ -108,7 +107,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     setPageTitleError(null);
     setPageEmojiDraft(undefined);
     setSummaryDraft(pageSummary ?? "");
-  }, [page?.id, pageId]);
+  }, [page, pageId, pageSummary]);
 
   // Reset drafts when switching pages (before new data arrives)
   const prevPageIdRef = useRef(pageId);
@@ -127,7 +126,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     if (pageEmojiDraft === pageEmoji) {
       setPageEmojiDraft(undefined);
     }
-  }, [pageEmojiDraft, page?.id, pageEmoji]);
+  }, [pageEmojiDraft, page, pageEmoji]);
 
   // ─── Ordered blocks (read-only: outline, copy-document, block count) ─────────
   // The single editor owns editing + undo; the shell only needs the page's
@@ -210,15 +209,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     stableUpdatedTimestamp,
     showAbsoluteUpdatedTime,
     revealAbsoluteUpdatedTime,
-    resetTimestamp,
-  } = useSettledTimestamp(page, updatedTimestamp);
-
-  // Reset timestamp on hydration
-  useEffect(() => {
-    if (page?.id === pageId && hydratedPageIdRef.current === pageId) {
-      resetTimestamp(updatedTimestamp);
-    }
-  }, [hydratedPageIdRef.current]);
+  } = useSettledTimestamp(page);
 
   // ─── Page actions ──────────────────────────────────────────────────────────
   const activePageEmoji = pageEmojiDraft !== undefined ? pageEmojiDraft : pageEmoji;
@@ -326,7 +317,17 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
       undo: runUndo,
       redo: runRedo,
     };
-  });
+  }, [
+    persistSelectedPageProperties,
+    revealAbsoluteUpdatedTime,
+    handleToggleFavorite,
+    handleCopyDocument,
+    handleDeletePage,
+    focusBlockInEditor,
+    togglePageFavorite,
+    runUndo,
+    runRedo,
+  ]);
 
   const stableCallbacks = useMemo(() => ({
     setSummaryDraft: (summary: string) => latestCallbacksRef.current.setSummaryDraft(summary),

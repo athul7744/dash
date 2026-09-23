@@ -38,6 +38,7 @@ import {
   usePropertyDefinitions,
   type PropertyDefinitionRow,
 } from "@/hooks/use-property-definitions";
+import { useOptimisticValue } from "@/hooks/use-optimistic-value";
 import {
   createPropertyDefinition,
   parseCustomPropertyValues,
@@ -242,17 +243,22 @@ function PropertyValueEditor({
   property: ResolvedPageProperty;
   onChange: (value: unknown) => void;
 }) {
-  const [localValue, setLocalValue] = useState(property.value);
-  const [isFocused, setIsFocused] = useState(false);
-
-  useEffect(() => {
-    if (!isFocused) {
-      setLocalValue(property.value);
-    }
-  }, [property.value, isFocused]);
+  // While a field is being edited it shows its own draft and ignores the page's
+  // value; once it isn't, it shows the page's value directly. The page's value
+  // is replaced by the database copy each time a debounced write lands, and that
+  // copy is older than anything typed during the round trip — following it
+  // mid-edit reverts the input, and the next keystroke saves the reverted text.
+  const [isFocused, setIsFocusedState] = useState(false);
+  const [draft, setDraft] = useState<unknown>(property.value);
+  const setIsFocused = (next: boolean) => {
+    // Seeded as editing starts, so the draft begins from what is on screen.
+    if (next && !isFocused) setDraft(property.value);
+    setIsFocusedState(next);
+  };
+  const localValue = isFocused ? draft : property.value;
 
   const handleChange = (newValue: unknown) => {
-    setLocalValue(newValue);
+    setDraft(newValue);
     onChange(newValue);
   };
 
@@ -655,6 +661,26 @@ export function NotePageProperties({
 
   // Optimistic definitions overlay for newly created properties
   const [optimisticDefs, setOptimisticDefs] = useState<PropertyDefinitionRow[]>([]);
+
+  // Drop an optimistic definition once the database has it. The list below
+  // already hides one that is in the database, but a definition kept here after
+  // it lands comes back as "pending" the moment it is deleted elsewhere.
+  //
+  // Adjusted during render, keyed on the ids in both lists: `handleCreateNew`
+  // adds its entry after awaiting the write, so the query can return the new
+  // row first, and a prune keyed on the database alone would already have run.
+  // Ids, not array identity, because they are all pruning depends on.
+  const pruneKey = `${dbDefinitions.map((d) => d.id).join(",")}|${optimisticDefs.map((d) => d.id).join(",")}`;
+  const [prunedAgainst, setPrunedAgainst] = useState(pruneKey);
+  if (prunedAgainst !== pruneKey) {
+    setPrunedAgainst(pruneKey);
+    const dbIds = new Set(dbDefinitions.map((d) => d.id));
+    setOptimisticDefs((prev) => {
+      const remaining = prev.filter((d) => !dbIds.has(d.id));
+      return remaining.length === prev.length ? prev : remaining;
+    });
+  }
+
   const definitions = useMemo(() => {
     if (optimisticDefs.length === 0) return dbDefinitions;
     const dbIds = new Set(dbDefinitions.map((d) => d.id));
@@ -663,35 +689,23 @@ export function NotePageProperties({
     return [...dbDefinitions, ...pending];
   }, [dbDefinitions, optimisticDefs]);
 
-  // Clear optimistic defs once DB catches up
-  useEffect(() => {
-    if (optimisticDefs.length === 0) return;
-    const dbIds = new Set(dbDefinitions.map((d) => d.id));
-    const remaining = optimisticDefs.filter((d) => !dbIds.has(d.id));
-    if (remaining.length !== optimisticDefs.length) {
-      setOptimisticDefs(remaining);
-    }
-  }, [dbDefinitions, optimisticDefs]);
-
   const pagePropertiesRef = useRef(pageProperties);
-  pagePropertiesRef.current = pageProperties;
+  useEffect(() => {
+    pagePropertiesRef.current = pageProperties;
+  }, [pageProperties]);
 
   const dbCustomValues = useMemo(
     () => parseCustomPropertyValues(pageProperties),
     [pageProperties]
   );
 
-  // Optimistic overlay: immediately reflects user actions before DB write flushes
-  const [optimisticCustomValues, setOptimisticCustomValues] = useState<Record<string, unknown> | null>(null);
-  const customValues = optimisticCustomValues ?? dbCustomValues;
-
-  // Clear optimistic overlay when DB catches up
-  useEffect(() => {
-    setOptimisticCustomValues(null);
-  }, [dbCustomValues]);
+  // Optimistic overlay: immediately reflects user actions before DB write flushes.
+  const [customValues, setOptimisticCustomValues] = useOptimisticValue(dbCustomValues);
 
   const customValuesRef = useRef(customValues);
-  customValuesRef.current = customValues;
+  useEffect(() => {
+    customValuesRef.current = customValues;
+  }, [customValues]);
 
   const assignedIds = useMemo(
     () => new Set(Object.keys(customValues)),
@@ -711,7 +725,7 @@ export function NotePageProperties({
         custom: nextCustom as Record<string, JsonValue>,
       });
     },
-    [pageId]
+    [pageId, setOptimisticCustomValues]
   );
 
   const handleValueChange = useCallback(

@@ -223,7 +223,7 @@ Important convention:
 - `src/hooks/use-edge-swipe.ts` — mobile edge swipe gesture detection
 - `src/hooks/use-page-nav-stack.ts` — page navigation stack with sessionStorage persistence (used by breadcrumb)
 - `src/hooks/use-property-definitions.ts` — reactive query hook for workspace property definitions
-- `src/hooks/use-optimistic-value.ts` — generic optimistic-override hook (keyed on a serialized upstream snapshot) for edits that render before a DB write round-trips
+- `src/hooks/use-optimistic-value.ts` — generic optimistic-override hook (keyed on a serialized upstream snapshot) for edits that render before a DB write round-trips; `NotePageProperties` uses it for the page-level custom-value map. It clears whenever the upstream changes, so it is wrong for a field while it is being typed in: a debounced write landing mid-edit replaces the upstream with an older copy. A field holds its own draft while focused instead (`PropertyValueEditor`)
 - `src/hooks/use-greeting.ts` — snapshots the greeting/date once per mount (single seed shared by hero + collapsed top bar)
 - `src/hooks/use-hero-action.ts` — gathers live signals (tasks, recent tracking, mood, journal) and returns the chosen hero action + most-relevant task
 - `src/lib/notes/notes-content.ts` — note document normalization, serialization (including math nodes), and plain-text extraction

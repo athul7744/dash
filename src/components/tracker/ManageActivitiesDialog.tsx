@@ -84,7 +84,7 @@ export function ManageActivitiesDialog({ children, open, onOpenChange, hideTrigg
       placeholder="Activity name..."
       itemTypeLabel="activity"
       colors={ACTIVITY_COLORS}
-      defaultColor={ACTIVITY_COLORS[0]}
+      defaultColor="teal"
       items={activities}
       trigger={{
         icon: Timer,

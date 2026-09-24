@@ -140,7 +140,8 @@ function ItemRow<TItem extends ManagedColorItem>({
               "h-4 w-4 cursor-pointer rounded-full transition-transform hover:scale-110 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               getDotClass(resolvedColor || fallbackColor)
             )}
-            title="Change color"
+            title={`Change color (${resolvedColor || fallbackColor})`}
+            aria-label={`Change ${item.name ?? "item"} color (${resolvedColor || fallbackColor})`}
           />
           <PopoverContent className="w-[200px] p-2" align="start">
             <div className="flex flex-wrap gap-2">
@@ -152,6 +153,9 @@ function ItemRow<TItem extends ManagedColorItem>({
                     onUpdateColor(item.id, color);
                     setIsColorPickerOpen(false);
                   }}
+                  aria-label={`Set ${item.name ?? "item"} color to ${color}`}
+                  aria-pressed={resolvedColor === color}
+                  title={color}
                   className={cn(
                     "h-5 w-5 cursor-pointer rounded-full transition-transform hover:scale-110",
                     getDotClass(color),
@@ -521,6 +525,7 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
                   key={color}
                   type="button"
                   onClick={() => setNewColor(color)}
+                  aria-pressed={newColor === color}
                   className={cn(
                     "h-6 w-6 cursor-pointer rounded-full transition-transform hover:scale-110",
                     getDotClass(color),

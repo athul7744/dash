@@ -12,6 +12,7 @@ import { useEntityTags } from "@/hooks/use-entity-tags";
 import { buildGraph, type GraphNode, type NoteGraph, type PageEdgeRow } from "@/lib/notes/graph";
 import { refTypeSql } from "@/lib/links/links";
 import { stripRefs, REF_KIND_HUE, type RefKind } from "@/lib/links/tokens";
+import { itemColor } from "@/lib/shared/item-colors";
 import { dayLabelFromPageTitle } from "@/lib/notes/system-pages";
 import type { Task } from "@/lib/powersync/AppSchema";
 import { useAllTags } from "@/hooks/use-tags";
@@ -77,10 +78,10 @@ export type EdgeResolveRow = {
 
 type Endpoint = { id: string; kind: RefKind };
 
-/** Tailwind palette name -> the CSS var Tailwind v4 exposes for shade 500. */
+/** Resolve stored tag color names to the shared graph/chart color. */
 export function tagColorToCss(color: string | null | undefined): string | null {
   const name = (color ?? "").trim();
-  return name ? `var(--color-${name}-500)` : null;
+  return name ? itemColor(name).hex : null;
 }
 
 export function resolveSource(row: EdgeResolveRow): Endpoint | null {
@@ -153,7 +154,7 @@ export function useNoteGraph(): NoteGraphData {
 
     // Every non-note entity becomes a node input (not just the linked ones), so
     // an unlinked item can surface too. Labels/colors mirror the app accents.
-    const kindColor = (kind: RefKind) => tagColorToCss(REF_KIND_HUE[kind]);
+    const kindColor = (kind: RefKind) => `var(--color-${REF_KIND_HUE[kind]}-500)`;
     const nonNoteInputs = [
       ...rootTasks.map((t) => ({ id: t.id, kind: "task" as RefKind, title: stripRefs(t.title ?? "") || "Untitled task", emoji: null, tagColor: kindColor("task") })),
       ...bookmarks.map((b) => ({ id: b.id, kind: "bookmark" as RefKind, title: b.title || b.url || "Untitled bookmark", emoji: null, tagColor: kindColor("bookmark") })),

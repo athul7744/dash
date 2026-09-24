@@ -66,7 +66,7 @@ export function ManageMoodsDialog({ children, open, onOpenChange, hideTrigger = 
       placeholder="Mood label..."
       itemTypeLabel="mood"
       colors={MOOD_COLORS}
-      defaultColor={MOOD_COLORS[0]}
+      defaultColor="teal"
       items={items}
       trigger={{
         icon: SmilePlus,

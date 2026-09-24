@@ -30,7 +30,7 @@ export function TimeGridSkeleton({ rows = 7 }: { rows?: number }) {
             {HOURS.map((h) => (
               <th
                 key={h}
-                className={`px-1 py-2 text-center font-medium text-muted-foreground min-w-[44px] border-b border-border ${h > 0 ? "border-l" : ""}`}
+                className={`bg-muted px-1 py-2 text-center font-medium text-muted-foreground min-w-[44px] border-b border-border ${h > 0 ? "border-l" : ""}`}
               >
                 {String(h).padStart(2, "0")}
               </th>

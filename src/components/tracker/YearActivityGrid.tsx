@@ -267,7 +267,7 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
                     {HOURS.map((h) => (
                       <th
                         key={h}
-                        className="px-0 py-1.5 text-center font-medium text-muted-foreground/60"
+                        className="px-0 py-1.5 text-center font-medium text-muted-foreground"
                         style={{ width: gridMetrics.cellStride, height: HEADER_HEIGHT }}
                       >
                         {h % 6 === 0 ? String(h).padStart(2, "0") : ""}
@@ -710,7 +710,7 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
                 {HOURS.map((h) => (
                   <th
                     key={h}
-                    className="sticky top-0 z-20 bg-card text-center font-bold text-muted-foreground/60 px-0"
+                    className="sticky top-0 z-20 bg-card text-center font-bold text-muted-foreground px-0"
                     style={{ width: cellStride, height: HEADER_HEIGHT }}
                   >
                     {h % 6 === 0 ? String(h).padStart(2, "0") : ""}
@@ -728,7 +728,7 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
                     <td
                       className={cn(
                         "sticky bg-card px-1 whitespace-nowrap",
-                        isFirstOfMonth ? "top-0 z-20 text-foreground font-bold" : "z-10 text-muted-foreground/60 text-[9px]",
+                        isFirstOfMonth ? "top-0 z-20 text-foreground font-bold" : "z-10 text-muted-foreground text-[9px]",
                         isSelected && "text-foreground font-bold"
                       )}
                       style={isFirstOfMonth ? { top: HEADER_HEIGHT, left: frameInset, width: labelColWidth } : { left: frameInset, width: labelColWidth }}

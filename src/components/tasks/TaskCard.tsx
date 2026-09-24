@@ -261,7 +261,7 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
       "transition-[background-color,border-color] duration-500 ease-out",
       optimisticState === 'trashed'
         ? "bg-rose-50/40 dark:bg-rose-950/15 border-rose-200/40 dark:border-rose-800/30"
-        : "bg-background border-border",
+        : "bg-muted/40 dark:bg-card/80 border-border",
       optimisticState === 'completed' ? "bg-muted/50" : ""
     )}>
       {/* Main Task Header — roomy vertical padding, tighter side padding on mobile */}
@@ -414,7 +414,7 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
 
       {/* Subtasks Section */}
       {!isNew && (
-        <div className="bg-black/20 border-t border-border px-2.5 py-3 pl-3 sm:p-3 sm:pl-4 flex flex-col gap-1.5">
+        <div className="bg-muted/50 dark:bg-black/20 border-t border-border px-2.5 py-3 pl-3 sm:p-3 sm:pl-4 flex flex-col gap-1.5">
           <AnimatePresence initial={false}>
           {combinedSubtasks.map((st) => {
             const currentState = optimisticSubtaskStates[st.id] || st.state;

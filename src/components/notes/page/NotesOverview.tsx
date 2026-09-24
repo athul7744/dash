@@ -114,7 +114,7 @@ export function NotesOverview({
             ref={overviewSearchTriggerRef}
             type="button"
             onClick={onOpenSearch}
-            className="flex h-10 w-full max-w-xl items-center gap-3 rounded-full border border-border/70 bg-card/95 px-4 text-left text-sm text-muted-foreground shadow-[0_10px_30px_-24px_rgba(15,23,42,0.6)] transition-colors hover:border-border hover:text-foreground"
+            className="flex h-10 w-full max-w-xl items-center gap-3 rounded-full border border-border/70 bg-[var(--field-surface)] px-4 text-left text-sm text-muted-foreground shadow-[0_10px_30px_-24px_rgba(15,23,42,0.6)] transition-colors hover:border-border hover:text-foreground"
             aria-label="Search pages"
             aria-expanded={isPageSearchOpen}
           >

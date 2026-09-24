@@ -125,7 +125,7 @@ export function BookmarkCard({
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border/65 bg-card/60 transition-colors focus-within:border-border">
+    <div className="group relative overflow-hidden rounded-2xl border border-border/65 bg-muted/40 dark:bg-card/80 transition-colors focus-within:border-border">
       {previewUrl ? (
         <div className="group/preview relative">
           <a

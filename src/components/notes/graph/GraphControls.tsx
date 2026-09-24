@@ -67,7 +67,7 @@ export function GraphControls({
           value={searchQuery}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder={focused ? "Search this cluster…" : "Highlight a node…"}
-          className="w-full rounded-lg border border-border bg-background py-1.5 pl-8 pr-2 text-[12.5px] text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-primary/60"
+          className="w-full rounded-lg border border-border bg-[var(--field-surface)] py-1.5 pl-8 pr-2 text-[12.5px] text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-primary/60"
         />
       </div>
 

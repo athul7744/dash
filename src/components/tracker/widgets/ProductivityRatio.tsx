@@ -93,7 +93,7 @@ export function ProductivityRatio({ days, data, colorMap, categoryMap }: WidgetP
   }, [selectedCategory, stats, colorMap]);
 
   return (
-    <div className="border border-border rounded-lg p-3">
+    <div className="border border-border rounded-lg bg-muted/40 dark:bg-card/80 p-3">
       <WidgetHeader icon={Zap} title="Productivity" subtitle={stats ? `${stats.total}h` : ""}>
           {stats && (
             <ToggleButton active={showDaily} onClick={() => { setShowDaily(!showDaily); setSelectedCategory(null); }} icon={BarChart3}>

@@ -193,7 +193,7 @@ function EventDetail({ event }: { event: EventItem }) {
         {/* ── schedule strip (compact, read-only) — the description sits beside
             the two actions only when this column is wide enough for both;
             otherwise it stacks, rather than wrapping one word per line ── */}
-        <div className="mt-6 flex flex-col gap-3 rounded-xl border border-border/65 bg-card/50 p-4 @xl:flex-row @xl:items-center">
+        <div className="mt-6 flex flex-col gap-3 rounded-xl border border-border/65 bg-muted/40 dark:bg-card/80 p-4 @xl:flex-row @xl:items-center">
           <div className="flex min-w-0 flex-1 items-start gap-3 @xl:items-center">
             <CalendarClock className="mt-0.5 h-4.5 w-4.5 shrink-0 text-violet-500 dark:text-violet-400 @xl:mt-0" />
             <p className="min-w-0 flex-1 text-sm text-muted-foreground">
@@ -230,7 +230,7 @@ function EventDetail({ event }: { event: EventItem }) {
         </div>
 
         {/* ── heatmap ── */}
-        <div className="mt-6 rounded-xl border border-border/65 bg-card/50 p-4">
+        <div className="mt-6 rounded-xl border border-border/65 bg-muted/40 dark:bg-card/80 p-4">
           <div className="flex items-baseline justify-between">
             <h2 className="font-heading text-[11px] font-semibold text-muted-foreground">A year of this</h2>
             <span className="text-xs text-muted-foreground/60">{stats.count} occurrences</span>
@@ -358,7 +358,7 @@ function SubjectDetail({ subjectId }: { subjectId: string }) {
               <Stat label="Logged" value={String(stats.count)} sub={stats.count === 1 ? "time" : "times"} />
             </div>
 
-            <div className="mt-6 rounded-xl border border-border/65 bg-card/50 p-4">
+            <div className="mt-6 rounded-xl border border-border/65 bg-muted/40 dark:bg-card/80 p-4">
               <div className="flex items-baseline justify-between">
                 <h2 className="font-heading text-[11px] font-semibold text-muted-foreground">A year of this</h2>
                 <span className="text-xs text-muted-foreground/60">{stats.count} occurrences</span>
@@ -389,7 +389,7 @@ function SubjectDetail({ subjectId }: { subjectId: string }) {
 
 function Stat({ label, value, sub, warn }: { label: string; value: string; sub?: string; warn?: boolean }) {
   return (
-    <div className={cn("rounded-xl border border-border/65 bg-card/50 p-3.5", warn && "border-red-500/40 bg-red-500/5")}>
+    <div className={cn("rounded-xl border border-border/65 bg-muted/40 dark:bg-card/80 p-3.5", warn && "border-red-500/40 bg-red-500/5 dark:bg-red-500/5")}>
       <div className="text-[11px] font-semibold text-muted-foreground/70">{label}</div>
       <div className={cn("mt-1 text-lg font-semibold tracking-tight", warn ? "text-red-600 dark:text-red-400" : "text-foreground")}>
         {value}

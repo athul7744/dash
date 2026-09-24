@@ -38,7 +38,7 @@ export function SubjectCard({
   const kindLabel = subjectKind.charAt(0).toUpperCase() + subjectKind.slice(1);
 
   return (
-    <div className="group relative rounded-2xl border border-border/65 bg-card/60 p-5 transition-colors hover:border-border sm:p-6">
+    <div className="group relative rounded-2xl border border-border/65 bg-muted/40 dark:bg-card/80 p-5 transition-colors hover:border-border sm:p-6">
       <Link
         href={`/events/${subjectId}`}
         aria-label={`Open ${label || "subject"}`}

@@ -117,7 +117,7 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
               <th
                 key={h}
                 className={cn(
-                  "px-1 py-2 text-center font-medium text-muted-foreground min-w-[44px] border-b border-border tabular-nums",
+                  "bg-muted px-1 py-2 text-center font-medium text-muted-foreground min-w-[44px] border-b border-border tabular-nums",
                   hourBorder(h),
                 )}
               >

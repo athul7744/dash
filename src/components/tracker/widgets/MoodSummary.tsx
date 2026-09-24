@@ -108,7 +108,7 @@ export function MoodSummary({ days, data, colorMap, categoryMap, ratings, moods 
 
   if (!insights || !ratings) {
     return (
-      <div className="border border-border rounded-lg p-3">
+      <div className="border border-border rounded-lg bg-muted/40 dark:bg-card/80 p-3">
         <WidgetHeader icon={Smile} title="Mood" />
         <div className="mt-1">
           <HatchedEmpty id="hatch-mood" label="Rate days to see stats" className="h-[88px] rounded-sm" />
@@ -118,7 +118,7 @@ export function MoodSummary({ days, data, colorMap, categoryMap, ratings, moods 
   }
 
   return (
-    <div className="border border-border rounded-lg p-3 flex flex-col relative h-full">
+    <div className="border border-border rounded-lg bg-muted/40 dark:bg-card/80 p-3 flex flex-col relative h-full">
       <WidgetHeader icon={Smile} title="Mood" className="relative z-20">
           {dayDetail && (
             <DismissButton onClick={() => setSelectedDay(null)} />

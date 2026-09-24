@@ -165,7 +165,7 @@ export function DaySurface() {
         </Section>
 
         <Section title="The day">
-          <div className="space-y-3 rounded-2xl border border-border/60 bg-card/50 p-4">
+          <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/40 dark:bg-card/80 p-4">
             <MoodPicker dateKey={dateKey} prompt="How was it?" />
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-semibold tabular-nums">{summary.totalHours}</span>

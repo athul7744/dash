@@ -54,7 +54,7 @@ export function DashboardJournal() {
                 dayIsToday && !sel && "border-amber-500/40 dark:border-amber-400/40",
               )}
             >
-              <span className={cn("text-[0.6rem] font-bold uppercase", dayIsToday ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
+              <span className={cn("text-[0.6rem] font-bold uppercase", dayIsToday ? "text-amber-800 dark:text-amber-400" : "text-muted-foreground")}>
                 {DOW[i]}
               </span>
               <span className={cn("font-serif text-base leading-none", sel ? "text-amber-700 dark:text-amber-400" : "text-foreground")}>
@@ -69,7 +69,7 @@ export function DashboardJournal() {
       <div className="mb-2 flex items-baseline gap-2">
         <span className="font-heading text-base font-semibold text-foreground">{format(selected, "EEEE, MMMM d")}</span>
         {selectedIsToday ? (
-          <span className="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-amber-600 dark:text-amber-400">Today</span>
+          <span className="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-amber-800 dark:text-amber-400">Today</span>
         ) : null}
       </div>
 

@@ -45,7 +45,7 @@ export function QuoteCard({ quote, autoFocus = false }: { quote: Quote; autoFocu
   const flushSave = () => flush(() => persist(text, author, link));
 
   return (
-    <div className="group relative rounded-2xl border border-border/65 bg-card/60 p-5 transition-colors focus-within:border-border sm:p-6">
+    <div className="group relative rounded-2xl border border-border/65 bg-muted/40 dark:bg-card/80 p-5 transition-colors focus-within:border-border sm:p-6">
       {/* Top bar: quote glyph (left) + actions (right), mirroring the bookmark card. */}
       <div className="mb-3 flex items-center justify-between gap-2">
         <span className="flex h-9 w-9 shrink-0 select-none items-center justify-center rounded-lg bg-muted/50 pt-1.5 font-serif text-2xl leading-none text-muted-foreground/60" aria-hidden>

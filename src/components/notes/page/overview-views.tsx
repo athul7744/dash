@@ -225,7 +225,7 @@ function OverviewPageRow({ page, onSelectPage, onToggleFavorite }: ItemProps) {
             ) : null}
             <div className="ml-auto flex shrink-0 items-center gap-2.5">
               {page.tags.length ? <div className="relative hidden sm:block"><TagPillStrip tags={page.tags} /></div> : null}
-              {updated ? <span className="hidden text-[0.72rem] tabular-nums text-muted-foreground/80 sm:inline">{updated}</span> : null}
+              {updated ? <span className="hidden text-[0.72rem] tabular-nums text-muted-foreground sm:inline">{updated}</span> : null}
               <FavoriteStar page={page} isFavorite={isFavorite} onToggleFavorite={onToggleFavorite} className={cn("pointer-events-auto size-7", starRevealClass(isFavorite))} />
             </div>
           </div>
@@ -236,7 +236,7 @@ function OverviewPageRow({ page, onSelectPage, onToggleFavorite }: ItemProps) {
             {page.tags.length || updated ? (
               <div className="flex items-center gap-2">
                 {page.tags.length ? <div className="relative min-w-0"><TagPillStrip tags={page.tags} /></div> : null}
-                {updated ? <span className="shrink-0 text-[0.68rem] tabular-nums text-muted-foreground/70">{updated}</span> : null}
+                {updated ? <span className="shrink-0 text-[0.68rem] tabular-nums text-muted-foreground">{updated}</span> : null}
               </div>
             ) : null}
           </div>
@@ -327,7 +327,7 @@ function OverviewGalleryCard({ page, onSelectPage, onToggleFavorite }: ItemProps
           ) : (
             <span className="flex-1 text-xs text-muted-foreground/60">No tags</span>
           )}
-          {updated ? <span className="shrink-0 text-[0.7rem] tabular-nums text-muted-foreground/70">{updated}</span> : null}
+          {updated ? <span className="shrink-0 text-[0.7rem] tabular-nums text-muted-foreground">{updated}</span> : null}
         </div>
       </div>
     </article>
@@ -394,7 +394,7 @@ function OverviewSpineNode({ page, onSelectPage, onToggleFavorite }: ItemProps) 
       />
       <span className={cn("pointer-events-none absolute left-[2px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-background", dotClass)} aria-hidden="true" />
       <div className="pointer-events-none">
-        <div className="font-mono text-[0.7rem] tabular-nums text-muted-foreground/70">{updated}</div>
+        <div className="font-mono text-[0.7rem] tabular-nums text-muted-foreground">{updated}</div>
         <div className="mt-0.5 flex items-center gap-2">
           <PageIcon emoji={page.emoji} className="h-4 w-4 shrink-0 text-sm leading-none text-muted-foreground" fallbackClassName="text-muted-foreground" />
           <h3 className="min-w-0 truncate font-heading text-[1rem] font-semibold text-foreground">{page.title || "Untitled page"}</h3>

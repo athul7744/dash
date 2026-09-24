@@ -39,7 +39,7 @@ export function SleepStats({ days, data, categoryMap }: WidgetProps) {
 
   if (!stats) {
     return (
-      <div className="border border-border rounded-lg p-3">
+      <div className="border border-border rounded-lg bg-muted/40 dark:bg-card/80 p-3">
         <WidgetHeader icon={Moon} title="Sleep" />
         <div className="mt-1">
           <HatchedEmpty id="hatch-sleep" label="No sleep data" className="h-[88px] rounded-sm" />
@@ -49,7 +49,7 @@ export function SleepStats({ days, data, categoryMap }: WidgetProps) {
   }
 
   return (
-    <div className="border border-border rounded-lg p-3 h-full">
+    <div className="border border-border rounded-lg bg-muted/40 dark:bg-card/80 p-3 h-full">
       <WidgetHeader icon={Moon} title="Sleep" />
 
       <div className="flex items-baseline gap-4 mb-2">

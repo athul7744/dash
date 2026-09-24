@@ -76,7 +76,7 @@ export function ActivityBreakdown({ days, data, colorMap, categoryMap }: WidgetP
   const displayTotal = excludeSleep ? totalTracked - sleepHours : totalTracked;
 
   return (
-    <div className="border border-border rounded-lg p-3 flex flex-col relative h-full min-h-[258px]">
+    <div className="border border-border rounded-lg bg-muted/40 dark:bg-card/80 p-3 flex flex-col relative h-full min-h-[258px]">
       <WidgetHeader icon={PieChart} title="Activity" className="relative z-20">
           {slices.length > 0 && (
             <ToggleButton active={showList} onClick={() => { setShowList(!showList); setSelectedSlice(null); }} icon={List} />

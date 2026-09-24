@@ -34,7 +34,7 @@ export function EventDetailLoadingSkeleton() {
               </div>
 
               {/* schedule strip */}
-              <div className="mt-6 flex items-center gap-3 rounded-xl border border-border/65 bg-card/50 p-4">
+              <div className="mt-6 flex items-center gap-3 rounded-xl border border-border/65 bg-muted/40 dark:bg-card/80 p-4">
                 <Skeleton className="h-4 w-4 shrink-0 rounded-full" />
                 <Skeleton className="h-4 flex-1" />
                 <Skeleton className="h-7 w-28 shrink-0 rounded-full" />
@@ -43,7 +43,7 @@ export function EventDetailLoadingSkeleton() {
               {/* stats */}
               <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="rounded-xl border border-border/65 bg-card/50 p-3.5">
+                  <div key={i} className="rounded-xl border border-border/65 bg-muted/40 dark:bg-card/80 p-3.5">
                     <Skeleton className="h-2.5 w-14" />
                     <Skeleton className="mt-2 h-5 w-16" />
                   </div>
@@ -51,7 +51,7 @@ export function EventDetailLoadingSkeleton() {
               </div>
 
               {/* heatmap */}
-              <div className="mt-6 rounded-xl border border-border/65 bg-card/50 p-4">
+              <div className="mt-6 rounded-xl border border-border/65 bg-muted/40 dark:bg-card/80 p-4">
                 <div className="flex items-baseline justify-between">
                   <Skeleton className="h-3 w-24" />
                   <Skeleton className="h-3 w-20" />

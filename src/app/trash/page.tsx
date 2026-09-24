@@ -80,7 +80,7 @@ function TrashRow({
   );
 
   const frame = cn(
-    "group flex items-center gap-3 rounded-xl border bg-card/50 px-4 py-3 transition-colors",
+    "group flex items-center gap-3 rounded-xl border bg-muted/40 dark:bg-card/80 px-4 py-3 transition-colors",
     checked ? "border-violet-500/60 bg-violet-500/5" : "border-border/60 hover:border-border",
   );
 
@@ -121,7 +121,7 @@ function TrashRow({
 
 function TrashRowSkeleton() {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/50 px-4 py-3">
+    <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/40 dark:bg-card/80 px-4 py-3">
       <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
       <div className="min-w-0 flex-1 space-y-2">
         <Skeleton className="h-4 w-1/2" />
@@ -189,7 +189,7 @@ export default function TrashPage() {
         {/* One toolbar for every width — these actions were unreachable on a
             phone while they lived in the desktop-only header row. */}
         {!isLoading && items.length > 0 ? (
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-border/60 bg-card/40 px-3 py-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-border/60 bg-muted/40 dark:bg-card/80 px-3 py-2">
             <span className="text-xs text-muted-foreground">
               {selecting
                 ? `${selected.length} of ${items.length} selected`

@@ -4,11 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@powersync/react";
 import { ArrowRight } from "lucide-react";
 
-import { getApp } from "@/lib/shared/apps";
-import { cn } from "@/lib/shared/utils";
 import { utcDateKey, utcDayBounds } from "@/lib/tracker/day-keys";
-
-const TRACKER_APP = getApp("tracker");
 
 export function TodayTracking() {
   const [rangeStart, rangeEnd] = utcDayBounds(utcDateKey(new Date()));
@@ -24,7 +20,7 @@ export function TodayTracking() {
 
   return (
     <section>
-      <div className={cn("mb-3 font-heading text-[0.7rem] font-semibold uppercase tracking-[0.16em]", TRACKER_APP.accent.iconText)}>
+      <div className="mb-3 font-heading text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-teal-800 dark:text-teal-400">
         Tracked today
       </div>
 

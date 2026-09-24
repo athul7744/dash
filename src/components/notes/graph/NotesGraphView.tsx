@@ -108,7 +108,7 @@ export function NotesGraphView({ onOpenPage, onExit }: { onOpenPage: (id: string
   const isEmpty = !isLoading && nodes.length === 0 && clusters.length === 0;
 
   return (
-    <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-2xl border border-border/60 bg-[var(--graph-bg,var(--card))]"
+    <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-2xl border border-border/60 bg-muted/40 dark:bg-card/80"
       style={{ backgroundImage: "radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 0)", backgroundSize: "26px 26px" }}
     >
       <div ref={stageRef} className="absolute inset-0">

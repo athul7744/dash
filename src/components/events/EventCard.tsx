@@ -52,7 +52,7 @@ export function EventCard({
   return (
     <div
       className={cn(
-        "group relative rounded-2xl border border-border/65 bg-card/60 p-5 transition-colors hover:border-border sm:p-6",
+        "group relative rounded-2xl border border-border/65 bg-muted/40 dark:bg-card/80 p-5 transition-colors hover:border-border sm:p-6",
         !event.active && "opacity-70",
       )}
     >
@@ -133,14 +133,14 @@ export function EventCard({
         </div>
 
         {/* What the schedule does, in plain English (same as the detail strip). */}
-        <p className="mt-2.5 flex items-start gap-1.5 text-xs text-muted-foreground/80">
+        <p className="mt-2.5 flex items-start gap-1.5 text-xs text-muted-foreground">
           <CalendarClock className="mt-px h-3.5 w-3.5 shrink-0 text-violet-500 dark:text-violet-400" />
           <span>{describeSchedule({ schedule: s, daysBefore: event.daysBefore, active: event.active }, next)}</span>
         </p>
 
         <SelectedTagPills tagIds={selectedTagIds} className="mt-3" />
 
-        <p className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground/70">
+        <p className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground">
           <History className="h-3.5 w-3.5" />
           {stats.count} occurrence{stats.count === 1 ? "" : "s"}
         </p>

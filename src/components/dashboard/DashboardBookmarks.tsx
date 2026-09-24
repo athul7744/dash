@@ -104,7 +104,7 @@ export function DashboardBookmarks({
   return (
     <Reveal root={root}>
       <section id="revisit-bookmark" className="scroll-mt-20">
-        <div className={cn("mb-2.5 font-heading text-[0.7rem] font-semibold uppercase tracking-[0.16em]", BOOKMARKS_APP.accent.iconText)}>
+        <div className="mb-2.5 font-heading text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-sky-800 dark:text-sky-400">
           Revisit
         </div>
 

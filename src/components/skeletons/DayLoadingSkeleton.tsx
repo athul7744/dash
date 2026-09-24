@@ -48,7 +48,7 @@ export function DayLoadingSkeleton() {
         {/* the day: mood, hours, activity breakdown */}
         <section className="space-y-2">
           <Skeleton className="h-3 w-16" />
-          <div className="space-y-3 rounded-2xl border border-border/60 bg-card/50 p-4">
+          <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/40 dark:bg-card/80 p-4">
             <div className="flex flex-wrap gap-2">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="size-7 rounded-full" />
@@ -87,7 +87,7 @@ export function DayLoadingSkeleton() {
               {Array.from({ length: 3 }).map((_, row) => (
                 <div
                   key={row}
-                  className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-2"
+                  className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 dark:bg-card/80 px-3 py-2"
                 >
                   <Skeleton className="size-3.5 shrink-0 rounded-sm" />
                   <Skeleton className="h-3.5 min-w-0 flex-1" />

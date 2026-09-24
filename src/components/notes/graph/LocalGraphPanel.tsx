@@ -63,7 +63,7 @@ export function LocalGraphPanel({
           ))}
         </div>
       </div>
-      <div ref={stageRef} className="relative h-44 overflow-hidden rounded-xl border border-border/50 bg-[var(--card)]">
+      <div ref={stageRef} className="relative h-44 overflow-hidden rounded-xl border border-border/50 bg-muted/40 dark:bg-card/80">
         {!hasNeighbours ? (
           <div className="flex h-full items-center justify-center px-4 text-center text-[12px] text-muted-foreground">
             No linked pages yet.

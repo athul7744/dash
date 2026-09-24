@@ -35,6 +35,7 @@
 
 # local agent/editor settings
 .claude/
+AGENTS.md
 
 # debug
 npm-debug.log*

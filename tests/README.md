@@ -121,7 +121,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/shared/use-cached-query.dom.test.tsx`
   Covers the remembered-results cache behind screen-level lists: a first visit has nothing to show, a
   second paints the previous rows before the query returns, a real result always wins over a
-  remembered one, a settled empty result is remembered as empty, and rows never cross between
+  remembered one, cached rows are ready even while the live query is fetching, a settled empty result is remembered as empty, and rows never cross between
   queries or between different parameters.
 
 - `tests/shared/debounced-update.test.ts`

@@ -67,20 +67,21 @@ export type CachedQueryResult<T> = {
   data: T[];
   /** True only when there is nothing to show — not merely when a query is running. */
   isLoading: boolean;
+  isFetching: boolean;
 };
 
 /**
  * Drop-in for `useQuery` on a screen-level list.
  *
- * Worth it where a screen is mounted, left and returned to. Not worth it for a
- * lookup by id, which is cheap and specific to one thing on screen.
+ * Worth it where a screen is mounted, left and returned to. Single-item lookups
+ * usually need no cache, except when they gate the whole screen (event detail).
  */
-export function useCachedQuery<T>(sql: string, params: readonly unknown[] = []): CachedQueryResult<T> {
+export function useCachedQuery<T>(sql: string, params: readonly unknown[] = [], options?: { reportFetching: boolean }): CachedQueryResult<T> {
   const key = useMemo(() => `${sql}\u0000${JSON.stringify(params)}`, [sql, params]);
 
   // `useQuery` compares parameters by value, so a fresh array each render is
   // fine; it re-subscribes only when the query or the values actually change.
-  const { data = [], isLoading } = useQuery<T>(sql, params as unknown[]);
+  const { data = [], isLoading, isFetching } = useQuery<T>(sql, params as unknown[], options);
 
   useEffect(() => {
     if (!isLoading) remember(key, data);
@@ -91,5 +92,6 @@ export function useCachedQuery<T>(sql: string, params: readonly unknown[] = []):
   return {
     data: fallback ?? data,
     isLoading: isLoading && fallback === undefined,
+    isFetching: !!isFetching && fallback === undefined,
   };
 }

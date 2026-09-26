@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQuery } from "@powersync/react";
+import { useCachedQuery } from "@/hooks/use-cached-query";
 
 import type { TrashKind } from "@/lib/shared/trash";
 import { parseBookmarkContent } from "@/lib/bookmarks/bookmarks";
@@ -45,17 +45,17 @@ function blockLabel(type: string, content: string | null): string {
  * tasks. Occurrences are excluded (they ride their subject). Newest first.
  */
 export function useTrashedItems(): { items: TrashedItem[]; isLoading: boolean } {
-  const { data: blocks = [], isLoading: l1 } = useQuery<BlockRow>(
+  const { data: blocks = [], isLoading: l1 } = useCachedQuery<BlockRow>(
     `SELECT id, type, content, updated_at FROM blocks
      WHERE deleted_at IS NOT NULL AND type IN ('bookmark','quote','event')
      ORDER BY updated_at DESC`,
   );
-  const { data: pages = [], isLoading: l2 } = useQuery<PageRow>(
+  const { data: pages = [], isLoading: l2 } = useCachedQuery<PageRow>(
     `SELECT id, title, updated_at FROM pages
      WHERE deleted_at IS NOT NULL AND json_extract(properties, '$.kind') IS NULL
      ORDER BY updated_at DESC`,
   );
-  const { data: tasks = [], isLoading: l3 } = useQuery<TaskRow>(
+  const { data: tasks = [], isLoading: l3 } = useCachedQuery<TaskRow>(
     `SELECT id, title, updated_at FROM tasks
      WHERE state = 'trashed' AND parent_id IS NULL
      ORDER BY updated_at DESC`,

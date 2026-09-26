@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@powersync/react";
 
+import { useCachedQuery } from "@/hooks/use-cached-query";
 import { useCurrentUserId } from "@/hooks/use-current-user-id";
 import { useSystemPageBlocks, type SystemPageBlockRow } from "@/hooks/use-system-page-blocks";
 import { systemPageId } from "@/lib/notes/system-pages";
@@ -36,7 +37,7 @@ type EventRow = { id: string; content: string | null; sort_rank: string | null }
 
 /** Live single event by id — for the full-page detail view. `null` when missing. */
 export function useEvent(id: string | null | undefined): { event: EventItem | null; isLoading: boolean } {
-  const { data = [], isLoading } = useQuery<EventRow>(
+  const { data = [], isLoading } = useCachedQuery<EventRow>(
     id ? "SELECT id, content, sort_rank FROM blocks WHERE id = ? AND type = ? AND deleted_at IS NULL LIMIT 1" : "SELECT id, content, sort_rank FROM blocks WHERE 1 = 0",
     id ? [id, EVENT_BLOCK_TYPE] : [],
   );
@@ -72,7 +73,7 @@ export function useOccurrences(
   const sql = pageId
     ? `SELECT id, content FROM blocks WHERE ${where.join(" AND ")} ORDER BY json_extract(content, '$.at') DESC${limit ? ` LIMIT ${Math.max(1, Math.floor(limit))}` : ""}`
     : "SELECT id, content FROM blocks WHERE 1 = 0";
-  const { data = [], isLoading, isFetching } = useQuery<OccurrenceRow>(sql, pageId ? args : [], { reportFetching: true });
+  const { data = [], isLoading, isFetching } = useCachedQuery<OccurrenceRow>(sql, pageId ? args : [], { reportFetching: true });
 
   // Settle latch (mirrors useSystemPageBlocks): while the user id resolves,
   // `pageId` is null and the query is the empty `WHERE 1 = 0` stub; and when it
@@ -131,7 +132,7 @@ export type ThingAggregate = { count: number; firstAt: string | null; lastAt: st
 export function useThingAggregates(): Map<string, ThingAggregate> {
   const userId = useCurrentUserId();
   const pageId = userId ? systemPageId(userId, "event", EVENTS_KEY) : null;
-  const { data = [] } = useQuery<{ thing: string; n: number; first: string | null; last: string | null; kind: string | null }>(
+  const { data = [] } = useCachedQuery<{ thing: string; n: number; first: string | null; last: string | null; kind: string | null }>(
     pageId
       ? `SELECT ${OCCURRENCE_SUBJECT_SQL} AS thing, COUNT(*) AS n, MIN(json_extract(content, '$.at')) AS first, MAX(json_extract(content, '$.at')) AS last, MAX(json_extract(content, '$.subjectKind')) AS kind
          FROM blocks WHERE page_id = ? AND type = ? AND deleted_at IS NULL GROUP BY ${OCCURRENCE_SUBJECT_SQL}`

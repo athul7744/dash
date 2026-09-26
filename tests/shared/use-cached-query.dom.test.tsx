@@ -18,7 +18,7 @@ import { createRoot, type Root } from "react-dom/client";
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 type Row = { id: string };
-let queryResult: { data: Row[]; isLoading: boolean } = { data: [], isLoading: true };
+let queryResult: { data: Row[]; isLoading: boolean; isFetching?: boolean } = { data: [], isLoading: true };
 
 vi.mock("@powersync/react", () => ({
   useQuery: () => queryResult,
@@ -26,9 +26,9 @@ vi.mock("@powersync/react", () => ({
 
 import { clearRememberedQueries, rememberedQueryCount, useCachedQuery } from "@/hooks/use-cached-query";
 
-function Probe({ sql, params }: { sql: string; params?: unknown[] }) {
-  const { data, isLoading } = useCachedQuery<Row>(sql, params);
-  return <span>{isLoading ? "loading" : data.map((r) => r.id).join(",") || "empty"}</span>;
+function Probe({ sql, params, reportFetching = false }: { sql: string; params?: unknown[]; reportFetching?: boolean }) {
+  const { data, isLoading, isFetching } = useCachedQuery<Row>(sql, params, reportFetching ? { reportFetching: true } : undefined);
+  return <span>{isLoading ? "loading" : isFetching ? "fetching" : data.map((r) => r.id).join(",") || "empty"}</span>;
 }
 
 let container: HTMLDivElement;
@@ -73,6 +73,19 @@ describe("useCachedQuery", () => {
     // The new query has not returned yet — this is the frame that used to be a skeleton.
     queryResult = { data: [], isLoading: true };
     expect(render("SELECT 1")).toBe("a,b");
+  });
+
+  it("treats remembered rows as ready while the live query is fetching", () => {
+    queryResult = { data: [{ id: "a" }], isLoading: false, isFetching: false };
+    act(() => root.render(<Probe sql="SELECT 1" reportFetching />));
+    remount();
+    queryResult = { data: [], isLoading: true, isFetching: true };
+    act(() => root.render(<Probe sql="SELECT 1" reportFetching />));
+    expect(container.textContent).toBe("a");
+
+    queryResult = { data: [{ id: "b" }], isLoading: false, isFetching: false };
+    act(() => root.render(<Probe sql="SELECT 1" reportFetching />));
+    expect(container.textContent).toBe("b");
   });
 
   it("prefers a real result over the remembered one", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQuery } from "@powersync/react";
+import { useCachedQuery } from "@/hooks/use-cached-query";
 
 import { useAllNotePages } from "@/hooks/use-notes";
 import { useBookmarks } from "@/hooks/use-bookmarks";
@@ -117,9 +117,9 @@ export function resolveTarget(row: EdgeResolveRow): Endpoint | null {
  */
 export function useNoteGraph(): NoteGraphData {
   const { pages, isLoading: isLoadingPages } = useAllNotePages();
-  const { data: edgeRows = [], isLoading: isLoadingEdges } = useQuery<EdgeResolveRow>(EDGE_RESOLVE_QUERY);
+  const { data: edgeRows = [], isLoading: isLoadingEdges } = useCachedQuery<EdgeResolveRow>(EDGE_RESOLVE_QUERY);
   const { tags: allTags, isLoading: isLoadingTags } = useAllTags();
-  const { data: rootTasks = [] } = useQuery<Pick<Task, "id" | "title">>(
+  const { data: rootTasks = [] } = useCachedQuery<Pick<Task, "id" | "title">>(
     "SELECT id, title FROM tasks WHERE parent_id IS NULL AND state != 'trashed'",
   );
   const { bookmarks } = useBookmarks();
@@ -127,7 +127,7 @@ export function useNoteGraph(): NoteGraphData {
   const { events } = useEvents();
   // Days that exist at all; only the linked ones become nodes below, or a year
   // of journal pages would bury the graph.
-  const { data: journalPages = [] } = useQuery<{ id: string; title: string | null }>(
+  const { data: journalPages = [] } = useCachedQuery<{ id: string; title: string | null }>(
     "SELECT id, title FROM pages WHERE json_extract(properties, '$.kind') = 'journal' AND deleted_at IS NULL",
   );
   const pageTags = useEntityTags(useMemo(() => pages.map((p) => p.id), [pages]));

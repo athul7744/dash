@@ -14,7 +14,7 @@
  * feed would order them wrongly by the viewer's UTC offset (see `day-keys.ts`).
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, ViewTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { addDays, format, isValid, parseISO } from "date-fns";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
@@ -101,12 +101,19 @@ export function DaySurface() {
     [dateKey, grid.data, grid.colorMap],
   );
 
-  const step = (delta: number) => router.push(`/day/${localDateKey(addDays(date, delta))}`);
+  const step = (delta: number) => router.push(`/day/${localDateKey(addDays(date, delta))}`, {
+    transitionTypes: [delta < 0 ? "day-prev" : "day-next"],
+  });
 
   return (
     <>
       <AppHeader app={dayApp} />
 
+      <ViewTransition
+        enter={{ "day-prev": "day-prev", "day-next": "day-next", default: "none" }}
+        exit={{ "day-prev": "day-prev", "day-next": "day-next", default: "none" }}
+        default="none"
+      >
       <div className="skeleton-settle-in mx-auto max-w-3xl space-y-6 px-[var(--app-gutter-x)] py-6 pb-40">
         <header className="flex items-center justify-between gap-3">
           {/* The date itself is the picker: two arrows alone make last month a
@@ -316,6 +323,7 @@ export function DaySurface() {
           </Section>
         ) : null}
       </div>
+      </ViewTransition>
 
       <MobileBottomFabs app={dayApp} />
     </>

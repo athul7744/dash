@@ -87,6 +87,9 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  experimental: {
+    viewTransition: true,
+  },
   async redirects() {
     return [
       // The graph moved out of the notes app once it started mapping every app.

@@ -238,6 +238,40 @@ body[data-display-font="bricolage"] {
 
 /* ── Smooth Transitions ── */
 
+::view-transition-old(root) { display: none; }
+::view-transition-new(root) { animation: none; }
+
+@keyframes daySlideOut {
+  to { opacity: 0; transform: translateX(var(--day-shift)); }
+}
+
+@keyframes daySlideIn {
+  from { opacity: 0; transform: translateX(var(--day-shift)); }
+}
+
+::view-transition-old(.day-prev),
+::view-transition-old(.day-next) {
+  animation: daySlideOut var(--motion-duration-base) var(--motion-ease-exit) both;
+}
+
+::view-transition-new(.day-prev),
+::view-transition-new(.day-next) {
+  animation: daySlideIn var(--motion-duration-base) var(--motion-ease-standard) both;
+}
+
+::view-transition-old(.day-prev),
+::view-transition-new(.day-next) { --day-shift: 24px; }
+
+::view-transition-old(.day-next),
+::view-transition-new(.day-prev) { --day-shift: -24px; }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.day-prev),
+  ::view-transition-new(.day-prev),
+  ::view-transition-old(.day-next),
+  ::view-transition-new(.day-next) { animation: none; }
+}
+
 /* Fade-slide in for task cards and subtasks */
 @keyframes fadeSlideIn {
   from {

@@ -75,8 +75,8 @@ Key runtime behavior:
   - Prefetches other app routes (and the graph) for faster handoff
 
 - `src/components/MobileBottomFabs.tsx`
-  - Shared mobile bottom shell used by tasks and tracker
-  - Holds the app switcher plus app-specific primary actions
+  - Shared mobile bottom shell used across the app
+  - Holds the app switcher plus app-specific primary actions; the center action shell matches the switcher FAB's `bg-card` and `shadow-lg` surface
 
 - `src/components/SyncIndicator.tsx`
   - Displays PowerSync connection/upload/download state

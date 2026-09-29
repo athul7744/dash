@@ -81,7 +81,7 @@ export function MobileBottomFabs({ app, centerContent, centerShellClassName, cen
           {centerUseShell ? (
             <div
               className={cn(
-                "pointer-events-auto flex max-w-full items-center gap-1.5 rounded-full border border-border bg-card shadow-[0_0_40px_8px_rgba(0,0,0,0.5)]",
+                "pointer-events-auto flex max-w-full items-center gap-1.5 rounded-full border border-border bg-card shadow-lg",
                 centerShellClassName ?? "px-3 py-2"
               )}
             >

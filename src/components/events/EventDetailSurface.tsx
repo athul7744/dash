@@ -12,6 +12,7 @@ import { EventDetailLoadingSkeleton } from "@/components/skeletons/EventDetailLo
 import { EventHeatmap } from "@/components/events/EventHeatmap";
 import { EventLogNow } from "@/components/events/EventLogNow";
 import { EventScheduleDialog } from "@/components/events/EventScheduleDialog";
+import { EventSubjectField } from "@/components/events/EventSubjectField";
 import { OccurrenceLog } from "@/components/events/OccurrenceLog";
 import { LinkedFrom } from "@/components/links/LinkedFrom";
 import { RefField } from "@/components/links/RefField";
@@ -221,6 +222,9 @@ function EventDetail({ event }: { event: EventItem }) {
           </div>
         </div>
 
+        {/* ── tracks ── */}
+        <EventSubjectField event={event} />
+
         {/* ── stats ── */}
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Last done" value={lastAtDate ? formatRelativeTime(lastAtDate) : "Never"} warn={stats.overdue} />
@@ -252,7 +256,7 @@ function EventDetail({ event }: { event: EventItem }) {
         </div>
       </div>
 
-      <EventScheduleDialog event={event} open={scheduleOpen} onOpenChange={setScheduleOpen} />
+      <EventScheduleDialog key={event.id} event={event} open={scheduleOpen} onOpenChange={setScheduleOpen} />
 
       <MobileBottomFabs
         app={eventsApp}

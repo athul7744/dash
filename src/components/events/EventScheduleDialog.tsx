@@ -1,21 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
-import { Bell, CalendarClock, Calendar as CalendarIcon, ChevronDown, Flag, Link2, Power, X } from "lucide-react";
+import { Bell, CalendarClock, CalendarOff, Calendar as CalendarIcon, ChevronDown, Flag, Link2, Power, Type } from "lucide-react";
 
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RefField } from "@/components/links/RefField";
-import { useSubjectLabels } from "@/hooks/use-events";
+import { useToast } from "@/components/toast/ToastProvider";
 import { toggleActive, updateEvent, type EventItem, type EventPriority } from "@/lib/events/events";
 import type { EventSchedule } from "@/lib/events/schedule";
-import { parseRefTokens, refKindAccentVar } from "@/lib/links/tokens";
-import { getApp } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
-import { PRIORITY_COLORS, PRIORITY_LEVELS } from "@/lib/tasks/tasks";
+import { normalizeUrl, PRIORITY_COLORS, PRIORITY_LEVELS } from "@/lib/tasks/tasks";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -24,10 +21,10 @@ const days31 = Array.from({ length: 31 }, (_, i) => i + 1);
 const ROW = "flex items-center gap-2.5 border-t border-border py-2.5 text-[13.5px]";
 const ICON = "h-[15px] w-[15px] shrink-0 text-muted-foreground/70";
 const MINI = "h-8 w-auto gap-1.5 rounded-lg border-border bg-transparent px-2.5 text-[13px]";
+const FIELD = "min-w-0 flex-1 bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-muted-foreground/60";
 
-type FreqValue = EventSchedule["freq"] | "none";
+type FreqValue = EventSchedule["freq"];
 const FREQS: Array<{ value: FreqValue; label: string }> = [
-  { value: "none", label: "Log only" },
   { value: "interval", label: "Interval" },
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
@@ -37,7 +34,7 @@ const FREQS: Array<{ value: FreqValue; label: string }> = [
 
 /** Short cadence phrase for the collapsed summary line. */
 function freqSummary(s: EventSchedule | null): string {
-  if (!s) return "No schedule";
+  if (!s) return "Never";
   switch (s.freq) {
     case "interval":
       return s.days === 1 ? "Every day" : `Every ${s.days} days`;
@@ -53,11 +50,10 @@ function freqSummary(s: EventSchedule | null): string {
 }
 
 /**
- * The schedule builder for one event, in a calm dialog that mirrors the log
- * popup: hairline-divided rows, a collapsible "Repeats" summary, one violet
- * accent. Frequency + its parameter live behind the summary; the task lead-time,
- * priority, and pause rows only appear once a schedule exists. Writes are
- * immediate (each control persists on change).
+ * The schedule builder for one event. Two calm sections — **Repeat** (frequency
+ * + its parameter) and **Task** (what the generated task looks like: name, link,
+ * lead time, priority, pause) — hairline-divided rows, one violet accent. Writes
+ * are immediate; removing a schedule raises an undo toast.
  */
 export function EventScheduleDialog({
   event,
@@ -69,15 +65,16 @@ export function EventScheduleDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const s = event.schedule;
+  const { toast } = useToast();
   const [daysBefore, setDaysBefore] = useState(String(event.daysBefore));
+  const [taskTitle, setTaskTitle] = useState(event.taskTitle);
+  const [taskLink, setTaskLink] = useState(event.taskLink);
   const [freqOpen, setFreqOpen] = useState(!s); // open when there's nothing to summarize yet
   const save = (next: EventSchedule | null) => void updateEvent(event.id, { schedule: next });
 
   const changeFreq = (freq: FreqValue) => {
     const today = new Date();
     switch (freq) {
-      case "none":
-        return save(null);
       case "interval":
         return save({ freq: "interval", days: 7 });
       case "once":
@@ -91,6 +88,32 @@ export function EventScheduleDialog({
     }
   };
 
+  const removeSchedule = () => {
+    const prev = s;
+    void updateEvent(event.id, { schedule: null });
+    toast({
+      message: "Schedule removed",
+      actionLabel: "Undo",
+      onAction: () => {
+        if (prev) void updateEvent(event.id, { schedule: prev });
+      },
+    });
+  };
+
+  const commitTaskTitle = () => {
+    const next = taskTitle.trim();
+    if (next === event.taskTitle) return;
+    setTaskTitle(next);
+    void updateEvent(event.id, { taskTitle: next });
+  };
+
+  const commitTaskLink = () => {
+    const next = normalizeUrl(taskLink);
+    if (next === event.taskLink) return;
+    setTaskLink(next);
+    void updateEvent(event.id, { taskLink: next });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="w-[22rem] max-w-[calc(100%-2rem)] gap-0 p-0">
@@ -99,7 +122,7 @@ export function EventScheduleDialog({
         <div className="px-4 pb-1 pt-4">
           <div className="text-xs font-semibold text-muted-foreground/70">Schedule</div>
 
-          {/* Frequency: a calm summary line that expands to pills + one parameter. */}
+          {/* Repeat: a calm summary line that expands to pills + one parameter. */}
           <div>
             <button
               type="button"
@@ -109,7 +132,7 @@ export function EventScheduleDialog({
             >
               <CalendarClock className={ICON} />
               <span className="min-w-0 flex-1">
-                Repeats <span className="text-muted-foreground">· {freqSummary(s)}</span>
+                Repeat <span className="text-muted-foreground">· {freqSummary(s)}</span>
               </span>
               <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground/70 transition-transform", freqOpen && "rotate-180")} />
             </button>
@@ -118,7 +141,7 @@ export function EventScheduleDialog({
               <div className="pb-1">
                 <div className="flex flex-wrap gap-1.5 pb-3 pt-0.5">
                   {FREQS.map((f) => {
-                    const on = (s?.freq ?? "none") === f.value;
+                    const on = s?.freq === f.value;
                     return (
                       <button
                         key={f.value}
@@ -139,17 +162,66 @@ export function EventScheduleDialog({
                 </div>
 
                 {s ? <ParamControl schedule={s} onSave={save} /> : null}
+
+                {s ? (
+                  <div className="border-t border-border pt-2">
+                    <button
+                      type="button"
+                      onClick={removeSchedule}
+                      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/80 transition-colors hover:text-foreground"
+                    >
+                      <CalendarOff className="h-3.5 w-3.5" />
+                      Log only — records occurrences, no tasks
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
 
-          {/* Task rows — only meaningful once a schedule can fire them. */}
+          {/* Task: what the generated task looks like — only once a schedule exists. */}
           {s ? (
             <>
+              <div className="mt-2 border-t border-border pt-3 text-xs font-semibold text-muted-foreground/70">Task</div>
+
+              <div className={ROW}>
+                <Type className={ICON} />
+                <span className="shrink-0">Name</span>
+                <input
+                  type="text"
+                  value={taskTitle}
+                  placeholder={event.title.trim() || "Task name"}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  onBlur={commitTaskTitle}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur();
+                  }}
+                  aria-label="Task name"
+                  className={FIELD}
+                />
+              </div>
+
+              <div className={ROW}>
+                <Link2 className={ICON} />
+                <span className="shrink-0">Link</span>
+                <input
+                  type="text"
+                  value={taskLink}
+                  placeholder={event.link.trim() || "https://…"}
+                  onChange={(e) => setTaskLink(e.target.value)}
+                  onBlur={commitTaskLink}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur();
+                  }}
+                  aria-label="Task link"
+                  className={FIELD}
+                />
+              </div>
+
               <div className={ROW}>
                 <Bell className={ICON} />
                 <span className="flex items-center gap-1.5">
-                  Add a task
+                  Create a task
                   <input
                     type="number"
                     min={0}
@@ -162,7 +234,7 @@ export function EventScheduleDialog({
                     aria-label="Days before due"
                     className="h-7 w-12 rounded-lg border border-border bg-transparent text-center text-[13px] tabular-nums text-foreground outline-none focus:border-violet-500"
                   />
-                  days before
+                  days before it&rsquo;s due
                 </span>
               </div>
 
@@ -211,8 +283,6 @@ export function EventScheduleDialog({
               </div>
             </>
           ) : null}
-
-          <SubjectRow event={event} />
         </div>
 
         <div className="flex items-center gap-2.5 border-t border-border px-4 py-3">
@@ -274,7 +344,7 @@ function ParamControl({ schedule: s, onSave }: { schedule: EventSchedule; onSave
   if (s.freq === "monthly") {
     return (
       <div className={wrap}>
-        on
+        on day
         <Select value={String(s.day)} onValueChange={(v) => onSave({ freq: "monthly", day: Number(v) })}>
           <SelectTrigger size="sm" className={MINI}>
             <SelectValue />
@@ -322,65 +392,6 @@ function ParamControl({ schedule: s, onSave }: { schedule: EventSchedule; onSave
     );
   }
   return <OnceDate date={s.date} onPick={(date) => onSave({ freq: "once", date })} />;
-}
-
-/**
- * Optional "Tracks…" subject: link this event to another entity so its scheduled
- * logs land on that entity's timeline. Reuses `RefField`'s `[[` entity picker;
- * the first id-bound token becomes the subject. Clearing reverts to self.
- */
-function SubjectRow({ event }: { event: EventItem }) {
-  const [draft, setDraft] = useState("");
-  const subjects = useMemo(
-    () => (event.subjectId && event.subjectKind ? [{ id: event.subjectId, kind: event.subjectKind }] : []),
-    [event.subjectId, event.subjectKind],
-  );
-  const labels = useSubjectLabels(subjects);
-
-  if (event.subjectId && event.subjectKind) {
-    const Icon = getApp(`${event.subjectKind}s`).icon;
-    return (
-      <div className={ROW}>
-        <Link2 className={ICON} />
-        <span>Tracks</span>
-        <span className="ml-auto inline-flex min-w-0 items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2 py-1 text-[12.5px]">
-          <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: refKindAccentVar(event.subjectKind) }} />
-          <span className="min-w-0 truncate">{labels.get(event.subjectId) ?? "…"}</span>
-          <button
-            type="button"
-            aria-label="Clear subject"
-            onClick={() => void updateEvent(event.id, { subjectKind: null, subjectId: null })}
-            className="shrink-0 text-muted-foreground transition-colors hover:text-destructive"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <div className={ROW}>
-      <Link2 className={ICON} />
-      <RefField
-        value={draft}
-        singleLine
-        excludeId={event.id}
-        ariaLabel="Event subject"
-        placeholder="Track another thing…  type [["
-        onChange={(v) => {
-          const tok = parseRefTokens(v).find((t) => t.kind && t.id);
-          if (tok?.kind && tok.id) {
-            void updateEvent(event.id, { subjectKind: tok.kind, subjectId: tok.id });
-            setDraft("");
-          } else {
-            setDraft(v);
-          }
-        }}
-        className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-muted-foreground/60"
-      />
-    </div>
-  );
 }
 
 function OnceDate({ date, onPick }: { date: string; onPick: (date: string) => void }) {

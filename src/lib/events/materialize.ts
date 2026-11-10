@@ -45,8 +45,8 @@ export async function generateTaskForEvent(eventId: string): Promise<string | nu
   if (!thing.title.trim()) return null;
 
   const taskId = await createTask({
-    title: thing.title,
-    link: thing.link || null,
+    title: thing.taskTitle.trim() || thing.title,
+    link: thing.taskLink.trim() || thing.link || null,
     dueDate: new Date(),
     tags: await eventTagIds(eventId),
     priority: thing.priority,
@@ -159,8 +159,8 @@ async function runMaterialize(): Promise<number> {
     if (!exists) {
       await createTask({
         id: taskId,
-        title: thing.title,
-        link: thing.link || null,
+        title: thing.taskTitle.trim() || thing.title,
+        link: thing.taskLink.trim() || thing.link || null,
         dueDate: due.occurrence,
         tags: await eventTagIds(row.id),
         priority: thing.priority,

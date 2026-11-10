@@ -39,6 +39,10 @@ export interface EventItem {
   id: string;
   title: string;
   link: string;
+  /** Title for the generated task; empty = inherit the event title. */
+  taskTitle: string;
+  /** URL for the generated task; empty = inherit the event link. */
+  taskLink: string;
   priority: EventPriority;
   /** Optional expected cadence. `null` = log-only (no scheduling / materialization). */
   schedule: EventSchedule | null;
@@ -122,6 +126,8 @@ export function parseEventContent(raw: string | null | undefined): EventContent 
   const fallback: EventContent = {
     title: "",
     link: "",
+    taskTitle: "",
+    taskLink: "",
     priority: "medium",
     schedule: null,
     daysBefore: 3,
@@ -139,6 +145,8 @@ export function parseEventContent(raw: string | null | undefined): EventContent 
     return {
       title: typeof parsed.title === "string" ? parsed.title : "",
       link: typeof parsed.link === "string" ? parsed.link : "",
+      taskTitle: typeof parsed.taskTitle === "string" ? parsed.taskTitle : "",
+      taskLink: typeof parsed.taskLink === "string" ? parsed.taskLink : "",
       priority: PRIORITIES.includes(parsed.priority as EventPriority) ? (parsed.priority as EventPriority) : "medium",
       schedule: isSchedule(parsed.schedule) ? parsed.schedule : null,
       daysBefore: typeof parsed.daysBefore === "number" && parsed.daysBefore >= 0 ? Math.floor(parsed.daysBefore) : 3,
@@ -202,6 +210,8 @@ export async function createEvent(input: CreateEventInput = {}): Promise<string>
   const content: EventContent = {
     title: input.title?.trim() ?? "",
     link: input.link?.trim() ?? "",
+    taskTitle: "",
+    taskLink: "",
     priority: input.priority ?? "medium",
     schedule: input.schedule ?? null,
     daysBefore: input.daysBefore != null ? Math.max(0, Math.floor(input.daysBefore)) : 3,
@@ -226,7 +236,7 @@ export async function createEvent(input: CreateEventInput = {}): Promise<string>
 /** Overwrite a thing's editable fields (materialization bookkeeping untouched). */
 export async function updateEvent(
   id: string,
-  patch: Partial<Pick<EventContent, "title" | "link" | "priority" | "schedule" | "daysBefore" | "defaultPlace" | "subjectKind" | "subjectId">> & { tags?: string[] },
+  patch: Partial<Pick<EventContent, "title" | "link" | "taskTitle" | "taskLink" | "priority" | "schedule" | "daysBefore" | "defaultPlace" | "subjectKind" | "subjectId">> & { tags?: string[] },
 ): Promise<void> {
   // Tags live in entity_tags.
   if (patch.tags !== undefined) await setEntityTags(id, "event", patch.tags);

@@ -673,6 +673,8 @@ export function NotesWorkspace() {
                       notePageEmojiByTitle={notePageEmojiByTitle}
                       notePageIdByTitle={notePageIdByTitle}
                       onNavigateToPage={openPageById}
+                      onOpenDeleteDialog={() => setIsDeleteDialogOpen(true)}
+                      onCloseDeleteDialog={() => setIsDeleteDialogOpen(false)}
                       onDeleteSuccess={() => {
                         appNavigationRef.current = true;
                         transitionToOverview();

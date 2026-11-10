@@ -72,6 +72,8 @@ async function renderShell() {
       notePageTitles: [],
       notePageIdByTitle: new Map<string, string>(),
       onNavigateToPage: vi.fn(),
+      onOpenDeleteDialog: vi.fn(),
+      onCloseDeleteDialog: vi.fn(),
       onDeleteSuccess: vi.fn(),
       onStateChange: (h: NotePageShellHandle) => { handle = h; },
     }));

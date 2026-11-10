@@ -33,6 +33,8 @@ export type NotePageShellProps = {
   notePageEmojiByTitle?: Record<string, string | null>;
   notePageIdByTitle: Map<string, string>;
   onNavigateToPage: (pageId: string, title?: string) => void;
+  onOpenDeleteDialog: () => void;
+  onCloseDeleteDialog: () => void;
   onDeleteSuccess: () => void;
   onPeekPageReference?: (title: string, rect: DOMRect) => void;
   onStateChange?: (handle: NotePageShellHandle) => void;
@@ -48,6 +50,8 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   notePageEmojiByTitle = {},
   notePageIdByTitle,
   onNavigateToPage,
+  onOpenDeleteDialog,
+  onCloseDeleteDialog,
   onDeleteSuccess,
   onPeekPageReference,
   onStateChange,
@@ -93,7 +97,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   // when membership lands); the setter drives optimistic edits.
   const [selectedTagIdsDraft, setSelectedTagIdsDraft] = useOptimisticTagIds(pageTagIds);
   const [isDeletingPage, setIsDeletingPage] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // ─── Hydration on page data arrival ────────────────────────────────────────
   const hydratedPageIdRef = useRef<string | null>(null);
@@ -240,7 +243,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     setPageEmojiDraft,
     setIsEmojiPickerOpen,
     setIsDeletingPage,
-    setIsDeleteDialogOpen,
+    onCloseDeleteDialog,
     onDeleteSuccess,
   });
 
@@ -297,7 +300,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     handleToggleFavorite,
     handleCopyDocument,
     handleDeletePage,
-    setIsDeleteDialogOpen,
     focusBlockInEditor,
     togglePageFavorite,
     undo: runUndo,
@@ -311,7 +313,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
       handleToggleFavorite,
       handleCopyDocument,
       handleDeletePage,
-      setIsDeleteDialogOpen,
       focusBlockInEditor,
       togglePageFavorite,
       undo: runUndo,
@@ -336,7 +337,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     handleToggleFavorite: () => latestCallbacksRef.current.handleToggleFavorite(),
     handleCopyDocument: () => latestCallbacksRef.current.handleCopyDocument(),
     handleDeletePage: () => latestCallbacksRef.current.handleDeletePage(),
-    setIsDeleteDialogOpen: (open: boolean) => latestCallbacksRef.current.setIsDeleteDialogOpen(open),
     setFocusTarget: (target: { blockId: string; placement: "start" | "end" }) => latestCallbacksRef.current.focusBlockInEditor(target),
     togglePageFavorite: (favoritePage: NormalizedNotePage) => latestCallbacksRef.current.togglePageFavorite(favoritePage),
     undo: () => latestCallbacksRef.current.undo(),
@@ -355,7 +355,6 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
     stableUpdatedTimestamp,
     showAbsoluteUpdatedTime,
     isDeletingPage,
-    isDeleteDialogOpen,
     pageTitleDraft,
     activePageEmoji,
     selectedPageProperties: pageProperties,
@@ -368,7 +367,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
   }), [
     linkedReferences, attachments, pageOutline, summaryDraft, selectedTagIdsDraft,
     createdTimestamp, isLoadingLinkedReferences, isLoadingAttachments,
-    stableUpdatedTimestamp, showAbsoluteUpdatedTime, isDeletingPage, isDeleteDialogOpen, pageTitleDraft,
+    stableUpdatedTimestamp, showAbsoluteUpdatedTime, isDeletingPage, pageTitleDraft,
     activePageEmoji, pageProperties, page, displayBlocks, isReady, effectiveCanUndo, effectiveCanRedo, stableCallbacks,
   ]);
 
@@ -434,7 +433,7 @@ export const NotePageShell = forwardRef<NotePageShellHandle, NotePageShellProps>
         persistSelectedPageProperties(summaryDraft, nextTagIds);
       }}
       onCopyDocument={handleCopyDocument}
-      onOpenDeleteDialog={() => setIsDeleteDialogOpen(true)}
+      onOpenDeleteDialog={onOpenDeleteDialog}
       onOpenPageReference={handleOpenPageReference}
       onPeekPageReference={onPeekPageReference}
       onSingleEditorChange={setSingleEditor}
@@ -462,8 +461,6 @@ export type NotePageShellHandle = {
   handleCopyDocument: () => Promise<void>;
   handleDeletePage: () => Promise<void>;
   isDeletingPage: boolean;
-  isDeleteDialogOpen: boolean;
-  setIsDeleteDialogOpen: (open: boolean) => void;
   pageTitleDraft: string;
   activePageEmoji: string | null;
   selectedPageProperties: Record<string, unknown>;

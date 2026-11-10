@@ -36,7 +36,7 @@ type UseNotePageActionsParams = {
   setPageEmojiDraft: Dispatch<SetStateAction<string | null | undefined>>;
   setIsEmojiPickerOpen: Dispatch<SetStateAction<boolean>>;
   setIsDeletingPage: Dispatch<SetStateAction<boolean>>;
-  setIsDeleteDialogOpen: Dispatch<SetStateAction<boolean>>;
+  onCloseDeleteDialog: () => void;
   onDeleteSuccess: () => void;
 };
 
@@ -57,7 +57,7 @@ export function useNotePageActions({
   setPageEmojiDraft,
   setIsEmojiPickerOpen,
   setIsDeletingPage,
-  setIsDeleteDialogOpen,
+  onCloseDeleteDialog,
   onDeleteSuccess,
 }: UseNotePageActionsParams) {
   const trash = useTrashAction();
@@ -140,7 +140,7 @@ export function useNotePageActions({
       onDeleteSuccess();
     } finally {
       setIsDeletingPage(false);
-      setIsDeleteDialogOpen(false);
+      onCloseDeleteDialog();
     }
   };
 

@@ -6,8 +6,10 @@ import { logger } from "@/lib/shared/logger";
  * Web Push subscription utility.
  *
  * Pure (non-React) helpers for opting into / out of browser push notifications and
- * reading the current state. A future settings page wires these to a toggle; nothing
- * calls them yet.
+ * reading the current state. Settings → Notifications (`NotificationsSection` in
+ * `SettingsDialog`) drives the toggle through them; delivery runs server-side from
+ * the `send-push-notification` Supabase function, and `sw.ts` handles the incoming
+ * `push` and `notificationclick` events.
  *
  * The push_subscriptions row is written directly through the Supabase browser client
  * (not PowerSync) — it is device/auth state, not synced local-first content. RLS

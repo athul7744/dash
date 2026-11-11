@@ -20,6 +20,10 @@ import { BlockNormalize } from "@/lib/notes/editor/block-normalize";
 import { assembleDoc, decomposeDoc, type BlockDocumentRow } from "@/lib/notes/editor/block-document";
 import { serializeNoteDocument } from "@/lib/notes/notes-content";
 
+// The editor modules reach the PowerSync client on import, and constructing it
+// needs a Worker jsdom does not provide. Nothing here writes through it.
+vi.mock("@/lib/powersync/db", () => ({ db: { execute: vi.fn(), writeTransaction: vi.fn() } }));
+
 function row(id: string, text: string): BlockDocumentRow {
   return {
     id,

@@ -17,7 +17,7 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/storage/` — the file-attachment layer's pure helpers (path layout, type/size validation, orphan diffing), the remote-image proxy client (`remote-image.test.ts`: request shape, and every failure reading as "no image"), and the session preview cache (`blob-preview.test.ts`: one *stable* url per id — a changed src re-decodes on every editor document rebuild — reference counting so a dropped url outlives its last holder, a release-then-re-acquire remount surviving, eviction on the entry and byte budgets, and bytes reclaimed on drop).
 - `tests/shared/` — reusable fixtures, builders, and assertions shared across app groups (incl. the universal-capture classifier).
 - `tests/shared/item-colors.test.ts` — checks that tags, activities, and moods offer the same 23 colors, with complete badge, swatch, grid-cell, and chart styles, a neutral fallback, and legible light-on-dark cell fills.
-- `tests/powersync/` — the upload connector's pure helpers (`upload-helpers.test.ts`): collapsing a CRUD batch to one net op per row, recognising a foreign-key violation, and the table order a batch must be uploaded in — a parent table before anything referencing it, and the reverse for deletes. An unlisted table sorts last, which is how `entity_tags` once overtook `tags` and lost every tag an import created. Also the fatal-versus-retryable split (`isFatalResponseCode`) and `UploadError` keeping the server's SQLSTATE through a rethrow — without it a permanently rejected row retries forever and the queue never drains.
+- `tests/powersync/` — the upload connector's pure helpers (`upload-helpers.test.ts`): collapsing a CRUD batch to one net op per row, recognising a foreign-key violation, and the table order a batch must be uploaded in — a parent table before anything referencing it, and the reverse for deletes. An unlisted table sorts last, which is how `entity_tags` once overtook `tags` and lost every tag an import created. Also the fatal-versus-retryable split (`isFatalResponseCode`) and `UploadError` keeping the server's SQLSTATE through a rethrow — without it a permanently rejected row retries forever and the queue never drains. `upload-data.test.ts` drives the connector itself against a fake Supabase client and CRUD batch, covering the wiring the pure helpers cannot: collapse-before-group, parent→child upserts and child→parent deletes, JSON columns leaving as JSONB, orphan recovery after a bulk foreign-key failure, and the fatal (discard) versus retryable (rethrow, keep the batch) split.
 
 ## Current Notes Suites
 
@@ -151,6 +151,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/shared/capture.test.ts`
   Covers the universal-capture classifier (`src/lib/shared/capture.ts`): `detectPlatform` host recognition (YouTube/Instagram/X/Reddit/GitHub, null otherwise), `looksLikeQuote`, and `classifyShare` picking the smart default target (URL → bookmark + platform, short text → quote, prose → note, empty → note; URL-in-text extraction).
 
+- `tests/shared/capture-flow.test.ts`
+  Covers the capture write path below the UI (`src/lib/shared/capture-actions.ts`): a share payload read from search params, classified, projected onto each target by `buildCaptureInput` (and the fields each target drops), persisted by `saveCapture` with that app's spelling — a URL is a bookmark's address, a quote's source, and a task's link — the bookmark metadata refetch choosing `setTitle` from whether a title was given, and the deep link each result returns.
+
 - `tests/shared/capture-input.test.ts`
   Pins which fields each target keeps (`buildCaptureInput`). The triage backs every target with one field set, so this is where a value the user filled gets silently dropped — the one url has to reach a bookmark as its address, a task as its link, and a quote as its source.
 
@@ -213,10 +216,13 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 
 ## Usage
 
-- `bun run test` — one-shot node-based Vitest run.
-- `bun run test:dom` — jsdom-backed integration run. Uses `tests/setup/dom.ts` (via `setupFiles`) to stub `window.matchMedia` and set `MotionGlobalConfig.skipAnimations` so Motion components mount and `AnimatePresence` exits resolve synchronously under jsdom.
+- `bun run test` — one-shot run of both layers: the node-based suites, then the jsdom integration suites.
+- `bun run test:node` — only the node-based suites.
+- `bun run test:dom` — only the jsdom-backed integration run. Uses `tests/setup/dom.ts` (via `setupFiles`) to stub `window.matchMedia` and set `MotionGlobalConfig.skipAnimations` so Motion components mount and `AnimatePresence` exits resolve synchronously under jsdom.
 - `bun run test:watch` — watch mode while developing.
 - `bunx vitest run tests/notes` — focused node-based notes test run when working on notes behavior.
 - `bunx vitest run --config vitest.dom.config.ts tests/notes/editor/block-commands.dom.test.ts` — focused DOM integration run for editor block-command behavior.
+
+`bun test` is not that command. It starts Bun's built-in runner, which does not support the `vi.mock` hoisting or the jsdom environment these suites rely on, so it reports failures that do not happen under Vitest. `bunfig.toml` preloads `tests/setup/bun-runner-guard.ts` for `bun test` only, which stops it and prints the commands above; `bun run test` spawns Vitest and is unaffected.
 
 Keep new tests close to the app area they protect, and move reusable builders or assertions into `tests/shared/` once they are used by more than one suite.

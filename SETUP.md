@@ -437,7 +437,6 @@ bun run dev
 bun run build && bun run start
 bun run lint
 bun run test
-bun run test:dom
 bunx tsc --noEmit
 ```
 
@@ -451,8 +450,11 @@ Development notes:
 
 Vitest is split by environment:
 
-- `bun run test` runs the default node-based suites for pure logic and write-path behavior.
-- `bun run test:dom` runs the jsdom-backed integration suites used for React hook and DOM-adjacent editor behavior.
+- `bun run test` runs both layers: the node-based suites for pure logic and write-path behavior, then the jsdom-backed integration suites used for React hook and DOM-adjacent editor behavior.
+- `bun run test:node` runs only the node-based suites.
+- `bun run test:dom` runs only the jsdom-backed integration suites.
+
+Both layers are Vitest suites. `bun test` starts Bun's built-in runner, which does not support the `vi.mock` hoisting or the jsdom setup these files rely on; `bunfig.toml` stops it with that message before it reports false failures.
 
 - `tests/notes/` holds notes-specific tests.
 - `tests/tasks/` holds task-specific tests.
@@ -461,7 +463,7 @@ Vitest is split by environment:
 
 See [tests/README.md](tests/README.md) for the current suite-level breakdown.
 
-Use `bun run test` for a one-shot node run, `bun run test:dom` for the jsdom integration layer, and `bun run test:watch` while developing.
+Use `bun run test` for a one-shot run of both layers, `bun run test:node` or `bun run test:dom` for one layer, and `bun run test:watch` while developing.
 
 ### Feature implementation notes
 

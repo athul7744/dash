@@ -36,6 +36,10 @@ import { insertMarkdown, pasteUrlAsLink } from "@/lib/notes/editor/markdown-past
 import { assembleDoc, decomposeDoc, type BlockDocumentRow } from "@/lib/notes/editor/block-document";
 import { serializeNoteDocument } from "@/lib/notes/notes-content";
 
+// The editor modules reach the PowerSync client on import, and constructing it
+// needs a Worker jsdom does not provide. Nothing here writes through it.
+vi.mock("@/lib/powersync/db", () => ({ db: { execute: vi.fn(), writeTransaction: vi.fn() } }));
+
 // Production extension list minus the QueryBlock node (its NodeView imports the
 // PowerSync db, which needs a Worker jsdom lacks). The schema is otherwise
 // identical, which is what these paste-shape assertions exercise.

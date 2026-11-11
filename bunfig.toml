@@ -1,0 +1,11 @@
+# `bun test` starts Bun's own runner, not this project's.
+#
+# The suites are Vitest suites: they rely on `vi.mock` hoisting and, for the
+# `.dom.test.*` files, a jsdom environment with `tests/setup/dom.ts`. Bun's
+# runner provides neither, so it reports hundreds of failures that aren't real
+# — and it is still the command people reach for first.
+#
+# This preload applies to `bun test` only. `bun run test` spawns Vitest and is
+# unaffected. See tests/setup/bun-runner-guard.ts.
+[test]
+preload = ["./tests/setup/bun-runner-guard.ts"]

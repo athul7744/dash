@@ -832,7 +832,6 @@ bun run dev
 bun run build
 bun run lint
 bun run test
-bun run test:dom
 bunx tsc --noEmit
 ```
 
@@ -848,8 +847,11 @@ Vitest is split between fast node-based suites and a jsdom integration layer for
 
 Primary commands:
 
-- `bun run test` runs the default node-based suites.
-- `bun run test:dom` runs the jsdom-backed integration suites.
+- `bun run test` runs both layers: the node-based suites, then the jsdom-backed integration suites.
+- `bun run test:node` runs only the node-based suites.
+- `bun run test:dom` runs only the jsdom-backed integration suites.
+
+Both layers are Vitest suites. `bun test` starts Bun's built-in runner instead, which does not support the `vi.mock` hoisting or the jsdom setup these files rely on; `bunfig.toml` stops it with that message before it reports false failures.
 
 See [tests/README.md](../tests/README.md) for the current suite map.
 

@@ -22,6 +22,9 @@ const { storeFileBytes, insertAttachmentRow, discardStoredBytes, flushAllBlockDo
 
 vi.mock("@/lib/storage/attachments", () => ({ storeFileBytes, insertAttachmentRow, discardStoredBytes }));
 vi.mock("@/lib/notes/editor/block-persister", () => ({ flushAllBlockDocumentPersisters }));
+// The editor modules reach the PowerSync client on import, and constructing it
+// needs a Worker jsdom does not provide. Nothing here writes through it.
+vi.mock("@/lib/powersync/db", () => ({ db: { execute: vi.fn(), writeTransaction: vi.fn() } }));
 
 import { Editor } from "@tiptap/core";
 import History from "@tiptap/extension-history";

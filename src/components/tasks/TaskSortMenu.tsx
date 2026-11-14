@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/shared/utils";
+import { TOOL_BUTTON_CLASS } from "@/components/ui/tool-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,7 +48,8 @@ export function TaskSortMenu({ sort, onChange, className }: TaskSortMenuProps) {
         aria-label={`Sort: ${activeLabel}`}
         title={`Sort: ${activeLabel}`}
         className={cn(
-          "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-background px-2 font-heading text-sm font-medium text-muted-foreground ring-1 ring-border transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:px-3",
+          TOOL_BUTTON_CLASS,
+          "text-muted-foreground ring-border hover:bg-accent hover:text-foreground",
           className
         )}
       >

@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef } from "react";
-import { Filter, X } from "lucide-react";
+import { X } from "lucide-react";
 
 import { cn } from "@/lib/shared/utils";
-import { TagSelector } from "@/components/tags/TagSelector";
+import { TagFilterButton } from "@/components/tags/TagFilterButton";
 import { TaskSortMenu } from "@/components/tasks/TaskSortMenu";
 import { useScrollAffordance } from "@/hooks/use-scroll-affordance";
 import { getTagColorClasses } from "@/lib/tasks/colors";
@@ -13,7 +13,6 @@ import type { TaskSort } from "@/lib/tasks/tasks";
 
 const STATE_PILLS = ["pending", "completed", "trashed"] as const;
 const PRIORITY_PILLS = ["low", "medium", "high", "urgent"] as const;
-const MAX_TAG_FILTERS = 3;
 
 const STATE_ACTIVE: Record<(typeof STATE_PILLS)[number], string> = {
   pending: "bg-indigo-100 text-indigo-700 dark:bg-indigo-800 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-700",
@@ -30,9 +29,6 @@ const PRIORITY_ACTIVE: Record<(typeof PRIORITY_PILLS)[number], string> = {
 
 const PILL_BASE = "h-8 px-4 font-heading text-sm font-medium rounded-full transition-all capitalize shrink-0 flex items-center gap-1.5";
 const PILL_IDLE = "bg-muted text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent";
-
-/** The pinned pair's shell: square and ringed, where the pills are round and flat. */
-const TOOL_BUTTON = "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-background px-2 font-heading text-sm font-medium ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3";
 
 interface TaskFilterBarProps {
   filterStates: string[];
@@ -114,10 +110,6 @@ export function TaskFilterBar({
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   useScrollAffordance(scrollerRef, pills.length);
 
-  const tagTriggerTitle = filterTags.length > 0
-    ? `${filterTags.length} tag filter${filterTags.length === 1 ? "" : "s"}`
-    : "Filter by tag";
-
   return (
     <div className="flex items-stretch gap-2">
       <div
@@ -141,32 +133,7 @@ export function TaskFilterBar({
           no further scroll left to bring them out. The scrolled edge is now a
           fade on the row itself, which only appears when there is more to see. */}
       <div className="relative flex shrink-0 items-center gap-2 border-l border-border bg-background py-1.5 pl-2">
-        <TagSelector
-          selectedTagIds={filterTags}
-          onSelectedTagIdsChange={onFilterTagsChange}
-          maxSelected={MAX_TAG_FILTERS}
-          showSelectedTags={false}
-          allowCreate={false}
-          align="end"
-          triggerProps={{ "aria-label": "Filter by tag", title: tagTriggerTitle }}
-          triggerClassName={cn(
-            TOOL_BUTTON,
-            filterTags.length > 0
-              ? "text-primary ring-primary/40 hover:bg-primary/10"
-              : "text-muted-foreground ring-border hover:bg-accent hover:text-foreground"
-          )}
-          triggerContent={
-            <>
-              <Filter className="h-4 w-4" />
-              <span className="hidden whitespace-nowrap sm:inline">Tags</span>
-              {filterTags.length > 0 ? (
-                <span className="rounded-full bg-primary px-1.5 text-[10px] leading-4 font-semibold text-primary-foreground">
-                  {filterTags.length}
-                </span>
-              ) : null}
-            </>
-          }
-        />
+        <TagFilterButton selectedTagIds={filterTags} onChange={onFilterTagsChange} summary="count" />
 
         <TaskSortMenu sort={sort} onChange={onSortChange} />
       </div>

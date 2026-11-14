@@ -28,6 +28,9 @@ import { useAllTags } from '@/hooks/use-tags';
 
 const tasksApp = getApp("tasks");
 
+/** Cards in the first screens are rendered eagerly — see the content-visibility note below. */
+const EAGER_CARD_COUNT = 6;
+
 export default function Home() {
   const reduce = useReducedMotion();
 
@@ -292,13 +295,22 @@ export default function Home() {
             <div className="flex flex-col">
               <div className="columns-1 gap-6 space-y-6 px-0.5 pb-24 sm:px-1 sm:pb-4 md:columns-2 xl:columns-3">
                 <AnimatePresence>
-                  {combinedTasks.map((task) => {
+                  {combinedTasks.map((task, index) => {
                     const isDraft = newTasks.some(nt => nt.id === task.id);
+                    // content-visibility skips layout/paint for off-screen cards,
+                    // so DOM cost stays flat however many are loaded; the
+                    // remembered intrinsic size keeps the scrollbar stable. Not on
+                    // the first cards though: on content that is already on
+                    // screen it only makes the browser work out visibility
+                    // boundaries before the first paint.
                     return (
-                      // content-visibility skips layout/paint for off-screen
-                      // cards, so DOM cost stays flat however many are loaded;
-                      // the remembered intrinsic size keeps the scrollbar stable.
-                      <div key={task.id} className="break-inside-avoid [content-visibility:auto] [contain-intrinsic-size:auto_240px]">
+                      <div
+                        key={task.id}
+                        className={cn(
+                          "break-inside-avoid",
+                          index >= EAGER_CARD_COUNT && "[content-visibility:auto] [contain-intrinsic-size:auto_240px]"
+                        )}
+                      >
                         <TaskCard
                           task={task}
                           subtasks={isDraft ? [] : getSubtasks(task.id)}

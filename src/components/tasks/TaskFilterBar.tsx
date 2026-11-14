@@ -1,10 +1,12 @@
 "use client";
 
+import { useRef } from "react";
 import { Filter, X } from "lucide-react";
 
 import { cn } from "@/lib/shared/utils";
 import { TagSelector } from "@/components/tags/TagSelector";
 import { TaskSortMenu } from "@/components/tasks/TaskSortMenu";
+import { useScrollAffordance } from "@/hooks/use-scroll-affordance";
 import { getTagColorClasses } from "@/lib/tasks/colors";
 import type { Tag } from "@/lib/powersync/AppSchema";
 import type { TaskSort } from "@/lib/tasks/tasks";
@@ -109,13 +111,19 @@ export function TaskFilterBar({
     }),
   ].sort((a, b) => Number(b.isActive) - Number(a.isActive));
 
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  useScrollAffordance(scrollerRef, pills.length);
+
   const tagTriggerTitle = filterTags.length > 0
     ? `${filterTags.length} tag filter${filterTags.length === 1 ? "" : "s"}`
     : "Filter by tag";
 
   return (
     <div className="flex items-stretch gap-2">
-      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-1.5">
+      <div
+        ref={scrollerRef}
+        className="pill-scroller flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-1.5"
+      >
         {pills.map((pill) => (
           <button
             key={pill.id}
@@ -130,8 +138,9 @@ export function TaskFilterBar({
 
       {/* A sibling, not an overlay: when the pair sat on top of the row the last
           pills could be scrolled to the end and still end up underneath it, with
-          no further scroll left to bring them out. */}
-      <div className="relative flex shrink-0 items-center gap-2 border-l border-border bg-background py-1.5 pl-2 before:pointer-events-none before:absolute before:inset-y-0 before:-left-5 before:w-5 before:bg-gradient-to-l before:from-black/60 before:to-transparent">
+          no further scroll left to bring them out. The scrolled edge is now a
+          fade on the row itself, which only appears when there is more to see. */}
+      <div className="relative flex shrink-0 items-center gap-2 border-l border-border bg-background py-1.5 pl-2">
         <TagSelector
           selectedTagIds={filterTags}
           onSelectedTagIdsChange={onFilterTagsChange}

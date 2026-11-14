@@ -28,7 +28,8 @@ function EventCardBone() {
 /**
  * Full-page events skeleton. Shared by the route `loading.tsx` (navigation
  * fallback) and the cold-start boot skeleton so both look identical. Mirrors
- * the /events page: sticky header, a segmented tab control, then a card list.
+ * the /events page: sticky header, a segmented tab control (tabs + tag filter),
+ * then a card list.
  */
 export function EventsLoadingSkeleton() {
   return (
@@ -43,6 +44,9 @@ export function EventsLoadingSkeleton() {
               <Skeleton className="h-6 w-20 rounded-full" />
               <Skeleton className="h-6 w-16 rounded-full" />
               <Skeleton className="h-6 w-20 rounded-full" />
+              {/* The tag filter shares the control, after the same divider. */}
+              <span aria-hidden className="mx-0.5 w-px shrink-0 self-stretch bg-border" />
+              <Skeleton className="h-6 w-16 rounded-full" />
             </div>
           </div>
 

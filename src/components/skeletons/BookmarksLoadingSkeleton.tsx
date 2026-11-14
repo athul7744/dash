@@ -35,8 +35,8 @@ function BookmarkCardBone({ withNote = true }: { withNote?: boolean }) {
 /**
  * Full-page bookmarks skeleton. Shared by the route `loading.tsx` (navigation
  * fallback) and the cold-start boot skeleton so both look identical. Mirrors
- * the /bookmarks page: sticky header, a "revisit" band, an add/search/filter
- * toolbar, then a card list.
+ * the /bookmarks page: sticky header, a "revisit" band, the search field (which
+ * carries the tag filter), then a card list.
  */
 export function BookmarksLoadingSkeleton() {
   return (
@@ -60,13 +60,13 @@ export function BookmarksLoadingSkeleton() {
           <div className="h-px flex-1 bg-border/40" />
         </div>
 
-        {/* Toolbar: centered omni-field + centered tag row */}
+        {/* Toolbar: the omni-field, with the tag filter inside its own chrome.
+            Same shell and padding as the real field so the row doesn't resize. */}
         <div className="mb-8">
-          <Skeleton className="mx-auto h-10 w-full max-w-xl rounded-full" />
-          <div className="mx-auto mt-3 flex max-w-xl flex-wrap justify-center gap-1.5">
-            <Skeleton className="h-6 w-16 rounded-full" />
-            <Skeleton className="h-6 w-20 rounded-full" />
-            <Skeleton className="h-6 w-14 rounded-full" />
+          <div className="mx-auto flex w-full max-w-xl items-center gap-2.5 rounded-full border border-border/65 bg-card/60 py-2.5 pl-4 pr-1.5">
+            <Skeleton className="h-4 w-4 shrink-0 rounded-full" />
+            <Skeleton className="h-4 min-w-0 flex-1 rounded-full" />
+            <Skeleton className="h-7 w-20 shrink-0 rounded-full" />
           </div>
         </div>
 

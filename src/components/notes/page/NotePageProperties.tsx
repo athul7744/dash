@@ -313,6 +313,7 @@ function PropertyValueEditor({
             <Calendar
               mode="single"
               selected={selectedDate}
+              clearable
               onSelect={(date) => {
                 const dateStr = date ? format(date, "yyyy-MM-dd") : null;
                 handleChange(dateStr);

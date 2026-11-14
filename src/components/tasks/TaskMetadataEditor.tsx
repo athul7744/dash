@@ -71,6 +71,7 @@ export function TaskMetadataEditor({
             <Calendar
               mode="single"
               selected={dueDate}
+              clearable
               onSelect={(date) => {
                 onDueDateChange(date);
                 setIsCalendarOpen(false);

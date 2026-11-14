@@ -260,6 +260,7 @@ function DateFilterValue({ value, onChange }: { value: string; onChange: (v: unk
         <Calendar
           mode="single"
           selected={dateVal}
+          clearable
           onSelect={(date) => {
             onChange(date ? format(date, "yyyy-MM-dd") : undefined);
             setOpen(false);

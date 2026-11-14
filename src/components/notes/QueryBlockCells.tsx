@@ -198,6 +198,7 @@ function InlineDate({ value, onChange }: { value: string; onChange: (v: unknown)
         <Calendar
           mode="single"
           selected={dateVal}
+          clearable
           onSelect={(date) => {
             onChange(date ? format(date, "yyyy-MM-dd") : null);
             setOpen(false);

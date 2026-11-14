@@ -214,6 +214,9 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/dashboard/hero-action.test.ts`
   Covers `chooseHeroAction`, the hero's next-best-action picker: time-of-day + data-driven selection across task/plan/track/journal/mood, eligibility gates, and the plan fallback.
 
+- `tests/shared/calendar-presets.dom.test.tsx`
+  Covers the quick-pick row baked into the shared `Calendar` (`src/components/ui/calendar.tsx`), which eight call sites get without asking: the three defaults on a single-date calendar, each label handing back the day it promises, `presets={false}` hiding the row, a caller's own list replacing the defaults, and Clear appearing only with `clearable` plus a selected date (and calling `onSelect(undefined)`).
+
 ## Usage
 
 - `bun run test` — one-shot run of both layers: the node-based suites, then the jsdom integration suites.

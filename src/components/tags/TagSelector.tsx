@@ -6,8 +6,7 @@ import { CheckCircle2, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tag } from "@/lib/powersync/AppSchema";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";import { Tag } from "@/lib/powersync/AppSchema";
 import { cn } from "@/lib/shared/utils";
 import { getTagColorClasses, getTagDotClass } from "@/lib/tasks/colors";
 import { createTag } from "@/lib/tasks/tags";
@@ -34,11 +33,21 @@ type TagSelectorProps = {
   density?: TagSelectorDensity;
   triggerLabel?: string;
   triggerClassName?: string;
+  /** Extra props for the trigger itself (aria-label, title, …). */
+  triggerProps?: Omit<React.ComponentProps<typeof PopoverTrigger>, "className" | "children">;
   popoverWidthClassName?: string;
   selectedTagsClassName?: string;
   showSelectedTags?: boolean;
   maxSelected?: number;
   triggerContent?: ReactNode;
+  /** Where the popover opens relative to the trigger. */
+  align?: "start" | "end" | "center";
+  /**
+   * Offer "Create <query>" when the search matches nothing. On where this picks
+   * tags for an item; off where it filters a list, since creating a tag while
+   * filtering is not what the user meant.
+   */
+  allowCreate?: boolean;
 };
 
 export function TagSelector({
@@ -47,11 +56,14 @@ export function TagSelector({
   density = "compact",
   triggerLabel = "Tag",
   triggerClassName,
+  triggerProps,
   popoverWidthClassName,
   selectedTagsClassName,
   showSelectedTags = true,
   maxSelected,
   triggerContent,
+  align = "start",
+  allowCreate = true,
 }: TagSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -94,8 +106,9 @@ export function TagSelector({
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         {triggerContent ? (
           <PopoverTrigger
+            {...triggerProps}
             className={cn(
-              "shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+              "shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               triggerClassName,
             )}
           >
@@ -113,7 +126,7 @@ export function TagSelector({
             {triggerLabel}
           </PopoverTrigger>
         )}
-        <PopoverContent className={cn(variant.popoverWidth, "p-0", popoverWidthClassName)} align="start">
+        <PopoverContent className={cn(variant.popoverWidth, "p-0", popoverWidthClassName)} align={align}>
           <Command>
             <CommandInput
               placeholder="Search tags..."
@@ -123,7 +136,7 @@ export function TagSelector({
             />
             <CommandList>
               <CommandEmpty>
-                {searchQuery.trim() ? (
+                {searchQuery.trim() && allowCreate ? (
                   hasReachedLimit ? (
                     <div className="px-2 py-1.5 text-sm text-muted-foreground">
                       Tag limit reached.

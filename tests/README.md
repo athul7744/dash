@@ -214,8 +214,10 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/dashboard/hero-action.test.ts`
   Covers `chooseHeroAction`, the hero's next-best-action picker: time-of-day + data-driven selection across task/plan/track/journal/mood, eligibility gates, and the plan fallback.
 
-- `tests/shared/calendar-presets.dom.test.tsx`
-  Covers the quick-pick row baked into the shared `Calendar` (`src/components/ui/calendar.tsx`), which eight call sites get without asking: the three defaults on a single-date calendar, each label handing back the day it promises, `presets={false}` hiding the row, a caller's own list replacing the defaults, and Clear appearing only with `clearable` plus a selected date (and calling `onSelect(undefined)`).
+## Current Tasks Suites
+
+- `tests/tasks/task-sort.test.ts`
+  Covers `buildTaskOrderBy` (`src/lib/tasks/tasks.ts`), the ORDER BY behind the list's order control: undated rows last when sorting by date, priority compared as a rank rather than text, newest-first for created, case-insensitive titles, and `id ASC` as the tail of every fragment — the list pages with `LIMIT`, so a non-total order would let "load more" skip or repeat a row. The priority rank is asserted value by value because it is derived from `PRIORITY_LEVELS` (the same list the dots render from), so a new level has to reach the CASE. Also `isTaskSort`, which keeps a stale or hostile `?sort=` value out of the SQL.
 
 ## Usage
 

@@ -4,18 +4,16 @@ import { useQuery } from '@powersync/react';
 
 import { useCachedQuery } from '@/hooks/use-cached-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Plus, CheckCircle2, Filter, Tag as TagIcon, X, ListTodo, Loader2 } from 'lucide-react';
+import { Plus, Tag as TagIcon, X, ListTodo, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Task, Tag } from '@/lib/powersync/AppSchema';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Task } from '@/lib/powersync/AppSchema';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { ManageTagsDialog } from '@/components/tasks/ManageTagsDialog';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/shared/utils';
 import { DURATION, EASE } from '@/lib/shared/motion';
-import { getTagColorClasses, getTagDotClass } from '@/lib/tasks/colors';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
@@ -24,6 +22,8 @@ import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { useNewItemParam } from "@/hooks/use-new-item-param";
 import { useEntityTags } from "@/hooks/use-entity-tags";
 import { hasPendingWrites, flushAllUpdates } from "@/lib/shared/debounced-update";
+import { buildTaskOrderBy, isTaskSort, type TaskSort } from "@/lib/tasks/tasks";
+import { TaskFilterBar } from "@/components/tasks/TaskFilterBar";
 import { useAllTags } from '@/hooks/use-tags';
 
 const tasksApp = getApp("tasks");
@@ -46,7 +46,6 @@ export default function Home() {
   const [filterStates, setFilterStates] = useState<string[]>(['pending']);
   const [filterPriorities, setFilterPriorities] = useState<string[]>([]);
   const [filterTags, setFilterTags] = useState<string[]>([]);
-  const [isTagFilterOpen, setIsTagFilterOpen] = useState(false);
   const [isManageTagsOpen, setIsManageTagsOpen] = useState(false);
   
   // Infinite scroll: how many top-level tasks are loaded. Grows by PAGE_SIZE as
@@ -55,6 +54,22 @@ export default function Home() {
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
 
   const [newTasks, setNewTasks] = useState<Task[]>([]);
+
+  // Order lives in the URL so it survives a reload, the back button, and opening
+  // a task and returning. `?sort=` is the whole state — an unknown value falls
+  // back to the default rather than reaching SQL.
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const sortParam = searchParams.get('sort');
+  const sort: TaskSort = isTaskSort(sortParam) ? sortParam : 'due';
+  const setSort = useCallback((next: TaskSort) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === 'due') params.delete('sort');
+    else params.set('sort', next);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   // The skeleton waits on the tags as well as the tasks, so this has to be
   // cached too or the flash comes back.
@@ -84,7 +99,7 @@ export default function Home() {
   });
 
   const whereClause = parentConditions.join(' AND ');
-  const orderBy = `ORDER BY CASE WHEN due_date IS NULL OR due_date = '' THEN 1 ELSE 0 END, due_date ASC, CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END ASC, id ASC`;
+  const orderBy = `ORDER BY ${buildTaskOrderBy(sort)}`;
 
   // One page of top-level tasks (the DB does the paging — only these rows land in JS).
   const { data: topLevelTasks, isLoading: loadingTasks } = useCachedQuery<Task>(
@@ -111,7 +126,7 @@ export default function Home() {
 
   // Reset the scroll window whenever the filters change (adjust-during-render, so
   // no setState-in-effect).
-  const filterKey = `${filterStates.join()}|${filterPriorities.join()}|${filterTags.join()}`;
+  const filterKey = `${filterStates.join()}|${filterPriorities.join()}|${filterTags.join()}|${sort}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (prevFilterKey !== filterKey) {
     setPrevFilterKey(filterKey);
@@ -146,11 +161,34 @@ export default function Home() {
     setNewTasks(prev => prev.filter(t => t.id !== id));
   };
 
+  const resetFilters = () => {
+    // Not `['pending']`: clearing from a view that had no matches would land on
+    // another one whenever the account holds no pending tasks. Everything but
+    // the trash is the only state guaranteed to show something.
+    setFilterStates([]);
+    setFilterPriorities([]);
+    setFilterTags([]);
+  };
+
   // Command-palette "New task" (/tasks?new=1) opens a fresh draft on arrival.
   useNewItemParam(handleAddNewTask, true);
 
+  // Whether the account holds any task at all, trashed ones included. The empty
+  // state says something different when the list is empty because nothing
+  // exists than when filters (or the trash) are hiding what does.
+  const { data: anyTaskCount = [] } = useCachedQuery<{ c: number }>(
+    `SELECT COUNT(*) AS c FROM tasks`,
+  );
+  const hasAnyTask = (anyTaskCount[0]?.c ?? 0) > 0;
+
   // Subtasks grouped by parent (scoped query, so only loaded parents' children).
   const getSubtasks = (parentId: string) => subtaskRows.filter(t => t.parent_id === parentId);
+
+  // Drafts first, then the query rows, so a fresh draft renders at the top.
+  const combinedTasks = [
+    ...newTasks.filter(nt => !topLevelTasks.some((t) => t.id === nt.id)),
+    ...topLevelTasks,
+  ];
 
   // Tags for the visible parent cards, batched into one query (entity_tags).
   const taskTags = useEntityTags(topLevelTasks.map((t) => t.id));
@@ -200,152 +238,21 @@ export default function Home() {
           </>
         }
       >
-        {/* Filter Row */}
-        {isInitialLoading ? <TasksFilterRowSkeleton /> : <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1 px-1 -mx-1">
-          <div className="flex items-center text-muted-foreground shrink-0 mr-1">
-            <Filter className="h-4 w-4" />
-          </div>
-
-          {/* Unified sorted pills */}
-          {(() => {
-            type Pill = { id: string; type: string; label: string; isActive: boolean; activeClass: string; onClick: () => void };
-            const pills: Pill[] = [];
-
-            // State pills
-            (['pending', 'completed', 'trashed'] as const).forEach(state => {
-              const isActive = filterStates.includes(state);
-              
-              let activeClass = "bg-indigo-100 text-indigo-700 dark:bg-indigo-800 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-700";
-              if (state === 'completed') activeClass = "bg-emerald-100 text-emerald-700 dark:bg-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-700";
-              if (state === 'trashed') activeClass = "bg-rose-100 text-rose-700 dark:bg-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-700";
-
-              pills.push({
-                id: `state-${state}`,
-                type: 'state',
-                label: state,
-                isActive,
-                activeClass,
-                onClick: () => {
-                  if (isActive) {
-                    setFilterStates(filterStates.filter(s => s !== state));
-                  } else {
-                    setFilterStates([...filterStates, state]);
-                  }
-                }
-              });
-            });
-
-            // Priority pills
-            (['low', 'medium', 'high', 'urgent'] as const).forEach(p => {
-              const isActive = filterPriorities.includes(p);
-              
-              let activeClass = "bg-sky-100 text-sky-700 dark:bg-sky-800 dark:text-sky-200 border border-sky-200 dark:border-sky-700";
-              if (p === 'medium') activeClass = "bg-amber-100 text-amber-700 dark:bg-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-700";
-              if (p === 'high') activeClass = "bg-orange-100 text-orange-700 dark:bg-orange-800 dark:text-orange-200 border border-orange-200 dark:border-orange-700";
-              if (p === 'urgent') activeClass = "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-200 border border-red-200 dark:border-red-700";
-              
-              pills.push({
-                id: `priority-${p}`,
-                type: 'priority',
-                label: p,
-                isActive,
-                activeClass,
-                onClick: () => {
-                  if (isActive) {
-                    setFilterPriorities(filterPriorities.filter(pr => pr !== p));
-                  } else {
-                    setFilterPriorities([...filterPriorities, p]);
-                  }
-                }
-              });
-            });
-
-            // Tag pills
-            filterTags.forEach(tagId => {
-              const tag = allTags.find((t: Tag) => t.id === tagId);
-              if (tag) {
-                pills.push({
-                  id: `tag-${tag.id}`,
-                  type: 'tag',
-                  // A tag row can carry a null name; the pill rendered nothing
-                  // for it before, and still does.
-                  label: tag.name ?? '',
-                  isActive: true,
-                  activeClass: getTagColorClasses(tag.color || 'slate'),
-                  onClick: () => setFilterTags(filterTags.filter(id => id !== tag.id))
-                });
-              }
-            });
-
-            // Sort so active pills are always at the front
-            pills.sort((a, b) => {
-              if (a.isActive && !b.isActive) return -1;
-              if (!a.isActive && b.isActive) return 1;
-              return 0;
-            });
-
-            return pills.map(pill => (
-              <button
-                key={pill.id}
-                onClick={pill.onClick}
-                className={cn(
-                  "px-4 py-1.5 font-heading text-sm font-medium rounded-full transition-all capitalize shrink-0 flex items-center gap-1.5",
-                  pill.isActive 
-                    ? pill.activeClass
-                    : "bg-muted text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent"
-                )}
-              >
-                {pill.label}
-                {pill.type === 'tag' && (
-                  <X className="h-3.5 w-3.5 ml-0.5 opacity-70" />
-                )}
-              </button>
-            ));
-          })()}
-
-          {/* Tags Add Button */}
-          <Popover open={isTagFilterOpen} onOpenChange={setIsTagFilterOpen}>
-            <PopoverTrigger className="inline-flex items-center justify-center whitespace-nowrap font-heading font-medium bg-muted text-muted-foreground hover:text-foreground hover:bg-accent h-[32px] rounded-full px-4 text-sm gap-2 transition-colors shrink-0 ml-1 border border-transparent">
-              <TagIcon className="h-3.5 w-3.5" />
-              {filterTags.length > 0 ? `${filterTags.length}/3 Tags` : "Tags"}
-            </PopoverTrigger>
-            <PopoverContent className="w-[200px] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search tags..." className="h-9" />
-                <CommandList>
-                  <CommandEmpty>No tags found.</CommandEmpty>
-                  <CommandGroup>
-                    {allTags.map((tag) => {
-                      const isSelected = filterTags.includes(tag.id);
-                      const isMaxReached = filterTags.length >= 3 && !isSelected;
-                      
-                      return (
-                        <CommandItem
-                          key={tag.id}
-                          disabled={isMaxReached}
-                          className={isMaxReached ? "opacity-50 cursor-not-allowed" : ""}
-                          onSelect={() => {
-                            if (isSelected) {
-                              setFilterTags(filterTags.filter(id => id !== tag.id));
-                            } else if (!isMaxReached) {
-                              setFilterTags([...filterTags, tag.id]);
-                            }
-                          }}
-                        >
-                          <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
-                            <CheckCircle2 className="h-3 w-3" />
-                          </div>
-                          <div className={cn("h-2.5 w-2.5 rounded-full mr-2", getTagDotClass(tag.color || 'slate'))} />
-                          <span>{tag.name}</span>
-                        </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        </div>}
+        {isInitialLoading ? (
+          <TasksFilterRowSkeleton />
+        ) : (
+          <TaskFilterBar
+            filterStates={filterStates}
+            onFilterStatesChange={setFilterStates}
+            filterPriorities={filterPriorities}
+            onFilterPrioritiesChange={setFilterPriorities}
+            filterTags={filterTags}
+            onFilterTagsChange={setFilterTags}
+            allTags={allTags}
+            sort={sort}
+            onSortChange={setSort}
+          />
+        )}
       </AppHeader>
 
       <ManageTagsDialog open={isManageTagsOpen} onOpenChange={setIsManageTagsOpen} hideTrigger />
@@ -362,29 +269,35 @@ export default function Home() {
           {topLevelTasks.length === 0 && newTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center flex-1 py-24 text-center animate-fade-slide-in">
               <ListTodo className="h-8 w-8 text-muted-foreground/40 mb-4" />
-              <p className="text-muted-foreground text-sm">No tasks match your filters</p>
-              <Button onClick={handleAddNewTask} variant="ghost" className="gap-2 mt-4 text-primary hidden sm:inline-flex">
-                <Plus className="h-4 w-4" />
-                New task
-              </Button>
+              {hasAnyTask ? (
+                <>
+                  <p className="text-muted-foreground text-sm">No tasks match your filters</p>
+                  <Button onClick={resetFilters} variant="ghost" className="gap-2 mt-4 text-primary">
+                    <X className="h-4 w-4" />
+                    Clear filters
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-muted-foreground text-sm">No tasks yet</p>
+                  <p className="text-muted-foreground/70 text-xs mt-1">Add your first one to get started.</p>
+                  <Button onClick={handleAddNewTask} variant="ghost" className="gap-2 mt-4 text-primary">
+                    <Plus className="h-4 w-4" />
+                    New task
+                  </Button>
+                </>
+              )}
             </div>
           ) : (
             <div className="flex flex-col">
-              <div className="columns-1 md:columns-2 xl:columns-3 gap-6 space-y-6 px-0.5 pb-24 sm:px-1 sm:pb-4">
-                {/* Render Combined Tasks to Prevent Layout Jumps */}
+              <div className="columns-1 gap-6 space-y-6 px-0.5 pb-24 sm:px-1 sm:pb-4 md:columns-2 xl:columns-3">
                 <AnimatePresence>
-                {(() => {
-                  const combinedTasks = [
-                    ...newTasks.filter(nt => !topLevelTasks.some((t) => t.id === nt.id)),
-                    ...topLevelTasks
-                  ];
-
-                  return combinedTasks.map((task) => {
+                  {combinedTasks.map((task) => {
                     const isDraft = newTasks.some(nt => nt.id === task.id);
                     return (
-                      // content-visibility skips layout/paint for off-screen cards,
-                      // so DOM cost stays flat however many are loaded; the remembered
-                      // intrinsic size keeps the scrollbar stable.
+                      // content-visibility skips layout/paint for off-screen
+                      // cards, so DOM cost stays flat however many are loaded;
+                      // the remembered intrinsic size keeps the scrollbar stable.
                       <div key={task.id} className="break-inside-avoid [content-visibility:auto] [contain-intrinsic-size:auto_240px]">
                         <TaskCard
                           task={task}
@@ -395,8 +308,7 @@ export default function Home() {
                         />
                       </div>
                     );
-                  });
-                })()}
+                  })}
                 </AnimatePresence>
               </div>
 

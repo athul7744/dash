@@ -132,7 +132,7 @@ Important convention:
 - `src/components/SyncIndicator.tsx`
 - `src/components/LogViewerDialog.tsx`
 - `src/components/ManageNamedColorItemsDialog.tsx`
-- `src/components/tags/*` — shared tag selection and pill-strip primitives used by tasks and notes
+- `src/components/tags/*` — shared tag selection and pill-strip primitives used by tasks, notes, bookmarks, and events. `TagSelector` owns the search-and-toggle popover: pass `allowCreate={false}` where it filters a list rather than tagging an item (the inline "Create <query>" row is wrong there), `align` for a trigger pinned to the right edge, and `triggerContent`/`triggerProps` when the trigger is an icon button.
 - `src/components/ui/calendar.tsx` — the single date picker every date field renders (tasks, notes properties, query cells and filters, events, the day surface, the `/` date command). For single-date calendars it appends a quick-pick row — Today, Tomorrow, Next week — from `DATE_PRESETS`, with the matching day highlighted. The row is sized `w-0 min-w-full` so it takes its width from the grid instead of setting it; without that, the label row widened the calendar and stretched every day cell with it. Consumers that treat "no date" as a real value pass `clearable` to get a `×` at the end of the row (task due dates and the three notes date fields do); the rest omit it, since they require a date. Pass `presets={false}` to suppress the row, or an array of `{ label, date }` to replace it — an event log wants "Yesterday" where a due date does not. A caller that passes its own `footer` keeps it: the preset row renders above it rather than replacing it.
 - `src/components/motion/*` — the shared Motion primitives (see **Motion system** below): `Reveal` (scroll reveal), `FadeIn` (entrance wrapper), `AnimatedList` + `MotionListItem` (staggered enter/exit lists), `Presence` (hand-rolled popover enter/exit). All honor reduced-motion.
 - `src/components/journal/*` — the day journal, shared by the dashboard and the tracker: `DailyJournalEntry` (one day's inline editor over a lazily-created per-day page) and `WeekJournalDiary` (the tracker's week-of-days diary). See [Journal](#journal).
@@ -430,9 +430,14 @@ Responsibilities:
 
 - Runs the main task list query and tag filter query from local SQLite
 - Maintains local UI filter state for task state, priority, tag filters, and pagination
+- Reads the list order from `?sort=` (`buildTaskOrderBy` in `src/lib/tasks/tasks.ts`: due date, priority, recently created, title A–Z; each ends in `id ASC` so `LIMIT` paging can't skip or repeat a row). An unknown value falls back to `due`, and changing it resets the paging window with the filters. There is no by-completion order: under the default `pending` filter every row has no `completed_at`, so it would collapse to `id ASC` and look shuffled
+- Renders the filter row through `TaskFilterBar` (below): scrolling state/priority/tag pills with **Tags and Sort pinned over the right edge** — a hairline `border-l` divider, an opaque `bg-background` backing and a shadow (`before:` gradient, `black/60`) spreading left from it, so the pills clip and darken at the boundary instead of running under the controls. Both controls are square ringed buttons (`rounded-lg` + `ring-1`) at the same 32px height as the pills, where the pills are round and flat; from `sm` up they also show their label. The tag button is `TagSelector` with `allowCreate={false}` and `maxSelected={3}`, carrying the selected-tag count and tinting when filtering; the sort button shows the active order's own glyph (`SORT_ICONS` in `TaskSortMenu.tsx`), so the state is readable without opening the menu on a phone
 - Keeps optimistic draft tasks in memory before they are persisted
 - Renders the shared header plus a tasks-specific filter row
+- Distinguishes an empty list caused by having no tasks from one caused by the active filters: the first offers the add action and the second offers Clear filters. The count behind that decision includes trashed rows — an account whose tasks are all in the trash is not "empty" — and Clear filters resets the state filter to *all* states, not back to `pending`, or it would land on another empty view whenever nothing is pending
 - Uses `TaskCard` for task editing and subtask management
+- Lays the cards out in the same CSS multi-column masonry the quote, bookmark, and event lists use (`columns-1 md:columns-2 xl:columns-3`), so cards pack under each other regardless of height. Multi-column flows down each column before moving right, which means the due-date sort is read column by column rather than left to right; that is inherent to the layout and was left alone — Tab and screen readers already walk the same column-major order the eye does.
+- Draft cards render first, ahead of the sorted rows, so a new task never appears below the fold
 - Uses `ManageTagsDialog` for tag CRUD
 - Uses `MobileBottomFabs` for the floating add action on mobile
 
@@ -454,6 +459,12 @@ Important child components:
 
 - `src/components/tasks/TasksPageSkeleton.tsx`
   - Shared loading primitives for tasks route fallback and in-page loading state
+
+- `src/components/tasks/TaskFilterBar.tsx`
+  - The filter row in one place: the scrolling state/priority/tag pills (active first), the pinned tag filter (`TagSelector`, filter mode) and the sort menu. Pure presentation — every filter value and its setter is a prop, so the page owns the state
+
+- `src/components/tasks/TaskSortMenu.tsx`
+  - The list's order control: a pinned icon button showing the active order's glyph plus its label from `sm` up, opening a radio menu of `TASK_SORT_OPTIONS` with an icon per order. `SORT_ICONS` is a `Record<TaskSort, LucideIcon>`, so adding an order without an icon fails to compile
 
 Tasks page loading model:
 

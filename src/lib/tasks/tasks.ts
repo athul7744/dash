@@ -7,6 +7,10 @@ import { cancelUpdate, debouncedUpdate } from "@/lib/shared/debounced-update";
  * "finished on this day", and `updated_at` can't stand in for it — any later
  * edit moves that. Every surface that ticks a task goes through here so none of
  * them can write one without the other.
+ *
+ * The column is nullable, and tasks ticked before it existed carry nothing, so
+ * anything ordering or displaying by it has to handle NULL rather than assume
+ * every completed row has a timestamp.
  */
 export function setTaskState(id: string, nextState: string) {
   debouncedUpdate(id, "state", nextState);
@@ -30,6 +34,16 @@ export const PRIORITY_COLORS: Record<string, { bg: string; ring: string }> = {
 };
 
 export const PRIORITY_LEVELS = Object.keys(PRIORITY_COLORS) as Array<keyof typeof PRIORITY_COLORS>;
+
+export type TaskPriority = (typeof PRIORITY_LEVELS)[number];
+
+/**
+ * Read a stored priority, falling back to `medium` for null/blank — and for any
+ * value the rows predate, which is why this validates instead of casting.
+ */
+export function asTaskPriority(value: string | null | undefined): TaskPriority {
+  return PRIORITY_LEVELS.includes(value as TaskPriority) ? (value as TaskPriority) : "medium";
+}
 
 /**
  * Normalize a user-entered link: trim it and prepend `https://` when no scheme
@@ -64,6 +78,47 @@ export function extractFirstUrl(text: string): string | null {
   if (!match) return null;
   const candidate = match[0].replace(/[.,;:!?)\]}>"']+$/, "");
   return getLinkHost(candidate) ? normalizeUrl(candidate) : null;
+}
+
+/**
+ * Orders the task list. Each one ends in `id ASC` on purpose: the list pages
+ * with `LIMIT`, so a non-total order would let "load more" skip rows or show
+ * one twice as the window grows.
+ */
+export type TaskSort = "due" | "priority" | "created" | "title";
+
+export const TASK_SORT_OPTIONS: ReadonlyArray<{ value: TaskSort; label: string }> = [
+  { value: "due", label: "Due date" },
+  { value: "priority", label: "Priority" },
+  { value: "created", label: "Recently created" },
+  { value: "title", label: "Title A–Z" },
+];
+
+// Ranked from the same list the priority dots render from, so a new level can't
+// exist in the UI without the order knowing about it.
+const PRIORITY_RANK = `CASE priority ${[...PRIORITY_LEVELS]
+  .reverse()
+  .map((level, rank) => `WHEN '${level}' THEN ${rank}`)
+  .join(" ")} ELSE ${PRIORITY_LEVELS.length} END`;
+const UNDATED_LAST = `CASE WHEN due_date IS NULL OR due_date = '' THEN 1 ELSE 0 END`;
+
+/** Narrow an arbitrary `?sort=` value to a known sort, so a stale URL can't reach SQL. */
+export function isTaskSort(value: string | null | undefined): value is TaskSort {
+  return TASK_SORT_OPTIONS.some((option) => option.value === value);
+}
+
+export function buildTaskOrderBy(sort: TaskSort): string {
+  switch (sort) {
+    case "priority":
+      return `${PRIORITY_RANK} ASC, ${UNDATED_LAST}, due_date ASC, id ASC`;
+    case "created":
+      return `created_at DESC, id ASC`;
+    case "title":
+      return `title COLLATE NOCASE ASC, id ASC`;
+    case "due":
+    default:
+      return `${UNDATED_LAST}, due_date ASC, ${PRIORITY_RANK} ASC, id ASC`;
+  }
 }
 
 /**
@@ -107,7 +162,7 @@ export function getDueDateInfo(dueDate: Date | undefined): {
       show: true,
       bg: "bg-orange-500/10 dark:bg-orange-500/20",
       text: "text-orange-600 dark:text-orange-400 font-semibold",
-      label: `Due in ${diffDays} Days`,
+      label: `Due in ${diffDays} ${diffDays === 1 ? "Day" : "Days"}`,
     };
   }
   return {

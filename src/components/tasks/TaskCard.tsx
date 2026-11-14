@@ -26,6 +26,9 @@ import { cascadeOccurrences, purgeEntity } from "@/lib/shared/trash";
 import { useTaskTrashToast } from "@/hooks/use-trash-action";
 import { useOptimisticTagIds } from "@/hooks/use-entity-tags";
 import { parseRefTokens } from "@/lib/links/tokens";
+import { createTask } from "@/lib/tasks/create-task";
+import { asTaskPriority } from "@/lib/tasks/tasks";
+import { logger } from "@/lib/shared/logger";
 import { logOccurrence, deleteSubjectOccurrences } from "@/lib/events/events";
 import { TaskMetadataEditor } from "@/components/tasks/TaskMetadataEditor";
 import { TaskLink } from "@/components/tasks/TaskLink";
@@ -48,7 +51,7 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
   // changes (adjust-during-render, so no setState-in-effect). Local edits win
   // until the saved value changes.
   const [title, setTitle] = useDerivedState(task.title, (t) => t || "");
-  const [priority, setPriority] = useDerivedState(task.priority, (p) => p || "medium");
+  const [priority, setPriority] = useDerivedState(task.priority, asTaskPriority);
   const [link, setLink] = useDerivedState(task.link, (l) => l || "");
   const [dueDate, setDueDate] = useDerivedState(task.due_date, (d) => (d ? new Date(d) : undefined));
   const [selectedTagIds, setSelectedTagIds] = useOptimisticTagIds(tagIds);
@@ -57,6 +60,7 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
 
   const [newSubtaskTitle, setNewSubtaskTitle] = React.useState("");
   const [isSaving, setIsSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   // Optimistic UI state
   const [optimisticSubtasks, setOptimisticSubtasks] = React.useState<Task[]>([]);
@@ -123,17 +127,32 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
   }, []);
 
   const handleSaveNew = async () => {
-    if (!title.trim()) { onNewCancel?.(); return; }
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) { onNewCancel?.(); return; }
     setIsSaving(true);
-    const userId = await getCurrentUserId();
-    const now = new Date().toISOString();
-    await db.execute(
-      // Tag membership goes to entity_tags below.
-      `INSERT INTO tasks (id, user_id, title, priority, link, state, due_date, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
-      [task.id, userId, title.trim(), priority, link.trim() || null, dueDate ? dueDate.toISOString() : null, now, now]
-    );
-    if (selectedTagIds.length) await setEntityTags(task.id, "task", selectedTagIds);
+    setSaveError(null);
+    try {
+      // One create path for every surface that makes a task (capture, share,
+      // event materialisation, and this draft). The card used to keep its own
+      // INSERT, which had already drifted from the shared one.
+      await createTask({
+        id: task.id,
+        title: trimmedTitle,
+        priority,
+        link,
+        dueDate: dueDate ?? null,
+        tags: selectedTagIds,
+      });
+    } catch (error) {
+      // Keep the draft on screen so the typed text survives, and put the button
+      // back rather than leaving it on "Saving..." for ever.
+      logger.error("Failed to save task", error);
+      setSaveError("Couldn't save this task. Try again.");
+    } finally {
+      // The card unmounts once the row arrives; until then (or if it never
+      // does) the button has to be usable again.
+      setIsSaving(false);
+    }
   };
 
   const commitNewSubtask = async () => {
@@ -302,7 +321,11 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
               excludeId={task.id}
               ariaLabel="Task title"
               placeholder="Task Title..."
-              onChange={(v) => { if (!isTrashed) setTitle(v); }}
+              onChange={(v) => {
+                if (isTrashed) return;
+                setTitle(v);
+                if (saveError) setSaveError(null);
+              }}
               onBlur={() => { if (!isNew && !isTrashed) handleUpdate("title", title); }}
               onCommit={() => { if (isNew) void handleSaveNew(); }}
               className={`flex-1 block bg-transparent text-[15px] font-semibold leading-snug ${task.state === 'completed' || isTrashed ? 'line-through text-muted-foreground' : 'text-card-foreground'}`}
@@ -499,7 +522,10 @@ export function TaskCard({ task, subtasks, tagIds = [], isNew, onNewCancel }: Ta
 
       {/* Save/Cancel for Drafts */}
       {isNew && (
-        <div className="bg-muted/10 border-t border-border p-2 flex justify-end gap-2">
+        <div className="bg-muted/10 border-t border-border p-2 flex items-center justify-end gap-2">
+          {saveError ? (
+            <p role="alert" className="mr-auto text-xs text-destructive">{saveError}</p>
+          ) : null}
           <Button variant="ghost" size="sm" onClick={onNewCancel} disabled={isSaving}>Cancel</Button>
           <Button size="sm" onClick={handleSaveNew} disabled={!title.trim() || isSaving}>
             {isSaving ? "Saving..." : "Save Task"}

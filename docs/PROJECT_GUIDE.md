@@ -446,6 +446,8 @@ Important child components:
 - `src/components/tasks/TaskCard.tsx`
   - Owns inline task editing behavior
   - Handles title, priority, due date, tags, state changes, and subtasks
+  - Persists a draft through `createTask()` in `src/lib/tasks/create-task.ts`, the same path capture, `/share`, and event materialisation use — the card keeps no INSERT of its own
+  - A failed draft save leaves the draft and its text on screen, reports the error in the draft footer, and returns the button to "Save Task"
   - Uses `debouncedUpdate()` for merged updates
   - Uses optimistic local state for deletes and subtasks
 

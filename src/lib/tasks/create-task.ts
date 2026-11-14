@@ -3,13 +3,14 @@ import { v4 as uuidv4 } from "uuid";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { setEntityTags } from "@/lib/tags/entity-tags";
+import type { TaskPriority } from "@/lib/tasks/tasks";
 
 export interface CreateTaskInput {
   title: string;
   link?: string | null;
   dueDate?: Date | null;
   tags?: string[];
-  priority?: "low" | "medium" | "high" | "urgent";
+  priority?: TaskPriority;
   /** Optional deterministic id (e.g. reminders derive one per occurrence for idempotency). */
   id?: string;
 }

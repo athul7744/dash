@@ -219,6 +219,12 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 - `tests/tasks/task-sort.test.ts`
   Covers `buildTaskOrderBy` (`src/lib/tasks/tasks.ts`), the ORDER BY behind the list's order control: undated rows last when sorting by date, priority compared as a rank rather than text, newest-first for created, case-insensitive titles, and `id ASC` as the tail of every fragment — the list pages with `LIMIT`, so a non-total order would let "load more" skip or repeat a row. The priority rank is asserted value by value because it is derived from `PRIORITY_LEVELS` (the same list the dots render from), so a new level has to reach the CASE. Also `isTaskSort`, which keeps a stale or hostile `?sort=` value out of the SQL.
 
+- `tests/tasks/create-task.test.ts`
+  Covers `createTask` (`src/lib/tasks/create-task.ts`), the one create path behind the draft card, `/share`, universal capture, and event materialisation: the default row (`medium`, `pending`, NULL link and due date, equal created/updated), a caller-supplied id for idempotent reminders, priority/link/ISO-due-date passthrough, a whitespace link stored as NULL, and tag membership written only when tags were given. The card carried its own INSERT until it was collapsed onto this one; the row shape is what the two had drifted apart on.
+
+- `tests/shared/calendar-presets.dom.test.tsx`
+  Covers the quick-pick row baked into the shared `Calendar` (`src/components/ui/calendar.tsx`), which eight call sites get without asking: the three defaults on a single-date calendar, each label handing back the day it promises, `presets={false}` hiding the row, a caller's own list replacing the defaults, and Clear appearing only with `clearable` plus a selected date (and calling `onSelect(undefined)`).
+
 ## Usage
 
 - `bun run test` — one-shot run of both layers: the node-based suites, then the jsdom integration suites.

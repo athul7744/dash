@@ -9,6 +9,7 @@ import { CalendarClock, Loader2, MapPin, Plus, Search } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { CollectionHeading } from "@/components/CollectionHeading";
+import { TagFilterButton } from "@/components/tags/TagFilterButton";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { EventCard } from "@/components/events/EventCard";
 import { SubjectCard } from "@/components/events/SubjectCard";
@@ -64,6 +65,7 @@ export default function EventsPage() {
   useEventMaterializer();
 
   const [tab, setTab] = useState<Tab>("all");
+  const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
   const [timelineQuery, setTimelineQuery] = useState("");
   const searchReady = useSearchIndexReady();
 
@@ -125,13 +127,32 @@ export default function EventsPage() {
   // The cards are a JS-computed, overdue-first union (no SQL sort key), so window
   // the render instead of the query: grow on scroll, reset when the tab changes.
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
-  const [prevTab, setPrevTab] = useState(tab);
-  if (prevTab !== tab) {
-    setPrevTab(tab);
+  const cardFilterKey = `${tab}|${filterTagIds.join()}`;
+  const [prevCardFilterKey, setPrevCardFilterKey] = useState(cardFilterKey);
+  if (prevCardFilterKey !== cardFilterKey) {
+    setPrevCardFilterKey(cardFilterKey);
     setLoadedCount(PAGE_SIZE);
   }
-  const visibleCards = useMemo(() => cards.slice(0, loadedCount), [cards, loadedCount]);
-  const hasMoreCards = visibleCards.length < cards.length;
+
+  // Tag membership for every card, not just the visible window: the filter runs
+  // before the window, so an event off-screen still has to be judged.
+  const cardEntityIds = useMemo(
+    () => cards.map((c) => (c.type === "event" ? c.event.id : c.subjectId)),
+    [cards],
+  );
+  const cardTags = useEntityTags(cardEntityIds);
+
+  // Every selected tag has to be present (AND), matching the tasks list.
+  const filteredCards = useMemo(() => {
+    if (filterTagIds.length === 0) return cards;
+    return cards.filter((c) => {
+      const ids = cardTags.get(c.type === "event" ? c.event.id : c.subjectId) ?? [];
+      return filterTagIds.every((tagId) => ids.includes(tagId));
+    });
+  }, [cards, cardTags, filterTagIds]);
+
+  const visibleCards = useMemo(() => filteredCards.slice(0, loadedCount), [filteredCards, loadedCount]);
+  const hasMoreCards = visibleCards.length < filteredCards.length;
   const cardsSentinelRef = useInfiniteScroll(() => setLoadedCount((n) => n + PAGE_SIZE), hasMoreCards);
 
   // Subject labels: only the visible cards on browse; all subjects (for name
@@ -142,9 +163,6 @@ export default function EventsPage() {
     [visibleCards],
   );
   const subjectLabels = useSubjectLabels(tab === "timeline" ? timelineSubjects : visibleSubjectRefs);
-
-  // Tags for the visible event cards, batched (entity_tags). Subject cards have none.
-  const eventTags = useEntityTags(useMemo(() => visibleCards.flatMap((c) => (c.type === "event" ? [c.event.id] : [])), [visibleCards]));
 
   // Browse / fallback rows from the loaded recency window (in-JS substring match).
   const fallbackRows = useMemo<TimelineRow[]>(() => {
@@ -267,19 +285,41 @@ export default function EventsPage() {
                     {t.label}
                   </button>
                 ))}
+
+                {/* Inside the control, after a divider: tagging is another way to
+                    narrow the same list, not a separate toolbar. Hidden on the
+                    timeline, which lists occurrences rather than cards. */}
+                {tab !== "timeline" ? (
+                  <>
+                    <span aria-hidden className="mx-0.5 w-px shrink-0 self-stretch bg-border" />
+                    <TagFilterButton
+                      selectedTagIds={filterTagIds}
+                      onChange={setFilterTagIds}
+                      summary="tag"
+                      variant="inline"
+                      tagColor
+                    />
+                  </>
+                ) : null}
               </div>
             </div>
 
             {tab !== "timeline" ? (
               <>
-                <CollectionHeading label={HEADING[tab]} count={cards.length} className="mt-6 mb-6" />
+                <CollectionHeading label={HEADING[tab]} count={filteredCards.length} className="mt-6 mb-6" />
+
+                {filteredCards.length === 0 ? (
+                  <p className="py-16 text-center text-sm text-muted-foreground">
+                    No {tab === "overdue" ? "overdue events" : tab === "scheduled" ? "scheduled events" : "events"} match.
+                  </p>
+                ) : null}
 
                 {/* content-visibility keeps off-screen cards from costing layout/paint. */}
                 <div className="columns-1 gap-5 md:columns-2 lg:columns-3">
                   {visibleCards.map((c) => (
                     <div key={c.key} className="mb-5 break-inside-avoid [content-visibility:auto] [contain-intrinsic-size:auto_220px]">
                       {c.type === "event" ? (
-                        <EventCard event={c.event} aggregate={c.agg} placeSuggestions={placeSuggestions} tagIds={eventTags.get(c.event.id) ?? []} />
+                        <EventCard event={c.event} aggregate={c.agg} placeSuggestions={placeSuggestions} tagIds={cardTags.get(c.event.id) ?? []} />
                       ) : (
                         <SubjectCard subjectId={c.subjectId} subjectKind={c.subjectKind} label={subjectLabels.get(c.subjectId) ?? ""} aggregate={c.agg} placeSuggestions={placeSuggestions} />
                       )}

@@ -5,6 +5,7 @@ import { Bookmark as BookmarkIcon, Loader2, Plus, Search, X } from "lucide-react
 
 import { AppHeader } from "@/components/AppHeader";
 import { CollectionHeading } from "@/components/CollectionHeading";
+import { TagFilterButton } from "@/components/tags/TagFilterButton";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { BookmarkCard } from "@/components/bookmarks/BookmarkCard";
 import { DashboardBookmarks } from "@/components/dashboard/DashboardBookmarks";
@@ -19,7 +20,6 @@ import { createBookmark } from "@/lib/bookmarks/bookmarks";
 import { refreshBookmarkTitle } from "@/lib/bookmarks/fetch-metadata";
 import { getApp, HEADER_ACTION_BASE } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
-import { getTagColorClasses } from "@/lib/tasks/colors";
 import { useAllTags } from "@/hooks/use-tags";
 
 const bookmarksApp = getApp("bookmarks");
@@ -107,11 +107,12 @@ export default function BookmarksPage() {
   // Tags that are actually used (across all bookmarks), for a compact filter row.
   const usedTags = useMemo(() => allTags.filter((t) => usedTagIds.has(t.id)), [allTags, usedTagIds]);
 
-  const toggleFilterTag = (id: string) =>
-    setFilterTagIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
 
-  const omniField = (
-    <div className="mx-auto flex w-full max-w-xl items-center gap-2.5 rounded-full border border-border/65 bg-card/60 px-4 py-2.5 transition-colors focus-within:border-border">
+  // One field does both jobs, and carries the tag filter inside its own chrome —
+  // a filter is part of searching, not a second control beside it. `withTagFilter`
+  // keeps it out of the empty state, where there is nothing to filter yet.
+  const omniField = (withTagFilter = false) => (
+    <div className="mx-auto flex w-full max-w-xl items-center gap-2.5 rounded-full border border-border/65 bg-card/60 py-2.5 pl-4 pr-1.5 transition-colors focus-within:border-border">
       {urlToAdd ? (
         <Plus className="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" />
       ) : (
@@ -130,6 +131,18 @@ export default function BookmarksPage() {
         placeholder="Search or paste a link…"
         className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
       />
+      {/* Hidden while a link is pasted: the field is then an add action, not a search. */}
+      {withTagFilter && usedTags.length > 0 && !urlToAdd ? (
+        <TagFilterButton
+          selectedTagIds={filterTagIds}
+          onChange={setFilterTagIds}
+          summary="tag"
+          tagColor
+          variant="inline"
+          size="md"
+          className="h-7 -my-1"
+        />
+      ) : null}
       {urlToAdd ? (
         <button
           type="button"
@@ -183,7 +196,7 @@ export default function BookmarksPage() {
                 Save links worth returning to. One resurfaces on your dashboard each day.
               </p>
             </div>
-            <div className="w-full max-w-sm">{omniField}</div>
+            <div className="w-full max-w-sm">{omniField()}</div>
           </div>
         ) : (
           <>
@@ -193,30 +206,7 @@ export default function BookmarksPage() {
             <CollectionHeading label="All bookmarks" count={grandTotal} className="mt-12 mb-6 sm:mt-16" />
 
             <div className="mb-8">
-              {omniField}
-
-              {usedTags.length > 0 ? (
-                <div className="mx-auto mt-3 flex max-w-xl flex-wrap justify-center gap-1.5">
-                  {usedTags.map((tag) => {
-                    const active = filterTagIds.includes(tag.id);
-                    return (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        onClick={() => toggleFilterTag(tag.id)}
-                        className={cn(
-                          "inline-flex h-6 items-center rounded-full px-2.5 text-[11px] font-medium transition-colors",
-                          active
-                            ? getTagColorClasses(tag.color || "slate")
-                            : "border border-border/60 text-muted-foreground hover:bg-accent",
-                        )}
-                      >
-                        {tag.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
+              {omniField(true)}
             </div>
 
             {matchTotal === 0 ? (

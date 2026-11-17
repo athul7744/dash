@@ -1816,9 +1816,7 @@ body[data-display-font="bricolage"] {
     linear-gradient(black, black) no-clip subtract,
     linear-gradient(to var(--pill-fade-dir), black, transparent) var(--pill-fade-start-pos) 0 / var(--pill-fade-start) 100% no-repeat no-clip,
     linear-gradient(to var(--pill-fade-dir), transparent, black) var(--pill-fade-end-pos) 0 / var(--pill-fade-end) 100% no-repeat no-clip;
-  animation: pill-reveal-fade-start linear both, pill-hide-fade-end linear both;
-  animation-timeline: scroll(self inline);
-  animation-range: 0 var(--pill-fade-size), calc(100% - var(--pill-fade-size)) 100%;
+  transition: --pill-fade-start 150ms ease-out, --pill-fade-end 150ms ease-out;
 }
 
 .pill-scroller:dir(rtl) {
@@ -1827,23 +1825,9 @@ body[data-display-font="bricolage"] {
   --pill-fade-end-pos: 0;
 }
 
-@keyframes pill-reveal-fade-start {
-  to { --pill-fade-start: var(--pill-fade-size); }
-}
-
-@keyframes pill-hide-fade-end {
-  from { --pill-fade-end: var(--pill-fade-size); }
-}
-
-/* Without scroll-driven animations the bands would never appear, and the hidden
-   scrollbar means nothing else says the row scrolls. `useScrollAffordance`
-   marks `more-start` / `more-end` with an observer instead, and the fades
-   transition rather than tracking the scroll. */
-@supports not (animation-timeline: scroll()) {
-  .pill-scroller {
-    animation: none;
-    transition: --pill-fade-start 200ms, --pill-fade-end 200ms;
-  }
-  .pill-scroller.more-start { --pill-fade-start: var(--pill-fade-size); }
-  .pill-scroller.more-end { --pill-fade-end: var(--pill-fade-size); }
-}
+/* `useScrollAffordance` marks the ends that still have content. An observer
+   rather than `animation-timeline: scroll()`: the scroll-driven version left a
+   band painted after the row stopped overflowing (the timeline keeps its last
+   progress until the next scroll), which showed a fade on the wrong side. */
+.pill-scroller.more-start { --pill-fade-start: var(--pill-fade-size); }
+.pill-scroller.more-end { --pill-fade-end: var(--pill-fade-size); }

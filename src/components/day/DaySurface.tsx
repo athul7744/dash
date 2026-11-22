@@ -17,30 +17,41 @@
 import { useMemo, useState, ViewTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { addDays, format, isValid, parseISO } from "date-fns";
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Flag, X } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
-import { EntityRow } from "@/components/links/EntityRow";
+import { ENTITY_ROW_CLASS, EntityRow } from "@/components/links/EntityRow";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ActivityToolbar } from "@/components/tracker/ActivityToolbar";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { DailyJournalEntry } from "@/components/journal/DailyJournalEntry";
+import { MajorEventDialog } from "@/components/day/MajorEventDialog";
 import { TimeGrid } from "@/components/tracker/TimeGrid";
 import { MoodPicker } from "@/components/dashboard/MoodPicker";
 import { useCurrentUserId } from "@/hooks/use-current-user-id";
 import { useDayCaptures, useDayOccurrences, useDayTasks } from "@/hooks/use-day";
 import { useSubjectLabels } from "@/hooks/use-events";
+import { useDayMajorEvents } from "@/hooks/use-major-events";
 import { useJournalEntryDays } from "@/hooks/use-journal";
 import { useBacklinks } from "@/hooks/use-links";
 import { useTimeGrid } from "@/hooks/use-time-grid";
 import { getDueDateInfo } from "@/lib/tasks/tasks";
 import { stripRefs } from "@/lib/links/tokens";
+import { SpriteIcon } from "@/components/notes/SpriteIcon";
+import { useToast } from "@/components/toast/ToastProvider";
+import { deleteMajorEvent, restoreMajorEvent, type MajorEvent } from "@/lib/major-events/major-events";
+import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
 import { dayApp } from "@/lib/shared/destinations";
 import { systemPageId } from "@/lib/notes/system-pages";
 import { localDateKey } from "@/lib/tracker/day-keys";
+import { cn } from "@/lib/shared/utils";
 import { summarizeDay } from "@/lib/tracker/day-summary";
 import { COLOR_HEX } from "@/components/tracker/widgets/types";
+
+/** The trailing action on a major-event row (remove), matching the row's height. */
+const MAJOR_EVENT_ROW_ACTION =
+  "grid w-9 shrink-0 place-items-center rounded-lg border border-border/60 bg-muted/40 text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground dark:bg-card/80";
 
 function Section({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
   return (
@@ -101,6 +112,29 @@ export function DaySurface() {
     [dateKey, grid.data, grid.colorMap],
   );
 
+  const majorEvents = useDayMajorEvents(dateKey);
+  const { toast } = useToast();
+  const [majorEventOpen, setMajorEventOpen] = useState(false);
+  const [editingMajorEvent, setEditingMajorEvent] = useState<MajorEvent | null>(null);
+
+  const openMajorEvent = (event: MajorEvent | null) => {
+    setEditingMajorEvent(event);
+    setMajorEventOpen(true);
+  };
+
+  // Deleting keeps the record in hand so Undo can re-insert it with the same id
+  // and rank — the app's reversible-delete pattern, not a confirm dialog.
+  const removeMajorEvent = (event: MajorEvent) => {
+    void deleteMajorEvent(event.id).then(() => {
+      const { id, sortRank, ...content } = event;
+      toast({
+        message: `Removed “${event.title}”`,
+        actionLabel: "Undo",
+        onAction: () => void restoreMajorEvent(id, content, sortRank),
+      });
+    });
+  };
+
   const step = (delta: number) => router.push(`/day/${localDateKey(addDays(date, delta))}`, {
     transitionTypes: [delta < 0 ? "day-prev" : "day-next"],
   });
@@ -115,7 +149,7 @@ export function DaySurface() {
         default="none"
       >
       <div className="skeleton-settle-in mx-auto max-w-3xl space-y-6 px-[var(--app-gutter-x)] py-6 pb-40">
-        <header className="flex items-center justify-between gap-3">
+        <header className="flex items-start justify-between gap-3">
           {/* The date itself is the picker: two arrows alone make last month a
               dozen clicks. */}
           <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
@@ -138,7 +172,10 @@ export function DaySurface() {
               />
             </PopoverContent>
           </Popover>
-          <div className="flex items-center gap-1">
+
+          {/* Day navigation, with the major-event flag at its head: marking a day
+              belongs with moving between them. */}
+          <div className="flex items-center gap-1 pt-1">
             {!isToday ? (
               <button
                 type="button"
@@ -148,6 +185,25 @@ export function DaySurface() {
                 Today
               </button>
             ) : null}
+            <button
+              type="button"
+              onClick={() => openMajorEvent(null)}
+              aria-label="Mark as major event"
+              title="Mark as major event"
+              className={cn(
+                "relative grid size-8 place-items-center rounded-full transition-colors",
+                majorEvents.length > 0
+                  ? "bg-rose-500/10 text-rose-700 hover:bg-rose-500/15 dark:text-rose-300"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+              )}
+            >
+              <Flag className="h-4 w-4" aria-hidden />
+              {majorEvents.length > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-rose-600 px-0.5 text-[9px] font-semibold leading-none text-white dark:bg-rose-500">
+                  {majorEvents.length}
+                </span>
+              ) : null}
+            </button>
             <button
               type="button"
               onClick={() => step(-1)}
@@ -170,6 +226,43 @@ export function DaySurface() {
         <Section title="Journal">
           <DailyJournalEntry date={date} placeholder="Write about this day…" hasEntry={hasJournalEntry} />
         </Section>
+
+        {majorEvents.length > 0 ? (
+          <Section title="Major events" count={majorEvents.length}>
+            <div className="space-y-1.5">
+              {majorEvents.map((event) => (
+                <div key={event.id} className="flex items-stretch gap-1">
+                  {/* The row opens the editor: this lists the day it is on, so a
+                      link to that day would go nowhere. */}
+                  <button
+                    type="button"
+                    onClick={() => openMajorEvent(event)}
+                    className={cn(ENTITY_ROW_CLASS, "flex-1")}
+                  >
+                    {event.emoji ? (
+                      <SpriteIcon name={event.emoji} size={15} />
+                    ) : (
+                      <Flag className="h-3.5 w-3.5 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden />
+                    )}
+                    <span className="min-w-0 flex-1 truncate">{event.title}</span>
+                    {event.note ? (
+                      <span className="shrink-0 max-w-[45%] truncate text-[11px] text-muted-foreground/70">{event.note}</span>
+                    ) : null}
+                    <SelectedTagPills tagIds={event.tagIds} max={2} className="shrink-0 justify-end" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeMajorEvent(event)}
+                    aria-label={`Remove ${event.title}`}
+                    className={cn(MAJOR_EVENT_ROW_ACTION, "hover:text-destructive")}
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </Section>
+        ) : null}
 
         <Section title="The day">
           <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/40 dark:bg-card/80 p-4">
@@ -326,6 +419,16 @@ export function DaySurface() {
       </ViewTransition>
 
       <MobileBottomFabs app={dayApp} />
+
+      <MajorEventDialog
+        open={majorEventOpen}
+        onOpenChange={(next) => {
+          setMajorEventOpen(next);
+          if (!next) setEditingMajorEvent(null);
+        }}
+        date={date}
+        event={editingMajorEvent}
+      />
     </>
   );
 }

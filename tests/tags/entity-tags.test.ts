@@ -62,11 +62,25 @@ describe("setEntityTags — add", () => {
   });
 
   it("bumps the right table per kind", async () => {
-    for (const [kind, table] of [["bookmark", "blocks"], ["event", "blocks"], ["note", "pages"]] as const) {
+    for (const [kind, table] of [
+      ["bookmark", "blocks"],
+      ["event", "blocks"],
+      ["note", "pages"],
+      ["major-event", "blocks"],
+    ] as const) {
       const { ctx, bumps } = makeCtx();
       await setEntityTags("e1", kind, ["x"], ctx);
       expect(bumps).toEqual([{ table, id: "e1" }]);
     }
+  });
+
+  it("stores a major event's membership under its own kind", async () => {
+    // Major events share `blocks` with bookmarks and events, so the kind is the
+    // only thing that tells their memberships apart.
+    const { ctx, rows, bumps } = makeCtx();
+    await setEntityTags("m1", "major-event", ["a"], ctx);
+    expect(rows[0]).toMatchObject({ entity_id: "m1", entity_kind: "major-event", tag_id: "a" });
+    expect(bumps).toEqual([{ table: "blocks", id: "m1" }]);
   });
 
   it("ids are deterministic (stable across runs)", async () => {

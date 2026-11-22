@@ -1,7 +1,7 @@
 /**
  * The tag-membership layer over the `entity_tags` table — the single source of
- * truth for which tags an entity carries, across tasks, bookmarks, events, and
- * notes (quotes carry no tags).
+ * truth for which tags an entity carries, across tasks, bookmarks, events, notes
+ * and major events (quotes carry no tags).
  *
  * `setEntityTags` is the single writer: given an entity id and the full set of
  * tag ids it should carry, it makes the rows match (diff-based, deterministic
@@ -15,7 +15,7 @@ import { getCurrentUserId } from "@/lib/shared/auth";
 import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 import type { DbContext } from "@/lib/links/links";
 
-export type TagEntityKind = "task" | "bookmark" | "event" | "note";
+export type TagEntityKind = "task" | "bookmark" | "event" | "note" | "major-event";
 
 /** The table whose `updated_at` we bump so a tag change rides the search
  * reconciler's watermark (tag rows themselves have no updated_at). */
@@ -24,6 +24,7 @@ const ENTITY_TABLE: Record<TagEntityKind, string> = {
   bookmark: "blocks",
   event: "blocks",
   note: "pages",
+  "major-event": "blocks",
 };
 
 /** Namespace for deterministic entity_tags ids (kept stable — do not change). */

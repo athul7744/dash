@@ -5,6 +5,11 @@ import { motion, useReducedMotion } from "motion/react";
 import { format } from "date-fns";
 import { popoverPresence } from "@/lib/shared/motion";
 import { cn } from "@/lib/shared/utils";
+import { SpriteIcon } from "@/components/notes/SpriteIcon";
+import { TagColorMark } from "@/components/tags/TagColorMark";
+import { useAllTags } from "@/hooks/use-tags";
+import type { MajorEvent } from "@/lib/major-events/major-events";
+import { tagColors } from "@/lib/tasks/colors";
 
 interface ActivityEntry {
   name: string;
@@ -23,11 +28,14 @@ interface DayPopoverProps {
   header?: React.ReactNode;
   /** Show mini progress bars next to hours (activity grid style) */
   showBars?: boolean;
+  /** Major events on this day, shown under the title before the day's detail. */
+  majorEvents?: MajorEvent[];
 }
 
 export const DayPopover = forwardRef<HTMLDivElement, DayPopoverProps>(
-  function DayPopover({ day, position, activities, totalHours, onClose, onEditDay, header, showBars }, ref) {
+  function DayPopover({ day, position, activities, totalHours, onClose, onEditDay, header, showBars, majorEvents }, ref) {
     const reduce = useReducedMotion();
+    const { tags: allTags } = useAllTags();
     return (
       <motion.div
         ref={ref}
@@ -51,6 +59,28 @@ export const DayPopover = forwardRef<HTMLDivElement, DayPopoverProps>(
 
         {/* Optional header content (e.g. rating) */}
         {header && <div className="px-3 pb-2">{header}</div>}
+
+        {/* Major events marked on this day — why the cell wears a dot. */}
+        {majorEvents && majorEvents.length > 0 ? (
+          <div className="space-y-1 px-3 pb-2">
+            {majorEvents.map((event) => {
+              // A waypoint's mark is its tag colours; untagged, it stays muted.
+              const colors = tagColors(event.tagIds, allTags);
+              return (
+                <div key={event.id} className="flex items-center gap-1.5 text-xs text-foreground">
+                  {event.emoji ? (
+                    <SpriteIcon name={event.emoji} size={13} />
+                  ) : colors.length > 0 ? (
+                    <TagColorMark colors={colors} size={9} />
+                  ) : (
+                    <span className="h-2 w-2 shrink-0 rounded-[3px] bg-muted-foreground/40" />
+                  )}
+                  <span className="min-w-0 flex-1 truncate">{event.title}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
 
         {/* Activity breakdown */}
         {totalHours > 0 && (

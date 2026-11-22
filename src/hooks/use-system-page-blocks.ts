@@ -18,7 +18,7 @@ const LIST_QUERY =
 
 /**
  * Live list of the blocks on a feature-owned system page (bookmarks, quotes,
- * reminders), ordered by sort_rank and mapped through `parse`. This is the one
+ * reminders, major events), ordered by sort_rank and mapped through `parse`. This is the one
  * shape those three app-item hooks share: it resolves the deterministic page id
  * from the current user, runs the block query, and latches "settled" the first
  * time the real query returns a non-fetching result — bridging the brief

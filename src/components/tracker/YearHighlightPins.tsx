@@ -68,19 +68,25 @@ export function YearHighlightPins({
 
     const measure = () => {
       const bounds = layer.getBoundingClientRect();
+      // Measured from the rendered nodes rather than from a selector per pin, so
+      // an id needs no escaping (a day key is safe, a label would not be).
+      const measured = new Map(
+        [...layer.querySelectorAll<HTMLElement>("[data-pin-id]")].map((el) => [el.dataset.pinId, el.getBoundingClientRect()]),
+      );
+
       const boxes = pins.flatMap((pin) => {
-        const el = layer.querySelector<HTMLElement>(`[data-pin-id="${CSS.escape(pin.id)}"]`);
-        if (!el) return [];
-        const { width, height } = el.getBoundingClientRect();
-        return [{
-          id: pin.id,
-          // Provisional: centred over the anchor and hanging above it, which is
-          // where a callout wants to sit before collisions are considered.
-          x: pin.anchorX - width / 2,
-          y: axis === "y" ? pin.anchorY - height - 6 : pin.anchorY - height,
-          w: width,
-          h: height,
-        }];
+        const size = measured.get(pin.id);
+        if (!size) return [];
+        const { width, height } = size;
+        // Provisional: the callout's natural resting spot before collisions, and
+        // always *clear of* its own anchor — a bubble covering the point it marks
+        // would have nowhere to draw its leader from. Vertically placed pins hang
+        // above their date; horizontally placed ones sit beside their row, centred
+        // on it.
+        const resting = axis === "y"
+          ? { x: pin.anchorX - width / 2, y: pin.anchorY - height - 6 }
+          : { x: pin.anchorX + 10, y: pin.anchorY - height / 2 };
+        return [{ id: pin.id, ...resting, w: width, h: height }];
       });
 
       const settled = placePins(boxes, {

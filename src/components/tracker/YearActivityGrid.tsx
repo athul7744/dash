@@ -257,7 +257,9 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
       return [{
         id: key,
         anchorX: frameInset + labelColWidth + 2,
-        anchorY: HEADER_HEIGHT + row * cellStride,
+        // The row's centreline, so the bubble sits level with its day and the
+        // leader runs along the row rather than pointing at a corner.
+        anchorY: HEADER_HEIGHT + row * cellStride + cellStride / 2,
         label: summary.label,
         emoji: summary.emoji,
         tagColors: tagColors(summary.tagIds, allTags),

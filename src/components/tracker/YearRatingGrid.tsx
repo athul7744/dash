@@ -42,7 +42,14 @@ const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
 function samePins(a: readonly YearPin[], b: readonly YearPin[]): boolean {
   return (
     a.length === b.length &&
-    a.every((pin, index) => pin.id === b[index].id && pin.x === b[index].x && pin.y === b[index].y)
+    a.every(
+      (pin, index) =>
+        pin.id === b[index].id &&
+        pin.x === b[index].x &&
+        pin.y === b[index].y &&
+        pin.bottom === b[index].bottom &&
+        pin.stem === b[index].stem,
+    )
   );
 }
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -197,21 +204,36 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
         // the last column would otherwise hang the bubble off the screen on a
         // phone. `fitPinX` also moves the tail onto the date it still belongs to.
         const { x, tail } = fitPinX(centre - 12, centre, base.width);
+        const dateTop = rect.top - base.top;
         return [{
           id: at,
           x,
-          y: rect.top - base.top - 34,
           tail,
+          // The bubble is anchored by its *bottom* edge, five pixels above the
+          // date's row, so a one-line pin and a two-line one hang the same
+          // distance from the day they mark. `y` is only the collision sort key.
+          bottom: base.height - (dateTop - 5),
+          y: dateTop,
+          dateTop,
           ...PIN_BOX,
           ...summary,
           tagColors: tagColors(summary.tagIds, allTags),
         }];
       });
 
-      const placed = placePins(targets);
+      const placed = placePins(targets, { axis: "y", direction: -1 });
       // Only when the positions actually moved: a re-render must not schedule
       // another one, and the pins are the same pixels until the layout changes.
-      setYearPins((current) => (samePins(current, placed) ? current : placed));
+      // Colliding pins move *up* — away from the dates below them — and grow a
+      // stem of exactly that distance, so every arrow still lands on its own day.
+      setYearPins((current) => {
+        const next = placed.map((pin) => {
+          const nudge = pin.dateTop - pin.y;
+          if (nudge <= 0) return { ...pin, stem: 0 };
+          return { ...pin, bottom: pin.bottom + nudge, stem: nudge };
+        });
+        return samePins(current, next) ? current : next;
+      });
     };
 
     // Measured in the layout pass, not a frame later: a background tab never runs

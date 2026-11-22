@@ -35,6 +35,15 @@ describe("placePins", () => {
     expect(placed.find((p) => p.id === "a")).toMatchObject({ y: 0 });
   });
 
+  it("nudges upward when told to, for pins anchored on their date's row", () => {
+    // The mood grid hangs each bubble just above its date: moving it *down* would
+    // drag it over the dates below, so a collision pushes it up instead.
+    const placed = placePins([pin({ id: "a", y: 0 }), pin({ id: "b", y: 2 })], { direction: -1 });
+    const b = placed.find((p) => p.id === "b");
+    expect(b?.y).toBe(-16);
+    expect(placed.find((p) => p.id === "a")?.y).toBe(0);
+  });
+
   it("never moves a pin on the axis it was not given, so it stays in its day's column", () => {
     const placed = placePins([pin({ id: "a", x: 20, y: 0 }), pin({ id: "b", x: 20, y: 0 })]);
     expect(placed.every((p) => p.x === 20)).toBe(true);

@@ -70,6 +70,13 @@ interface PlaceOptions {
    */
   axis?: "x" | "y";
   /**
+   * Which way a `y`-axis nudge goes. `1` (default) is down the page — for a pin
+   * that sits above its date, moving it *away* from the date. `-1` is up, for a
+   * grid that anchors pins by the date's row and would otherwise drag a bubble
+   * over the dates below it.
+   */
+  direction?: 1 | -1;
+  /**
    * How far a pin moves on each retry. Defaults to a pin's own height going down,
    * and just past its own width going sideways — a bubble's real width is what it
    * has to clear, so one nudge should land it beside its neighbour.
@@ -96,7 +103,7 @@ const overlaps = (a: PinBox, b: PinBox) =>
  */
 export function placePins<T extends PinBox>(
   boxes: readonly T[],
-  { axis = "y", step, maxSteps = 12 }: PlaceOptions = {},
+  { axis = "y", direction = 1, step, maxSteps = 12 }: PlaceOptions = {},
 ): T[] {
   const placed: T[] = [];
 
@@ -107,7 +114,9 @@ export function placePins<T extends PinBox>(
       for (let nudge = 1; nudge <= maxSteps; nudge += 1) {
         // Sideways alternates left/right so a cluster spreads both ways. Downwards
         // only ever goes down: a pin nudged up would cover the date before its own.
-        const offset = axis === "x" ? Math.ceil(nudge / 2) * pitch * (nudge % 2 === 1 ? 1 : -1) : nudge * pitch;
+        const offset = axis === "x"
+          ? Math.ceil(nudge / 2) * pitch * (nudge % 2 === 1 ? 1 : -1)
+          : nudge * pitch * direction;
         const candidate = axis === "x" ? { ...box, x: box.x + offset } : { ...box, y: box.y + offset };
         if (!placed.some((taken) => overlaps(candidate, taken))) {
           resolved = candidate;

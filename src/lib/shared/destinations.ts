@@ -1,4 +1,4 @@
-import { CalendarDays, Network, Trash2 } from "lucide-react";
+import { CalendarDays, Flag, Network, Trash2 } from "lucide-react";
 
 import { type AppConfig } from "@/lib/shared/apps";
 
@@ -26,6 +26,21 @@ export const dayApp: AppConfig = {
     iconBg: "bg-emerald-600/10 dark:bg-emerald-500/20",
     iconText: "text-emerald-700 dark:text-emerald-400",
     hoverText: "hover:text-emerald-800 dark:hover:text-emerald-300",
+  },
+};
+
+export const yearApp: AppConfig = {
+  id: "year",
+  name: "Year",
+  description: "The major events of every year, and the days behind them",
+  href: "/year",
+  icon: Flag,
+  accent: {
+    // Rose, so a waypoint never reads as the Day surface's emerald or the
+    // tracker's teal — it is a mark on the year, not a day or a habit.
+    iconBg: "bg-rose-500/10 dark:bg-rose-500/20",
+    iconText: "text-rose-700 dark:text-rose-400",
+    hoverText: "hover:text-rose-800 dark:hover:text-rose-300",
   },
 };
 

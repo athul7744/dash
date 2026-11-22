@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { hourCellKey, localDateKey } from "@/lib/tracker/day-keys";
 import { cn } from "@/lib/shared/utils";
 import { ACTIVITY_CELL_CLASSES } from "@/lib/tracker/activities";
 import { moodByValue, moodDotClass, type Mood } from "@/lib/tracker/moods";
+import { TagColorMark } from "@/components/tags/TagColorMark";
+import { useMajorEventsForDays } from "@/hooks/use-major-events";
+import { useAllTags } from "@/hooks/use-tags";
+import { summarizeDayEvents } from "@/lib/major-events/major-events";
+import { tagColors } from "@/lib/tasks/colors";
 import { format } from "date-fns";
 import {
   Select,
@@ -66,6 +71,12 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
   const currentTimeCellRef = useRef<HTMLTableCellElement>(null);
 
   const [scrolledX, setScrolledX] = useState(false);
+
+  // The week's major events, for the squircle beside each day's name: one pass
+  // over the registry answers all seven rows.
+  const dayKeys = useMemo(() => days.map((day) => localDateKey(day)), [days]);
+  const eventsByDay = useMajorEventsForDays(dayKeys);
+  const { tags: allTags } = useAllTags();
 
   const now = new Date();
   const todayKey = localDateKey(now);
@@ -173,9 +184,21 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
                   <Link
                     href={`/day/${dateKey}`}
                     title={`Open ${format(day, "d MMMM yyyy")}`}
-                    className="flex h-full w-full items-center px-3 py-2 transition-colors hover:text-emerald-700 dark:hover:text-emerald-400"
+                    className="flex h-full w-full items-center gap-1.5 px-3 py-2 transition-colors hover:text-emerald-700 dark:hover:text-emerald-400"
                   >
-                    {format(day, "EEE, MMM d")}
+                    <span className="min-w-0 truncate">{format(day, "EEE, MMM d")}</span>
+                    {/* Beside the name, on its centreline — not pushed to the
+                        column's far edge, which would read as a separate column. */}
+                    {(() => {
+                      const dayEvents = eventsByDay.get(dateKey);
+                      if (!dayEvents) return null;
+                      return (
+                        <TagColorMark
+                          colors={tagColors(summarizeDayEvents(dayEvents).tagIds, allTags)}
+                          size={9}
+                        />
+                      );
+                    })()}
                   </Link>
                 </td>
                 {HOURS.map((h) => {

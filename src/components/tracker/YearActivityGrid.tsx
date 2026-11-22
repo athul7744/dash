@@ -3,20 +3,27 @@
 import { useQuery } from "@powersync/react";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useMounted } from "@/hooks/use-mounted";
 import { format, startOfYear, endOfYear, eachDayOfInterval, getMonth, isEqual, startOfDay } from "date-fns";
-import { BarChart3, Grid3X3 } from "lucide-react";
+import { Grid3X3 } from "lucide-react";
 import { cn } from "@/lib/shared/utils";
 import { DEFAULT_ACTIVITY_CATEGORY, type ActivityCategory } from "@/lib/tracker/activities";
 import { TimeLog, ActivityType } from "@/lib/powersync/AppSchema";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { localDateKey, hourCellKey } from "@/lib/tracker/day-keys";
+import { localDateKey, hourCellKey, localDayFromKey } from "@/lib/tracker/day-keys";
 import { summarizeDay } from "@/lib/tracker/day-summary";
 import { computeActivityYearInsights } from "@/lib/tracker/year-insights";
 import { ActivityYearInsights, ActivityYearInsightsSkeleton } from "@/components/tracker/year-insights";
 import { COLOR_HEX } from "./widgets/types";
 import { DayPopover } from "./DayPopover";
+import { MajorEventDialog } from "@/components/day/MajorEventDialog";
+import { summarizeDayEvents, type MajorEvent } from "@/lib/major-events/major-events";
+import { YearEventPins, type YearPin } from "./YearEventPins";
+import { YearPinsToggle, YearViewControls } from "./YearViewControls";
+import { PIN_BOX, placePins } from "@/lib/major-events/pin-layout";
+import { useMajorEventDays } from "@/hooks/use-major-events";
+import { useAllTags } from "@/hooks/use-tags";
+import { tagColors } from "@/lib/tasks/colors";
 import { ActivityPillStrip } from "./ActivityPillStrip";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -109,6 +116,8 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [pinsOpen, setPinsOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<MajorEvent | null>(null);
   // Portal the mobile FAB to <body> so it's fixed to the viewport (not the
   // scrolling/animated view container) and lines up with the app-switcher FAB.
   const mounted = useMounted();
@@ -197,6 +206,11 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
     return map;
   }, [colorMap, logs, optimisticTimeLogs, year]);
 
+  // Major events for this year: a `Set.has` per day row while painting, and the
+  // day's events for the popover.
+  const { events: allMajorEvents, byDay: majorEventsByDay } = useMajorEventDays(year);
+  const { tags: allTags } = useAllTags();
+
   const allDays = useMemo(
     () => eachDayOfInterval({ start: startOfYear(new Date(year, 0, 1)), end: endOfYear(new Date(year, 0, 1)) }),
     [year]
@@ -228,6 +242,33 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
   );
 
   const gridMetrics = useMemo(() => getGridMetrics(containerWidth), [containerWidth]);
+
+  // The pins laid over the grid when the Events toggle is on: one per marked day,
+  // nudged apart by `placePins` so busy stretches of the year stay readable.
+  const eventPins: YearPin[] = useMemo(() => {
+    if (!pinsOpen) return [];
+    const { cellStride, frameInset, labelColWidth } = gridMetrics;
+    // A day's row IS its y here (the canvas has no per-day cells to measure), so
+    // the pins anchor at the grid's left edge and fan out along the row from
+    // there — two on one row would otherwise sit on top of each other.
+    const targets = allDays.flatMap((day, row) => {
+      const key = format(day, "yyyy-MM-dd");
+      const events = majorEventsByDay.get(key);
+      if (!events?.length) return [];
+      const summary = summarizeDayEvents(events);
+      return [{
+        id: key,
+        x: frameInset + labelColWidth + 2,
+        y: HEADER_HEIGHT + row * cellStride - 30,
+        ...PIN_BOX,
+        ...summary,
+        tagColors: tagColors(summary.tagIds, allTags),
+      }];
+    });
+    // Sideways, not down: sliding down would take a pin off its day's row, while
+    // a pin that cannot clear stays put and overlaps instead.
+    return placePins(targets, { axis: "x" });
+  }, [pinsOpen, allDays, majorEventsByDay, gridMetrics, allTags]);
 
   if (loadingTypes || loadingLogs) {
     return (
@@ -324,6 +365,18 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
       {/* Activity filter toolbar - two rows like week view, with headerLeft */}
     <div className="flex min-w-0 items-start gap-3 md:gap-4 animate-fade-slide-in [touch-action:pan-y]">
         {headerLeft}
+        {/* No desktop pair here: the flag lives in the insights panel beside the
+            grid, and Insights is that panel. Mobile still needs both, in the FAB. */}
+        <YearViewControls
+          pinCount={allMajorEvents.length}
+          pinsOpen={pinsOpen}
+          onTogglePins={() => setPinsOpen((open) => !open)}
+          onOpenInsights={() => setSummaryOpen(true)}
+          insightsOpen={summaryOpen}
+          showDesktopInsights={false}
+          mounted={mounted}
+          active={active}
+        />
         <ActivityPillStrip
           items={legend.map((item) => ({
             name: item.name,
@@ -347,6 +400,7 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
             showBars
             onClose={() => { setSelectedDay(null); setPopoverPos(null); }}
             onEditDay={() => { onDayClick?.(selectedDay); setSelectedDay(null); setPopoverPos(null); }}
+            majorEvents={majorEventsByDay.get(localDateKey(selectedDay))}
           />
         )}
       </AnimatePresence>
@@ -359,6 +413,8 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
         <ActivityCanvas
           allDays={allDays}
           cellMap={cellMap}
+          eventPins={eventPins}
+          onPinSelect={(id) => setEditingEvent(allMajorEvents.find((event) => event.id === id) ?? null)}
           activeFilter={activeFilter}
           gridMetrics={gridMetrics}
           selectedDay={selectedDay}
@@ -381,7 +437,14 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
             inside, only the activities list scrolls. */}
         <aside className="hidden lg:block lg:w-80 lg:shrink-0" style={{ height: gridMetrics.viewportHeight }}>
           <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4">
-            <h3 className="mb-3 shrink-0 font-heading text-sm font-semibold text-foreground">This year</h3>
+            <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
+              <h3 className="font-heading text-sm font-semibold text-foreground">This year</h3>
+              <YearPinsToggle
+                pinCount={allMajorEvents.length}
+                pinsOpen={pinsOpen}
+                onToggle={() => setPinsOpen((open) => !open)}
+              />
+            </div>
             <div className="min-h-0 flex-1">
               <ActivityYearInsights insights={yearInsights} fill />
             </div>
@@ -389,25 +452,14 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
         </aside>
       </div>
 
-      {/* Below lg (mobile + tablet), the grid is too narrow to sit beside the
-          panel, so open the summary from a floating button into a dialog.
-          Portalled to <body> so it's viewport-fixed (see `mounted` above). */}
-      {mounted && active &&
-        createPortal(
-          <button
-            type="button"
-            onClick={() => setSummaryOpen(true)}
-            className={cn(
-              "fixed left-1/2 z-50 inline-flex h-12 -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-medium text-foreground shadow-lg transition-colors hover:bg-accent lg:hidden",
-              summaryOpen && "hidden",
-            )}
-            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
-          >
-            <BarChart3 className="h-4 w-4" />
-            Insights
-          </button>,
-          document.body,
-        )}
+      <MajorEventDialog
+        open={editingEvent !== null}
+        onOpenChange={(next) => {
+          if (!next) setEditingEvent(null);
+        }}
+        date={localDayFromKey(editingEvent?.at ?? localDateKey(new Date()))}
+        event={editingEvent}
+      />
 
       <Dialog open={summaryOpen && active} onOpenChange={setSummaryOpen}>
         <DialogContent className="grid max-h-[85vh] grid-rows-[auto_minmax(0,1fr)]">
@@ -433,9 +485,13 @@ function cellFilterAlpha(hasHex: boolean, activity: string | undefined, filter: 
 const FILTER_ANIM_MS = 220;
 
 /** Canvas-based activity grid — renders 8,760 cells as pixels for smooth scroll/filter */
-function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedDay, onDaySelect }: {
+function ActivityCanvas({ allDays, cellMap, eventPins, onPinSelect, activeFilter, gridMetrics, selectedDay, onDaySelect }: {
   allDays: Date[];
   cellMap: Map<string, { activity: string; color: string }>;
+  /** Pins to lay over the grid (the Events toggle), already placed. */
+  eventPins: YearPin[];
+  /** Opens one pin's event for editing. */
+  onPinSelect: (eventId: string) => void;
   activeFilter: string | null;
   gridMetrics: ReturnType<typeof getGridMetrics>;
   selectedDay: Date | null;
@@ -448,6 +504,7 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
   const hoveredRowRef = useRef<number | null>(null);
   const needsRedrawRef = useRef(false);
   const reduceMotion = useReducedMotion();
+
   // Filter selection is crossfaded on the canvas (cheap: one redraw loop, no DOM
   // transitions). `from`/`to` hold the previous and current filter; `progress`
   // eases 0→1 across the change, interpolating each cell's alpha.
@@ -741,6 +798,10 @@ function ActivityCanvas({ allDays, cellMap, activeFilter, gridMetrics, selectedD
               })}
             </tbody>
           </table>
+
+          {eventPins.length > 0 ? (
+            <YearEventPins pins={eventPins} onSelect={onPinSelect} />
+          ) : null}
 
           {/* Canvas overlaid on cell area */}
           <canvas

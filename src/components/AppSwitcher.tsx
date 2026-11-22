@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Check, LayoutDashboard, Logs, Network, Settings, Trash2 } from "lucide-react";
+import { ChevronDown, Check, Flag, LayoutDashboard, Logs, Network, Settings, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { APPS, type AppConfig } from "@/lib/shared/apps";
 import { isLogViewerEnabled } from "@/lib/shared/logger";
@@ -36,6 +36,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
   const pathname = usePathname();
   const isGraph = pathname === "/graph";
   const isTrash = pathname === "/trash";
+  const isYear = pathname === "/year";
   const [open, setOpen] = useState(false);
   const [logDialogOpen, setLogDialogOpen] = useState(false);
   const showLogViewer = isLogViewerEnabled();
@@ -47,6 +48,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
     });
     router.prefetch("/graph");
     router.prefetch("/trash");
+    router.prefetch("/year");
   }, [current, router]);
 
   const trigger = useMemo(() => {
@@ -123,7 +125,7 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
             {APPS.map((app) => {
               const AppIcon = app.icon;
               // On the graph route `current` is still Notes; don't light its tile.
-              const isActive = current?.id === app.id && !isGraph;
+              const isActive = current?.id === app.id && !isGraph && !isYear;
               return (
                 <Link
                   key={app.id}
@@ -149,7 +151,8 @@ export function AppSwitcher({ current, size = "md" }: AppSwitcherProps) {
           {/* Destinations: an icon row on mobile, labeled rows on desktop. */}
           <div className="flex gap-1 sm:flex-col sm:gap-0">
             {[
-              { href: "/", label: "Dashboard", Icon: LayoutDashboard, active: !current && !isGraph && !isTrash },
+              { href: "/", label: "Dashboard", Icon: LayoutDashboard, active: !current && !isGraph && !isTrash && !isYear },
+              { href: "/year", label: "Year", Icon: Flag, active: isYear },
               { href: "/graph", label: "Graph", Icon: Network, active: isGraph },
               { href: "/trash", label: "Trash", Icon: Trash2, active: isTrash },
             ].map(({ href, label, Icon, active }) => (

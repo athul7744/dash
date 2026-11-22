@@ -2,8 +2,7 @@
 
 import { useQuery } from "@powersync/react";
 import { AnimatePresence } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMounted } from "@/hooks/use-mounted";
 import {
   format,
@@ -16,11 +15,11 @@ import {
   isToday,
 } from "date-fns";
 import { cn } from "@/lib/shared/utils";
-import { BarChart3, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { DailyRating, TimeLog, ActivityType } from "@/lib/powersync/AppSchema";
 import { ACTIVITY_CELL_CLASSES } from "@/lib/tracker/activities";
 import { moodByValue, moodDotClass, moodHex, moodRange, type Mood } from "@/lib/tracker/moods";
-import { localDateKey } from "@/lib/tracker/day-keys";
+import { localDateKey, localDayFromKey } from "@/lib/tracker/day-keys";
 import { summarizeDay } from "@/lib/tracker/day-summary";
 import { computeMoodYearInsights } from "@/lib/tracker/year-insights";
 import { MoodYearInsights } from "@/components/tracker/year-insights";
@@ -28,8 +27,24 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { COLOR_HEX } from "./widgets/types";
 import { FilterPill } from "./FilterPill";
 import { DayPopover } from "./DayPopover";
+import { YearEventPins, type YearPin } from "./YearEventPins";
+import { MajorEventDialog } from "@/components/day/MajorEventDialog";
+import { summarizeDayEvents, type MajorEvent } from "@/lib/major-events/major-events";
+import { YearViewControls } from "./YearViewControls";
+import { PIN_BOX, placePins } from "@/lib/major-events/pin-layout";
+import { useMajorEventDays } from "@/hooks/use-major-events";
+import { useAllTags } from "@/hooks/use-tags";
+import { tagColors } from "@/lib/tasks/colors";
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Whether two pin layouts are the same pixels — the guard against a re-render loop. */
+function samePins(a: readonly YearPin[], b: readonly YearPin[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((pin, index) => pin.id === b[index].id && pin.x === b[index].x && pin.y === b[index].y)
+  );
+}
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const YEAR_VIEW_SHELL_CLASS = "w-full";
 
@@ -63,6 +78,11 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
   // scrolling/animated view container) and lines up with the app-switcher FAB.
   const mounted = useMounted();
   const popoverRef = useRef<HTMLDivElement>(null);
+  // Pins are measured, not calculated: a handful of marked days are located in the
+  // DOM after layout, which is exact whatever the card width does.
+  const pinsLayerRef = useRef<HTMLDivElement>(null);
+  const [yearPins, setYearPins] = useState<YearPin[]>([]);
+  const [editingEvent, setEditingEvent] = useState<MajorEvent | null>(null);
 
   const yearStart = format(startOfYear(new Date(year, 0, 1)), "yyyy-MM-dd");
   const yearEnd = format(endOfYear(new Date(year, 0, 1)), "yyyy-MM-dd");
@@ -148,6 +168,57 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
 
     return map;
   }, [activityColorMap, logs, optimisticTimeLogs, year]);
+
+  // Major events for this year: a `Set.has` per cell in the loop below, and the
+  // day's events for the popover.
+  const { events: majorEventList, byDay: majorEventsByDay } = useMajorEventDays(year);
+  const majorEventCount = majorEventList.length;
+  const { tags: allTags } = useAllTags();
+
+  const [pinsOpen, setPinsOpen] = useState(false);
+
+  // Locate each marked day's cell and hang a pin just above it. Measured rather
+  // than computed: the day columns stretch with the card, so arithmetic would be a
+  // guess, while a handful of `getBoundingClientRect` calls are exact.
+  useLayoutEffect(() => {
+    if (!pinsOpen) return;
+    const layer = pinsLayerRef.current;
+    if (!layer) return;
+
+    const measure = () => {
+      const base = layer.getBoundingClientRect();
+      const targets = [...majorEventsByDay].flatMap(([at, events]) => {
+        const cell = layer.querySelector<HTMLElement>(`[data-date="${at}"]`);
+        if (!cell) return [];
+        const rect = cell.getBoundingClientRect();
+        const summary = summarizeDayEvents(events);
+        return [{
+          id: at,
+          // Centred on the day's own cell, sitting just above it: the tail then
+          // points at that date even when `placePins` nudges the bubble down. Down
+          // rather than sideways — a sideways nudge would sit over another date.
+          x: rect.left - base.left + rect.width / 2 - 12,
+          y: rect.top - base.top - 34,
+          ...PIN_BOX,
+          ...summary,
+          tagColors: tagColors(summary.tagIds, allTags),
+        }];
+      });
+
+      const placed = placePins(targets);
+      // Only when the positions actually moved: a re-render must not schedule
+      // another one, and the pins are the same pixels until the layout changes.
+      setYearPins((current) => (samePins(current, placed) ? current : placed));
+    };
+
+    // Measured in the layout pass, not a frame later: a background tab never runs
+    // `requestAnimationFrame`, so pins deferred to one would not exist at all
+    // until it was looked at. Reading then writing layout is the point of the pass.
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(layer);
+    return () => observer.disconnect();
+  }, [pinsOpen, majorEventsByDay, year, allTags]);
 
   const months = useMemo(() => {
     return Array.from({ length: 12 }, (_, m) => {
@@ -258,36 +329,25 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
             />
           ))}
         </div>
-        {/* Desktop trigger; on mobile/tablet the FAB below opens the same dialog.
-            Uses an inset ring (not a border) so its height matches the pills. */}
-        <button
-          type="button"
-          onClick={() => setInsightsOpen(true)}
-          className="hidden shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-border transition-colors hover:bg-accent hover:text-foreground lg:flex"
-        >
-          <BarChart3 className="h-3.5 w-3.5" />
-          Insights
-        </button>
+        <YearViewControls
+          pinCount={majorEventCount}
+          pinsOpen={pinsOpen}
+          onTogglePins={() => setPinsOpen((open) => !open)}
+          onOpenInsights={() => setInsightsOpen(true)}
+          insightsOpen={insightsOpen}
+          mounted={mounted}
+          active={active}
+        />
       </div>
 
-      {/* Below lg, open the insights from a centered floating button (matches
-          Activity). Portalled to <body> so it's viewport-fixed (see `mounted`). */}
-      {mounted && active &&
-        createPortal(
-          <button
-            type="button"
-            onClick={() => setInsightsOpen(true)}
-            className={cn(
-              "fixed left-1/2 z-50 inline-flex h-12 -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-medium text-foreground shadow-lg transition-colors hover:bg-accent lg:hidden",
-              insightsOpen && "hidden",
-            )}
-            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
-          >
-            <BarChart3 className="h-4 w-4" />
-            Insights
-          </button>,
-          document.body,
-        )}
+      <MajorEventDialog
+        open={editingEvent !== null}
+        onOpenChange={(next) => {
+          if (!next) setEditingEvent(null);
+        }}
+        date={localDayFromKey(editingEvent?.at ?? localDateKey(new Date()))}
+        event={editingEvent}
+      />
 
       <Dialog open={insightsOpen && active} onOpenChange={setInsightsOpen}>
         <DialogContent className="grid max-h-[85vh] grid-rows-[auto_minmax(0,1fr)]">
@@ -331,6 +391,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
           totalHours={dayInfo.totalHours}
           onClose={() => { setSelectedDay(null); setPopoverPos(null); }}
           onEditDay={() => { onDayClick?.(selectedDay); setSelectedDay(null); setPopoverPos(null); }}
+          majorEvents={majorEventsByDay.get(localDateKey(selectedDay))}
           header={
             dayInfo.score ? (
               <div className="flex items-center gap-2">
@@ -348,75 +409,90 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
         )}
       </AnimatePresence>
 
-      {/* Month cards */}
-      <div className="mood-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-        {months.map(({ month, days, ratedCount, avg }) => (
-          <div
-            key={month}
-            className="border border-border rounded-xl bg-card/50 p-3 animate-[cardIn_0.3s_ease-out_both]"
-            style={{ animationDelay: `${month * 40}ms` }}
-          >
-            {/* Month header with stats */}
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-bold text-foreground">
-                {MONTH_NAMES[month]}
-              </h3>
-              {ratedCount > 0 && (
-                <span className="text-[9px] text-muted-foreground">
-                  {avg.toFixed(1)}★ · {ratedCount}d
-                </span>
-              )}
-            </div>
+      {/* Month cards. The pins overlay measures against this wrapper, so it is
+          the containing block for the whole year's pins. */}
+      <div ref={pinsLayerRef} className="relative">
+        <div className="mood-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {months.map(({ month, days, ratedCount, avg }) => (
+            <div
+              key={month}
+              className="border border-border rounded-xl bg-card/50 p-3 animate-[cardIn_0.3s_ease-out_both]"
+              style={{ animationDelay: `${month * 40}ms` }}
+            >
+              {/* Month header with stats */}
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold text-foreground">{MONTH_NAMES[month]}</h3>
+                {ratedCount > 0 && (
+                  <span className="text-[9px] text-muted-foreground">
+                    {avg.toFixed(1)}★ · {ratedCount}d
+                  </span>
+                )}
+              </div>
 
-            {/* Day-of-week labels */}
-            <div className="grid grid-cols-7 gap-1 mb-1">
-              {DAY_LABELS.map((d, i) => (
-                <div key={i} className="text-[8px] text-muted-foreground/50 text-center font-medium">
-                  {d}
-                </div>
-              ))}
-            </div>
+              {/* Day-of-week labels */}
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {DAY_LABELS.map((d, i) => (
+                  <div key={i} className="text-[8px] text-muted-foreground/50 text-center font-medium">
+                    {d}
+                  </div>
+                ))}
+              </div>
 
-            {/* Calendar grid - circles */}
-            <div className="grid grid-cols-7 gap-1">
-              {Array.from({ length: ((getDay(days[0]) + 6) % 7) }, (_, i) => (
-                <div key={`pad-${i}`} className="h-4 w-4 mx-auto" />
-              ))}
-              {days.map((day) => {
-                const dateStr = format(day, "yyyy-MM-dd");
-                const score = ratingMap.get(dateStr);
-                const bgClass = cellBgClass(score);
-                const today = isToday(day);
-                const isSelected = selectedDay && format(selectedDay, "yyyy-MM-dd") === dateStr;
+              {/* Calendar grid - circles; the pins overlay covers the whole year */}
+              <div className="grid grid-cols-7 gap-1">
+                {Array.from({ length: (getDay(days[0]) + 6) % 7 }, (_, i) => (
+                  <div key={`pad-${i}`} className="h-4 w-4 mx-auto" />
+                ))}
+                {days.map((day) => {
+                  const dateStr = format(day, "yyyy-MM-dd");
+                  const score = ratingMap.get(dateStr);
+                  const bgClass = cellBgClass(score);
+                  const today = isToday(day);
+                  const isSelected = selectedDay && format(selectedDay, "yyyy-MM-dd") === dateStr;
+                  const dayEvents = majorEventsByDay.get(dateStr);
 
-                return (
-                  <button
-                    key={dateStr}
-                    data-score={score || undefined}
-                    onClick={(e) => {
-                      if (isSelected) {
-                        setSelectedDay(null);
-                        setPopoverPos(null);
-                      } else {
-                        setSelectedDay(day);
-                        const x = Math.min(e.clientX + 8, window.innerWidth - 236);
-                        const y = Math.min(e.clientY - 20, window.innerHeight - 200);
-                        setPopoverPos({ x: Math.max(8, x), y: Math.max(8, y) });
-                      }
-                    }}
-                    className={cn(
-                      "mood-cell relative h-4 w-4 rounded-full mx-auto",
-                      bgClass || "bg-muted/30",
-                      today && "ring-[1.5px] ring-foreground ring-offset-1 ring-offset-background",
-                      isSelected && "ring-2 ring-foreground"
-                    )}
-                    title={score ? `${format(day, "MMM d")}: ${score}/${range.max} (${moodByValue(moods, score)?.label ?? "—"})` : format(day, "MMM d")}
-                  />
-                );
-              })}
+                  return (
+                    <button
+                      key={dateStr}
+                      data-date={dateStr}
+                      data-score={score || undefined}
+                      onClick={(e) => {
+                        if (isSelected) {
+                          setSelectedDay(null);
+                          setPopoverPos(null);
+                        } else {
+                          setSelectedDay(day);
+                          const x = Math.min(e.clientX + 8, window.innerWidth - 236);
+                          const y = Math.min(e.clientY - 20, window.innerHeight - 200);
+                          setPopoverPos({ x: Math.max(8, x), y: Math.max(8, y) });
+                        }
+                      }}
+                      className={cn(
+                        "mood-cell relative h-4 w-4 rounded-full mx-auto",
+                        bgClass || "bg-muted/30",
+                        today && "ring-[1.5px] ring-foreground ring-offset-1 ring-offset-background",
+                        isSelected && "ring-2 ring-foreground"
+                      )}
+                      title={[
+                        score
+                          ? `${format(day, "MMM d")}: ${score}/${range.max} (${moodByValue(moods, score)?.label ?? "—"})`
+                          : format(day, "MMM d"),
+                        ...(dayEvents ?? []).map((event) => `Major event: ${event.title}`),
+                      ].join(" · ")}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+
+        {pinsOpen ? (
+          <YearEventPins
+            pins={yearPins}
+            onSelect={(id) => setEditingEvent(majorEventList.find((event) => event.id === id) ?? null)}
+          />
+        ) : null}
       </div>
     </div>
   );

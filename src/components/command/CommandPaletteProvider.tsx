@@ -11,9 +11,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@powersync/react";
-import { CalendarDays, ChevronDown, ChevronUp, Network, Plus, Trash2, X, Zap } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, Flag, Network, Plus, Trash2, X, Zap } from "lucide-react";
 
 import { useSearchIndexReady } from "@/hooks/use-search-index";
 import { formatDateLabel, parseDayQuery } from "@/lib/notes/date-tokens";
@@ -92,6 +92,7 @@ export const useCommandPalette = () => useContext(CommandContext);
  */
 export function CommandPaletteProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const openCapture = useCapture();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -216,7 +217,9 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
         // The reference carries the journal page's id, since an edge endpoint has
         // to be a real row; the route wants the date that page belongs to.
         void systemPageKey(detail.id).then((key) => {
-          if (key) router.push(`/day/${key}`);
+          // A day that links to itself is a dead row, not a navigation: say nothing
+          // happened rather than pushing the same route and re-running the view.
+          if (key && pathname !== `/day/${key}`) router.push(`/day/${key}`);
         });
         return;
       }
@@ -224,7 +227,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
     };
     window.addEventListener(OPEN_ENTITY_EVENT, onOpen as EventListener);
     return () => window.removeEventListener(OPEN_ENTITY_EVENT, onOpen as EventListener);
-  }, [router]);
+  }, [router, pathname]);
 
   const navigate = useCallback(
     (href: string) => {
@@ -388,6 +391,7 @@ function CommandPaletteResults({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
   const showTrash = matchCmd("Trash");
+  const showYear = matchCmd("Year");
   const createCmds = useMemo(
     () => CREATE_APPS.map((id) => getApp(id)).filter((app) => matchCmd(`New ${SINGULAR[app.id]}`)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -631,7 +635,7 @@ function CommandPaletteResults({
         </CommandGroup>
       ) : null}
 
-      {navCmds.length > 0 || showGraph || dayCommand || showTrash ? (
+      {navCmds.length > 0 || showGraph || dayCommand || showTrash || showYear ? (
         <CommandGroup heading="Go to">
           {navCmds.map((app) => {
             const Icon = app.icon;
@@ -660,6 +664,19 @@ function CommandPaletteResults({
                 <Network className="h-3.5 w-3.5" />
               </span>
               <span className="min-w-0 flex-1 truncate text-sm text-foreground">Graph</span>
+            </CommandItem>
+          ) : null}
+          {showYear ? (
+            <CommandItem
+              key="nav:year"
+              value="nav:year"
+              onSelect={() => onNavigate("/year")}
+              className="items-center gap-3 rounded-lg px-3 py-2"
+            >
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                <Flag className="h-3.5 w-3.5" />
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm text-foreground">Year</span>
             </CommandItem>
           ) : null}
           {dayCommand ? (

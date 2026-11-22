@@ -31,7 +31,7 @@ import { YearEventPins, type YearPin } from "./YearEventPins";
 import { MajorEventDialog } from "@/components/day/MajorEventDialog";
 import { summarizeDayEvents, type MajorEvent } from "@/lib/major-events/major-events";
 import { YearViewControls } from "./YearViewControls";
-import { PIN_BOX, placePins } from "@/lib/major-events/pin-layout";
+import { fitPinX, PIN_BOX, placePins } from "@/lib/major-events/pin-layout";
 import { useMajorEventDays } from "@/hooks/use-major-events";
 import { useAllTags } from "@/hooks/use-tags";
 import { tagColors } from "@/lib/tasks/colors";
@@ -192,13 +192,16 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
         if (!cell) return [];
         const rect = cell.getBoundingClientRect();
         const summary = summarizeDayEvents(events);
+        const centre = rect.left - base.left + rect.width / 2;
+        // Anchored above its own cell, then pulled back inside the card: a date in
+        // the last column would otherwise hang the bubble off the screen on a
+        // phone. `fitPinX` also moves the tail onto the date it still belongs to.
+        const { x, tail } = fitPinX(centre - 12, centre, base.width);
         return [{
           id: at,
-          // Centred on the day's own cell, sitting just above it: the tail then
-          // points at that date even when `placePins` nudges the bubble down. Down
-          // rather than sideways — a sideways nudge would sit over another date.
-          x: rect.left - base.left + rect.width / 2 - 12,
+          x,
           y: rect.top - base.top - 34,
+          tail,
           ...PIN_BOX,
           ...summary,
           tagColors: tagColors(summary.tagIds, allTags),

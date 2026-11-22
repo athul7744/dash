@@ -56,12 +56,12 @@ export function YearEventPins({
         const [primaryId] = pin.eventIds ?? [];
         const bubble = (
           <>
-            {pin.emoji ? (
-              <SpriteIcon name={pin.emoji} size={16} />
-            ) : (
-              <TagColorMark colors={pin.tagColors} size={12} />
-            )}
-            <span className="max-w-[9.5rem] truncate">{pin.label}</span>
+            <span className="mt-px shrink-0">
+              {pin.emoji ? <SpriteIcon name={pin.emoji} size={15} /> : <TagColorMark colors={pin.tagColors} size={12} />}
+            </span>
+            {/* Two lines, then clamped: a label cut to one line says almost
+                nothing, and the bubble has room to grow downward. */}
+            <span className="min-w-0 flex-1 line-clamp-2">{pin.label}</span>
             {/* The tail: a rotated square sharing the bubble's surface, so the pin
                 reads as pointing at its date rather than merely sitting nearby. It
                 carries the hover fill too — a tail left on the resting colour
@@ -76,7 +76,7 @@ export function YearEventPins({
         // A dark bubble over the dark grid, a light one over the light grid —
         // either way the surface has to be the opposite of what's behind it.
         const shell =
-          "relative flex max-w-[13rem] items-center gap-1.5 rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-[12px] leading-4 font-medium text-neutral-900 shadow-[0_10px_24px_-12px_rgba(0,0,0,0.55)] dark:border-white/20 dark:bg-neutral-800 dark:text-neutral-50 dark:shadow-[0_10px_24px_-12px_rgba(0,0,0,0.9)]";
+          "relative flex max-w-[13rem] items-start gap-1.5 rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-[12px] leading-4 font-medium text-neutral-900 shadow-[0_10px_24px_-12px_rgba(0,0,0,0.55)] dark:border-white/20 dark:bg-neutral-800 dark:text-neutral-50 dark:shadow-[0_10px_24px_-12px_rgba(0,0,0,0.9)]";
 
         return (
           <div key={pin.id} className="pointer-events-auto absolute" style={{ left: pin.x, top: pin.y }}>

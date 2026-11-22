@@ -26,8 +26,39 @@ export interface PinBox {
  * The footprint every year-view pin is assumed to cover. Both grids place pins
  * with this, so the same stretch of a year nudges the same way in each — a pin's
  * real width depends on its label, so this is the estimate, not a measurement.
+ * Height is two lines of label plus the bubble's padding, which is the tallest a
+ * pin gets.
  */
-export const PIN_BOX = { w: 130, h: 30 } as const;
+export const PIN_BOX = { w: 130, h: 44 } as const;
+
+/**
+ * The widest a bubble can be (`max-w-[13rem]` on `YearEventPins`). Needed before
+ * render, to work out whether a pin anchored on a late date would hang past the
+ * container's right edge.
+ */
+export const PIN_MAX_WIDTH = 208;
+
+/**
+ * Keep a pin's bubble inside its container, and say where its tail then sits.
+ *
+ * A pin is anchored to its date, which near the end of a row would put a bubble
+ * wider than the gap left over off the screen — on a phone, most of the message
+ * gone. Clamping the bubble inward would leave the tail pointing at nothing, so
+ * the tail is returned as an offset inside the bubble: it keeps pointing at the
+ * date it belongs to, wherever the bubble had to stop.
+ */
+export function fitPinX(
+  anchorX: number,
+  dateCentre: number,
+  containerWidth: number,
+): { x: number; tail: number } {
+  const margin = 4;
+  const maxX = Math.max(margin, containerWidth - PIN_MAX_WIDTH - margin);
+  const x = Math.min(Math.max(anchorX, margin), maxX);
+  // Stay clear of the bubble's own corners, where the tail would poke out.
+  const tail = Math.min(Math.max(dateCentre - x, 12), PIN_MAX_WIDTH - 12);
+  return { x, tail };
+}
 
 interface PlaceOptions {
   /**

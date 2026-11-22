@@ -20,7 +20,7 @@ import { MajorEventDialog } from "@/components/day/MajorEventDialog";
 import { summarizeDayEvents, type MajorEvent } from "@/lib/major-events/major-events";
 import { YearEventPins, type YearPin } from "./YearEventPins";
 import { YearPinsToggle, YearViewControls } from "./YearViewControls";
-import { PIN_BOX, placePins } from "@/lib/major-events/pin-layout";
+import { fitPinX, PIN_BOX, placePins } from "@/lib/major-events/pin-layout";
 import { useMajorEventDays } from "@/hooks/use-major-events";
 import { useAllTags } from "@/hooks/use-tags";
 import { tagColors } from "@/lib/tasks/colors";
@@ -247,7 +247,7 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
   // nudged apart by `placePins` so busy stretches of the year stay readable.
   const eventPins: YearPin[] = useMemo(() => {
     if (!pinsOpen) return [];
-    const { cellStride, frameInset, labelColWidth } = gridMetrics;
+    const { cellStride, frameInset, labelColWidth, viewportWidth } = gridMetrics;
     // A day's row IS its y here (the canvas has no per-day cells to measure), so
     // the pins anchor at the grid's left edge and fan out along the row from
     // there — two on one row would otherwise sit on top of each other.
@@ -256,10 +256,15 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
       const events = majorEventsByDay.get(key);
       if (!events?.length) return [];
       const summary = summarizeDayEvents(events);
+      const anchor = frameInset + labelColWidth + 2;
+      // The pins fan right along their row; the guard keeps the last one inside
+      // the grid instead of hanging it off a phone's screen edge.
+      const { x, tail } = fitPinX(anchor, anchor + PIN_BOX.w / 2, viewportWidth);
       return [{
         id: key,
-        x: frameInset + labelColWidth + 2,
-        y: HEADER_HEIGHT + row * cellStride - 30,
+        x,
+        y: HEADER_HEIGHT + row * cellStride - PIN_BOX.h,
+        tail,
         ...PIN_BOX,
         ...summary,
         tagColors: tagColors(summary.tagIds, allTags),

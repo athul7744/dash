@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import { placePins, type PinBox } from "@/lib/major-events/pin-layout";
+import { fitPinX, PIN_MAX_WIDTH, placePins, type PinBox } from "@/lib/major-events/pin-layout";
 
 const pin = (over: Partial<PinBox> & { id: string }): PinBox => ({
   x: 0,
@@ -72,5 +72,42 @@ describe("placePins", () => {
     // It may not clear at all — then it stays on its own target rather than
     // wandering to a different one.
     expect(Math.abs(placed.find((p) => p.id === "clash")!.y - 63)).toBeLessThanOrEqual(12 * 4);
+  });
+});
+
+describe("fitPinX", () => {
+  it("leaves a pin alone when its bubble already fits", () => {
+    const { x, tail } = fitPinX(100, 112, 600);
+    expect(x).toBe(100);
+    // The tail still sits over the date: 112 is 12 into the bubble.
+    expect(tail).toBe(12);
+  });
+
+  it("pulls a late date's bubble in from the right edge", () => {
+    // A bubble at x=500 on a 600-wide card would hang 108px off the screen.
+    const { x } = fitPinX(500, 512, 600);
+    expect(x).toBe(600 - PIN_MAX_WIDTH - 4);
+    expect(x + PIN_MAX_WIDTH).toBeLessThanOrEqual(600);
+  });
+
+  it("keeps the tail on the date it was pulled in from", () => {
+    // A last-column date whose bubble is clamped left: the tail moves right,
+    // inside the bubble, rather than pointing at the card's edge.
+    const { x, tail } = fitPinX(500, 512, 600);
+    expect(x + tail).toBeCloseTo(512, 0);
+    expect(tail).toBeGreaterThan(12);
+  });
+
+  it("stops the tail at the bubble's corners, where it would poke out", () => {
+    // A date at the very left of a wide card: the date is behind the bubble's
+    // left corner, so the tail parks at the near corner.
+    const { x, tail } = fitPinX(-40, -28, 800);
+    expect(x).toBe(4);
+    expect(tail).toBe(12);
+  });
+
+  it("does not push a bubble off the left edge, however narrow the card", () => {
+    const { x } = fitPinX(2, 14, 200);
+    expect(x).toBe(4);
   });
 });

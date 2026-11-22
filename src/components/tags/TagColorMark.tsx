@@ -6,7 +6,7 @@ import { cn } from "@/lib/shared/utils";
 /**
  * A tag colour, or two, as one small squircle.
  *
- * A major event has no colour of its own — it wears its tags' — so anywhere a
+ * A highlight has no colour of its own — it wears its tags' — so anywhere a
  * single mark has to stand for it (a pin, the year rail, a day popover) this
  * draws one: solid for a single tag, split corner to corner for a pair, so both
  * colours are visible at the size of a dot.

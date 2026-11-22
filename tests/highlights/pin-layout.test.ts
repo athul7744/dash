@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import { fitPinX, PIN_MAX_WIDTH, placePins, type PinBox } from "@/lib/major-events/pin-layout";
+import { fitPinX, PIN_MAX_WIDTH, placePins, type PinBox } from "@/lib/highlights/pin-layout";
 
 const pin = (over: Partial<PinBox> & { id: string }): PinBox => ({
   x: 0,

@@ -7,9 +7,9 @@ import { cn } from "@/lib/shared/utils";
 import { ACTIVITY_CELL_CLASSES } from "@/lib/tracker/activities";
 import { moodByValue, moodDotClass, type Mood } from "@/lib/tracker/moods";
 import { TagColorMark } from "@/components/tags/TagColorMark";
-import { useMajorEventsForDays } from "@/hooks/use-major-events";
+import { useHighlightsForDays } from "@/hooks/use-highlights";
 import { useAllTags } from "@/hooks/use-tags";
-import { summarizeDayEvents } from "@/lib/major-events/major-events";
+import { summarizeDayHighlights } from "@/lib/highlights/highlights";
 import { tagColors } from "@/lib/tasks/colors";
 import { format } from "date-fns";
 import {
@@ -72,10 +72,10 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
 
   const [scrolledX, setScrolledX] = useState(false);
 
-  // The week's major events, for the squircle beside each day's name: one pass
+  // The week's highlights, for the squircle beside each day's name: one pass
   // over the registry answers all seven rows.
   const dayKeys = useMemo(() => days.map((day) => localDateKey(day)), [days]);
-  const eventsByDay = useMajorEventsForDays(dayKeys);
+  const eventsByDay = useHighlightsForDays(dayKeys);
   const { tags: allTags } = useAllTags();
 
   const now = new Date();
@@ -194,7 +194,7 @@ export function TimeGrid({ days, data, colorMap, onCellClick, ratings, onRate, m
                       if (!dayEvents) return null;
                       return (
                         <TagColorMark
-                          colors={tagColors(summarizeDayEvents(dayEvents).tagIds, allTags)}
+                          colors={tagColors(summarizeDayHighlights(dayEvents).tagIds, allTags)}
                           size={9}
                         />
                       );

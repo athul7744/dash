@@ -27,12 +27,12 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { COLOR_HEX } from "./widgets/types";
 import { FilterPill } from "./FilterPill";
 import { DayPopover } from "./DayPopover";
-import { YearEventPins, type YearPin } from "./YearEventPins";
-import { MajorEventDialog } from "@/components/day/MajorEventDialog";
-import { summarizeDayEvents, type MajorEvent } from "@/lib/major-events/major-events";
+import { YearHighlightPins, type YearPin } from "./YearHighlightPins";
+import { HighlightDialog } from "@/components/day/HighlightDialog";
+import { summarizeDayHighlights, type Highlight } from "@/lib/highlights/highlights";
 import { YearViewControls } from "./YearViewControls";
-import { fitPinX, PIN_BOX, placePins } from "@/lib/major-events/pin-layout";
-import { useMajorEventDays } from "@/hooks/use-major-events";
+import { fitPinX, PIN_BOX, placePins } from "@/lib/highlights/pin-layout";
+import { useHighlightDays } from "@/hooks/use-highlights";
 import { useAllTags } from "@/hooks/use-tags";
 import { tagColors } from "@/lib/tasks/colors";
 
@@ -82,7 +82,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
   // DOM after layout, which is exact whatever the card width does.
   const pinsLayerRef = useRef<HTMLDivElement>(null);
   const [yearPins, setYearPins] = useState<YearPin[]>([]);
-  const [editingEvent, setEditingEvent] = useState<MajorEvent | null>(null);
+  const [editingEvent, setEditingEvent] = useState<Highlight | null>(null);
 
   const yearStart = format(startOfYear(new Date(year, 0, 1)), "yyyy-MM-dd");
   const yearEnd = format(endOfYear(new Date(year, 0, 1)), "yyyy-MM-dd");
@@ -169,10 +169,10 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
     return map;
   }, [activityColorMap, logs, optimisticTimeLogs, year]);
 
-  // Major events for this year: a `Set.has` per cell in the loop below, and the
+  // Highlights for this year: a `Set.has` per cell in the loop below, and the
   // day's events for the popover.
-  const { events: majorEventList, byDay: majorEventsByDay } = useMajorEventDays(year);
-  const majorEventCount = majorEventList.length;
+  const { events: highlightList, byDay: highlightsByDay } = useHighlightDays(year);
+  const highlightCount = highlightList.length;
   const { tags: allTags } = useAllTags();
 
   const [pinsOpen, setPinsOpen] = useState(false);
@@ -187,11 +187,11 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
 
     const measure = () => {
       const base = layer.getBoundingClientRect();
-      const targets = [...majorEventsByDay].flatMap(([at, events]) => {
+      const targets = [...highlightsByDay].flatMap(([at, events]) => {
         const cell = layer.querySelector<HTMLElement>(`[data-date="${at}"]`);
         if (!cell) return [];
         const rect = cell.getBoundingClientRect();
-        const summary = summarizeDayEvents(events);
+        const summary = summarizeDayHighlights(events);
         const centre = rect.left - base.left + rect.width / 2;
         // Anchored above its own cell, then pulled back inside the card: a date in
         // the last column would otherwise hang the bubble off the screen on a
@@ -221,7 +221,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
     const observer = new ResizeObserver(measure);
     observer.observe(layer);
     return () => observer.disconnect();
-  }, [pinsOpen, majorEventsByDay, year, allTags]);
+  }, [pinsOpen, highlightsByDay, year, allTags]);
 
   const months = useMemo(() => {
     return Array.from({ length: 12 }, (_, m) => {
@@ -333,7 +333,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
           ))}
         </div>
         <YearViewControls
-          pinCount={majorEventCount}
+          pinCount={highlightCount}
           pinsOpen={pinsOpen}
           onTogglePins={() => setPinsOpen((open) => !open)}
           onOpenInsights={() => setInsightsOpen(true)}
@@ -343,7 +343,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
         />
       </div>
 
-      <MajorEventDialog
+      <HighlightDialog
         open={editingEvent !== null}
         onOpenChange={(next) => {
           if (!next) setEditingEvent(null);
@@ -394,7 +394,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
           totalHours={dayInfo.totalHours}
           onClose={() => { setSelectedDay(null); setPopoverPos(null); }}
           onEditDay={() => { onDayClick?.(selectedDay); setSelectedDay(null); setPopoverPos(null); }}
-          majorEvents={majorEventsByDay.get(localDateKey(selectedDay))}
+          highlights={highlightsByDay.get(localDateKey(selectedDay))}
           header={
             dayInfo.score ? (
               <div className="flex items-center gap-2">
@@ -452,7 +452,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
                   const bgClass = cellBgClass(score);
                   const today = isToday(day);
                   const isSelected = selectedDay && format(selectedDay, "yyyy-MM-dd") === dateStr;
-                  const dayEvents = majorEventsByDay.get(dateStr);
+                  const dayEvents = highlightsByDay.get(dateStr);
 
                   return (
                     <button
@@ -480,7 +480,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
                         score
                           ? `${format(day, "MMM d")}: ${score}/${range.max} (${moodByValue(moods, score)?.label ?? "—"})`
                           : format(day, "MMM d"),
-                        ...(dayEvents ?? []).map((event) => `Major event: ${event.title}`),
+                        ...(dayEvents ?? []).map((event) => `Highlight: ${event.title}`),
                       ].join(" · ")}
                     />
                   );
@@ -491,9 +491,9 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
         </div>
 
         {pinsOpen ? (
-          <YearEventPins
+          <YearHighlightPins
             pins={yearPins}
-            onSelect={(id) => setEditingEvent(majorEventList.find((event) => event.id === id) ?? null)}
+            onSelect={(id) => setEditingEvent(highlightList.find((event) => event.id === id) ?? null)}
           />
         ) : null}
       </div>

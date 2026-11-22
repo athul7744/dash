@@ -8,7 +8,7 @@ import { cn } from "@/lib/shared/utils";
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { TagColorMark } from "@/components/tags/TagColorMark";
 import { useAllTags } from "@/hooks/use-tags";
-import type { MajorEvent } from "@/lib/major-events/major-events";
+import type { Highlight } from "@/lib/highlights/highlights";
 import { tagColors } from "@/lib/tasks/colors";
 
 interface ActivityEntry {
@@ -28,12 +28,12 @@ interface DayPopoverProps {
   header?: React.ReactNode;
   /** Show mini progress bars next to hours (activity grid style) */
   showBars?: boolean;
-  /** Major events on this day, shown under the title before the day's detail. */
-  majorEvents?: MajorEvent[];
+  /** Highlights on this day, shown under the title before the day's detail. */
+  highlights?: Highlight[];
 }
 
 export const DayPopover = forwardRef<HTMLDivElement, DayPopoverProps>(
-  function DayPopover({ day, position, activities, totalHours, onClose, onEditDay, header, showBars, majorEvents }, ref) {
+  function DayPopover({ day, position, activities, totalHours, onClose, onEditDay, header, showBars, highlights }, ref) {
     const reduce = useReducedMotion();
     const { tags: allTags } = useAllTags();
     return (
@@ -60,10 +60,10 @@ export const DayPopover = forwardRef<HTMLDivElement, DayPopoverProps>(
         {/* Optional header content (e.g. rating) */}
         {header && <div className="px-3 pb-2">{header}</div>}
 
-        {/* Major events marked on this day — why the cell wears a dot. */}
-        {majorEvents && majorEvents.length > 0 ? (
+        {/* Highlights marked on this day — why the cell wears a dot. */}
+        {highlights && highlights.length > 0 ? (
           <div className="space-y-1 px-3 pb-2">
-            {majorEvents.map((event) => {
+            {highlights.map((event) => {
               // A waypoint's mark is its tag colours; untagged, it stays muted.
               const colors = tagColors(event.tagIds, allTags);
               return (

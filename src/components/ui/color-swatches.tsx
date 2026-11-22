@@ -27,7 +27,7 @@ interface ColorSwatchesProps {
  *
  * Extracted from `ManageNamedColorItemsDialog`, which drew the same strip twice
  * with different sizes; anything else that picks an item colour (a tag, a folder,
- * a major event) uses this so the palette and the selected-state ring stay
+ * a highlight) uses this so the palette and the selected-state ring stay
  * identical everywhere.
  */
 export function ColorSwatches({

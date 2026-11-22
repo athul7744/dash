@@ -14,7 +14,7 @@ interface YearSelectProps {
 
 /**
  * The calendar icon plus year dropdown used by the tracker's year grids and by
- * the major-events year list.
+ * the highlights year list.
  *
  * Extracted from `TrackerWorkspace`, which rendered the same control twice (once
  * per year view) — so the years list, the trigger size and the touch behaviour

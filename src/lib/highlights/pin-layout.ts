@@ -1,5 +1,5 @@
 /**
- * Pin placement for the year views: each major event is pinned above its day, and
+ * Pin placement for the year views: each highlight is pinned above its day, and
  * when two would land on top of each other the later one is moved until it
  * clears — map-label placement, in a few lines.
  *
@@ -32,7 +32,7 @@ export interface PinBox {
 export const PIN_BOX = { w: 130, h: 44 } as const;
 
 /**
- * The widest a bubble can be (`max-w-[13rem]` on `YearEventPins`). Needed before
+ * The widest a bubble can be (`max-w-[13rem]` on `YearHighlightPins`). Needed before
  * render, to work out whether a pin anchored on a late date would hang past the
  * container's right edge.
  */

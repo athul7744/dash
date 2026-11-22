@@ -7,23 +7,23 @@ import { Flag } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { CollectionHeading } from "@/components/CollectionHeading";
-import { MajorEventDialog } from "@/components/day/MajorEventDialog";
+import { HighlightDialog } from "@/components/day/HighlightDialog";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
 import { TagColorMark } from "@/components/tags/TagColorMark";
 import { YearSelect } from "@/components/tracker/YearSelect";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMajorEventsByYear } from "@/hooks/use-major-events";
+import { useHighlightsByYear } from "@/hooks/use-highlights";
 import { useAllTags } from "@/hooks/use-tags";
 import { yearApp } from "@/lib/shared/destinations";
-import { type MajorEvent } from "@/lib/major-events/major-events";
+import { type Highlight } from "@/lib/highlights/highlights";
 import { tagColors } from "@/lib/tasks/colors";
 import { localDayFromKey } from "@/lib/tracker/day-keys";
 import { cn } from "@/lib/shared/utils";
 
 /**
- * The year list: every major event as a card on a timeline, newest year first.
+ * The year list: every highlight as a card on a timeline, newest year first.
  *
  * A card opens the event's editor — this page is where the year is read and
  * corrected, while the day itself is one click away from the day surface. Years
@@ -34,7 +34,7 @@ export default function YearPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { years, isLoading } = useMajorEventsByYear();
+  const { years, isLoading } = useHighlightsByYear();
   const { tags: allTags } = useAllTags();
 
   const availableYears = useMemo(() => years.map((entry) => entry.year), [years]);
@@ -73,14 +73,14 @@ export default function YearPage() {
 
   // Marking from here writes to today; a card opens its own event for editing.
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<MajorEvent | null>(null);
+  const [editing, setEditing] = useState<Highlight | null>(null);
   const today = useMemo(() => new Date(), []);
 
   const openCreate = () => {
     setEditing(null);
     setDialogOpen(true);
   };
-  const openEdit = (event: MajorEvent) => {
+  const openEdit = (event: Highlight) => {
     setEditing(event);
     setDialogOpen(true);
   };
@@ -117,7 +117,7 @@ export default function YearPage() {
           <div className="min-w-0 flex-1">
             {years.length > 0 ? (
               <div className="mb-6 flex items-center justify-between gap-3 lg:hidden">
-                <p className="text-sm font-semibold text-foreground">Major events</p>
+                <p className="text-sm font-semibold text-foreground">Highlights</p>
                 <YearSelect years={yearChoices} value={selectedYear} onChange={chooseYear} />
               </div>
             ) : null}
@@ -129,7 +129,7 @@ export default function YearPage() {
                 <div className="rounded-2xl bg-rose-500/10 p-3 dark:bg-rose-500/20">
                   <Flag className="h-6 w-6 text-rose-600 dark:text-rose-400" aria-hidden />
                 </div>
-                <p className="font-serif text-lg text-foreground">No major events yet</p>
+                <p className="font-serif text-lg text-foreground">No highlights yet</p>
                 <p className="max-w-xs text-sm text-muted-foreground">
                   Mark a day — the things worth remembering a year from now, kept out of the daily log.
                 </p>
@@ -216,7 +216,7 @@ export default function YearPage() {
         }
       />
 
-      <MajorEventDialog
+      <HighlightDialog
         open={dialogOpen}
         onOpenChange={(next) => {
           setDialogOpen(next);

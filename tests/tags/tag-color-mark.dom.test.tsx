@@ -1,7 +1,7 @@
 /// <reference types="vitest/globals" />
 
 /**
- * The mark that stands in for a major event's tags wherever one colour has to do
+ * The mark that stands in for a highlight's tags wherever one colour has to do
  * the work of two — a pin, the year rail, a week's day column.
  *
  * Two rules matter here: a pair of tags must show *both* colours (a single fill

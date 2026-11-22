@@ -10,7 +10,7 @@
  * Rendered without `ratings`, which drops the mood column and its Select; this
  * is about the Day column.
  *
- * A day that is a major event carries its squircle beside the name — the wiring
+ * A day that is a highlight carries its squircle beside the name — the wiring
  * below checks it renders next to the name (and not, say, in an hour cell); the
  * centring is CSS and is checked by eye.
  */
@@ -20,8 +20,8 @@ import { createRoot, type Root } from "react-dom/client";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-// The grid reads the week's major events (a mark beside each day's name), which
-// reaches the PowerSync client through the major-events lib — jsdom has no Worker.
+// The grid reads the week's highlights (a mark beside each day's name), which
+// reaches the PowerSync client through the highlights lib — jsdom has no Worker.
 vi.mock("@/lib/powersync/db", () => ({ db: { execute: vi.fn(), writeTransaction: vi.fn() } }));
 
 vi.mock("next/link", () => ({
@@ -30,8 +30,8 @@ vi.mock("next/link", () => ({
 }));
 
 // The week's events: one day has two (tag colours rose + lime), the rest none.
-vi.mock("@/hooks/use-major-events", () => ({
-  useMajorEventsForDays: (dayKeys: string[]) => {
+vi.mock("@/hooks/use-highlights", () => ({
+  useHighlightsForDays: (dayKeys: string[]) => {
     const byDay = new Map();
     if (dayKeys.includes("2026-09-20")) {
       byDay.set("2026-09-20", [{ id: "e1", at: "2026-09-20", title: "Left the job", note: "", emoji: null, tagIds: ["t1", "t2"], sortRank: "a" }]);

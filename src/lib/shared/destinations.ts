@@ -32,7 +32,7 @@ export const dayApp: AppConfig = {
 export const yearApp: AppConfig = {
   id: "year",
   name: "Year",
-  description: "The major events of every year, and the days behind them",
+  description: "The highlights of every year, and the days behind them",
   href: "/year",
   icon: Flag,
   accent: {

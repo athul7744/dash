@@ -12,7 +12,7 @@ interface YearPinsToggleProps {
 }
 
 /**
- * The flag that reveals the year's major events, carrying the count. Its own
+ * The flag that reveals the year's highlights, carrying the count. Its own
  * component because the activity view keeps it inside the insights panel while
  * the mood view keeps it beside the year filter.
  */
@@ -22,8 +22,8 @@ export function YearPinsToggle({ pinCount, pinsOpen, onToggle }: YearPinsToggleP
       type="button"
       onClick={onToggle}
       aria-pressed={pinsOpen}
-      aria-label={pinsOpen ? "Hide major events" : "Show major events"}
-      title={pinsOpen ? "Hide major events" : "Show major events"}
+      aria-label={pinsOpen ? "Hide highlights" : "Show highlights"}
+      title={pinsOpen ? "Hide highlights" : "Show highlights"}
       className={cn(
         "inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset transition-colors",
         pinsOpen
@@ -32,13 +32,15 @@ export function YearPinsToggle({ pinCount, pinsOpen, onToggle }: YearPinsToggleP
       )}
     >
       <Flag className="h-3.5 w-3.5" aria-hidden />
-      <span className="tabular-nums">{pinCount}</span>
+      {/* A "0" beside a flag reads as a broken counter; the bare flag already says
+          the year has none. */}
+      {pinCount > 0 ? <span className="tabular-nums">{pinCount}</span> : null}
     </button>
   );
 }
 
 interface YearViewControlsProps {
-  /** How many major events the year has — shown so the toggle says something. */
+  /** How many highlights the year has — shown so the toggle says something. */
   pinCount: number;
   pinsOpen: boolean;
   onTogglePins: () => void;
@@ -52,7 +54,7 @@ interface YearViewControlsProps {
 }
 
 /**
- * The two year-view extras — pin the major events, open the year's insights —
+ * The two year-view extras — pin the highlights, open the year's insights —
  * as one control.
  *
  * Desktop: a pair of pills beside the year filter. Mobile: a single floating
@@ -103,14 +105,14 @@ export function YearViewControls({
                 type="button"
                 onClick={onTogglePins}
                 aria-pressed={pinsOpen}
-                aria-label={pinsOpen ? "Hide major events" : "Show major events"}
+                aria-label={pinsOpen ? "Hide highlights" : "Show highlights"}
                 className={cn(
                   "inline-flex h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors",
                   pinsOpen ? "bg-rose-500/15 text-rose-700 dark:text-rose-300" : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
                 <Flag className="h-4 w-4" aria-hidden />
-                <span className="tabular-nums">{pinCount}</span>
+                {pinCount > 0 ? <span className="tabular-nums">{pinCount}</span> : null}
               </button>
               <span aria-hidden className="h-5 w-px bg-border" />
               <button

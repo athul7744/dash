@@ -13,12 +13,12 @@ import { IconPicker } from "@/components/notes/IconPicker";
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { useToast } from "@/components/toast/ToastProvider";
 import {
-  createMajorEvent,
-  majorEventDayKey,
-  MAX_MAJOR_EVENT_TAGS,
-  updateMajorEvent,
-  type MajorEvent,
-} from "@/lib/major-events/major-events";
+  createHighlight,
+  highlightDayKey,
+  MAX_HIGHLIGHT_TAGS,
+  updateHighlight,
+  type Highlight,
+} from "@/lib/highlights/highlights";
 import { useDerivedState } from "@/hooks/use-derived-state";
 import { localDayFromKey } from "@/lib/tracker/day-keys";
 import { cn } from "@/lib/shared/utils";
@@ -29,33 +29,33 @@ const ICON = "h-[15px] w-[15px] shrink-0 text-muted-foreground/70";
 const TRIGGER =
   "inline-flex h-8 min-w-0 items-center gap-1.5 rounded-lg px-1.5 text-[13.5px] text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-interface MajorEventDialogProps {
+interface HighlightDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** The day being marked — the default date for a new event. */
   date: Date;
   /** Pass an event to edit it; omit to create one on `date`. */
-  event?: MajorEvent | null;
+  event?: Highlight | null;
 }
 
 /**
- * Mark or edit a major event: a title, a day, an icon, its tags and a note.
+ * Mark or edit a highlight: a title, a day, an icon, its tags and a note.
  *
  * Tags are the event's only classification, and their colours are what it wears
  * everywhere it appears — so the row picks tags with the app's `TagSelector`
- * rather than offering a colour of its own, capped at `MAX_MAJOR_EVENT_TAGS`.
+ * rather than offering a colour of its own, capped at `MAX_HIGHLIGHT_TAGS`.
  *
  * Built in the same language as the Events app's schedule popover — a compact
  * panel, hairline rows with muted icons, borderless inline fields, one accent on
  * the single primary button — rather than a stack of boxed form fields.
  */
-export function MajorEventDialog({ open, onOpenChange, date, event = null }: MajorEventDialogProps) {
+export function HighlightDialog({ open, onOpenChange, date, event = null }: HighlightDialogProps) {
   const { toast } = useToast();
   const editing = event !== null;
 
   // The draft is derived from (open, event, day): reopening — or being pointed at
   // another event — re-seeds it, so a cancelled edit never leaks into the next.
-  const draftKey = `${open}|${event?.id ?? "new"}|${majorEventDayKey(date)}|${event?.at ?? ""}|${(event?.tagIds ?? []).join(",")}`;
+  const draftKey = `${open}|${event?.id ?? "new"}|${highlightDayKey(date)}|${event?.at ?? ""}|${(event?.tagIds ?? []).join(",")}`;
   const [draft, setDraft] = useDerivedState(draftKey, () => ({
     title: event?.title ?? "",
     note: event?.note ?? "",
@@ -73,13 +73,13 @@ export function MajorEventDialog({ open, onOpenChange, date, event = null }: Maj
     setIsSaving(true);
     try {
       if (editing && event) {
-        await updateMajorEvent(event.id, { at: day, title, note, emoji, tagIds });
+        await updateHighlight(event.id, { at: day, title, note, emoji, tagIds });
       } else {
-        await createMajorEvent({ at: day, title, note, emoji, tagIds });
+        await createHighlight({ at: day, title, note, emoji, tagIds });
       }
       onOpenChange(false);
     } catch (error) {
-      toast({ message: error instanceof Error ? error.message : "Couldn't save that major event." });
+      toast({ message: error instanceof Error ? error.message : "Couldn't save that highlight." });
     } finally {
       setIsSaving(false);
     }
@@ -88,11 +88,11 @@ export function MajorEventDialog({ open, onOpenChange, date, event = null }: Maj
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="w-[25rem] max-w-[calc(100%-2rem)] gap-0 p-0">
-        <DialogTitle className="sr-only">{editing ? "Edit major event" : "Mark as major event"}</DialogTitle>
+        <DialogTitle className="sr-only">{editing ? "Edit highlight" : "Mark a highlight"}</DialogTitle>
 
         <div className="px-4 pb-1 pt-4">
           <div className="text-xs font-semibold text-muted-foreground/70">
-            {editing ? "Major event" : "New major event"}
+            {editing ? "Highlight" : "New highlight"}
           </div>
 
           {/* Title: the one big field, no box. */}
@@ -181,7 +181,7 @@ export function MajorEventDialog({ open, onOpenChange, date, event = null }: Maj
                 triggerProps={{ "aria-label": "Add a tag to this event" }}
                 popoverWidthClassName="w-[220px]"
                 showSelectedTags={false}
-                maxSelected={MAX_MAJOR_EVENT_TAGS}
+                maxSelected={MAX_HIGHLIGHT_TAGS}
                 align="end"
               />
               <SelectedTagPills tagIds={tagIds} className="justify-end" />
@@ -223,7 +223,7 @@ export function MajorEventDialog({ open, onOpenChange, date, event = null }: Maj
             disabled={!canSave}
             className="rounded-[10px] bg-rose-600 px-4 py-1.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-rose-500"
           >
-            {isSaving ? "Saving…" : editing ? "Save" : "Mark event"}
+            {isSaving ? "Saving…" : editing ? "Save" : "Add highlight"}
           </button>
         </div>
       </DialogContent>

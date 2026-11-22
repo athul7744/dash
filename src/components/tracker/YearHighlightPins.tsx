@@ -26,7 +26,7 @@ export interface YearPin {
  *
  * Positions come from `placePins`, so a busy stretch of the year nudges its pins
  * apart instead of stacking them. Its mark wears the event's tag colours, because
- * a major event has no colour of its own. The bubble takes the
+ * a highlight has no colour of its own. The bubble takes the
  * theme's opposite surface —
  * white ringed dark in light mode, near-black ringed light in dark — because it
  * has to read over both the near-black gaps of the grid and its saturated tiles.
@@ -34,7 +34,7 @@ export interface YearPin {
  * With `onSelect` the pins become buttons — clicking one opens that event's
  * editor — otherwise they stay decorative and pointer-transparent.
  */
-export function YearEventPins({
+export function YearHighlightPins({
   pins,
   onSelect,
   className,

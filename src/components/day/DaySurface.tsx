@@ -26,13 +26,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ActivityToolbar } from "@/components/tracker/ActivityToolbar";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { DailyJournalEntry } from "@/components/journal/DailyJournalEntry";
-import { MajorEventDialog } from "@/components/day/MajorEventDialog";
+import { HighlightDialog } from "@/components/day/HighlightDialog";
 import { TimeGrid } from "@/components/tracker/TimeGrid";
 import { MoodPicker } from "@/components/dashboard/MoodPicker";
 import { useCurrentUserId } from "@/hooks/use-current-user-id";
 import { useDayCaptures, useDayOccurrences, useDayTasks } from "@/hooks/use-day";
 import { useSubjectLabels } from "@/hooks/use-events";
-import { useDayMajorEvents } from "@/hooks/use-major-events";
+import { useDayHighlights } from "@/hooks/use-highlights";
 import { useJournalEntryDays } from "@/hooks/use-journal";
 import { useBacklinks } from "@/hooks/use-links";
 import { useTimeGrid } from "@/hooks/use-time-grid";
@@ -40,7 +40,7 @@ import { getDueDateInfo } from "@/lib/tasks/tasks";
 import { stripRefs } from "@/lib/links/tokens";
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { useToast } from "@/components/toast/ToastProvider";
-import { deleteMajorEvent, restoreMajorEvent, type MajorEvent } from "@/lib/major-events/major-events";
+import { deleteHighlight, restoreHighlight, type Highlight } from "@/lib/highlights/highlights";
 import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
 import { dayApp } from "@/lib/shared/destinations";
 import { systemPageId } from "@/lib/notes/system-pages";
@@ -112,25 +112,25 @@ export function DaySurface() {
     [dateKey, grid.data, grid.colorMap],
   );
 
-  const majorEvents = useDayMajorEvents(dateKey);
+  const highlights = useDayHighlights(dateKey);
   const { toast } = useToast();
-  const [majorEventOpen, setMajorEventOpen] = useState(false);
-  const [editingMajorEvent, setEditingMajorEvent] = useState<MajorEvent | null>(null);
+  const [highlightOpen, setHighlightOpen] = useState(false);
+  const [editingHighlight, setEditingHighlight] = useState<Highlight | null>(null);
 
-  const openMajorEvent = (event: MajorEvent | null) => {
-    setEditingMajorEvent(event);
-    setMajorEventOpen(true);
+  const openHighlight = (event: Highlight | null) => {
+    setEditingHighlight(event);
+    setHighlightOpen(true);
   };
 
   // Deleting keeps the record in hand so Undo can re-insert it with the same id
   // and rank — the app's reversible-delete pattern, not a confirm dialog.
-  const removeMajorEvent = (event: MajorEvent) => {
-    void deleteMajorEvent(event.id).then(() => {
+  const removeHighlight = (event: Highlight) => {
+    void deleteHighlight(event.id).then(() => {
       const { id, sortRank, ...content } = event;
       toast({
         message: `Removed “${event.title}”`,
         actionLabel: "Undo",
-        onAction: () => void restoreMajorEvent(id, content, sortRank),
+        onAction: () => void restoreHighlight(id, content, sortRank),
       });
     });
   };
@@ -187,20 +187,20 @@ export function DaySurface() {
             ) : null}
             <button
               type="button"
-              onClick={() => openMajorEvent(null)}
-              aria-label="Mark as major event"
-              title="Mark as major event"
+              onClick={() => openHighlight(null)}
+              aria-label="Mark a highlight"
+              title="Mark a highlight"
               className={cn(
                 "relative grid size-8 place-items-center rounded-full transition-colors",
-                majorEvents.length > 0
+                highlights.length > 0
                   ? "bg-rose-500/10 text-rose-700 hover:bg-rose-500/15 dark:text-rose-300"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
             >
               <Flag className="h-4 w-4" aria-hidden />
-              {majorEvents.length > 0 ? (
+              {highlights.length > 0 ? (
                 <span className="absolute -right-0.5 -top-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-rose-600 px-0.5 text-[9px] font-semibold leading-none text-white dark:bg-rose-500">
-                  {majorEvents.length}
+                  {highlights.length}
                 </span>
               ) : null}
             </button>
@@ -227,16 +227,16 @@ export function DaySurface() {
           <DailyJournalEntry date={date} placeholder="Write about this day…" hasEntry={hasJournalEntry} />
         </Section>
 
-        {majorEvents.length > 0 ? (
-          <Section title="Major events" count={majorEvents.length}>
+        {highlights.length > 0 ? (
+          <Section title="Highlights" count={highlights.length}>
             <div className="space-y-1.5">
-              {majorEvents.map((event) => (
+              {highlights.map((event) => (
                 <div key={event.id} className="flex items-stretch gap-1">
                   {/* The row opens the editor: this lists the day it is on, so a
                       link to that day would go nowhere. */}
                   <button
                     type="button"
-                    onClick={() => openMajorEvent(event)}
+                    onClick={() => openHighlight(event)}
                     className={cn(ENTITY_ROW_CLASS, "flex-1")}
                   >
                     {event.emoji ? (
@@ -252,7 +252,7 @@ export function DaySurface() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => removeMajorEvent(event)}
+                    onClick={() => removeHighlight(event)}
                     aria-label={`Remove ${event.title}`}
                     className={cn(MAJOR_EVENT_ROW_ACTION, "hover:text-destructive")}
                   >
@@ -420,14 +420,14 @@ export function DaySurface() {
 
       <MobileBottomFabs app={dayApp} />
 
-      <MajorEventDialog
-        open={majorEventOpen}
+      <HighlightDialog
+        open={highlightOpen}
         onOpenChange={(next) => {
-          setMajorEventOpen(next);
-          if (!next) setEditingMajorEvent(null);
+          setHighlightOpen(next);
+          if (!next) setEditingHighlight(null);
         }}
         date={date}
-        event={editingMajorEvent}
+        event={editingHighlight}
       />
     </>
   );

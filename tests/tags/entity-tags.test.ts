@@ -74,8 +74,8 @@ describe("setEntityTags — add", () => {
     }
   });
 
-  it("stores a major event's membership under its own kind", async () => {
-    // Major events share `blocks` with bookmarks and events, so the kind is the
+  it("stores a highlight's membership under its own kind", async () => {
+    // Highlights share `blocks` with bookmarks and events, so the kind is the
     // only thing that tells their memberships apart.
     const { ctx, rows, bumps } = makeCtx();
     await setEntityTags("m1", "major-event", ["a"], ctx);

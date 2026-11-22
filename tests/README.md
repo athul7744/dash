@@ -216,11 +216,11 @@ This folder holds the project's Vitest suites and lightweight test helpers.
 
 ## Current Major-Events Suites
 
-- `tests/major-events/pin-layout.test.ts`
-  Covers `placePins` (`src/lib/major-events/pin-layout.ts`), the placement behind the year views' event pins: pins that already clear each other are left alone, a colliding pin is nudged down by `step` until it clears, no pin is ever moved sideways (it has to stay in its own day's column), pins are taken in vertical order so a later target can't displace an earlier one, and a pathological stack stops after `maxSteps` instead of looping.
+- `tests/highlights/pin-layout.test.ts`
+  Covers `placePins` (`src/lib/highlights/pin-layout.ts`), the placement behind the year views' event pins: pins that already clear each other are left alone, a colliding pin is nudged down by `step` until it clears, no pin is ever moved sideways (it has to stay in its own day's column), pins are taken in vertical order so a later target can't displace an earlier one, and a pathological stack stops after `maxSteps` instead of looping.
 
-- `tests/major-events/major-events.test.ts`
-  Covers the registry's DB-free half (the suite stubs `@/lib/powersync/db`, `ensureSystemPage` and the auth helper, the same way the quotes suite does, so it runs without PowerSync): `parseMajorEventContent` (every field, defaults for a row saved before a field existed, malformed JSON, an unknown colour falling back, a blank emoji reading as none, a date-prefixed string taken at face value rather than shifted through the viewer's offset), `majorEventDayKey` (a `Date` landing on the local day, a calendar day passing through, nothing usable returning empty), and `groupByYear` (newest year first, oldest day first inside a year, ties by title, undated rows dropped rather than invented into a year).
+- `tests/highlights/highlights.test.ts`
+  Covers the registry's DB-free half (the suite stubs `@/lib/powersync/db`, `ensureSystemPage` and the auth helper, the same way the quotes suite does, so it runs without PowerSync): `parseHighlightContent` (every field, defaults for a row saved before a field existed, malformed JSON, an unknown colour falling back, a blank emoji reading as none, a date-prefixed string taken at face value rather than shifted through the viewer's offset), `highlightDayKey` (a `Date` landing on the local day, a calendar day passing through, nothing usable returning empty), and `groupByYear` (newest year first, oldest day first inside a year, ties by title, undated rows dropped rather than invented into a year).
 
 ## Current Tasks Suites
 

@@ -5,9 +5,9 @@ import { addDays, format, isAfter, isSameDay, startOfDay, startOfWeek } from "da
 
 import { DailyJournalEntry } from "@/components/journal/DailyJournalEntry";
 import { TagColorMark } from "@/components/tags/TagColorMark";
-import { useMajorEventsForDays } from "@/hooks/use-major-events";
+import { useHighlightsForDays } from "@/hooks/use-highlights";
 import { useAllTags } from "@/hooks/use-tags";
-import { summarizeDayEvents } from "@/lib/major-events/major-events";
+import { summarizeDayHighlights } from "@/lib/highlights/highlights";
 import { tagColors } from "@/lib/tasks/colors";
 import { journalDayKey, useJournalEntryDays } from "@/hooks/use-journal";
 import { getApp } from "@/lib/shared/apps";
@@ -21,7 +21,7 @@ const DOW = ["M", "T", "W", "T", "F", "S", "S"];
  * This week's journal in the dashboard's type-led ledger: a Mon–Sun strip that
  * marks which days have an entry and where today is, plus the selected day's
  * inline editor (defaults to today). One page per day (see {@link DailyJournalEntry}).
- * A day that is a major event carries its tag-coloured squircle under the date.
+ * A day that is a highlight carries its tag-coloured squircle under the date.
  */
 export function DashboardJournal() {
   const [today] = useState(() => new Date());
@@ -29,7 +29,7 @@ export function DashboardJournal() {
   const weekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [today]);
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const entryDays = useJournalEntryDays(days);
-  const eventsByDay = useMajorEventsForDays(useMemo(() => days.map((d) => journalDayKey(d)), [days]));
+  const eventsByDay = useHighlightsForDays(useMemo(() => days.map((d) => journalDayKey(d)), [days]));
   const { tags: allTags } = useAllTags();
   const [selected, setSelected] = useState<Date>(() => today);
 
@@ -50,7 +50,7 @@ export function DashboardJournal() {
           const dayIsToday = isSameDay(d, today);
           const isFuture = isAfter(startOfDay(d), todayStart);
           const dayEvents = eventsByDay.get(key);
-          const colors = dayEvents ? tagColors(summarizeDayEvents(dayEvents).tagIds, allTags) : [];
+          const colors = dayEvents ? tagColors(summarizeDayHighlights(dayEvents).tagIds, allTags) : [];
           return (
             <button
               key={key}
@@ -59,7 +59,7 @@ export function DashboardJournal() {
               onClick={() => setSelected(d)}
               aria-label={[
                 format(d, "EEEE, MMMM d"),
-                ...(dayEvents ?? []).map((event) => `major event: ${event.title}`),
+                ...(dayEvents ?? []).map((event) => `highlight: ${event.title}`),
               ].join(", ")}
               className={cn(
                 "flex flex-1 flex-col items-center gap-1 rounded-lg border border-transparent py-1.5 transition-colors",

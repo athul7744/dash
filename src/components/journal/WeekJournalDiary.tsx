@@ -7,8 +7,8 @@ import { NotebookPen } from "lucide-react";
 
 import { DailyJournalEntry } from "@/components/journal/DailyJournalEntry";
 import { TagColorMark } from "@/components/tags/TagColorMark";
-import { useMajorEventsForDays } from "@/hooks/use-major-events";
-import { summarizeDayEvents } from "@/lib/major-events/major-events";
+import { useHighlightsForDays } from "@/hooks/use-highlights";
+import { summarizeDayHighlights } from "@/lib/highlights/highlights";
 import { useAllTags } from "@/hooks/use-tags";
 import { tagColors } from "@/lib/tasks/colors";
 import { WidgetHeader } from "@/components/tracker/widgets/shared";
@@ -21,7 +21,7 @@ import { cn } from "@/lib/shared/utils";
  * are hidden (nothing to reflect on yet), and an entirely-future week renders
  * nothing. Every day is its own lazily-created page (see {@link DailyJournalEntry}).
  *
- * A day that is a major event says so under its date, in the event's tag colours
+ * A day that is a highlight says so under its date, in the event's tag colours
  * (the same squircle the year views draw), so the week reads at a glance.
  */
 export function WeekJournalDiary({ weekStart }: { weekStart: Date }) {
@@ -36,7 +36,7 @@ export function WeekJournalDiary({ weekStart }: { weekStart: Date }) {
   const entryDays = useJournalEntryDays(days);
   // The week's waypoints, in the same mark the year views use.
   const dayKeys = useMemo(() => days.map((d) => journalDayKey(d)), [days]);
-  const eventsByDay = useMajorEventsForDays(dayKeys);
+  const eventsByDay = useHighlightsForDays(dayKeys);
   const { tags: allTags } = useAllTags();
 
   if (days.length === 0) return null; // an entirely-future week — nothing to journal yet
@@ -56,7 +56,7 @@ export function WeekJournalDiary({ weekStart }: { weekStart: Date }) {
           const has = entryDays.has(key);
           const dayIsToday = isSameDay(d, today);
           const dayEvents = eventsByDay.get(key);
-          const colors = dayEvents ? tagColors(summarizeDayEvents(dayEvents).tagIds, allTags) : [];
+          const colors = dayEvents ? tagColors(summarizeDayHighlights(dayEvents).tagIds, allTags) : [];
           return (
             <div
               key={key}
@@ -67,7 +67,7 @@ export function WeekJournalDiary({ weekStart }: { weekStart: Date }) {
                 href={`/day/${key}`}
                 title={[
                   `Open ${format(d, "d MMMM yyyy")}`,
-                  ...(dayEvents ?? []).map((event) => `Major event: ${event.title}`),
+                  ...(dayEvents ?? []).map((event) => `Highlight: ${event.title}`),
                 ].join(" · ")}
                 className="flex flex-col items-start rounded-lg transition-opacity hover:opacity-70"
               >

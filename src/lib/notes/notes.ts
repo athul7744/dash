@@ -306,7 +306,7 @@ export async function ensureSystemPage(params: {
 
 /**
  * A sort rank after the last block of `type` on a page — where an appended
- * feature block goes (a bookmark, a quote, an event, a major event). One copy:
+ * feature block goes (a bookmark, a quote, an event, a highlight). One copy:
  * each of those features had its own, and four identical queries are four places
  * to get the rank rule wrong.
  */

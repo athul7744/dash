@@ -4,7 +4,7 @@
  * `SelectedTagPills` is the read-only half of a tag control: it resolves ids to
  * pills and renders them in their own colours.
  *
- * The `max` cap exists for a compact row (a major event's line on the Day
+ * The `max` cap exists for a compact row (a highlight's line on the Day
  * surface), where showing all of them would wrap the row: it must still say how
  * many it is hiding, or a tag would vanish silently.
  */

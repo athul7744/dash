@@ -66,7 +66,7 @@ describe("setEntityTags — add", () => {
       ["bookmark", "blocks"],
       ["event", "blocks"],
       ["note", "pages"],
-      ["major-event", "blocks"],
+      ["highlight", "blocks"],
     ] as const) {
       const { ctx, bumps } = makeCtx();
       await setEntityTags("e1", kind, ["x"], ctx);
@@ -78,8 +78,8 @@ describe("setEntityTags — add", () => {
     // Highlights share `blocks` with bookmarks and events, so the kind is the
     // only thing that tells their memberships apart.
     const { ctx, rows, bumps } = makeCtx();
-    await setEntityTags("m1", "major-event", ["a"], ctx);
-    expect(rows[0]).toMatchObject({ entity_id: "m1", entity_kind: "major-event", tag_id: "a" });
+    await setEntityTags("m1", "highlight", ["a"], ctx);
+    expect(rows[0]).toMatchObject({ entity_id: "m1", entity_kind: "highlight", tag_id: "a" });
     expect(bumps).toEqual([{ table: "blocks", id: "m1" }]);
   });
 

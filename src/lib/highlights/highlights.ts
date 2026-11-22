@@ -26,15 +26,13 @@ import { v4 as uuidv4 } from "uuid";
 export const HIGHLIGHTS_KEY = "year";
 
 /**
- * The names these rows were first written under, before the feature was renamed
- * from "major event" to "highlight".
+ * The name a highlight's page, block and tag rows are stored under — one constant
+ * read by the page, the block writer and the tag writer.
  *
- * They are not cosmetic: the registry page's id is a `uuidv5` of its kind and key
- * (`systemPageId`), and the tag rows carry the old entity kind, so changing either
- * string would strand every highlight already saved. One constant here, read by
- * the page, the block and the tag writer.
+ * Rows written before the feature was renamed from "major event" are moved to
+ * this name by `migrateHighlightStorage`, which runs on start.
  */
-export const HIGHLIGHT_STORED_KIND = "major-event";
+export const HIGHLIGHT_STORED_KIND = "highlight";
 
 export const HIGHLIGHT_BLOCK_TYPE = HIGHLIGHT_STORED_KIND;
 

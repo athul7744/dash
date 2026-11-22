@@ -15,8 +15,7 @@ import { getCurrentUserId } from "@/lib/shared/auth";
 import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 import type { DbContext } from "@/lib/links/links";
 
-/** `"major-event"` is a highlight (the Year app) — the name it was first stored under. */
-export type TagEntityKind = "task" | "bookmark" | "event" | "note" | "major-event";
+export type TagEntityKind = "task" | "bookmark" | "event" | "note" | "highlight";
 
 /** The table whose `updated_at` we bump so a tag change rides the search
  * reconciler's watermark (tag rows themselves have no updated_at). */
@@ -25,7 +24,7 @@ const ENTITY_TABLE: Record<TagEntityKind, string> = {
   bookmark: "blocks",
   event: "blocks",
   note: "pages",
-  "major-event": "blocks", // a highlight lives in `blocks`, like a bookmark
+  highlight: "blocks",
 };
 
 /** Namespace for deterministic entity_tags ids (kept stable — do not change). */

@@ -10,8 +10,7 @@ import { v5 as uuidv5 } from "uuid";
  * Adding a new system-page feature = pick a new `kind`; the /notes filter and
  * this id scheme cover it with no further changes.
  */
-/** `"major-event"` is the stored name for the Year app's highlights — see `HIGHLIGHT_STORED_KIND`. */
-export type SystemPageKind = "journal" | "quote" | "bookmark" | "event" | "major-event";
+export type SystemPageKind = "journal" | "quote" | "bookmark" | "event" | "highlight";
 
 /** Namespace for deterministic system-page ids (mirrors EDGE_ID_NAMESPACE in links.ts). */
 export const SYSTEM_PAGE_NAMESPACE = "b6f0e4a2-1c7d-4f3a-9e58-2a4c8d5b1f90";

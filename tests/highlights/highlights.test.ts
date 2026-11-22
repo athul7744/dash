@@ -171,7 +171,7 @@ describe("tags ride the same writers as the block", () => {
 
   it("writes a highlight's tags on create, under the stored kind", async () => {
     await createHighlight({ at: "2026-04-18", title: "Left the job", tagIds: ["t1"] });
-    expect(setEntityTags).toHaveBeenCalledWith(expect.any(String), "major-event", ["t1"]);
+    expect(setEntityTags).toHaveBeenCalledWith(expect.any(String), "highlight", ["t1"]);
   });
 
   it("skips the tag write on create when the event carries none", async () => {
@@ -187,20 +187,20 @@ describe("tags ride the same writers as the block", () => {
     expect(setEntityTags).not.toHaveBeenCalled();
 
     await updateHighlight("e1", { tagIds: ["t2"] });
-    expect(setEntityTags).toHaveBeenCalledWith("e1", "major-event", ["t2"]);
+    expect(setEntityTags).toHaveBeenCalledWith("e1", "highlight", ["t2"]);
   });
 
   it("clamps to two tags, deduped, so the rule holds for the data and not just the picker", async () => {
     expect(MAX_HIGHLIGHT_TAGS).toBe(2);
 
     await createHighlight({ at: "2026-04-18", title: "Left the job", tagIds: ["t1", "t1", "t2", "t3"] });
-    expect(setEntityTags).toHaveBeenLastCalledWith(expect.any(String), "major-event", ["t1", "t2"]);
+    expect(setEntityTags).toHaveBeenLastCalledWith(expect.any(String), "highlight", ["t1", "t2"]);
 
     await updateHighlight("e1", { tagIds: ["t4", "t5", "t6"] });
-    expect(setEntityTags).toHaveBeenLastCalledWith("e1", "major-event", ["t4", "t5"]);
+    expect(setEntityTags).toHaveBeenLastCalledWith("e1", "highlight", ["t4", "t5"]);
 
     await restoreHighlight("e1", { at: "2026-04-18", title: "Kept", note: "", emoji: null }, "0|hzzzzz:", ["t7", "t8", "t9"]);
-    expect(setEntityTags).toHaveBeenLastCalledWith("e1", "major-event", ["t7", "t8"]);
+    expect(setEntityTags).toHaveBeenLastCalledWith("e1", "highlight", ["t7", "t8"]);
   });
 
   it("drops the tag rows when the event is deleted", async () => {

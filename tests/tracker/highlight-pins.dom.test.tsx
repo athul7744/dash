@@ -4,6 +4,9 @@
  * The year views' pins: a bubble per marked day, and one leader from the day back
  * to the bubble.
  *
+ * A busy month lays its pins out in two lanes, alternating in date order, so the
+ * sequence still reads like a calendar instead of stacking upward out of the card.
+ *
  * The two grids draw their point differently. The mood grid hangs a bubble above
  * its date and joins the two with a leader. The activity grid sits the bubble
  * beside the row it marks, so the point lives on the bubble's own left edge and no
@@ -140,5 +143,149 @@ describe("YearHighlightPins", () => {
   it("shows the extra count when a day has more than one highlight", () => {
     render([{ ...pin(), eventIds: ["e1", "e2"], extra: 1 }], "y");
     expect(container.textContent).toContain("+1");
+  });
+});
+
+describe("a busy month", () => {
+  const band = { left: 20, width: 240 };
+  const at = (day: number) => ({
+    ...pin({ id: `2026-10-${String(day).padStart(2, "0")}` }),
+    anchorY: 300 + day * 4,
+    anchorX: 100,
+    group: "2026-10",
+    laneArea: band,
+  });
+
+  it("splits into two lanes past three pins, alternating in date order", () => {
+    const days = [2, 3, 4, 9];
+    render(days.map(at), "y");
+
+    const boxes = [...container.querySelectorAll<HTMLElement>("[data-pin-id]")].map((el) => ({
+      id: el.dataset.pinId,
+      left: parseFloat(el.style.left),
+      top: parseFloat(el.style.top),
+      // The bubble inside carries the lane width; the wrapper only positions it.
+      width: parseFloat((el.firstElementChild as HTMLElement).style.width || "NaN"),
+    }));
+    const byId = Object.fromEntries(boxes.map((box) => [box.id, box]));
+
+    // 02 → lane 0, 03 → lane 1, 04 → lane 0 again, one row lower.
+    expect(byId["2026-10-02"].left).toBe(band.left);
+    expect(byId["2026-10-03"].left).toBeGreaterThan(byId["2026-10-02"].left);
+    expect(byId["2026-10-04"].left).toBe(band.left);
+    expect(byId["2026-10-04"].top).toBeGreaterThan(byId["2026-10-02"].top);
+
+    // Both lanes are half the band, so the bubble fits the space it was given.
+    expect(byId["2026-10-02"].width).toBeLessThan(band.width / 2 + 1);
+
+    // Reading left to right, top to bottom is date order.
+    const readingOrder = [...boxes].sort((a, b) => a.top - b.top || a.left - b.left).map((box) => box.id);
+    expect(readingOrder).toEqual(["2026-10-02", "2026-10-03", "2026-10-04", "2026-10-09"]);
+  });
+
+  it("keeps one column while a month is sparse, so labels stay whole", () => {
+    render([2, 3, 4].map(at), "y");
+
+    const widths = [...container.querySelectorAll<HTMLElement>("[data-pin-id]")].map(
+      (el) => (el.firstElementChild as HTMLElement).style.width,
+    );
+    // Three pins fit a single column: no width is imposed, so the bubble keeps its
+    // natural size and the label is not squeezed into a lane.
+    expect(widths).toEqual(["", "", ""]);
+  });
+
+  it("never draws a later date above an earlier one in the same lane", () => {
+    const days = [2, 3, 4, 9, 17, 24, 31];
+    render(days.map(at), "y");
+
+    const boxes = [...container.querySelectorAll<HTMLElement>("[data-pin-id]")].map((el) => ({
+      id: el.dataset.pinId ?? "",
+      left: parseFloat(el.style.left),
+      top: parseFloat(el.style.top),
+      height: el.getBoundingClientRect().height || 30,
+    }));
+    const lanes = new Map<number, typeof boxes>();
+    for (const box of boxes) {
+      const lane = Math.round((box.left - band.left) / (band.width / 2));
+      lanes.set(lane, [...(lanes.get(lane) ?? []), box]);
+    }
+
+    for (const lane of lanes.values()) {
+      const sorted = [...lane].sort((a, b) => a.id.localeCompare(b.id));
+      for (let i = 1; i < sorted.length; i++) {
+        expect(sorted[i].top).toBeGreaterThanOrEqual(sorted[i - 1].top + sorted[i - 1].height);
+      }
+    }
+  });
+});
+
+describe("a card's edges", () => {
+  const at = (day: number, band: { left: number; width: number; top?: number }) => ({
+    ...pin({ id: `2026-10-${String(day).padStart(2, "0")}` }),
+    anchorY: 300 + day * 4,
+    anchorX: 100,
+    group: "2026-10",
+    laneArea: band,
+  });
+
+  it("starts below the month header, not over the month's name", () => {
+    // The first week's pin naturally hangs above its date, which is where the
+    // header is; the band's `top` is the line it may not cross.
+    const band = { left: 20, width: 240, top: 290 };
+    render([2, 3, 4, 9].map((day) => at(day, band)), "y");
+
+    const tops = [...container.querySelectorAll<HTMLElement>("[data-pin-id]")].map((el) => parseFloat(el.style.top));
+    expect(Math.min(...tops)).toBeGreaterThanOrEqual(band.top);
+  });
+
+  it("uses the card's full width for its lanes", () => {
+    const band = { left: 20, width: 240, top: 0 };
+    render([2, 3, 4, 9].map((day) => at(day, band)), "y");
+
+    const [first, second] = [...container.querySelectorAll<HTMLElement>("[data-pin-id]")];
+    expect(parseFloat(first.style.left)).toBe(band.left);
+    // Two lanes and one gap fill the band exactly.
+    expect(parseFloat(second.style.left) + parseFloat((second.firstElementChild as HTMLElement).style.width)).toBe(band.left + band.width);
+  });
+});
+
+describe("reporting what a card has to grow by", () => {
+  it("hands back the overhang past the day block, per group", () => {
+    const spacers: Record<string, number>[] = [];
+    const band = { left: 20, width: 240, top: 290, bottom: 320 };
+
+    act(() => {
+      root.render(
+        <YearHighlightPins
+          pins={[2, 3, 4, 9].map((day) => ({
+            ...pin({ id: `2026-10-${String(day).padStart(2, "0")}` }),
+            anchorY: 300 + day * 4,
+            anchorX: 100,
+            group: "2026-10",
+            laneArea: band,
+          }))}
+          axis="y"
+          onLayout={(next) => spacers.push(next)}
+        />,
+      );
+    });
+
+    const reported = spacers.at(-1) ?? {};
+    // Four 30px bubbles in two lanes reach 34px past the day block (320 → 354),
+    // which is what the month card reserves below its days.
+    expect(reported["2026-10"]).toBe(34);
+
+    // A card with room to spare reports nothing, so it keeps its height.
+    spacers.length = 0;
+    act(() => {
+      root.render(
+        <YearHighlightPins
+          pins={[{ ...pin({ id: "2026-11-04" }), anchorY: 300, anchorX: 100, group: "2026-11", laneArea: { ...band, bottom: 2000 } }]}
+          axis="y"
+          onLayout={(next) => spacers.push(next)}
+        />,
+      );
+    });
+    expect(spacers.at(-1)).toEqual({});
   });
 });

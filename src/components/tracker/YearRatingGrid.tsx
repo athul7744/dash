@@ -2,7 +2,7 @@
 
 import { useQuery } from "@powersync/react";
 import { AnimatePresence } from "motion/react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMounted } from "@/hooks/use-mounted";
 import {
   format,
@@ -37,6 +37,12 @@ import { tagColors } from "@/lib/tasks/colors";
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/** Whether two spacer maps are the same heights — the guard against a loop. */
+function sameSpacers(a: Record<number, number>, b: Record<number, number>): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => a[Number(key)] === b[Number(key)]);
+}
+
 /** Whether a re-measure moved anything — the guard against a re-render loop. */
 function sameAnchors(a: readonly YearPin[], b: readonly YearPin[]): boolean {
   return (
@@ -46,6 +52,11 @@ function sameAnchors(a: readonly YearPin[], b: readonly YearPin[]): boolean {
         pin.id === b[index].id &&
         pin.anchorX === b[index].anchorX &&
         pin.anchorY === b[index].anchorY &&
+        pin.group === b[index].group &&
+        pin.laneArea?.left === b[index].laneArea?.left &&
+        pin.laneArea?.width === b[index].laneArea?.width &&
+        pin.laneArea?.top === b[index].laneArea?.top &&
+        pin.laneArea?.bottom === b[index].laneArea?.bottom &&
         pin.label === b[index].label &&
         pin.tagColors.join() === b[index].tagColors.join(),
     )
@@ -187,10 +198,16 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
   // from. Read from the DOM in a layout pass — the day columns stretch with the
   // card, so arithmetic would be a guess — and re-read when the card resizes.
   const [pinAnchors, setPinAnchors] = useState<YearPin[]>([]);
+  // Extra height per month card, so a tall pin stack grows its card instead of
+  // spilling onto the next month's header.
+  const [pinSpacers, setPinSpacers] = useState<Record<number, number>>({});
 
-  // Off means nothing to draw; the anchors are otherwise kept until the next
-  // opening re-measures them.
+  // Off means nothing to draw; the anchors and the space the pins needed are
+  // otherwise kept until the next opening re-measures them. Rendering the
+  // spacers only while the pins are shown is what returns the cards to their
+  // normal height the moment the toggle goes off.
   const anchors = pinsOpen ? pinAnchors : [];
+  const spacers = pinsOpen ? pinSpacers : {};
 
   useLayoutEffect(() => {
     const layer = pinsLayerRef.current;
@@ -203,8 +220,28 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
         if (!cell) return [];
         const rect = cell.getBoundingClientRect();
         const summary = summarizeDayHighlights(highlights);
+        // The month card the date lives in — its inner width is the band the
+        // pins lay themselves out across, two lanes where there is room.
+        const card = cell.closest<HTMLElement>("[data-month-card]");
+        const header = card?.querySelector<HTMLElement>("[data-month-header]");
+        const daysBlock = card?.querySelector<HTMLElement>("[data-month-days]");
+        const cardRect = card?.getBoundingClientRect();
+        const headerRect = header?.getBoundingClientRect();
+        const daysRect = daysBlock?.getBoundingClientRect();
+        // The card's padding is fair game — a lane may sit in it — but the header
+        // is not: a pin starting above it covers the month's own name.
+        const inset = 2;
         return [{
           id: at,
+          group: card?.dataset.monthCard ?? at.slice(0, 7),
+          laneArea: cardRect
+            ? {
+                left: cardRect.left - base.left + inset,
+                width: cardRect.width - inset * 2,
+                top: headerRect ? headerRect.bottom - base.top + 2 : cardRect.top - base.top,
+                bottom: daysRect ? daysRect.bottom - base.top : undefined,
+              }
+            : undefined,
           anchorX: rect.left - base.left + rect.width / 2,
           anchorY: rect.top - base.top,
           label: summary.label,
@@ -222,6 +259,16 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
     observer.observe(layer);
     return () => observer.disconnect();
   }, [pinsOpen, highlightsByDay, year, allTags]);
+
+  const handlePinLayout = useCallback((spacers: Record<string, number>) => {
+    // Keyed by month index for the render below; `""` (no group) has no card.
+    const next: Record<number, number> = {};
+    for (const [group, height] of Object.entries(spacers)) {
+      const index = Number(group);
+      if (Number.isFinite(index) && height > 0) next[index] = height;
+    }
+    setPinSpacers((current) => (sameSpacers(current, next) ? current : next));
+  }, []);
 
   const months = useMemo(() => {
     return Array.from({ length: 12 }, (_, m) => {
@@ -419,11 +466,12 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
           {months.map(({ month, days, ratedCount, avg }) => (
             <div
               key={month}
+              data-month-card={month}
               className="border border-border rounded-xl bg-card/50 p-3 animate-[cardIn_0.3s_ease-out_both]"
               style={{ animationDelay: `${month * 40}ms` }}
             >
               {/* Month header with stats */}
-              <div className="flex items-center justify-between mb-2">
+              <div data-month-header className="flex items-center justify-between mb-2">
                 <h3 className="text-xs font-bold text-foreground">{MONTH_NAMES[month]}</h3>
                 {ratedCount > 0 && (
                   <span className="text-[9px] text-muted-foreground">
@@ -442,7 +490,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
               </div>
 
               {/* Calendar grid - circles; the pins overlay covers the whole year */}
-              <div className="grid grid-cols-7 gap-1">
+              <div data-month-days className="grid grid-cols-7 gap-1">
                 {Array.from({ length: (getDay(days[0]) + 6) % 7 }, (_, i) => (
                   <div key={`pad-${i}`} className="h-4 w-4 mx-auto" />
                 ))}
@@ -486,6 +534,11 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
                   );
                 })}
               </div>
+
+              {/* Pins are drawn over the card, so a month whose stack is taller
+                  than its days reserves the difference here — otherwise the last
+                  pin lands on the next month's name. */}
+              {spacers[month] ? <div aria-hidden style={{ height: spacers[month] }} /> : null}
             </div>
           ))}
         </div>
@@ -493,6 +546,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
         {pinsOpen ? (
           <YearHighlightPins
             pins={anchors}
+            onLayout={handlePinLayout}
             onSelect={(id) => setEditingEvent(highlightList.find((event) => event.id === id) ?? null)}
           />
         ) : null}

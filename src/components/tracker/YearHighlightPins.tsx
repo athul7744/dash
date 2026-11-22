@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { TagColorMark } from "@/components/tags/TagColorMark";
-import { placePins } from "@/lib/highlights/pin-layout";
+import { placePins, type PinBox } from "@/lib/highlights/pin-layout";
 import { cn } from "@/lib/shared/utils";
 
 /** One pin as the grid knows it: what it says, and the point it belongs to. */
@@ -21,7 +21,32 @@ export interface YearPin {
   eventIds?: string[];
   /** Only when the day has more than one: which of them the pin shows. */
   extra?: number;
+  /**
+   * Which band this pin competes for space in — a month card. Pins in the same
+   * group are laid out in date order across that band's lanes, so reading them
+   * left-to-right, top-to-bottom follows the calendar.
+   */
+  group?: string;
+  /**
+   * The band a group lays out in, in the layer's pixels: the card's own width,
+   * and the line below its header that a pin may not start above.
+   */
+  laneArea?: { left: number; width: number; top?: number; bottom?: number };
 }
+
+/** Narrowest a lane may be before the card takes one column instead of two. */
+const MIN_LANE_WIDTH = 96;
+/**
+ * Above this many pins a month splits into two lanes.
+ *
+ * Two lanes halve the bubbles' width, which costs label text — worth it when the
+ * alternative is a pin hundreds of pixels above its own dates, not worth it for a
+ * month that a single column already holds.
+ */
+const LANES_FROM_COUNT = 4;
+const LANE_GAP = 6;
+/** Space a pin keeps below the one above it in its lane. */
+const PIN_GAP = 4;
 
 interface Placed {
   id: string;
@@ -29,6 +54,8 @@ interface Placed {
   top: number;
   width: number;
   height: number;
+  /** True when the lane decides the width, so the label wraps inside it. */
+  constrained?: boolean;
 }
 
 /**
@@ -50,17 +77,26 @@ interface Placed {
 export function YearHighlightPins({
   pins,
   onSelect,
+  onLayout,
   axis = "y",
   className,
 }: {
   pins: readonly YearPin[];
   onSelect?: (eventId: string) => void;
+  /**
+   * Called with the extra height each group's stack needs beyond the room it has
+   * — keyed by `group`, in pixels. The mood grid grows the month card by it, so a
+   * tall stack never lands on the next month's header.
+   */
+  onLayout?: (spacers: Record<string, number>) => void;
   /** Which way a colliding pin may move: vertically, or along the day's row. */
   axis?: "x" | "y";
   className?: string;
 }) {
   const layerRef = useRef<HTMLDivElement>(null);
   const [placed, setPlaced] = useState<Placed[]>([]);
+  // Lines are addressed straight from their bubble's pointer events: pointing at
+  // one of two dozen pins must not re-render the other twenty-three.
 
   useLayoutEffect(() => {
     const layer = layerRef.current;
@@ -89,23 +125,39 @@ export function YearHighlightPins({
         return [{ id: pin.id, ...resting, w: width, h: height }];
       });
 
-      const settled = placePins(boxes, {
-        axis,
-        direction: axis === "y" ? -1 : 1,
-        container: { width: bounds.width, height: bounds.height },
-      });
-      const next = settled.map((box) => ({ id: box.id, left: box.x, top: box.y, width: box.w, height: box.h }));
+      const next = axis === "y"
+        ? layoutByDate(pins, boxes)
+        : placePins(boxes, {
+            axis,
+            direction: 1,
+            container: { width: bounds.width, height: bounds.height },
+          }).map((box) => ({ id: box.id, left: box.x, top: box.y, width: box.w, height: box.h }));
 
       // Sizes don't depend on position, so a re-measure returns the same boxes and
       // this stops: the guard is what keeps the layout pass from looping.
       setPlaced((current) => (samePlaced(current, next) ? current : next));
+
+      if (onLayout) {
+        // How far each group's stack reaches past the room its card already has.
+        // The measure is taken against the card's *days*, which a spacer below them
+        // doesn't move — so growing the card can't feed back into this number.
+        const spacers: Record<string, number> = {};
+        for (const pin of pins) {
+          const box = next.find((candidate) => candidate.id === pin.id);
+          const bottom = pin.laneArea?.bottom;
+          if (!box || bottom === undefined || !pin.group) continue;
+          const overhang = box.top + box.height - bottom;
+          if (overhang > (spacers[pin.group] ?? 0)) spacers[pin.group] = Math.ceil(overhang);
+        }
+        onLayout(spacers);
+      }
     };
 
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(layer);
     return () => observer.disconnect();
-  }, [pins, axis]);
+  }, [pins, axis, onLayout]);
 
   if (pins.length === 0) return null;
 
@@ -136,7 +188,7 @@ export function YearHighlightPins({
                   x2={target.x}
                   y2={target.y}
                   strokeWidth={1}
-                  className="stroke-black/25 dark:stroke-white/35"
+                  className="stroke-black/25 transition-[stroke-width,opacity] duration-150 dark:stroke-white/35"
                 />
                 {/* The point itself: a small diamond sitting on the date. */}
                 <path
@@ -154,6 +206,9 @@ export function YearHighlightPins({
       {pins.map((pin) => {
         const [primaryId] = pin.eventIds ?? [];
         const position = placed.find((candidate) => candidate.id === pin.id);
+        // A lane is narrower than a bubble's natural width, so the bubble is told
+        // how much room it has and lets its label wrap inside that.
+        const bubbleStyle = position?.constrained ? { width: position.width } : undefined;
 
         const bubble = (
           <>
@@ -193,7 +248,7 @@ export function YearHighlightPins({
           <div
             key={pin.id}
             data-pin-id={pin.id}
-            className="pointer-events-auto absolute"
+            className="group/pin pointer-events-auto absolute"
             style={{
               left: position?.left ?? pin.anchorX,
               // Before the first measurement the bubble is parked off-view
@@ -208,11 +263,14 @@ export function YearHighlightPins({
                 onClick={() => onSelect(primaryId)}
                 aria-label={`Edit ${pin.label}`}
                 className={cn(shell, "cursor-pointer transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-700")}
+                style={bubbleStyle}
               >
                 {bubble}
               </button>
             ) : (
-              <div className={shell}>{bubble}</div>
+              <div className={shell} style={bubbleStyle}>
+                {bubble}
+              </div>
             )}
           </div>
         );
@@ -238,6 +296,53 @@ function nearestPointOnBox(
   return { x: nearX, y: nearY };
 }
 
+/**
+ * Lay a year's pins out in date order, one month card at a time.
+ *
+ * A card is ~250px wide and a bubble can be 208, so a single column pushes the
+ * second pin of a busy month hundreds of pixels above its own dates. Two lanes
+ * halve that: pins alternate between them in date order, and each lane stacks
+ * downward, so a later date is never drawn above an earlier one.
+ *
+ * Everything stays visible — this is about order, not filtering. A pin that
+ * cannot sit beside its date is pushed down until it clears the last one in its
+ * lane, which keeps the sequence readable however many there are.
+ */
+function layoutByDate(pins: readonly YearPin[], boxes: readonly PinBox[]): Placed[] {
+  const placed: Placed[] = [];
+  const groups = new Map<string, { pin: YearPin; box: PinBox }[]>();
+
+  for (const box of [...boxes].sort((a, b) => a.y - b.y || a.x - b.x)) {
+    const pin = pins.find((candidate) => candidate.id === box.id);
+    if (!pin) continue;
+    const key = pin.group ?? "";
+    const list = groups.get(key);
+    if (list) list.push({ pin, box });
+    else groups.set(key, [{ pin, box }]);
+  }
+
+  for (const list of groups.values()) {
+    const band = list[0].pin.laneArea;
+    const roomForTwo = !!band && band.width >= MIN_LANE_WIDTH * 2 + LANE_GAP;
+    const lanes = roomForTwo && list.length >= LANES_FROM_COUNT ? 2 : 1;
+    const laneWidth = band ? (band.width - LANE_GAP * (lanes - 1)) / lanes : 0;
+    const bottoms = Array.from({ length: lanes }, () => Number.NEGATIVE_INFINITY);
+
+    // Date order within the group: `boxes` arrived sorted by anchor y.
+    list.forEach(({ box }, index) => {
+      const lane = index % lanes;
+      const left = band ? band.left + lane * (laneWidth + LANE_GAP) : box.x;
+      // Never above the card's header, never above the pin already in this lane:
+      // the sequence stays readable and the month keeps its name.
+      const top = Math.max(box.y, bottoms[lane] + PIN_GAP, band?.top ?? Number.NEGATIVE_INFINITY);
+      bottoms[lane] = top + box.h;
+      placed.push({ id: box.id, left, top, width: laneWidth || box.w, height: box.h, constrained: lanes > 1 });
+    });
+  }
+
+  return placed.sort((a, b) => a.top - b.top || a.left - b.left);
+}
+
 function samePlaced(a: readonly Placed[], b: readonly Placed[]): boolean {
   return (
     a.length === b.length &&
@@ -247,6 +352,7 @@ function samePlaced(a: readonly Placed[], b: readonly Placed[]): boolean {
         pin.left === b[index].left &&
         pin.top === b[index].top &&
         pin.width === b[index].width &&
+        pin.constrained === b[index].constrained &&
         pin.height === b[index].height,
     )
   );

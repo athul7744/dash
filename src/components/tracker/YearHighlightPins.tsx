@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { TagColorMark } from "@/components/tags/TagColorMark";
@@ -97,6 +97,24 @@ export function YearHighlightPins({
   const [placed, setPlaced] = useState<Placed[]>([]);
   // Lines are addressed straight from their bubble's pointer events: pointing at
   // one of two dozen pins must not re-render the other twenty-three.
+  const connectors = useRef(new Map<string, { line: SVGLineElement | null; dot: SVGPathElement | null }>());
+
+  /**
+   * Thicken one pin's leader and its point while the bubble is pointed at.
+   *
+   * Written straight onto the SVG nodes: the two dozen other pins shouldn't
+   * re-render because the pointer moved, and this is the one place where a
+   * hover has to reach across from the bubble to the line that belongs to it.
+   */
+  const setConnectorActive = useCallback((id: string, active: boolean) => {
+    const entry = connectors.current.get(id);
+    if (!entry) return;
+    for (const node of [entry.line, entry.dot]) {
+      if (!node) continue;
+      node.style.strokeWidth = active ? "2" : "";
+      node.style.opacity = active ? "1" : "";
+    }
+  }, []);
 
   useLayoutEffect(() => {
     const layer = layerRef.current;
@@ -183,6 +201,11 @@ export function YearHighlightPins({
             return (
               <g key={pin.id}>
                 <line
+                  ref={(el) => {
+                    const entry = connectors.current.get(pin.id) ?? { line: null, dot: null };
+                    entry.line = el;
+                    connectors.current.set(pin.id, entry);
+                  }}
                   x1={source.anchorX}
                   y1={source.anchorY}
                   x2={target.x}
@@ -192,6 +215,11 @@ export function YearHighlightPins({
                 />
                 {/* The point itself: a small diamond sitting on the date. */}
                 <path
+                  ref={(el) => {
+                    const entry = connectors.current.get(pin.id) ?? { line: null, dot: null };
+                    entry.dot = el;
+                    connectors.current.set(pin.id, entry);
+                  }}
                   d="M0,-3.5 L3.5,0 L0,3.5 L-3.5,0 Z"
                   transform={`translate(${source.anchorX} ${source.anchorY})`}
                   className="fill-white stroke-black/25 dark:fill-neutral-800 dark:stroke-white/35"
@@ -261,6 +289,10 @@ export function YearHighlightPins({
               <button
                 type="button"
                 onClick={() => onSelect(primaryId)}
+                onPointerEnter={() => setConnectorActive(pin.id, true)}
+                onPointerLeave={() => setConnectorActive(pin.id, false)}
+                onFocus={() => setConnectorActive(pin.id, true)}
+                onBlur={() => setConnectorActive(pin.id, false)}
                 aria-label={`Edit ${pin.label}`}
                 className={cn(shell, "cursor-pointer transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-700")}
                 style={bubbleStyle}

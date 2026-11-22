@@ -1,130 +1,122 @@
 /**
- * Pin placement for the year views: each highlight is pinned above its day, and
- * when two would land on top of each other the later one is moved until it
- * clears — map-label placement, in a few lines.
+ * Pin placement for the year views: each highlight is pinned near its day, and
+ * when two would land on top of each other one is moved until it clears —
+ * map-label placement, in a few lines.
  *
  * Pure and view-agnostic so the mood grid (DOM cells) and the activity grid
  * (canvas rows) place their pins the same way, and so the rule is testable
- * without a browser. They do not move the same way, because a pin sits over
- * different things: the mood grid puts one above a date's own cell, so a
- * sideways nudge would land it over a neighbouring date and it slides down
- * instead; the activity grid puts one on the day's *row*, where sliding down
- * would leave the row, so it shifts sideways along the row.
+ * without a browser. They differ only in which way a pin may move: the mood grid
+ * moves pins vertically, away from the dates below them; the activity grid moves
+ * them along the day's row, because a vertical move there would leave the row.
+ *
+ * Boxes are the bubbles' **measured** sizes, so "does this collide" is answered
+ * exactly rather than from an estimate.
  */
 
 export interface PinBox {
   id: string;
-  /** Target position, in the container's CSS pixels. */
+  /** Top-left of the bubble, in the container's CSS pixels. */
   x: number;
   y: number;
-  /** Estimated footprint. Only used for collision, so it can be approximate. */
   w: number;
   h: number;
 }
 
-/**
- * The footprint every year-view pin is assumed to cover. Both grids place pins
- * with this, so the same stretch of a year nudges the same way in each — a pin's
- * real width depends on its label, so this is the estimate, not a measurement.
- * Height is two lines of label plus the bubble's padding, which is the tallest a
- * pin gets.
- */
-export const PIN_BOX = { w: 130, h: 44 } as const;
-
-/**
- * The widest a bubble can be (`max-w-[13rem]` on `YearHighlightPins`). Needed before
- * render, to work out whether a pin anchored on a late date would hang past the
- * container's right edge.
- */
-export const PIN_MAX_WIDTH = 208;
-
-/**
- * Keep a pin's bubble inside its container, and say where its tail then sits.
- *
- * A pin is anchored to its date, which near the end of a row would put a bubble
- * wider than the gap left over off the screen — on a phone, most of the message
- * gone. Clamping the bubble inward would leave the tail pointing at nothing, so
- * the tail is returned as an offset inside the bubble: it keeps pointing at the
- * date it belongs to, wherever the bubble had to stop.
- */
-export function fitPinX(
-  anchorX: number,
-  dateCentre: number,
-  containerWidth: number,
-): { x: number; tail: number } {
-  const margin = 4;
-  const maxX = Math.max(margin, containerWidth - PIN_MAX_WIDTH - margin);
-  const x = Math.min(Math.max(anchorX, margin), maxX);
-  // Stay clear of the bubble's own corners, where the tail would poke out.
-  const tail = Math.min(Math.max(dateCentre - x, 12), PIN_MAX_WIDTH - 12);
-  return { x, tail };
-}
+/** How far inside the container's edges a bubble stays, at minimum. */
+export const PIN_EDGE_MARGIN = 4;
 
 interface PlaceOptions {
-  /**
-   * Which way a colliding pin may move. Defaults to `y` — down the page.
-   *
-   * A pin that cannot clear within `maxSteps` is left where it was rather than
-   * pushed further: a pin over a later date or a different row is a worse lie
-   * than two pins overlapping, which at least still belong to the right day.
-   */
+  /** Which way a colliding pin may move. Defaults to `y` — vertically. */
   axis?: "x" | "y";
   /**
-   * Which way a `y`-axis nudge goes. `1` (default) is down the page — for a pin
-   * that sits above its date, moving it *away* from the date. `-1` is up, for a
-   * grid that anchors pins by the date's row and would otherwise drag a bubble
+   * Which way a `y`-axis nudge goes. `1` (default) is down the page, `-1` is up —
+   * for a grid that hangs pins above their date and would otherwise drag a bubble
    * over the dates below it.
    */
   direction?: 1 | -1;
   /**
-   * How far a pin moves on each retry. Defaults to a pin's own height going down,
-   * and just past its own width going sideways — a bubble's real width is what it
-   * has to clear, so one nudge should land it beside its neighbour.
+   * How far a pin moves on each retry. Defaults to a pin's own size plus the gap
+   * it wants: a bubble has to clear the one beside it, so one nudge should do.
    */
   step?: number;
   /** Stop retrying past this many nudges (keeps a dense year bounded). */
   maxSteps?: number;
+  /** The container the bubbles have to stay inside. */
+  container: { width: number; height: number };
 }
 
 const overlaps = (a: PinBox, b: PinBox) =>
   a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
 /**
- * Resolve target boxes into non-overlapping positions.
+ * Pull a box back inside the container, keeping the margin it draws with.
  *
- * A pin keeps its anchor on the axis it is not allowed to move on. Sideways it
- * tries right and left alternately, so a cluster spreads both ways; downwards it
- * only ever goes down, because a pin nudged up would cover the date before its
- * own.
+ * `y` is only clamped when the pins are placed vertically. A horizontally placed
+ * grid anchors pins to rows that can sit outside the visible window (the activity
+ * canvas scrolls), and pulling those into the window would stack every off-screen
+ * pin along its bottom edge.
+ */
+function fitToContainer<T extends PinBox>(
+  box: T,
+  { width, height }: { width: number; height: number },
+  clampY: boolean,
+): T {
+  return {
+    ...box,
+    x: clamp(box.x, PIN_EDGE_MARGIN, Math.max(PIN_EDGE_MARGIN, width - box.w - PIN_EDGE_MARGIN)),
+    ...(clampY
+      ? { y: clamp(box.y, PIN_EDGE_MARGIN, Math.max(PIN_EDGE_MARGIN, height - box.h - PIN_EDGE_MARGIN)) }
+      : {}),
+  };
+}
+
+/**
+ * Resolve overlapping boxes into settled positions, every one inside the
+ * container.
  *
- * Returns the boxes themselves with a settled position, so a caller keeps
- * whatever else it hung on them (a label, the events behind the pin) without a
- * lookup.
+ * A pin keeps its position on the axis it is not allowed to move on. A pin that
+ * cannot clear within `maxSteps` stays on its own anchor rather than wandering to
+ * a different date: two overlapping bubbles that both point at the right days
+ * beat one that points at the wrong day.
+ *
+ * Returns the boxes with their settled position, so a caller keeps whatever else
+ * it hung on them (a label, the highlights behind the pin) without a lookup.
  */
 export function placePins<T extends PinBox>(
   boxes: readonly T[],
-  { axis = "y", direction = 1, step, maxSteps = 12 }: PlaceOptions = {},
+  { axis = "y", direction = 1, step, maxSteps = 12, container }: PlaceOptions,
 ): T[] {
   const placed: T[] = [];
+  const clampY = axis === "y";
 
   for (const box of [...boxes].sort((a, b) => a.y - b.y || a.x - b.x)) {
-    const pitch = step ?? (axis === "x" ? box.w + 4 : box.h + 4);
-    let resolved = box;
-    if (placed.some((taken) => overlaps(box, taken))) {
+    const pitch = step ?? (axis === "x" ? box.w + PIN_EDGE_MARGIN : box.h + PIN_EDGE_MARGIN);
+    const anchored = fitToContainer(box, container, clampY);
+    let resolved = anchored;
+
+    if (placed.some((taken) => overlaps(anchored, taken))) {
       for (let nudge = 1; nudge <= maxSteps; nudge += 1) {
-        // Sideways alternates left/right so a cluster spreads both ways. Downwards
-        // only ever goes down: a pin nudged up would cover the date before its own.
+        // Sideways alternates right and left so a cluster spreads both ways;
+        // vertically it only ever goes one way, so a pin never lands on the date
+        // before the one it belongs to.
         const offset = axis === "x"
           ? Math.ceil(nudge / 2) * pitch * (nudge % 2 === 1 ? 1 : -1)
           : nudge * pitch * direction;
-        const candidate = axis === "x" ? { ...box, x: box.x + offset } : { ...box, y: box.y + offset };
-        if (!placed.some((taken) => overlaps(candidate, taken))) {
+        const moved = axis === "x" ? { ...anchored, x: anchored.x + offset } : { ...anchored, y: anchored.y + offset };
+        // Clamping moves a sideways nudge onto the edge; a nudge that the clamp
+        // took back to where it started cannot help, so it is skipped.
+        const candidate = fitToContainer(moved, container, clampY);
+        const movedFarEnough = axis === "x" ? candidate.x !== anchored.x : candidate.y !== anchored.y;
+        if (movedFarEnough && !placed.some((taken) => overlaps(candidate, taken))) {
           resolved = candidate;
           break;
         }
       }
     }
-    placed.push({ ...resolved });
+
+    placed.push(resolved);
   }
 
   return placed;

@@ -20,7 +20,6 @@ import { HighlightDialog } from "@/components/day/HighlightDialog";
 import { summarizeDayHighlights, type Highlight } from "@/lib/highlights/highlights";
 import { YearHighlightPins, type YearPin } from "./YearHighlightPins";
 import { YearPinsToggle, YearViewControls } from "./YearViewControls";
-import { fitPinX, PIN_BOX, placePins } from "@/lib/highlights/pin-layout";
 import { useHighlightDays } from "@/hooks/use-highlights";
 import { useAllTags } from "@/hooks/use-tags";
 import { tagColors } from "@/lib/tasks/colors";
@@ -243,36 +242,29 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
 
   const gridMetrics = useMemo(() => getGridMetrics(containerWidth), [containerWidth]);
 
-  // The pins laid over the grid when the Events toggle is on: one per marked day,
-  // nudged apart by `placePins` so busy stretches of the year stay readable.
-  const eventPins: YearPin[] = useMemo(() => {
+  // Each marked day's anchor, in the grid's own coordinates: the canvas has no
+  // per-day cells to measure, so a row's arithmetic gives the point exactly.
+  // `YearHighlightPins` measures the bubbles and fans them out along the row.
+  const highlightAnchors: YearPin[] = useMemo(() => {
     if (!pinsOpen) return [];
-    const { cellStride, frameInset, labelColWidth, viewportWidth } = gridMetrics;
-    // A day's row IS its y here (the canvas has no per-day cells to measure), so
-    // the pins anchor at the grid's left edge and fan out along the row from
-    // there — two on one row would otherwise sit on top of each other.
-    const targets = allDays.flatMap((day, row) => {
+    const { cellStride, frameInset, labelColWidth } = gridMetrics;
+
+    return allDays.flatMap((day, row) => {
       const key = format(day, "yyyy-MM-dd");
-      const events = highlightsByDay.get(key);
-      if (!events?.length) return [];
-      const summary = summarizeDayHighlights(events);
-      const anchor = frameInset + labelColWidth + 2;
-      // The pins fan right along their row; the guard keeps the last one inside
-      // the grid instead of hanging it off a phone's screen edge.
-      const { x, tail } = fitPinX(anchor, anchor + PIN_BOX.w / 2, viewportWidth);
+      const highlights = highlightsByDay.get(key);
+      if (!highlights?.length) return [];
+      const summary = summarizeDayHighlights(highlights);
       return [{
         id: key,
-        x,
-        y: HEADER_HEIGHT + row * cellStride - PIN_BOX.h,
-        tail,
-        ...PIN_BOX,
-        ...summary,
+        anchorX: frameInset + labelColWidth + 2,
+        anchorY: HEADER_HEIGHT + row * cellStride,
+        label: summary.label,
+        emoji: summary.emoji,
         tagColors: tagColors(summary.tagIds, allTags),
+        eventIds: summary.eventIds,
+        extra: summary.eventIds.length > 1 ? summary.eventIds.length - 1 : 0,
       }];
     });
-    // Sideways, not down: sliding down would take a pin off its day's row, while
-    // a pin that cannot clear stays put and overlaps instead.
-    return placePins(targets, { axis: "x" });
   }, [pinsOpen, allDays, highlightsByDay, gridMetrics, allTags]);
 
   if (loadingTypes || loadingLogs) {
@@ -418,7 +410,7 @@ export function YearActivityGrid({ year, onDayClick, headerLeft, optimisticTimeL
         <ActivityCanvas
           allDays={allDays}
           cellMap={cellMap}
-          eventPins={eventPins}
+          highlightPins={highlightAnchors}
           onPinSelect={(id) => setEditingEvent(allHighlights.find((event) => event.id === id) ?? null)}
           activeFilter={activeFilter}
           gridMetrics={gridMetrics}
@@ -490,11 +482,11 @@ function cellFilterAlpha(hasHex: boolean, activity: string | undefined, filter: 
 const FILTER_ANIM_MS = 220;
 
 /** Canvas-based activity grid — renders 8,760 cells as pixels for smooth scroll/filter */
-function ActivityCanvas({ allDays, cellMap, eventPins, onPinSelect, activeFilter, gridMetrics, selectedDay, onDaySelect }: {
+function ActivityCanvas({ allDays, cellMap, highlightPins, onPinSelect, activeFilter, gridMetrics, selectedDay, onDaySelect }: {
   allDays: Date[];
   cellMap: Map<string, { activity: string; color: string }>;
-  /** Pins to lay over the grid (the Events toggle), already placed. */
-  eventPins: YearPin[];
+  /** Anchors to lay over the grid (the highlights toggle); the pins place themselves. */
+  highlightPins: YearPin[];
   /** Opens one pin's event for editing. */
   onPinSelect: (eventId: string) => void;
   activeFilter: string | null;
@@ -804,8 +796,8 @@ function ActivityCanvas({ allDays, cellMap, eventPins, onPinSelect, activeFilter
             </tbody>
           </table>
 
-          {eventPins.length > 0 ? (
-            <YearHighlightPins pins={eventPins} onSelect={onPinSelect} />
+          {highlightPins.length > 0 ? (
+            <YearHighlightPins pins={highlightPins} axis="x" onSelect={onPinSelect} />
           ) : null}
 
           {/* Canvas overlaid on cell area */}

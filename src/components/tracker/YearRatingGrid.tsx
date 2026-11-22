@@ -31,27 +31,27 @@ import { YearHighlightPins, type YearPin } from "./YearHighlightPins";
 import { HighlightDialog } from "@/components/day/HighlightDialog";
 import { summarizeDayHighlights, type Highlight } from "@/lib/highlights/highlights";
 import { YearViewControls } from "./YearViewControls";
-import { fitPinX, PIN_BOX, placePins } from "@/lib/highlights/pin-layout";
 import { useHighlightDays } from "@/hooks/use-highlights";
 import { useAllTags } from "@/hooks/use-tags";
 import { tagColors } from "@/lib/tasks/colors";
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** Whether two pin layouts are the same pixels — the guard against a re-render loop. */
-function samePins(a: readonly YearPin[], b: readonly YearPin[]): boolean {
+/** Whether a re-measure moved anything — the guard against a re-render loop. */
+function sameAnchors(a: readonly YearPin[], b: readonly YearPin[]): boolean {
   return (
     a.length === b.length &&
     a.every(
       (pin, index) =>
         pin.id === b[index].id &&
-        pin.x === b[index].x &&
-        pin.y === b[index].y &&
-        pin.bottom === b[index].bottom &&
-        pin.stem === b[index].stem,
+        pin.anchorX === b[index].anchorX &&
+        pin.anchorY === b[index].anchorY &&
+        pin.label === b[index].label &&
+        pin.tagColors.join() === b[index].tagColors.join(),
     )
   );
 }
+
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const YEAR_VIEW_SHELL_CLASS = "w-full";
 
@@ -88,7 +88,6 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
   // Pins are measured, not calculated: a handful of marked days are located in the
   // DOM after layout, which is exact whatever the card width does.
   const pinsLayerRef = useRef<HTMLDivElement>(null);
-  const [yearPins, setYearPins] = useState<YearPin[]>([]);
   const [editingEvent, setEditingEvent] = useState<Highlight | null>(null);
 
   const yearStart = format(startOfYear(new Date(year, 0, 1)), "yyyy-MM-dd");
@@ -184,61 +183,40 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
 
   const [pinsOpen, setPinsOpen] = useState(false);
 
-  // Locate each marked day's cell and hang a pin just above it. Measured rather
-  // than computed: the day columns stretch with the card, so arithmetic would be a
-  // guess, while a handful of `getBoundingClientRect` calls are exact.
+  // Each marked day's anchor: the point on its cell that the pin's leader starts
+  // from. Read from the DOM in a layout pass — the day columns stretch with the
+  // card, so arithmetic would be a guess — and re-read when the card resizes.
+  const [pinAnchors, setPinAnchors] = useState<YearPin[]>([]);
+
+  // Off means nothing to draw; the anchors are otherwise kept until the next
+  // opening re-measures them.
+  const anchors = pinsOpen ? pinAnchors : [];
+
   useLayoutEffect(() => {
-    if (!pinsOpen) return;
     const layer = pinsLayerRef.current;
-    if (!layer) return;
+    if (!pinsOpen || !layer) return;
 
     const measure = () => {
       const base = layer.getBoundingClientRect();
-      const targets = [...highlightsByDay].flatMap(([at, events]) => {
+      const next = [...highlightsByDay].flatMap(([at, highlights]) => {
         const cell = layer.querySelector<HTMLElement>(`[data-date="${at}"]`);
         if (!cell) return [];
         const rect = cell.getBoundingClientRect();
-        const summary = summarizeDayHighlights(events);
-        const centre = rect.left - base.left + rect.width / 2;
-        // Anchored above its own cell, then pulled back inside the card: a date in
-        // the last column would otherwise hang the bubble off the screen on a
-        // phone. `fitPinX` also moves the tail onto the date it still belongs to.
-        const { x, tail } = fitPinX(centre - 12, centre, base.width);
-        const dateTop = rect.top - base.top;
+        const summary = summarizeDayHighlights(highlights);
         return [{
           id: at,
-          x,
-          tail,
-          // The bubble is anchored by its *bottom* edge, five pixels above the
-          // date's row, so a one-line pin and a two-line one hang the same
-          // distance from the day they mark. `y` is only the collision sort key.
-          bottom: base.height - (dateTop - 5),
-          y: dateTop,
-          dateTop,
-          ...PIN_BOX,
-          ...summary,
+          anchorX: rect.left - base.left + rect.width / 2,
+          anchorY: rect.top - base.top,
+          label: summary.label,
+          emoji: summary.emoji,
           tagColors: tagColors(summary.tagIds, allTags),
+          eventIds: summary.eventIds,
+          extra: summary.eventIds.length > 1 ? summary.eventIds.length - 1 : 0,
         }];
       });
-
-      const placed = placePins(targets, { axis: "y", direction: -1 });
-      // Only when the positions actually moved: a re-render must not schedule
-      // another one, and the pins are the same pixels until the layout changes.
-      // Colliding pins move *up* — away from the dates below them — and grow a
-      // stem of exactly that distance, so every arrow still lands on its own day.
-      setYearPins((current) => {
-        const next = placed.map((pin) => {
-          const nudge = pin.dateTop - pin.y;
-          if (nudge <= 0) return { ...pin, stem: 0 };
-          return { ...pin, bottom: pin.bottom + nudge, stem: nudge };
-        });
-        return samePins(current, next) ? current : next;
-      });
+      setPinAnchors((current) => (sameAnchors(current, next) ? current : next));
     };
 
-    // Measured in the layout pass, not a frame later: a background tab never runs
-    // `requestAnimationFrame`, so pins deferred to one would not exist at all
-    // until it was looked at. Reading then writing layout is the point of the pass.
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(layer);
@@ -514,7 +492,7 @@ export function YearRatingGrid({ year, onDayClick, headerLeft, moods, optimistic
 
         {pinsOpen ? (
           <YearHighlightPins
-            pins={yearPins}
+            pins={anchors}
             onSelect={(id) => setEditingEvent(highlightList.find((event) => event.id === id) ?? null)}
           />
         ) : null}

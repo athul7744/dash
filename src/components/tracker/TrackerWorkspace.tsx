@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, getYear } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
-import { Timer, CalendarDays, Activity, Smile, Calendar } from "lucide-react";
+import { Timer, CalendarDays, Activity, Smile } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { AppHeader } from "@/components/AppHeader";
@@ -18,6 +18,7 @@ import { WeekWidgets } from "@/components/tracker/widgets";
 import { WeekJournalDiary } from "@/components/journal/WeekJournalDiary";
 import { WeekViewSkeleton } from "@/components/tracker/WeekViewSkeleton";
 import { YearActivityGrid } from "@/components/tracker/YearActivityGrid";
+import { YearSelect } from "@/components/tracker/YearSelect";
 import { YearRatingGrid } from "@/components/tracker/YearRatingGrid";
 import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { getCurrentUserId } from "@/lib/shared/auth";
@@ -30,7 +31,6 @@ import { DEFAULT_ACTIVITIES } from "@/lib/tracker/activities";
 import { DEFAULT_MOODS } from "@/lib/tracker/moods";
 import { useTimeGrid } from "@/hooks/use-time-grid";
 import { localDateKey } from "@/lib/tracker/day-keys";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 const trackerApp = getApp("tracker");
@@ -283,19 +283,12 @@ export function TrackerWorkspace() {
               onDayClick={handleDayClick}
               optimisticTimeLogs={grid.optimisticTimeLogs}
               headerLeft={
-                <div className="flex items-center gap-2 shrink-0 pt-1 [touch-action:pan-y]">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <Select value={selectedYear} onValueChange={(v: number | null) => v != null && setSelectedYear(parseInt(String(v), 10))}>
-                    <SelectTrigger size="sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {years.map((y) => (
-                        <SelectItem key={y} value={y}>{y}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <YearSelect
+                  years={years}
+                  value={selectedYear}
+                  onChange={setSelectedYear}
+                  className="pt-1"
+                />
               }
             />
           </div>
@@ -312,19 +305,7 @@ export function TrackerWorkspace() {
               optimisticRatings={grid.optimisticRatings}
               optimisticTimeLogs={grid.optimisticTimeLogs}
               headerLeft={
-                <div className="flex items-center gap-2 shrink-0 [touch-action:pan-y]">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <Select value={selectedYear} onValueChange={(v: number | null) => v != null && setSelectedYear(parseInt(String(v), 10))}>
-                    <SelectTrigger size="sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {years.map((y) => (
-                        <SelectItem key={y} value={y}>{y}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <YearSelect years={years} value={selectedYear} onChange={setSelectedYear} />
               }
             />
           </div>

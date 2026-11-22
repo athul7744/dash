@@ -1,9 +1,8 @@
-import { LexoRank } from "lexorank";
 import { v4 as uuidv4 } from "uuid";
 
 import { deleteEntityEdges } from "@/lib/links/links";
 import { deleteSubjectOccurrences } from "@/lib/events/events";
-import { ensureSystemPage } from "@/lib/notes/notes";
+import { ensureSystemPage, nextSortRank } from "@/lib/notes/notes";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
@@ -73,7 +72,7 @@ export async function createQuote(input: { text?: string; author?: string; link?
   const userId = await getCurrentUserId();
   const id = uuidv4();
   const now = new Date().toISOString();
-  const sortRank = await nextSortRank(pageId);
+  const sortRank = await nextSortRank(pageId, QUOTE_BLOCK_TYPE);
   const content: QuoteContent = {
     text: input.text ?? "",
     author: input.author ?? "",
@@ -128,16 +127,3 @@ async function writeQuoteContent(id: string, content: QuoteContent): Promise<voi
   );
 }
 
-/** A sort rank after the last existing quote (or the middle if none). */
-async function nextSortRank(pageId: string): Promise<string> {
-  const last = await db.getOptional<{ sort_rank: string }>(
-    `SELECT sort_rank FROM blocks WHERE page_id = ? AND type = ? ORDER BY sort_rank DESC LIMIT 1`,
-    [pageId, QUOTE_BLOCK_TYPE],
-  );
-  if (!last?.sort_rank) return LexoRank.middle().format();
-  try {
-    return LexoRank.parse(last.sort_rank).genNext().format();
-  } catch {
-    return LexoRank.middle().format();
-  }
-}

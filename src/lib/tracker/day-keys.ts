@@ -20,6 +20,19 @@ export function localDateKey(date: Date): string {
   return format(date, "yyyy-MM-dd");
 }
 
+/**
+ * The local Date a `yyyy-MM-dd` key names — midnight that day, in the viewer's
+ * own zone.
+ *
+ * Use this rather than `new Date(key)`, which parses a bare date as UTC and so
+ * shows the previous day for anyone west of Greenwich. `parseISO` gets it right
+ * too, which is why both spellings had crept in.
+ */
+export function localDayFromKey(dateKey: string): Date {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 /** Inclusive [start, end] UTC-naive bounds for a time_logs day window. */
 export function utcDayBounds(dateKey: string): [string, string] {
   return [`${dateKey}T00:00:00+00:00`, `${dateKey}T23:59:59+00:00`];

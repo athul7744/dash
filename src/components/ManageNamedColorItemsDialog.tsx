@@ -31,6 +31,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { cn } from "@/lib/shared/utils";
+import { ColorSwatches } from "@/components/ui/color-swatches";
 import { HEADER_ACTION_BASE } from "@/lib/shared/apps";
 
 type ManagedColorItem = {
@@ -93,6 +94,7 @@ type ManageNamedColorItemsDialogProps<TItem extends ManagedColorItem> = {
 
 function ItemRow<TItem extends ManagedColorItem>({
   item,
+  itemTypeLabel,
   colors,
   getDotClass,
   getItemClass,
@@ -103,6 +105,7 @@ function ItemRow<TItem extends ManagedColorItem>({
   onUpdateCategory,
 }: {
   item: TItem | ManagedColorDraft;
+  itemTypeLabel: string;
   colors: readonly string[];
   getDotClass: (color: string) => string;
   getItemClass: (color: string) => string;
@@ -144,26 +147,18 @@ function ItemRow<TItem extends ManagedColorItem>({
             aria-label={`Change ${item.name ?? "item"} color (${resolvedColor || fallbackColor})`}
           />
           <PopoverContent className="w-[200px] p-2" align="start">
-            <div className="flex flex-wrap gap-2">
-              {colors.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => {
-                    onUpdateColor(item.id, color);
-                    setIsColorPickerOpen(false);
-                  }}
-                  aria-label={`Set ${item.name ?? "item"} color to ${color}`}
-                  aria-pressed={resolvedColor === color}
-                  title={color}
-                  className={cn(
-                    "h-5 w-5 cursor-pointer rounded-full transition-transform hover:scale-110",
-                    getDotClass(color),
-                    resolvedColor === color ? "scale-110 ring-2 ring-primary ring-offset-1 ring-offset-background" : ""
-                  )}
-                />
-              ))}
-            </div>
+            <ColorSwatches
+              size="sm"
+              colors={colors}
+              value={resolvedColor ?? fallbackColor}
+              onChange={(color) => {
+                onUpdateColor(item.id, color);
+                setIsColorPickerOpen(false);
+              }}
+              getDotClass={getDotClass}
+              itemTypeLabel={itemTypeLabel}
+              getAriaLabel={(color) => `Set ${item.name ?? "item"} color to ${color}`}
+            />
           </PopoverContent>
         </Popover>
         {onRename ? (
@@ -519,22 +514,14 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
               </div>
             </div>
 
-            <div className="mt-1 flex flex-wrap gap-2">
-              {colors.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => setNewColor(color)}
-                  aria-pressed={newColor === color}
-                  className={cn(
-                    "h-6 w-6 cursor-pointer rounded-full transition-transform hover:scale-110",
-                    getDotClass(color),
-                    newColor === color ? "scale-110 ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
-                  )}
-                  aria-label={`Select ${itemTypeLabel} color ${color}`}
-                />
-              ))}
-            </div>
+            <ColorSwatches
+              className="mt-1"
+              colors={colors}
+              value={newColor}
+              onChange={setNewColor}
+              getDotClass={getDotClass}
+              itemTypeLabel={itemTypeLabel}
+            />
 
             {categoryOptions && (
               <div className="flex items-center gap-2">
@@ -565,6 +552,7 @@ export function ManageNamedColorItemsDialog<TItem extends ManagedColorItem>({
                   <ItemRow
                     key={item.id}
                     item={item}
+                    itemTypeLabel={itemTypeLabel}
                     colors={colors}
                     getDotClass={getDotClass}
                     getItemClass={getItemClass}

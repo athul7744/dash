@@ -1,11 +1,10 @@
-import { LexoRank } from "lexorank";
 import { v4 as uuidv4 } from "uuid";
 
 import { deleteEntityEdges } from "@/lib/links/links";
 import { setEntityTags, deleteEntityTags } from "@/lib/tags/entity-tags";
 import { deleteEntityAttachments } from "@/lib/storage/attachments";
 import { deleteSubjectOccurrences } from "@/lib/events/events";
-import { ensureSystemPage } from "@/lib/notes/notes";
+import { ensureSystemPage, nextSortRank } from "@/lib/notes/notes";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
@@ -76,7 +75,7 @@ export async function createBookmark(
   const userId = await getCurrentUserId();
   const id = uuidv4();
   const now = new Date().toISOString();
-  const sortRank = await nextSortRank(pageId);
+  const sortRank = await nextSortRank(pageId, BOOKMARK_BLOCK_TYPE);
   const url = normalizeUrl(input.url);
   const content: BookmarkContent = {
     url,
@@ -153,16 +152,3 @@ async function writeBookmarkContent(id: string, content: BookmarkContent): Promi
   );
 }
 
-/** A sort rank after the last existing bookmark (or the middle if none). */
-async function nextSortRank(pageId: string): Promise<string> {
-  const last = await db.getOptional<{ sort_rank: string }>(
-    `SELECT sort_rank FROM blocks WHERE page_id = ? AND type = ? ORDER BY sort_rank DESC LIMIT 1`,
-    [pageId, BOOKMARK_BLOCK_TYPE],
-  );
-  if (!last?.sort_rank) return LexoRank.middle().format();
-  try {
-    return LexoRank.parse(last.sort_rank).genNext().format();
-  } catch {
-    return LexoRank.middle().format();
-  }
-}

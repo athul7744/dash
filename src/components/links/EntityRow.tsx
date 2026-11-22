@@ -36,7 +36,12 @@ interface EntityRowProps {
   href?: string;
 }
 
-const ROW_CLASS =
+/**
+ * The list-row chrome this file draws. Exported for a surface that lists the same
+ * entities but needs the row itself to do something else (open an editor rather
+ * than navigate), so the two still look like one list.
+ */
+export const ENTITY_ROW_CLASS =
   "flex w-full items-center gap-2 rounded-lg border border-border/60 bg-muted/40 dark:bg-card/80 px-3 py-2 text-left text-sm transition-colors hover:border-border hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function EntityRow({ kind, id, children, trailing, done, href }: EntityRowProps) {
@@ -52,14 +57,14 @@ export function EntityRow({ kind, id, children, trailing, done, href }: EntityRo
 
   if (href) {
     return (
-      <Link href={href} className={ROW_CLASS}>
+      <Link href={href} className={ENTITY_ROW_CLASS}>
         {body}
       </Link>
     );
   }
 
   return (
-    <button type="button" onClick={() => dispatchOpenEntity(kind, id)} className={ROW_CLASS}>
+    <button type="button" onClick={() => dispatchOpenEntity(kind, id)} className={ENTITY_ROW_CLASS}>
       {body}
     </button>
   );

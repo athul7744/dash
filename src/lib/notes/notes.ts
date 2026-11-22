@@ -303,6 +303,25 @@ export async function ensureSystemPage(params: {
 
   return pageId;
 }
+
+/**
+ * A sort rank after the last block of `type` on a page — where an appended
+ * feature block goes (a bookmark, a quote, an event, a major event). One copy:
+ * each of those features had its own, and four identical queries are four places
+ * to get the rank rule wrong.
+ */
+export async function nextSortRank(pageId: string, type: string): Promise<string> {
+  const last = await db.getOptional<{ sort_rank: string }>(
+    "SELECT sort_rank FROM blocks WHERE page_id = ? AND type = ? ORDER BY sort_rank DESC LIMIT 1",
+    [pageId, type],
+  );
+  if (!last?.sort_rank) return LexoRank.middle().format();
+  try {
+    return LexoRank.parse(last.sort_rank).genNext().format();
+  } catch {
+    return LexoRank.middle().format();
+  }
+}
 /**
  * Create a page whose body is a whole block document — the write the markdown
  * importer needs, and the one nothing outside the editor could do.

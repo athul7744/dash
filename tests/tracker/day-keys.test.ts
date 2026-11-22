@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   hourCellKey,
   localDateKey,
+  localDayFromKey,
   localDayBounds,
   recentNaiveWindow,
   utcDateKey,
@@ -19,6 +20,19 @@ describe("tracker day keys", () => {
   it("localDateKey returns a yyyy-MM-dd string (local), matching daily_ratings", () => {
     expect(localDateKey(new Date(2026, 6, 13, 8, 0, 0))).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(localDateKey(new Date(2026, 6, 13, 8, 0, 0))).toBe("2026-07-13");
+  });
+
+  it("localDayFromKey lands on midnight local, not UTC", () => {
+    // `new Date("2026-11-22")` parses as UTC midnight, which is the 21st for
+    // anyone west of Greenwich. The helper is the one way to read a day key.
+    const day = localDayFromKey("2026-11-22");
+    expect(day.getFullYear()).toBe(2026);
+    expect(day.getMonth()).toBe(10);
+    expect(day.getDate()).toBe(22);
+    expect(day.getHours()).toBe(0);
+    expect(localDateKey(day)).toBe("2026-11-22");
+    // Round-trips through the formatter the rest of the app writes with.
+    expect(localDateKey(localDayFromKey("2026-01-01"))).toBe("2026-01-01");
   });
 
   it("utcDayBounds wraps a key into inclusive UTC-naive bounds", () => {

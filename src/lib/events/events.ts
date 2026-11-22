@@ -1,9 +1,8 @@
-import { LexoRank } from "lexorank";
 import { v4 as uuidv4 } from "uuid";
 
 import { deleteEntityEdges } from "@/lib/links/links";
 import { setEntityTags, deleteEntityTags } from "@/lib/tags/entity-tags";
-import { ensureSystemPage } from "@/lib/notes/notes";
+import { ensureSystemPage, nextSortRank } from "@/lib/notes/notes";
 import { db } from "@/lib/powersync/db";
 import { getCurrentUserId } from "@/lib/shared/auth";
 import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
@@ -436,16 +435,3 @@ async function writeEventContent(id: string, content: EventContent): Promise<voi
   ]);
 }
 
-/** A sort rank after the last existing block of `type` on the page (or middle if none). */
-async function nextSortRank(pageId: string, type: string): Promise<string> {
-  const last = await db.getOptional<{ sort_rank: string }>(
-    `SELECT sort_rank FROM blocks WHERE page_id = ? AND type = ? ORDER BY sort_rank DESC LIMIT 1`,
-    [pageId, type],
-  );
-  if (!last?.sort_rank) return LexoRank.middle().format();
-  try {
-    return LexoRank.parse(last.sort_rank).genNext().format();
-  } catch {
-    return LexoRank.middle().format();
-  }
-}

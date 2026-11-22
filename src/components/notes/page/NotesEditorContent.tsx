@@ -3,6 +3,7 @@
 import type { Editor } from "@tiptap/core";
 
 import { SingleBlockEditor } from "@/components/notes/editor/SingleBlockEditor";
+import { NOTE_EDITOR_EXTENSIONS } from "@/lib/notes/editor/extensions";
 import { NotesEditorMainSkeleton } from "@/components/notes/NotesPageSkeleton";
 import type { NoteAttachmentRow } from "@/hooks/use-notes";
 
@@ -141,6 +142,7 @@ export function NotesEditorContent({
             pageId={editorContent.pageId}
             handlers={{ notePageTitles, notePageEmojiByTitle, onOpenPageReference, onPeekPageReference }}
             onEditorChange={onSingleEditorChange}
+            extensions={NOTE_EDITOR_EXTENSIONS}
           />
         ) : null}
       </div>

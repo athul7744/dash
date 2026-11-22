@@ -1,138 +1,34 @@
 "use client";
 
 /**
- * Assembles the extension list for the single-document notes editor.
+ * The notes editor's extension list: the shared set with a syntax-highlighted code
+ * block.
  *
- * Every existing content node/mark is reused unchanged except that block-level
- * content nodes are re-grouped into `blockContent` (via `asBlockContent`) so
- * they live only inside a `block` wrapper, never directly under the document.
- * Inline nodes/marks, table cells, task items, and math-inline keep their
- * groups. The `block` node, structural keymap, and stable-id plugin are added
- * on top; `History` gives one native undo timeline for the whole page.
- *
- * UI layers that live outside this list (mounted by SingleBlockEditor): the
- * slash-command menu, the `[[ ]]` reference menu, block-clipboard/markdown
- * paste, and the block drag-handle/context-menu NodeView.
+ * Hoisted to a constant because it is immutable — every editor that built its own
+ * list also rebuilt the `lowlight` grammar registry, and a screen can show several
+ * editors at once.
  */
 
 import type { Extensions } from "@tiptap/core";
-import { ReactNodeViewRenderer } from "@tiptap/react";
-import Blockquote from "@tiptap/extension-blockquote";
-import Bold from "@tiptap/extension-bold";
-import Code from "@tiptap/extension-code";
-import Dropcursor from "@tiptap/extension-dropcursor";
-import Gapcursor from "@tiptap/extension-gapcursor";
-import HardBreak from "@tiptap/extension-hard-break";
-import Heading from "@tiptap/extension-heading";
-import History from "@tiptap/extension-history";
-import Italic from "@tiptap/extension-italic";
-import Paragraph from "@tiptap/extension-paragraph";
-import Strike from "@tiptap/extension-strike";
-import { Table } from "@tiptap/extension-table";
-import TableCell from "@tiptap/extension-table-cell";
-import TableHeader from "@tiptap/extension-table-header";
-import TableRow from "@tiptap/extension-table-row";
-import Text from "@tiptap/extension-text";
 import { common, createLowlight } from "lowlight";
 
 import { CodeBlockWithToolbar } from "@/components/notes/NoteBlockEditorCode";
-import { BlockColor } from "@/components/notes/NoteBlockEditorColor";
-import {
-  BlockColorShortcut,
-  LinkOpenControls,
-  MarkdownLink,
-  NotesArrowReplacement,
-  NotesHorizontalRule,
-  NotesImage,
-  ReferenceDecorations,
-  TaskShortcut,
-} from "@/components/notes/NoteBlockEditorExtensions";
-import { MathBlock, MathInline } from "@/components/notes/NoteBlockEditorMath";
-import { DateTokenNode } from "@/components/notes/DateTokenNode";
-import { EntityRefNode } from "@/components/links/EntityRefNode";
-import { NoteImageView } from "@/components/notes/editor/NoteImageView";
-import { QueryBlock } from "@/components/notes/editor/QueryBlockNode";
-import { TaskLine } from "@/components/notes/editor/TaskLineNode";
-import { createBlockNodeView } from "@/components/notes/editor/blockNodeViewDom";
 
-import { NotesDocument, BlockNode, asBlockContent, BLOCK_CONTENT_GROUP } from "./block-schema";
-import { BlockIdPlugin } from "./block-id-plugin";
-import { BlockNormalize } from "./block-normalize";
-import { ImageAdopt } from "./image-adopt";
-import { LinkEmbedNode } from "@/components/notes/editor/LinkEmbedNode";
+import { buildSharedExtensions } from "./extensions-shared";
 
-export function buildNoteEditorExtensions(): Extensions {
+function build(): Extensions {
   const lowlight = createLowlight(common);
+  return buildSharedExtensions(CodeBlockWithToolbar.configure({ lowlight }));
+}
 
-  const Table_ = Table.extend({
-    renderHTML({ HTMLAttributes }) {
-      return ["table", HTMLAttributes, ["tbody", 0]];
-    },
-  }).configure({ resizable: false });
+export const NOTE_EDITOR_EXTENSIONS: Extensions = build();
 
-  return [
-    // Document + block wrapper (plain-DOM NodeView; menu via BlockMenuLayer).
-    NotesDocument,
-    BlockNode.extend({
-      addNodeView() {
-        return (props) => createBlockNodeView(props);
-      },
-    }),
-
-    // Block-level content nodes — re-grouped so they only live inside a block.
-    asBlockContent(Paragraph),
-    asBlockContent(Heading.configure({ levels: [1, 2, 3, 4, 5] })),
-    // Containers whose default content targets the "block" group must instead
-    // hold `blockContent` — the group content nodes were regrouped into — or
-    // they hold no valid children and structural ops (canSplit) throw.
-    asBlockContent(Blockquote.extend({ content: `${BLOCK_CONTENT_GROUP}+` })),
-    asBlockContent(CodeBlockWithToolbar.configure({ lowlight })),
-    // The image NodeView resolves stored files, so it's attached here rather than
-    // on the node itself — the node stays importable without pulling in the db.
-    asBlockContent(
-      NotesImage.extend({
-        addNodeView() {
-          return ReactNodeViewRenderer(NoteImageView);
-        },
-      }),
-    ),
-    asBlockContent(NotesHorizontalRule),
-    asBlockContent(Table_),
-    asBlockContent(MathBlock),
-    TaskLine,
-    QueryBlock,
-    LinkEmbedNode,
-
-    // Inline nodes / marks / table + task children — unchanged.
-    Text,
-    Bold,
-    Italic,
-    Strike,
-    Code,
-    HardBreak,
-    MathInline,
-    EntityRefNode,
-    DateTokenNode,
-    TableRow,
-    TableHeader.extend({ content: `${BLOCK_CONTENT_GROUP}+` }),
-    TableCell.extend({ content: `${BLOCK_CONTENT_GROUP}+` }),
-
-    // Cross-cutting behavior.
-    BlockColor,
-    MarkdownLink,
-    LinkOpenControls,
-    NotesArrowReplacement,
-    TaskShortcut,
-    BlockColorShortcut,
-    ReferenceDecorations,
-    ImageAdopt,
-    Dropcursor,
-    Gapcursor,
-    History,
-
-    // Single-document structural behavior. (Enter/Tab/Backspace are handled in
-    // the editor's handleKeyDown so they run before plugin keymaps.)
-    BlockIdPlugin,
-    BlockNormalize,
-  ];
+/**
+ * Build a fresh list.
+ *
+ * Prefer {@link NOTE_EDITOR_EXTENSIONS}: two editors sharing one extension array
+ * are fine, but a caller that needs to configure a node differently needs its own.
+ */
+export function buildNoteEditorExtensions(): Extensions {
+  return build();
 }

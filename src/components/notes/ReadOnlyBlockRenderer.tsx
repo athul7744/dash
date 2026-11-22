@@ -14,7 +14,7 @@ import { useMemo } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 
 import { assembleDoc, type BlockDocumentRow } from "@/lib/notes/editor/block-document";
-import { buildNoteEditorExtensions } from "@/lib/notes/editor/extensions";
+import { NOTE_EDITOR_EXTENSIONS } from "@/lib/notes/editor/extensions";
 
 /** Flat block row shape needed to assemble the read-only document. */
 export type ReadOnlyBlockData = {
@@ -41,7 +41,7 @@ export function ReadOnlyBlockRenderer({ blocks }: { blocks: ReadOnlyBlockData[] 
     {
       editable: false,
       immediatelyRender: false,
-      extensions: buildNoteEditorExtensions(),
+      extensions: NOTE_EDITOR_EXTENSIONS,
       content,
       editorProps: { attributes: { class: "outline-none" } },
     },

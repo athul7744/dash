@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useRef, type ReactNode } from "react";
-import type { Editor } from "@tiptap/core";
+import type { Editor, Extensions } from "@tiptap/core";
 import { EditorContent } from "@tiptap/react";
 
 import { NotesEditorBodySkeleton } from "@/components/notes/NotesPageSkeleton";
@@ -42,6 +42,7 @@ export function SingleBlockEditor({
   deleteWhenEmpty,
   loadingFallback,
   animateEntrance = true,
+  extensions,
 }: {
   pageId: string;
   handlers?: SingleBlockEditorHandlers;
@@ -63,13 +64,18 @@ export function SingleBlockEditor({
   /** Fade/slide the editor in on mount. Off for the journal, whose day-switching
    * remounts the editor constantly — the entrance would read as a jerky blink. */
   animateEntrance?: boolean;
+  /**
+   * The editor's schema. Passed in rather than imported so a route only ships the
+   * list it needs — the journal's leaves out syntax highlighting.
+   */
+  extensions: Extensions;
 }) {
   const { blocks, isLoading } = useNoteBlocks(pageId);
 
   if (isLoading) {
     return <div className={SURFACE_CLASS}>{loadingFallback ?? <NotesEditorBodySkeleton />}</div>;
   }
-  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} enableSlash={enableSlash} slashScope={slashScope} debounceMs={debounceMs} ensurePage={ensurePage} deleteWhenEmpty={deleteWhenEmpty} animateEntrance={animateEntrance} />;
+  return <SingleBlockEditorInner key={pageId} pageId={pageId} blocks={blocks} handlers={handlers} onEditorChange={onEditorChange} autoFocus={autoFocus} enableSlash={enableSlash} slashScope={slashScope} debounceMs={debounceMs} ensurePage={ensurePage} deleteWhenEmpty={deleteWhenEmpty} animateEntrance={animateEntrance} extensions={extensions} />;
 }
 
 function SingleBlockEditorInner({
@@ -84,6 +90,7 @@ function SingleBlockEditorInner({
   ensurePage,
   deleteWhenEmpty,
   animateEntrance,
+  extensions,
 }: {
   pageId: string;
   blocks: NoteBlockRow[];
@@ -96,8 +103,9 @@ function SingleBlockEditorInner({
   ensurePage?: () => Promise<void>;
   deleteWhenEmpty?: boolean;
   animateEntrance: boolean;
+  extensions: Extensions;
 }) {
-  const editor = useSingleBlockEditor({ pageId, blocks, handlers, autoFocus, debounceMs, ensurePage, deleteWhenEmpty });
+  const editor = useSingleBlockEditor({ pageId, blocks, handlers, autoFocus, debounceMs, ensurePage, deleteWhenEmpty, extensions });
   const surfaceRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {

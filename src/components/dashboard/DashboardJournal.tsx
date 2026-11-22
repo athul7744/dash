@@ -10,6 +10,9 @@ import { useAllTags } from "@/hooks/use-tags";
 import { summarizeDayHighlights } from "@/lib/highlights/highlights";
 import { tagColors } from "@/lib/tasks/colors";
 import { journalDayKey, useJournalEntryDays } from "@/hooks/use-journal";
+import { useCurrentUserId } from "@/hooks/use-current-user-id";
+import { useLinkedTargets } from "@/hooks/use-links";
+import { systemPageId } from "@/lib/notes/system-pages";
 import { getApp } from "@/lib/shared/apps";
 import { cn } from "@/lib/shared/utils";
 
@@ -29,6 +32,11 @@ export function DashboardJournal() {
   const weekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [today]);
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const entryDays = useJournalEntryDays(days);
+  const userId = useCurrentUserId();
+  // One query for the week's linked days, rather than one per entry.
+  const linkedDays = useLinkedTargets(
+    useMemo(() => (userId ? days.map((d) => systemPageId(userId, "journal", journalDayKey(d))) : []), [userId, days]),
+  );
   const eventsByDay = useHighlightsForDays(useMemo(() => days.map((d) => journalDayKey(d)), [days]));
   const { tags: allTags } = useAllTags();
   const [selected, setSelected] = useState<Date>(() => today);
@@ -93,6 +101,7 @@ export function DashboardJournal() {
         key={selKey}
         date={selected}
         hasEntry={entryDays.has(selKey)}
+        isLinked={!!userId && linkedDays.has(systemPageId(userId, "journal", selKey))}
         placeholder={selectedIsToday ? "How did today go?" : "Write about this day…"}
       />
     </section>

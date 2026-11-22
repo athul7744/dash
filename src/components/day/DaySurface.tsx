@@ -34,6 +34,7 @@ import { useDayCaptures, useDayOccurrences, useDayTasks } from "@/hooks/use-day"
 import { useSubjectLabels } from "@/hooks/use-events";
 import { useDayHighlights } from "@/hooks/use-highlights";
 import { useJournalEntryDays } from "@/hooks/use-journal";
+import { useLinkedTargets } from "@/hooks/use-links";
 import { useBacklinks } from "@/hooks/use-links";
 import { useTimeGrid } from "@/hooks/use-time-grid";
 import { getDueDateInfo } from "@/lib/tasks/tasks";
@@ -100,6 +101,9 @@ export function DaySurface() {
   const userId = useCurrentUserId();
   const journalPageId = userId ? systemPageId(userId, "journal", dateKey) : null;
   const hasJournalEntry = useJournalEntryDays(days).has(dateKey);
+  const linkedJournals = useLinkedTargets(
+    useMemo(() => (userId ? [systemPageId(userId, "journal", dateKey)] : []), [userId, dateKey]),
+  );
   const linkedFrom = useBacklinks(journalPageId);
 
   const summary = useMemo(
@@ -224,7 +228,12 @@ export function DaySurface() {
         </header>
 
         <Section title="Journal">
-          <DailyJournalEntry date={date} placeholder="Write about this day…" hasEntry={hasJournalEntry} />
+          <DailyJournalEntry
+            date={date}
+            placeholder="Write about this day…"
+            hasEntry={hasJournalEntry}
+            isLinked={!!userId && linkedJournals.has(systemPageId(userId, "journal", dateKey))}
+          />
         </Section>
 
         {highlights.length > 0 ? (

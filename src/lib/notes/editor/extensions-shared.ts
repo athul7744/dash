@@ -1,0 +1,140 @@
+"use client";
+
+/**
+ * The extension list the single-document editor shares between its two profiles.
+ *
+ * Every content node, mark and plugin lives here except the **code block**, which
+ * the profile supplies: the notes editor highlights syntax (a `lowlight` grammar
+ * registry, built once per list), while a journal entry does not need it. That one
+ * difference is what keeps the ~86KB gzipped highlighter out of the tracker route.
+ *
+ * The rest is deliberately identical between profiles: a journal block can hold
+ * anything the schema knows — a table pasted in, an image, `$math$`, a `[[ref]]`,
+ * a `{date}` chip — and a node type missing from the schema would make that stored
+ * content unparseable.
+ */
+
+import type { Extensions, Node as TiptapNode } from "@tiptap/core";
+import { ReactNodeViewRenderer } from "@tiptap/react";
+import Blockquote from "@tiptap/extension-blockquote";
+import Bold from "@tiptap/extension-bold";
+import Code from "@tiptap/extension-code";
+import Dropcursor from "@tiptap/extension-dropcursor";
+import Gapcursor from "@tiptap/extension-gapcursor";
+import HardBreak from "@tiptap/extension-hard-break";
+import Heading from "@tiptap/extension-heading";
+import History from "@tiptap/extension-history";
+import Italic from "@tiptap/extension-italic";
+import Paragraph from "@tiptap/extension-paragraph";
+import Strike from "@tiptap/extension-strike";
+import { Table } from "@tiptap/extension-table";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+import TableRow from "@tiptap/extension-table-row";
+import Text from "@tiptap/extension-text";
+
+import { BlockColor } from "@/components/notes/NoteBlockEditorColor";
+import {
+  BlockColorShortcut,
+  LinkOpenControls,
+  MarkdownLink,
+  NotesArrowReplacement,
+  NotesHorizontalRule,
+  NotesImage,
+  ReferenceDecorations,
+  TaskShortcut,
+} from "@/components/notes/NoteBlockEditorExtensions";
+import { MathBlock, MathInline } from "@/components/notes/NoteBlockEditorMath";
+import { DateTokenNode } from "@/components/notes/DateTokenNode";
+import { EntityRefNode } from "@/components/links/EntityRefNode";
+import { NoteImageView } from "@/components/notes/editor/NoteImageView";
+import { QueryBlock } from "@/components/notes/editor/QueryBlockNode";
+import { TaskLine } from "@/components/notes/editor/TaskLineNode";
+import { createBlockNodeView } from "@/components/notes/editor/blockNodeViewDom";
+import { LinkEmbedNode } from "@/components/notes/editor/LinkEmbedNode";
+
+import { NotesDocument, BlockNode, asBlockContent, BLOCK_CONTENT_GROUP } from "./block-schema";
+import { BlockIdPlugin } from "./block-id-plugin";
+import { BlockNormalize } from "./block-normalize";
+import { ImageAdopt } from "./image-adopt";
+
+/**
+ * Build the list, with `codeBlock` as supplied by the profile.
+ *
+ * A function rather than a constant because the profile decides one node; both
+ * profiles then hoist the result to a module constant, so the list is built once
+ * per session rather than once per editor.
+ */
+export function buildSharedExtensions(codeBlock: TiptapNode): Extensions {
+  const Table_ = Table.extend({
+    renderHTML({ HTMLAttributes }) {
+      return ["table", HTMLAttributes, ["tbody", 0]];
+    },
+  }).configure({ resizable: false });
+
+  return [
+    // Document + block wrapper (plain-DOM NodeView; menu via BlockMenuLayer).
+    NotesDocument,
+    BlockNode.extend({
+      addNodeView() {
+        return (props) => createBlockNodeView(props);
+      },
+    }),
+
+    // Block-level content nodes — re-grouped so they only live inside a block.
+    asBlockContent(Paragraph),
+    asBlockContent(Heading.configure({ levels: [1, 2, 3, 4, 5] })),
+    // Containers whose default content targets the "block" group must instead
+    // hold `blockContent` — the group content nodes were regrouped into — or
+    // they hold no valid children and structural ops (canSplit) throw.
+    asBlockContent(Blockquote.extend({ content: `${BLOCK_CONTENT_GROUP}+` })),
+    asBlockContent(codeBlock),
+    // The image NodeView resolves stored files, so it's attached here rather than
+    // on the node itself — the node stays importable without pulling in the db.
+    asBlockContent(
+      NotesImage.extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(NoteImageView);
+        },
+      }),
+    ),
+    asBlockContent(NotesHorizontalRule),
+    asBlockContent(Table_),
+    asBlockContent(MathBlock),
+    TaskLine,
+    QueryBlock,
+    LinkEmbedNode,
+
+    // Inline nodes / marks / table + task children — unchanged.
+    Text,
+    Bold,
+    Italic,
+    Strike,
+    Code,
+    HardBreak,
+    MathInline,
+    EntityRefNode,
+    DateTokenNode,
+    TableRow,
+    TableHeader.extend({ content: `${BLOCK_CONTENT_GROUP}+` }),
+    TableCell.extend({ content: `${BLOCK_CONTENT_GROUP}+` }),
+
+    // Cross-cutting behavior.
+    BlockColor,
+    MarkdownLink,
+    LinkOpenControls,
+    NotesArrowReplacement,
+    TaskShortcut,
+    BlockColorShortcut,
+    ReferenceDecorations,
+    ImageAdopt,
+    Dropcursor,
+    Gapcursor,
+    History,
+
+    // Single-document structural behavior. (Enter/Tab/Backspace are handled in
+    // the editor's handleKeyDown so they run before plugin keymaps.)
+    BlockIdPlugin,
+    BlockNormalize,
+  ];
+}

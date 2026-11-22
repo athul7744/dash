@@ -28,7 +28,7 @@ import { SQL_UTC_NOW_EXPRESSION } from "@/lib/shared/debounced-update";
 
 import { assembleDoc, type BlockDocumentRow } from "@/lib/notes/editor/block-document";
 import { BlockDocumentPersister } from "@/lib/notes/editor/block-persister";
-import { buildNoteEditorExtensions } from "@/lib/notes/editor/extensions";
+import type { Extensions } from "@tiptap/core";
 import { STAMP_META } from "@/lib/notes/editor/block-id-plugin";
 import { splitBlock, indentBlock, outdentBlock, mergeBlockBackward } from "@/lib/notes/editor/block-commands";
 import { insertMarkdown, clipboardMarkdown, pasteUrlAsLink } from "@/lib/notes/editor/markdown-paste";
@@ -62,6 +62,7 @@ export function useSingleBlockEditor({
   debounceMs,
   ensurePage,
   deleteWhenEmpty = false,
+  extensions,
 }: {
   pageId: string;
   blocks: NoteBlockRow[];
@@ -70,6 +71,8 @@ export function useSingleBlockEditor({
   debounceMs?: number;
   ensurePage?: () => Promise<void>;
   deleteWhenEmpty?: boolean;
+  /** The schema this editor runs on — see `extensions.ts` and `extensions-journal.ts`. */
+  extensions: Extensions;
 }): Editor | null {
   const { toast } = useToast();
   const rows = useMemo(() => blocks.map(toBlockDocumentRow), [blocks]);
@@ -123,7 +126,7 @@ export function useSingleBlockEditor({
   const editor = useEditor({
     immediatelyRender: false,
     autofocus: autoFocus ? "end" : false,
-    extensions: buildNoteEditorExtensions(),
+    extensions,
     content: initialContent,
     editorProps: {
       attributes: {

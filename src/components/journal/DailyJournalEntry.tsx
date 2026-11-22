@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useQuery } from "@powersync/react";
 
 import { SingleBlockEditor } from "@/components/notes/editor/SingleBlockEditor";
+import { JOURNAL_EDITOR_EXTENSIONS } from "@/lib/notes/editor/extensions-journal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentUserId } from "@/hooks/use-current-user-id";
 import { ensureJournalPage, journalDayKey } from "@/hooks/use-journal";
-import { REF_TYPE_SQL } from "@/lib/links/links";
 import { systemPageId } from "@/lib/notes/system-pages";
 
 /** Compact two-line loader sized to a short journal entry, so the editor
@@ -36,10 +35,16 @@ export function DailyJournalEntry({
   date,
   placeholder = "Write about this day…",
   hasEntry = false,
+  isLinked = false,
 }: {
   date: Date;
   placeholder?: string;
   hasEntry?: boolean;
+  /**
+   * Whether anything links to this day's page. Passed in rather than queried here:
+   * a week of entries asked the same question seven times.
+   */
+  isLinked?: boolean;
 }) {
   const dayKey = journalDayKey(date);
   const userId = useCurrentUserId();
@@ -53,11 +58,6 @@ export function DailyJournalEntry({
 
   // An empty day is normally pruned, but not one something links to: the
   // reference resolves against this row, so deleting it would strand the link.
-  const { data: inboundRefs = [] } = useQuery<{ c: number }>(
-    pageId ? `SELECT COUNT(*) AS c FROM edges WHERE target_id = ? AND ${REF_TYPE_SQL}` : "SELECT 0 AS c WHERE 0",
-    pageId ? [pageId] : [],
-  );
-  const isLinked = (inboundRefs[0]?.c ?? 0) > 0;
 
   const showEditor = hasEntry || opened;
 
@@ -77,6 +77,7 @@ export function DailyJournalEntry({
             deleteWhenEmpty={!isLinked}
             loadingFallback={<JournalEntryLoading />}
             animateEntrance={false}
+            extensions={JOURNAL_EDITOR_EXTENSIONS}
           />
         </div>
       ) : (

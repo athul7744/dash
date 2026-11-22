@@ -10,7 +10,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@powersync/react";
 
-import { refTypeSql } from "@/lib/links/links";
+import { REF_TYPE_SQL, refTypeSql } from "@/lib/links/links";
 import {
   classifyEntityRow,
   ENTITY_JOIN_SQL,
@@ -40,4 +40,22 @@ export function useBacklinks(targetId?: string | null): ResolvedEntity[] {
     }
     return out;
   }, [data, targetId]);
+}
+
+/**
+ * Which of these pages something links to — a `Set` of the linked ones.
+ *
+ * Batched for a whole week's journal (one query) rather than a count per entry,
+ * which had seven live queries answering the same question on one screen.
+ */
+export function useLinkedTargets(targetIds: readonly string[]): Set<string> {
+  const ids = useMemo(() => [...new Set(targetIds.filter(Boolean))], [targetIds]);
+  const { data = [] } = useQuery<{ target_id: string }>(
+    ids.length
+      ? `SELECT DISTINCT target_id FROM edges WHERE target_id IN (${ids.map(() => "?").join(",")}) AND ${REF_TYPE_SQL}`
+      : "SELECT NULL AS target_id WHERE 0",
+    ids,
+  );
+
+  return useMemo(() => new Set(data.map((row) => row.target_id)), [data]);
 }

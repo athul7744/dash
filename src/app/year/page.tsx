@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
-import { Flag } from "lucide-react";
+import { Flag, Tag as TagIcon } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { CollectionHeading } from "@/components/CollectionHeading";
@@ -12,7 +12,9 @@ import { MobileBottomFabs } from "@/components/MobileBottomFabs";
 import { SpriteIcon } from "@/components/notes/SpriteIcon";
 import { SelectedTagPills } from "@/components/tags/SelectedTagPills";
 import { TagColorMark } from "@/components/tags/TagColorMark";
+import { ManageTagsDialog } from "@/components/tasks/ManageTagsDialog";
 import { YearSelect } from "@/components/tracker/YearSelect";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHighlightsByYear } from "@/hooks/use-highlights";
 import { useAllTags } from "@/hooks/use-tags";
@@ -72,6 +74,7 @@ export default function YearPage() {
   };
 
   // Marking from here writes to today; a card opens its own event for editing.
+  const [manageTagsOpen, setManageTagsOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Highlight | null>(null);
   const today = useMemo(() => new Date(), []);
@@ -87,7 +90,16 @@ export default function YearPage() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-background">
-      <AppHeader app={yearApp} />
+      <AppHeader
+        app={yearApp}
+        actions={<ManageTagsDialog />}
+        mobileMenuItems={
+          <DropdownMenuItem onClick={() => setManageTagsOpen(true)}>
+            <span>Manage Tags</span>
+            <TagIcon className="ml-auto h-4 w-4 text-muted-foreground" />
+          </DropdownMenuItem>
+        }
+      />
 
       <main className="flex-1 overflow-y-auto overflow-x-hidden px-[var(--app-gutter-x)] py-6 pb-40">
         <div className="mx-auto flex max-w-5xl gap-8">
@@ -215,6 +227,10 @@ export default function YearPage() {
           </button>
         }
       />
+
+      {/* Desktop opens the tag manager from the header trigger; a phone opens
+          this instance from the overflow menu, so it carries no trigger. */}
+      <ManageTagsDialog open={manageTagsOpen} onOpenChange={setManageTagsOpen} hideTrigger />
 
       <HighlightDialog
         open={dialogOpen}

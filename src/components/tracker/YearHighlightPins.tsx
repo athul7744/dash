@@ -117,34 +117,39 @@ export function YearHighlightPins({
       aria-hidden={onSelect ? undefined : true}
       className={cn("pointer-events-none absolute inset-0 z-20", className)}
     >
-      {/* Leaders first, so a bubble always paints over its own line. */}
-      <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
-        {placed.map((pin) => {
-          const source = pins.find((candidate) => candidate.id === pin.id);
-          if (!source) return null;
-          const target = nearestPointOnBox(source.anchorX, source.anchorY, pin);
-          if (!target) return null;
-          return (
-            <g key={pin.id}>
-              <line
-                x1={source.anchorX}
-                y1={source.anchorY}
-                x2={target.x}
-                y2={target.y}
-                strokeWidth={1}
-                className="stroke-black/25 dark:stroke-white/35"
-              />
-              {/* The point itself: a small diamond sitting on the date. */}
-              <path
-                d="M0,-3.5 L3.5,0 L0,3.5 L-3.5,0 Z"
-                transform={`translate(${source.anchorX} ${source.anchorY})`}
-                className="fill-white stroke-black/25 dark:fill-neutral-800 dark:stroke-white/35"
-                strokeWidth={1}
-              />
-            </g>
-          );
-        })}
-      </svg>
+      {/* Leaders first, so a bubble always paints over its own line. A horizontally
+          placed pin carries its point on its own body instead, so it draws none of
+          this: the bubble sits beside the row it marks, and a line across the grid
+          only cluttered it. */}
+      {axis === "y" ? (
+        <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
+          {placed.map((pin) => {
+            const source = pins.find((candidate) => candidate.id === pin.id);
+            if (!source) return null;
+            const target = nearestPointOnBox(source.anchorX, source.anchorY, pin);
+            if (!target) return null;
+            return (
+              <g key={pin.id}>
+                <line
+                  x1={source.anchorX}
+                  y1={source.anchorY}
+                  x2={target.x}
+                  y2={target.y}
+                  strokeWidth={1}
+                  className="stroke-black/25 dark:stroke-white/35"
+                />
+                {/* The point itself: a small diamond sitting on the date. */}
+                <path
+                  d="M0,-3.5 L3.5,0 L0,3.5 L-3.5,0 Z"
+                  transform={`translate(${source.anchorX} ${source.anchorY})`}
+                  className="fill-white stroke-black/25 dark:fill-neutral-800 dark:stroke-white/35"
+                  strokeWidth={1}
+                />
+              </g>
+            );
+          })}
+        </svg>
+      ) : null}
 
       {pins.map((pin) => {
         const [primaryId] = pin.eventIds ?? [];
@@ -162,6 +167,16 @@ export function YearHighlightPins({
               <span className="shrink-0 self-center rounded-sm bg-black/5 px-1 text-[10px] tabular-nums text-neutral-500 dark:bg-white/10 dark:text-neutral-300">
                 +{pin.extra}
               </span>
+            ) : null}
+            {/* A horizontally placed pin points at its row from its own left edge:
+                the bubble already sits beside the day, so the point belongs on the
+                body rather than on a line across the grid. */}
+            {axis === "x" ? (
+              <span
+                aria-hidden
+                className="absolute h-2 w-2 rotate-45 border-l border-b border-black/10 bg-white dark:border-white/20 dark:bg-neutral-800"
+                style={{ left: -4, top: "50%", marginTop: -4 }}
+              />
             ) : null}
           </>
         );

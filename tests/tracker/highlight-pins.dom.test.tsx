@@ -4,10 +4,10 @@
  * The year views' pins: a bubble per marked day, and one leader from the day back
  * to the bubble.
  *
- * The leader is the part that used to break in the activity grid: pins there were
- * placed *over* the point they marked, so there was nothing to draw a line from and
- * the diamonds silently went missing. These cases pin the resting position on both
- * axes — the anchor must never end up inside its own bubble.
+ * The two grids draw their point differently. The mood grid hangs a bubble above
+ * its date and joins the two with a leader. The activity grid sits the bubble
+ * beside the row it marks, so the point lives on the bubble's own left edge and no
+ * line is drawn across the grid.
  */
 
 import React, { act } from "react";
@@ -52,6 +52,9 @@ const render = (pins: YearPin[], axis: "x" | "y") => {
   });
 };
 
+/** The point a horizontal pin wears on its body. */
+const bodyPoint = () => container.querySelector("button span.rotate-45, div > span.rotate-45");
+
 /** The leader lines the component draws — `line` elements, not icon geometry. */
 const leaders = () =>
   [...container.querySelectorAll("svg > g > line")].map((line) => ({
@@ -95,7 +98,7 @@ describe("YearHighlightPins", () => {
     expect(diamonds()).toBe(1);
   });
 
-  it("places a horizontally placed pin beside its row and points sideways at it", () => {
+  it("places a horizontally placed pin beside its row, with its point on its body", () => {
     render([pin({ anchorX: 100, anchorY: 300 })], "x");
 
     const bubble = container.querySelector("[data-pin-id]") as HTMLElement;
@@ -103,9 +106,11 @@ describe("YearHighlightPins", () => {
     // Level with the row: centred on its centreline.
     expect(bubble.style.top).toBe("285px");
 
-    // The anchor is outside the bubble, so the leader — and its diamond — exist.
-    expect(leaders()).toEqual([{ x1: 100, y1: 300, x2: 110, y2: 300 }]);
-    expect(diamonds()).toBe(1);
+    // No line across the grid; the diamond sits on the bubble's left edge.
+    expect(leaders()).toHaveLength(0);
+    const point = bodyPoint() as HTMLElement;
+    expect(point).not.toBeNull();
+    expect(point.style.left).toBe("-4px");
   });
 
   it("gives every pin its own leader, however they are nudged", () => {
@@ -119,8 +124,9 @@ describe("YearHighlightPins", () => {
     );
 
     expect(container.querySelectorAll("[data-pin-id]")).toHaveLength(3);
-    expect(leaders()).toHaveLength(3);
-    expect(diamonds()).toBe(3);
+    // Every pin keeps its own point, and none of them draws a line.
+    expect(container.querySelectorAll("span.rotate-45")).toHaveLength(3);
+    expect(leaders()).toHaveLength(0);
     // Nudged pins fan out along the row rather than stacking.
     const lefts = [...container.querySelectorAll<HTMLElement>("[data-pin-id]")].map((el) => el.style.left);
     expect(new Set(lefts).size).toBeGreaterThan(1);

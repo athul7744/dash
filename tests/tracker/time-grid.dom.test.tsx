@@ -99,7 +99,7 @@ describe("TimeGrid's Day column", () => {
     expect(dayLinks()[0].textContent).toBe("Sun, Sep 20");
   });
 
-  it("marks a day that is a major event beside its name, in its tag colours", () => {
+  it("marks a day that is a highlight beside its name, in its tag colours", () => {
     render([new Date(2026, 8, 20), new Date(2026, 8, 21)]);
 
     const [marked, plain] = dayLinks();

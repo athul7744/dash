@@ -5,7 +5,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { PowerSyncProvider } from "@/components/powersync-provider";
 import { CaptureProvider } from "@/components/capture/CaptureProvider";
 import { AppUpdateWatcher } from "@/components/AppUpdateWatcher";
-import { HighlightStorageMigration } from "@/components/HighlightStorageMigration";
 import { FlushOnHide } from "@/components/FlushOnHide";
 import { CommandPaletteProvider } from "@/components/command/CommandPaletteProvider";
 import { PreventZoom } from "@/components/PreventZoom";
@@ -86,9 +85,6 @@ export default function RootLayout({
                 provider can only be used from inside its own subtree. */}
             {/* Below PowerSync, so pending edits have a database to land in. */}
             <FlushOnHide />
-            {/* Above every screen that reads highlights: it rewrites rows stored
-                under the feature's old name before they are queried. */}
-            <HighlightStorageMigration />
             <ToastProvider>
               {/* Inside the toast provider: an update offer is a toast. */}
               <AppUpdateWatcher />

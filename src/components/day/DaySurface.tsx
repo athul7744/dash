@@ -49,7 +49,7 @@ import { cn } from "@/lib/shared/utils";
 import { summarizeDay } from "@/lib/tracker/day-summary";
 import { COLOR_HEX } from "@/components/tracker/widgets/types";
 
-/** The trailing action on a major-event row (remove), matching the row's height. */
+/** The trailing action on a highlight's row (remove), matching the row's height. */
 const MAJOR_EVENT_ROW_ACTION =
   "grid w-9 shrink-0 place-items-center rounded-lg border border-border/60 bg-muted/40 text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground dark:bg-card/80";
 
@@ -173,7 +173,7 @@ export function DaySurface() {
             </PopoverContent>
           </Popover>
 
-          {/* Day navigation, with the major-event flag at its head: marking a day
+          {/* Day navigation, with the highlight flag at its head: marking a day
               belongs with moving between them. */}
           <div className="flex items-center gap-1 pt-1">
             {!isToday ? (

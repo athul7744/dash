@@ -6,9 +6,13 @@ import { localDateKey } from "@/lib/tracker/day-keys";
 import { v4 as uuidv4 } from "uuid";
 
 /**
+ * A highlight is one-off waypoint in a year — a day worth remembering, kept out of
+ * the daily log. (It is not the Events app: that tracks recurring things with an
+ * occurrence history, which is why this feature is not called "events".)
+ *
  * Highlights are stored in the notes backend as one feature-owned "system page"
- * (kind "major-event") whose blocks are the events — each a `type="major-event"`
- * block whose `content` is JSON `{ at, title, note, emoji }`.
+ * whose blocks are the highlights — each a block of `HIGHLIGHT_BLOCK_TYPE`, whose
+ * `content` is JSON `{ at, title, note, emoji }`.
  *
  * No cadence, no lead time, no occurrence history (that is the Events app), and not
  * a second journal (that is the day page). The collection stays small by nature —
@@ -28,16 +32,13 @@ export const HIGHLIGHTS_KEY = "year";
 /**
  * The name a highlight's page, block and tag rows are stored under — one constant
  * read by the page, the block writer and the tag writer.
- *
- * Rows written before the feature was renamed from "major event" are moved to
- * this name by `migrateHighlightStorage`, which runs on start.
  */
 export const HIGHLIGHT_STORED_KIND = "highlight";
 
 export const HIGHLIGHT_BLOCK_TYPE = HIGHLIGHT_STORED_KIND;
 
 /**
- * How many tags one event may carry. Two: a waypoint is a single line in the year,
+ * How many tags one highlight may carry. Two: a waypoint is a single line in the year,
  * not a filing cabinet — the pair is enough to place it (what kind of turning
  * point, which part of life) and keeps its row on the Day surface readable. The
  * write path clamps to it, so the rule holds for the data, not just the picker.
@@ -51,11 +52,11 @@ function cappedTagIds(tagIds: readonly string[]): string[] {
 
 /** Shape stored in `blocks.content` for a highlight's block. */
 export interface HighlightContent {
-  /** Local calendar day, `yyyy-MM-dd` — the day the event belongs to. */
+  /** Local calendar day, `yyyy-MM-dd` — the day the highlight belongs to. */
   at: string;
   title: string;
   note: string;
-  /** Fluent Emoji sprite name or a raw emoji; null when the event has none. */
+  /** Fluent Emoji sprite name or a raw emoji; null when the highlight has none. */
   emoji: string | null;
 }
 
@@ -82,9 +83,8 @@ export async function ensureHighlightRegistry(): Promise<string> {
 }
 
 /**
- * Parse a `blocks.content` string into a highlight, tolerating malformed rows
- * and older ones written before a field existed — including a `color` from when
- * an event carried its own; it is ignored, not migrated, because nothing reads it.
+ * Parse a `blocks.content` string into a highlight, tolerating malformed rows and
+ * ones missing a field.
  */
 export function parseHighlightContent(raw: string | null | undefined): HighlightContent {
   let parsed: Partial<HighlightContent> = {};

@@ -21,7 +21,7 @@ export interface YearPin {
 }
 
 /**
- * The major-event pins for a year view: one map-style callout per event, floating
+ * The highlight pins for a year view: one map-style callout per highlight, floating
  * just above its day with a tail pointing at it.
  *
  * Positions come from `placePins`, so a busy stretch of the year nudges its pins
